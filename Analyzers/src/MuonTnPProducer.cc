@@ -15,8 +15,8 @@ void MuonTnPProducer::initializeAnalyzer(){
     newtree=new TTree("Events","Events");
 
     newtree->Branch("run",&RunNumber);
-    newtree->Branch("event",&EventNumber);
-    newtree->Branch("lumi",&LumiBlock);
+    newtree->Branch("event",&event);
+    newtree->Branch("lumi",&luminosityBlock);
   
     if(!IsDATA){
         newtree->Branch("genWeight",&genWeight);

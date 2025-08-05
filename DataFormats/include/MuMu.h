@@ -2,8 +2,6 @@
 #define MuMu_h
 
 #include "Particle.h"
-#include "MuMuTaggingParameter.h"
-#include "MuMuConstituent.h"
 
 class MuMu : public Particle
 {

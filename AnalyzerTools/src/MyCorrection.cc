@@ -124,14 +124,14 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
     config.txt_roccor = external_roccor_str;
     config.golden_json = sknano_data_str;
 
-    config.json_muon_custom_TopHNT_idsf = sknano_data_str;
-    config.json_muon_custom_dblmu_leg1_eff = sknano_data_str;
-    config.json_muon_custom_dblmu_leg2_eff = sknano_data_str;
-    config.json_muon_custom_emu_leg1_eff = sknano_data_str;
-    config.json_muon_custom_emu_leg2_eff = sknano_data_str;
-    config.json_electron_custom_TopHNT_idsf = sknano_data_str;
-    config.json_electron_custom_emu_leg1_eff = sknano_data_str;
-    config.json_electron_custom_emu_leg2_eff = sknano_data_str;
+    // config.json_muon_custom_TopHNT_idsf = sknano_data_str;
+    // config.json_muon_custom_dblmu_leg1_eff = sknano_data_str;
+    // config.json_muon_custom_dblmu_leg2_eff = sknano_data_str;
+    // config.json_muon_custom_emu_leg1_eff = sknano_data_str;
+    // config.json_muon_custom_emu_leg2_eff = sknano_data_str;
+    // config.json_electron_custom_TopHNT_idsf = sknano_data_str;
+    // config.json_electron_custom_emu_leg1_eff = sknano_data_str;
+    // config.json_electron_custom_emu_leg2_eff = sknano_data_str;
 
     if (era == "2024") {
         // config.json_muon += "/2023_Summer23BPix/muon_Z.json.gz";
@@ -740,7 +740,7 @@ float MyCorrection::GetBTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFl
             auto this_cset = is_heavy ? cset : cset_light;
 
             const float sf = safeEvaluate(this_cset, "GetBTaggingSF", {syst_str, this_wpStr, this_flav, fabs(jet.Eta()), jet.Pt()});
-            if (jet.GetBTaggerResult(tagger) > this_cut) {
+            if (jet.GetTaggerResult(tagger, JetTagging::JetFlavTaggerScoreType::B) > this_cut) {
                 weight *= sf;
             } else {
                 weight *= (1. - eff * sf) / (1. - eff);

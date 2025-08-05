@@ -149,17 +149,20 @@ public:
     inline float hfHEF() const { return j_hfHEF; };
     inline float muEF() const { return j_muEF; };
     inline float neEmEF() const { return j_neEmEF; };
-    inline float neHEF() const { return j_neHEF; }; 
+    inline float neHEF() const { return j_neHEF; };
 
     inline void SetOriginalIndex(int idx) { j_originalIndex = idx; };
     inline int OriginalIndex() const { return j_originalIndex; };
 
-    void SetPFConstituents(const RVec<JetConstituent> &constituents)
+    void SetPFConstituents(RVec<JetConstituent> constituents)
     {
-        j_constituents = constituents;
-    };
-    inline RVec<JetConstituent> PFConstituents() const { return j_constituents; };
+        j_constituents = std::move(constituents);
+    }
 
+    const RVec<JetConstituent> &PFConstituents() const noexcept
+    {
+        return j_constituents;
+    }
     float GetTaggerResult(JetTagging::FatJetTagger tagger, JetTagging::FatJetTaggerScoreType scoreType) const;
 
 private:
@@ -205,12 +208,10 @@ private:
     unordered_map<JetTagging::FatJetTaggerScoreType, float> j_globalParT3WithMass;
 
     // ───── PF constituents ──────────────────────────
-    RVec<Particle> j_constituents;
+    RVec<JetConstituent> j_constituents;
 
     // ───── Matching Information ────────────────────
     size_t j_originalIndex; // original index in the event
-
-
 
     ClassDef(FatJet, 1)
 };

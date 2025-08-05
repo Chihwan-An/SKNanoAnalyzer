@@ -24,10 +24,10 @@ public:
   // setting functions
   inline void SetRawPt(float pt) { jet_rawPt = pt; };
   inline void SetOriginalPt(float pt) { jet_originalPt = pt; };
-  //inline void SetJESUncertainty(float JESUnc) { jet_JESUnc = JESUnc; };
+  // inline void SetJESUncertainty(float JESUnc) { jet_JESUnc = JESUnc; };
   float GetRawPt() const { return jet_rawPt; };
   float GetOriginalPt() const { return jet_originalPt; };
-  //float GetJESUnc() const { return jet_JESunc; };
+  // float GetJESUnc() const { return jet_JESunc; };
 
   inline void SetArea(double area) { j_area = area; };
   inline void SetJetFlavours(short pf, unsigned char hf)
@@ -78,7 +78,8 @@ public:
   inline float chEmEF() const { return j_chEmEF; }
   inline float muEF() const { return j_muEF; }
 
-  inline void SetMultiplicities(unsigned char nC, unsigned char nEl, unsigned char nM, unsigned char nSV) {
+  inline void SetMultiplicities(unsigned char nC, unsigned char nEl, unsigned char nM, unsigned char nSV)
+  {
     // typecast before assign
     j_nConstituents = short(nC);
     j_nElectrons = short(nEl);
@@ -91,7 +92,8 @@ public:
   inline short nSVs() const { return j_nSVs; }
 
   // For NanoAODv13
-  inline void SetHadronMultiplicities(unsigned char chMult, unsigned char neMult){
+  inline void SetHadronMultiplicities(unsigned char chMult, unsigned char neMult)
+  {
     j_chMultiplicity = chMult;
     j_neMultiplicity = neMult;
   };
@@ -119,15 +121,16 @@ public:
     j_svIdx2 = sv2;
   };
 
-
   inline void SetOriginalIndex(int idx) { j_originalIndex = idx; };
   inline int OriginalIndex() const { return j_originalIndex; };
 
-  inline void SetJetPuIDScore(float puIDScore) {
+  inline void SetJetPuIDScore(float puIDScore)
+  {
     j_puIDScore = puIDScore;
   };
 
-  inline void SetCorrections(RVec<float> corrs) {
+  inline void SetCorrections(RVec<float> corrs)
+  {
     j_PNetRegPtRawCorr = corrs[0];
     j_PNetRegPtRawCorrNeutrino = corrs[1];
     j_PNetRegPtRawRes = corrs[2];
@@ -140,11 +143,13 @@ public:
     j_rawFactor = corrs[9];
   };
 
-  inline void SetM(double jet_m) {
+  inline void SetM(double jet_m)
+  {
     j_m = jet_m;
   };
-  
-  inline void SetUnsmearedP4(Jet jet) {
+
+  inline void SetUnsmearedP4(Jet jet)
+  {
     j_unsmearedP4 = jet;
   };
   inline double GetM() { return j_m; }
@@ -156,11 +161,15 @@ public:
   inline float neutralEMFraction() const { return j_neEmEF; }
   inline float neutralHadronFraction() const { return j_neHEF; }
   inline float EMFraction() const { return j_chEmEF + j_neEmEF; }
-  void SetPFConstituents(const RVec<JetConstituent> &constituents)
+  void SetPFConstituents(RVec<JetConstituent> constituents)
   {
-    j_constituents = constituents;
-  };
-  inline RVec<JetConstituent> PFConstituents() const { return j_constituents; };
+    j_constituents = std::move(constituents);
+  }
+
+  const RVec<JetConstituent> &PFConstituents() const noexcept
+  {
+    return j_constituents;
+  }
   float GetTaggerResult(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerScoreType) const;
   TLorentzVector GetUnsmearedP4() const;
 
@@ -168,9 +177,9 @@ private:
   // For uncorrecting JES
   float jet_rawPt;
   float jet_originalPt;
-  //float jet_JESunc;
-  // For matching indices in leptons
-  int j_originalIndex; 
+  // float jet_JESunc;
+  //  For matching indices in leptons
+  int j_originalIndex;
   // jetPuID
   float j_puIDScore;
   // corrections
@@ -185,9 +194,9 @@ private:
   float j_UParTAK4V1RegPtRawRes;
   float j_rawFactor;
   // flav. tagging scores
-  //deepjet
+  // deepjet
   unordered_map<JetTagging::JetFlavTaggerScoreType, float> j_btagDeepFlav;
-  //pnet
+  // pnet
   unordered_map<JetTagging::JetFlavTaggerScoreType, float> j_btagPNet;
   // part
   unordered_map<JetTagging::JetFlavTaggerScoreType, float> j_btagUParTAK4;

@@ -1,5 +1,5 @@
-#ifndef JetConstitient_h
-#define JetConstitient_h
+#ifndef JetConstituent_h
+#define JetConstituent_h
 
 #include <iostream>
 #include "TLorentzVector.h"
@@ -13,14 +13,14 @@ using namespace ROOT::VecOps;
 
 //typedef ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float>> fLorentzVector;
 
-class JetConstitient: public Particle {
+class JetConstituent: public Particle {
 public:
     // Default constructor with p4
-    JetConstitient();
+    JetConstituent();
     // LorentzVector copy constructor
-    JetConstitient(const TLorentzVector &p);
+    JetConstituent(const TLorentzVector &p);
     // Copy constructor
-    JetConstitient(const JetConstitient &p);
+    JetConstituent(const JetConstituent &p);
 
     inline void SetPUPPIWeight(float weight) { j_puppiWeight = weight; }
     inline float PUPPIWeight() const { return j_puppiWeight; }
@@ -33,7 +33,7 @@ public:
 private:
     int j_pid; // Particle ID
     float j_puppiWeight; // PUPPI weight
-    ClassDef(JetConstitient, 1)
+    ClassDef(JetConstituent, 1)
 
 };
 

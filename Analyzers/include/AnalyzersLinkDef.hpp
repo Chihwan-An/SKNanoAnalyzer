@@ -14,8 +14,11 @@
 #pragma link C++ class Vcb_DL+;
 #pragma link C++ class GeneratorBase+;
 #pragma link C++ class DiLeptonBase+;
+#pragma link C++ class DiLepton+;
 #pragma link C++ class ParseEleIDVariables+;
 #pragma link C++ class ParseMuIDVariables+;
 #pragma link C++ class TestGetLeptonType+;
 #pragma link C++ class TTreeReaderWrappers+;
 #pragma link C++ class TriggerInfo+;
+#pragma link C++ class MeasTrigEff+;
+#pragma link C++ class MuonTnPProducer+;

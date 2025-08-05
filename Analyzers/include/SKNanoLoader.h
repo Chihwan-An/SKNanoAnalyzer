@@ -40,6 +40,7 @@ public:
     // bool IsFastSim;
     int DataYear;
     TString DataEra;
+    TString DataPeriod;
     int Run;
     float xsec, sumW, sumSign;
     RVec<TString> Userflags;
@@ -58,7 +59,8 @@ public:
         else if (DataYear == 2022 or DataYear == 2023 or DataYear == 2024 or DataYear == 2025)
             Run = 3;
     }
-    virtual void SetCampaign(TString campaign) { Campaign = campaign; }
+    virtual void SetPeriod(TString period) { DataPeriod=period; }
+    virtual void SetCampaign(TString campaign) { Campaign=campaign; }
 
     virtual TString GetEra() const { return DataEra; }
     virtual TString GetCampaign() const { return Campaign; }

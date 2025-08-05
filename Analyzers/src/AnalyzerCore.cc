@@ -35,32 +35,50 @@ AnalyzerCore::~AnalyzerCore()
     // if (pdfReweight) delete pdfReweight;
 }
 
-bool AnalyzerCore::PassMetFilter(const RVec<Jet> &Alljets, const Event &ev, Event::MET_Type met_type)
-{
-    bool MetFilter = true;
-    MetFilter = Flag_goodVertices && Flag_globalSuperTightHalo2016Filter && Flag_BadPFMuonFilter && Flag_BadPFMuonDzFilter && Flag_hfNoisyHitsFilter && Flag_ecalBadCalibFilter && Flag_eeBadScFilter; // && !Flag_ecalBadCalibFilter;
-    //&& Flag_ECalDeadCellTriggerPrimitiveFilter documente as this existed in NanoAOD, but it isn't
-    if (!MetFilter)
-        return false;
-    if (Run == 2)
-        return MetFilter;
-    // Temporarily remove the ecalBadCalibFilter, Instead,
-    if (!(RunNumber <= 367144 && RunNumber >= 362433))
-        return MetFilter;
-    if (ev.GetMETVector(met_type).Pt() <= 100.)
-        return MetFilter;
-    RVec<Jet> this_jet = SelectJets(Alljets, Jet::JetID::NOCUT, 50., 5.0);
-    for (const auto &jet : this_jet)
-    {
-        bool badEcal = (jet.Pt() > 50.);
-        badEcal = badEcal && (jet.neEmEF() > 0.9 || jet.chEmEF() > 0.9) ;
-        badEcal = badEcal && jet.DeltaR(ev.GetMETVector(met_type)) < 0.3;
-        badEcal = badEcal && jet.Eta() > -0.5 && jet.Eta() < -0.1;
-        badEcal = badEcal && jet.Phi() > -2.1 && jet.Phi() < -1.8;
-        if (badEcal)
-            return false;
+// https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2
+bool AnalyzerCore::PassNoiseFilter(const RVec<Jet> &Alljets, const Event &ev, Event::MET_Type met_type) {
+    bool passNoiseFilter = true;
+    if (Run == 2) {
+        passNoiseFilter = Flag_goodVertices
+                       && Flag_globalSuperTightHalo2016Filter
+                       && Flag_HBHENoiseFilter
+                       && Flag_HBHENoiseIsoFilter
+                       && Flag_EcalDeadCellTriggerPrimitiveFilter
+                       && Flag_BadPFMuonFilter
+                       && Flag_BadPFMuonDzFilter
+                       && Flag_hfNoisyHitsFilter
+                       && Flag_eeBadScFilter;
+        if (DataEra.Contains("2017") || DataEra.Contains("2018")) {
+            passNoiseFilter = passNoiseFilter && Flag_ecalBadCalibFilter;
+        }
+        return passNoiseFilter;
+    } else { // Run3
+        bool passNoiseFilter = Flag_goodVertices 
+                            && Flag_globalSuperTightHalo2016Filter
+                            && Flag_EcalDeadCellTriggerPrimitiveFilter
+                            && Flag_BadPFMuonFilter 
+                            && Flag_BadPFMuonDzFilter 
+                            && Flag_hfNoisyHitsFilter 
+                            && Flag_eeBadScFilter;
+        if (!passNoiseFilter) return false;
+    
+        // Temporarily remove the Flag_ecalBadCalibFilter. Instead
+        if (! IsDATA) return passNoiseFilter; // Not applying to MC
+        if (! (362433 <= RunNumber && RunNumber <= 367144)) return passNoiseFilter;
+    
+        const Particle METv = ev.GetMETVector(met_type);
+        if (METv.Pt() <= 100.) return passNoiseFilter;
+        RVec<Jet> this_jet = SelectJets(Alljets, "NOCUT", 50., 0.5);
+        for(const auto &jet: this_jet){
+            bool badEcal = (jet.Pt() > 50);
+            badEcal = badEcal && (-0.5 < jet.Eta() && jet.Eta() < -0.1);
+            badEcal = badEcal && (-2.1 < jet.Phi() && jet.Phi() < -1.8);
+            badEcal = badEcal && (jet.neEmEF() > 0.9 || jet.chEmEF() > 0.9) ;
+            badEcal = badEcal && jet.DeltaPhi(METv) > 2.9;
+            if(badEcal) return false;
+        }
+        return true;
     }
-    return true;
 }
 
 float AnalyzerCore::GetScaleVariation(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst)
@@ -264,15 +282,26 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
             this_jet.SetUnsmearedP4(this_jet);
         } else {
             // already smeared
-            float backward_factor = this_jet.GetUnsmearedP4().Pt() / this_jet.Pt();
+            const float backward_factor = this_jet.GetUnsmearedP4().Pt() / this_jet.Pt();
             this_jet *= backward_factor;
         }
 
+        // Following the procedures in https://github.com/choij1589/SKFlatMaker/blob/master/SKFlatMaker/src/SKFlatMaker.cc#L3378-L3419
         float this_corr = 1.;
-        float this_jer = myCorr->GetJER(this_jet.Eta(), this_jet.Pt(), Rho_fixedGridRhoFastjetAll);
-        float this_sf = myCorr->GetJERSF(this_jet.Eta(), this_jet.Pt(), syst, source);
-        float MIN_JET_ENERGY = 1e-2;
+        const float this_jer = myCorr->GetJER(this_jet.Eta(), this_jet.Pt(), fixedGridRhoFastjetAll);
+        const float this_sf = myCorr->GetJERSF(this_jet.Eta(), this_jet.Pt(), syst, source);
+        if (matched_idx[i] > 0 && matched_idx[i] < genjets.size()) {
+            // found matched jet
+            const float matched_genjet_pt = genjets[matched_idx[i]].Pt();
+            this_corr += (this_sf-1.) * (1.-matched_genjet_pt/this_jet.Pt());
+        } else {
+            this_corr += (gRandom->Gaus(0., this_jer))*sqrt(max(this_sf*this_sf-1., 0.));
+        }
+        // To avoid flipping direction (this_corr < 0)
+        const float min_corr = MIN_JET_ENERGY/this_jet.E();
+        this_corr = max(this_corr, min_corr);
         
+        /*
         if(matched_idx[i] < 0) {
             // if the jet is not matched to any genjet, do stochastic smearing
             if(this_sf < 1.) {
@@ -288,6 +317,7 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
             float new_corr = MIN_JET_ENERGY / this_jet.E();
             this_corr = max(this_corr, new_corr);
         }
+        */
         this_jet *= this_corr;
         smeared_jets.push_back(this_jet);
     }
@@ -451,17 +481,8 @@ RVec<Muon> AnalyzerCore::GetAllMuons()
             roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom);
             roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up) - roccor;
         } else {
-            float matched_pt = -999.;
-            float min_dR = 0.2;
-            for (const auto &gen: truth) {
-                if (fabs(gen.PID()) != 13) continue;
-                if (gen.Status() != 1) continue;
-                float this_dR = muon.DeltaR(gen);
-                if (this_dR < min_dR) {
-                    min_dR = this_dR;
-                    matched_pt = gen.Pt();
-                }
-            }
+            Gen matched_gen = GetGenMatchedMuon(muon, truth);
+            float matched_pt = matched_gen.Pt();
             roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom, matched_pt);
             roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up, matched_pt) - roccor;
         }
@@ -800,6 +821,7 @@ RVec<LHE> AnalyzerCore::GetAllLHEs()
     for (int i = 0; i < nLHEPart; i++)
     {
         LHE lhe;
+        lhe.SetIsEmpty(false);
         lhe.SetPtEtaPhiM(LHEPart_pt[i], LHEPart_eta[i], LHEPart_phi[i], LHEPart_mass[i]);
         lhe.SetStatus(LHEPart_status[i]);
         lhe.SetSpin(LHEPart_spin[i]);
@@ -863,7 +885,14 @@ RVec<Jet> AnalyzerCore::GetAllJets()
     RVec<Jet> Jets;
     for (int i = 0; i < nJet; i++) {
         Jet jet;
-        jet.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
+        const float rawPt = Jet_pt[i] * (1.-Jet_rawFactor[i]);
+        const float rawMass = Jet_mass[i] * (1.-Jet_rawFactor[i]);
+        const float JESSF = myCorr->GetJESSF(Jet_area[i], Jet_eta[i], rawPt, Jet_phi[i], fixedGridRhoFastjetAll, RunNumber);
+        const float correctedPt = rawPt * JESSF;
+        const float correctedMass = rawMass * JESSF;
+        jet.SetPtEtaPhiM(correctedPt, Jet_eta[i], Jet_phi[i], correctedMass);
+        jet.SetRawPt(rawPt);
+        jet.SetOriginalPt(Jet_pt[i]);
         jet.SetArea(Jet_area[i]);
         jet.SetOriginalIndex(i);
         jet.SetEnergyFractions(Jet_chHEF[i], Jet_neHEF[i], Jet_neEmEF[i], Jet_chEmEF[i], Jet_muEF[i]);
@@ -1297,17 +1326,44 @@ Gen AnalyzerCore::GetGenMatchedLepton(const Lepton &lep, const RVec<Gen> &gens)
     return gen_closest;
 }
 
-Gen AnalyzerCore::GetGenMatchedPhoton(const Lepton &lep, const RVec<Gen> &gens)
-{
-    // Find if there is a photon candidate for a source of external conversion (similar pt, direction of lepton)
-    // 1) Validity of cuts are checked for electron with PT>10. Note that the previous dPtRel<0.2 cut in the CatNtuple analysis was optimized for PT(e)>25.
-    //    External conversion rate proportionate to M^{-2}, thus muon external conversion rate is negligible.
-    // 2) As the algorithm targets stable photon near lepton, only status-1 photon should be investigated theoretically.
-    //    However, in some events, last status in photon history is 23. This is believed to be due to skimming of GEN history between pythia & MiniAOD.
-    //    This case is also covered here. Note that IsFinalPhotonSt23 has to analyze whole history, i.e. computationally heavier part in this function.
-    //    Therefore it is put at last part of criteria for efficient functioning.
-    // For more details about the optimization, ask J.B..
-    float min_dR = 0.2; // 1)
+Gen AnalyzerCore::GetGenMatchedMuon(const Muon& muon, const RVec<Gen>& gens){
+    // Find status 1 muon
+    int reco_PID = 13;
+
+    float max_dR = 0.2;
+    float min_dR = 0.1;
+    Gen gen_closest;
+    bool found_match = false;
+    float distance = 100000;
+    for (const auto &gen : gens) {
+        if (gen.Status() != 1) continue;
+        if (abs(gen.PID()) != reco_PID) continue;
+        if (gen.MotherIndex() < 0) continue; // reject ISR
+        if (gen.DeltaR(muon) > max_dR) continue;
+        float this_distance = pow(gen.DeltaR(muon)/0.005,2) + pow((muon.Pt()/gen.Pt()-1)/0.02,2);
+        if (this_distance < distance) {
+            distance = this_distance;
+            gen_closest = gen;
+            found_match = true;
+        }
+    }
+    if (!found_match) {
+        Gen dummy;
+        return dummy;
+    }
+    return gen_closest;
+}
+
+Gen AnalyzerCore::GetGenMatchedPhoton(const Lepton& lep, const RVec<Gen>& gens){
+    //Find if there is a photon candidate for a source of external conversion (similar pt, direction of lepton)
+    //1) Validity of cuts are checked for electron with PT>10. Note that the previous dPtRel<0.2 cut in the CatNtuple analysis was optimized for PT(e)>25.
+    //   External conversion rate proportionate to M^{-2}, thus muon external conversion rate is negligible.
+    //2) As the algorithm targets stable photon near lepton, only status-1 photon should be investigated theoretically. 
+    //   However, in some events, last status in photon history is 23. This is believed to be due to skimming of GEN history between pythia & MiniAOD. 
+    //   This case is also covered here. Note that IsFinalPhotonSt23 has to analyze whole history, i.e. computationally heavier part in this function.
+    //   Therefore it is put at last part of criteria for efficient functioning.
+    //For more details about the optimization, ask J.B..
+    float min_dR = 0.2;//1)
     Gen gen_closest;
     bool found_match = false;
     float pt_min = 10., dPtRelmax = 0.5, dRmax = 0.2; // 1)

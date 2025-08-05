@@ -1,10 +1,11 @@
 #include "MyCorrection.h"
 
 MyCorrection::MyCorrection() {}
-MyCorrection::MyCorrection(const TString &era, const TString &sample, const bool IsData, const string &btagging_eff_file, const string &ctagging_eff_file, const string &btagging_R_file, const string &ctagging_R_file)
+MyCorrection::MyCorrection(const TString &era, const TString &period, const TString &sample, const bool IsData, const string &btagging_eff_file, const string &ctagging_eff_file, const string &btagging_R_file, const string &ctagging_R_file)
 { 
     cout << "[MyCorrection::MyCorrection] MyCorrection created for " << era << endl;
     SetEra(era);
+    SetPeriod(period);
     SetSample(sample);
     setIsData(IsData);
 
@@ -40,14 +41,14 @@ MyCorrection::MyCorrection(const TString &era, const TString &sample, const bool
     loadCorrectionSet("met", config.json_met, cset_met, true);
     loadCorrectionSet("btagging R", config.json_btagging_R, cset_btagging_R, true);
     loadCorrectionSet("ctagging R", config.json_ctagging_R, cset_ctagging_R, true);
-    loadCorrectionSet("muon custom TopHNT idsf", config.json_muon_custom_TopHNT_idsf, cset_muon_custom_TopHNT_idsf, true);
-    loadCorrectionSet("muon custom dblmu leg1 eff", config.json_muon_custom_dblmu_leg1_eff, cset_muon_custom_dblmu_leg1_eff, true);
-    loadCorrectionSet("muon custom dblmu leg2 eff", config.json_muon_custom_dblmu_leg2_eff, cset_muon_custom_dblmu_leg2_eff, true);
-    loadCorrectionSet("muon custom emu leg1 eff", config.json_muon_custom_emu_leg1_eff, cset_muon_custom_emu_leg1_eff, true);
-    loadCorrectionSet("muon custom emu leg2 eff", config.json_muon_custom_emu_leg2_eff, cset_muon_custom_emu_leg2_eff, true);
-    loadCorrectionSet("electron custom TopHNT idsf", config.json_electron_custom_TopHNT_idsf, cset_electron_custom_TopHNT_idsf, true);
-    loadCorrectionSet("electron custom emu leg1 eff", config.json_electron_custom_emu_leg1_eff, cset_electron_custom_emu_leg1_eff, true);
-    loadCorrectionSet("electron custom emu leg2 eff", config.json_electron_custom_emu_leg2_eff, cset_electron_custom_emu_leg2_eff, true);
+    loadCorrectionSet("muon TopHNT idsf", config.json_muon_TopHNT_idsf, cset_muon_TopHNT_idsf, true);
+    loadCorrectionSet("muon TopHNT dblmu leg1 eff", config.json_muon_TopHNT_dblmu_leg1_eff, cset_muon_TopHNT_dblmu_leg1_eff, true);
+    loadCorrectionSet("muon TopHNT dblmu leg2 eff", config.json_muon_TopHNT_dblmu_leg2_eff, cset_muon_TopHNT_dblmu_leg2_eff, true);
+    loadCorrectionSet("muon TopHNT emu leg1 eff", config.json_muon_TopHNT_emu_leg1_eff, cset_muon_TopHNT_emu_leg1_eff, true);
+    loadCorrectionSet("muon TopHNT emu leg2 eff", config.json_muon_TopHNT_emu_leg2_eff, cset_muon_TopHNT_emu_leg2_eff, true);
+    loadCorrectionSet("electron TopHNT idsf", config.json_electron_TopHNT_idsf, cset_electron_TopHNT_idsf, true);
+    loadCorrectionSet("electron TopHNT emu leg1 eff", config.json_electron_TopHNT_emu_leg1_eff, cset_electron_TopHNT_emu_leg1_eff, true);
+    loadCorrectionSet("electron TopHNT emu leg2 eff", config.json_electron_TopHNT_emu_leg2_eff, cset_electron_TopHNT_emu_leg2_eff, true);
 
 
     LUM_keys["2023BPix"] = "Collisions2023_369803_370790_eraD_GoldenJson";
@@ -156,6 +157,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
     } else {
         throw invalid_argument("[MyCorrection::GetEraConfig] Invalid era: " + era);
     }
+    
     return config;
 }
 
@@ -185,6 +187,9 @@ float MyCorrection::GetMuonScaleSF(const Muon &muon, const variation syst, const
             roccor = rc.kSpreadMC(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), matched_pt, 0, 0);
             roccor_err = rc.kSpreadMCerror(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), matched_pt);
         } else {
+            //roccor = rc.kScaleMC(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), 0, 0);
+            //roccor_err = 0.;
+            //roccor_err = rc.kScaleMCerror(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi());
             roccor = rc.kSmearMC(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), muon.nTrackerLayers(), u, 0, 0);
             roccor_err = rc.kSmearMCerror(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), muon.nTrackerLayers(), u);
         }
@@ -205,7 +210,7 @@ float MyCorrection::GetMuonRECOSF(const Muon &muon, const variation syst) const 
     // For RECO efficiency, used 40-60 GeV muons due to the large background in Z-peak.
     // Plaetue already reached in a few GeV, okay to use for [10, 200] GeV muons. 
     auto cset = cset_muon->at("NUM_TrackerMuons_DEN_genTracks");
-    return cset->evaluate({muon.Eta(), (muon.MiniAODPt() < 40. ? 40. : muon.MiniAODPt()), getSystString_MUO(syst)});
+    return safeEvaluate(cset, "GetMuonRECOSF", {muon.Eta(), (muon.MiniAODPt() < 40. ? 40. : muon.MiniAODPt()), getSystString_MUO(syst)});
 }
 
 float MyCorrection::GetMuonRECOSF(const RVec<Muon> &muons, const variation syst) const {
@@ -218,19 +223,19 @@ float MyCorrection::GetMuonRECOSF(const RVec<Muon> &muons, const variation syst)
 
 float MyCorrection::GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon, const variation syst) const {
     if (Muon_ID_SF_Key == "TopHNT") {
-        auto cset = cset_muon_custom_TopHNT_idsf->at("sf");
+        auto cset = cset_muon_TopHNT_idsf->at("sf");
         if (syst == variation::nom) {
-            return cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), "nom"});
+            return safeEvaluate(cset, "GetMuonIDSF", {fabs(muon.Eta()), muon.MiniAODPt(), "nom"});
         } else if (syst == variation::up) {
-            return cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), "up"});
+            return safeEvaluate(cset, "GetMuonIDSF", {fabs(muon.Eta()), muon.MiniAODPt(), "up"});
         } else if (syst == variation::down) {
-            return cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), "down"});
+            return safeEvaluate(cset, "GetMuonIDSF", {fabs(muon.Eta()), muon.MiniAODPt(), "down"});
         } else {
             throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid syst value");
         }
     } else {
         auto cset = cset_muon->at(string(Muon_ID_SF_Key));
-        return cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), getSystString_MUO(syst)});
+        return safeEvaluate(cset, "GetMuonIDSF", {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_MUO(syst)});
     }
 }
 
@@ -250,41 +255,37 @@ float MyCorrection::GetElectronScaleUnc(const float scEta, const unsigned char s
     if (IsDATA) return 1.0;
     
     switch(Run) {
-        case 2:
-            if (syst == variation::nom) return 1.;
-            else {
-                auto cset = cset_electron_variation->at("UL-EGM_ScaleUnc");
-                vector<correction::Variable::Type> args = {
-                    GetEra().Data(),
-                    getSystString_EGM(syst),
-                    scEta,
-                    int(seedGain)
-                };
-                return cset->evaluate(args);
-            }
-            break;
-        case 3:
-            if (syst == variation::nom) return 1.;
-            else {
-                auto cset = cset_electron_variation->at("Scale");
-                vector<correction::Variable::Type> args = {
-                    "total_uncertainty",
-                    seedGain,
-                    static_cast<float>(runNumber),
-                    scEta,
-                    r9,
-                    pt
-                };
-                const float unc = cset->evaluate(args);
-                if (syst == variation::up) return 1.+unc;
-                else if (syst == variation::down) return 1.-unc;
-                else {
-                    throw runtime_error("[MyCorrection::GetElectronScaleUnc] Invalid syst value");
-                }
-            }
-            break;
-        default:
-            throw runtime_error("[MyCorrection::GetElectronScaleUnc] Invalid run number");
+    case 2: {
+        if (syst == variation::nom) return 1.;
+        auto cset = cset_electron_variation->at("UL-EGM_ScaleUnc");
+        vector<correction::Variable::Type> args = {
+            GetEra().Data(),
+            getSystString_EGMScale(syst),
+            scEta,
+            static_cast<int>(seedGain)
+        };
+        return safeEvaluate(cset, "GetElectronScaleSF", args);
+    }
+    case 3: {
+        if (syst == variation::nom) return 1.;
+        const string key = (GetEra().Contains("2022")) ? "Scale" : EGM_keys.at(GetEra().Data())+"_ScaleJSON";
+        auto cset = cset_electron_variation->at(key);
+        vector<correction::Variable::Type> args = {
+            "total_uncertainty",
+            static_cast<int>(seedGain),
+            static_cast<float>(runNumber),
+            scEta,
+            r9,
+            pt
+        };
+        const float unc = safeEvaluate(cset, "GetElectronScaleSF", args);
+        if (syst == variation::up) return 1.+unc;
+        else if (syst == variation::down) return 1.-unc;
+        else
+            throw runtime_error("[MyCorrection::GetElectronScaleUnc] Invalid syst value");
+    }
+    default:
+        throw runtime_error("[MyCorrection::GetElectronScaleUnc] Invalid run number");
     }
     
     // This should never be reached, but added to avoid compiler warning
@@ -294,14 +295,15 @@ float MyCorrection::GetElectronScaleUnc(const float scEta, const unsigned char s
 float MyCorrection::GetElectronSmearUnc(const Electron &electron, const variation syst, const unsigned int seed) const {
     if (IsDATA) return 1.0; // No smearing for data, only applied to MC
     if (Run == 2) throw runtime_error("[MyCorrection::GetElectronSmearUnc] Run2 is not supported by NanoAODv9");
-    
-    auto cset = cset_electron_variation->at("Smearing");
+
+    const string key = (GetEra().Contains("2022")) ? "Smearing" : EGM_keys.at(GetEra().Data())+"_SmearingJSON";
+    auto cset = cset_electron_variation->at(key);
     vector<correction::Variable::Type> args = {
         "rho",
         electron.scEta(),
         electron.r9()
     };
-    const float rho = cset->evaluate(args);
+    const float rho = safeEvaluate(cset, "GetElectronScaleSF", args);
     
     TRandom3 rng(seed);
     
@@ -311,10 +313,10 @@ float MyCorrection::GetElectronSmearUnc(const Electron &electron, const variatio
         return rng.Gaus(1.0, rho);
     } else if (syst == variation::up) {
         // For up variation, increase the width of the Gaussian
-        return rng.Gaus(1.0, rho + cset->evaluate({"err_rho", electron.scEta(), electron.r9()}));
+        return rng.Gaus(1.0, rho + safeEvaluate(cset, "GetElectronScaleSF", {"err_rho", electron.scEta(), electron.r9()}));
     } else if (syst == variation::down) {
         // For down variation, decrease the width of the Gaussian
-        return rng.Gaus(1.0, rho - cset->evaluate({"err_rho", electron.scEta(), electron.r9()}));
+        return rng.Gaus(1.0, rho - safeEvaluate(cset, "GetElectronScaleSF", {"err_rho", electron.scEta(), electron.r9()}));
     } else {
         throw runtime_error("[MyCorrection::GetElectronSmearUnc] Invalid syst value");
     }
@@ -351,13 +353,13 @@ float MyCorrection::GetElectronRECOSF(const RVec<Electron> &electrons, const var
 
 float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key, const float eta, const float pt, const float phi, const variation syst) const {
     if (Electron_ID_SF_Key == "TopHNT") {
-        auto cset = cset_electron_custom_TopHNT_idsf->at("sf");
+        auto cset = cset_electron_TopHNT_idsf->at("sf");
         if (syst == variation::nom) {
-            return cset->evaluate({eta, pt, "nom"});
+            return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "nom"});
         } else if (syst == variation::up) {
-            return cset->evaluate({eta, pt, "up"});
+            return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "up"});
         } else if (syst == variation::down) {
-            return cset->evaluate({eta, pt, "down"});
+            return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "down"});
         } else {
             throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid syst value");
         }
@@ -371,9 +373,9 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key, const flo
         auto cset = cset_electron->at(key);
         //NOTE: from 2023, It seems some SF depends on phi.
         if(!isInputInCorrection("phi", cset)) {
-            return cset->evaluate({EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_ID_SF_Key), eta, pt});
+            return safeEvaluate(cset, "GetElectronIDSF", {EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_ID_SF_Key), eta, pt});
         } else {
-            return cset->evaluate({EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_ID_SF_Key), eta, pt, phi});
+            return safeEvaluate(cset, "GetElectronIDSF", {EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_ID_SF_Key), eta, pt, phi});
         }
     }
 }
@@ -394,9 +396,9 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key, const RVe
 float MyCorrection::GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key, const float abseta, const float pt, const bool isData, const variation syst) const {
     auto cset = cset_muon_trig_eff->at(string(Muon_Trigger_Eff_Key));
     if (isData)
-        return cset->evaluate({"data", getSystString_MUO(syst), fabs(abseta), pt});
+        return safeEvaluate(cset, "GetTriggerEff", {"data", getSystString_MUO(syst), fabs(abseta), pt});
     else
-        return cset->evaluate({"mc", getSystString_MUO(syst), fabs(abseta), pt});
+        return safeEvaluate(cset, "GetTriggerEff", {"mc", getSystString_MUO(syst), fabs(abseta), pt});
 }
 
 float MyCorrection::GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key, const RVec<Muon> &muons, const variation syst) const {
@@ -426,9 +428,9 @@ float MyCorrection::GetElectronTriggerEff(const TString &Electron_Trigger_SF_Key
         throw runtime_error("[MyCorrection::GetElectronTriggerEff] Invalid syst value");
     try {
         if(!isInputInCorrection("phi", cset)){
-            return cset->evaluate({EGM_keys.at(GetEra().Data()), ValType, string(Electron_Trigger_SF_Key), eta, pt});
+            return safeEvaluate(cset, "GetTriggerEff", {EGM_keys.at(GetEra().Data()), ValType, string(Electron_Trigger_SF_Key), eta, pt});
         } else {
-            return cset->evaluate({EGM_keys.at(GetEra().Data()), ValType, string(Electron_Trigger_SF_Key), eta, pt, phi});
+            return safeEvaluate(cset, "GetTriggerEff", {EGM_keys.at(GetEra().Data()), ValType, string(Electron_Trigger_SF_Key), eta, pt, phi});
         }
     } catch (exception &e) {
         cerr << "[MyCorrection::GetElectronTriggerEff] " << e.what() << endl;
@@ -440,9 +442,9 @@ float MyCorrection::GetElectronTriggerSF(const TString &Electron_Trigger_SF_Key,
     auto cset = cset_electron_hlt->at("Electron-HLT-SF");
     try {
         if(!isInputInCorrection("phi", cset)){
-            return cset->evaluate({EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_Trigger_SF_Key), eta, pt});
+            return safeEvaluate(cset, "GetTriggerEff", {EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_Trigger_SF_Key), eta, pt});
         } else {
-            return cset->evaluate({EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_Trigger_SF_Key), eta, pt, phi});
+            return safeEvaluate(cset, "GetTriggerEff", {EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_Trigger_SF_Key), eta, pt, phi});
         }
     } catch (exception &e) {
         cerr << "[MyCorrection::GetElectronTriggerSF] " << e.what() << endl;
@@ -451,48 +453,51 @@ float MyCorrection::GetElectronTriggerSF(const TString &Electron_Trigger_SF_Key,
 }
 
 // double lepton triggers
+// This function is used for leptons passing TopHNT ID
 float MyCorrection::GetTriggerEff(const Muon &muon, const TString &trigger_leg_key, const bool isData, const variation syst) const {
     if (trigger_leg_key == "DblMu_Mu17Leg") {
         const string jsonkey = isData ? "data" : "sim";
-        auto cset = cset_muon_custom_dblmu_leg1_eff->at(jsonkey);
-        float eff = cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
+        auto cset = cset_muon_TopHNT_dblmu_leg1_eff->at(jsonkey);
+        float eff = safeEvaluate(cset, "GetTriggerEff", {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
         return eff < 1. ? eff : 1.;
     } else if (trigger_leg_key == "DblMu_Mu8Leg") {
         const string jsonkey = isData ? "data" : "sim";
-        auto cset = cset_muon_custom_dblmu_leg2_eff->at(jsonkey);
-        float eff = cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
+        auto cset = cset_muon_TopHNT_dblmu_leg2_eff->at(jsonkey);
+        float eff = safeEvaluate(cset, "GetTriggerEff", {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
         return eff < 1. ? eff : 1.;
     } else if (trigger_leg_key == "EMu_Mu23Leg") {
         const string jsonkey = isData ? "Mu23El12_Data" : "Mu23El12_MC";
-        auto cset = cset_muon_custom_emu_leg1_eff->at(jsonkey); 
-        float eff = cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
+        auto cset = cset_muon_TopHNT_emu_leg1_eff->at(jsonkey); 
+        float eff = safeEvaluate(cset, "GetTriggerEff", {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
         return eff < 1. ? eff : 1.;
     } else if (trigger_leg_key == "EMu_Mu8Leg") {
         const string jsonkey = isData ? "Mu8El23_Data" : "Mu8El23_MC";
-        auto cset = cset_muon_custom_emu_leg2_eff->at(jsonkey); 
-        float eff = cset->evaluate({fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
+        auto cset = cset_muon_TopHNT_emu_leg2_eff->at(jsonkey); 
+        float eff = safeEvaluate(cset, "GetTriggerEff", {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_CUSTOM(syst)});
         return eff < 1. ? eff : 1.;
     } else {
         throw runtime_error("[MyCorrection::GetTriggerEff] Invalid trigger leg key");
     }
 }
 
+// This function is used for leptons passing TopHNT ID
 float MyCorrection::GetTriggerEff(const Electron &electron, const TString &trigger_leg_key, const bool isData, const variation syst) const {
     if (trigger_leg_key == "EMu_El23Leg") {
         const string jsonkey = isData ? "Mu8El23_Data" : "Mu8El23_MC";
-        auto cset = cset_electron_custom_emu_leg1_eff->at(jsonkey);
-        float eff = cset->evaluate({fabs(electron.scEta()), electron.Pt(), getSystString_CUSTOM(syst)});
+        auto cset = cset_electron_TopHNT_emu_leg1_eff->at(jsonkey);
+        float eff = safeEvaluate(cset, "GetTriggerEff", {fabs(electron.scEta()), electron.Pt(), getSystString_CUSTOM(syst)});
         return eff < 1. ? eff : 1.;
     } else if (trigger_leg_key == "EMu_El12Leg") {
         const string jsonkey = isData ? "Mu23El12_Data" : "Mu23El12_MC";
-        auto cset = cset_electron_custom_emu_leg2_eff->at(jsonkey);
-        float eff = cset->evaluate({fabs(electron.scEta()), electron.Pt(), getSystString_CUSTOM(syst)});
+        auto cset = cset_electron_TopHNT_emu_leg2_eff->at(jsonkey);
+        float eff = safeEvaluate(cset, "GetTriggerEff", {fabs(electron.scEta()), electron.Pt(), getSystString_CUSTOM(syst)});
         return eff < 1. ? eff : 1.;
     } else {
         throw runtime_error("[MyCorrection::GetTriggerEff] Invalid trigger leg key");
     }
 }
 
+// This function is used for leptons passing TopHNT ID
 float MyCorrection::GetDblMuTriggerEff(const RVec<Muon> &muons, const bool isData, const variation syst) const {
     const float filter_eff = GetPairwiseFilterEff("DblMu", isData);
     if (muons.size() == 2) {
@@ -520,6 +525,7 @@ float MyCorrection::GetDblMuTriggerEff(const RVec<Muon> &muons, const bool isDat
     }
 }
 
+// This function is used for leptons passing TopHNT ID
 float MyCorrection::GetDblMuTriggerSF(const RVec<Muon> &muons, const variation syst) const {
     float eff_data = -999.;
     float eff_mc = -999.;    
@@ -538,6 +544,7 @@ float MyCorrection::GetDblMuTriggerSF(const RVec<Muon> &muons, const variation s
     return eff_mc > 0. ? eff_data / eff_mc : 1.;
 }
 
+// This function is used for leptons passing TopHNT ID
 float MyCorrection::GetEMuTriggerEff(const RVec<Electron> &electrons, const RVec<Muon> &muons, const bool isData, const variation syst) const {
     const float filter_eff = GetPairwiseFilterEff("EMu", isData);
     if (electrons.size() == 1 && muons.size() == 1) {
@@ -564,6 +571,7 @@ float MyCorrection::GetEMuTriggerEff(const RVec<Electron> &electrons, const RVec
     }
 }
 
+// This function is used for leptons passing TopHNT ID
 float MyCorrection::GetEMuTriggerSF(const RVec<Electron> &electrons, const RVec<Muon> &muons, const variation syst) const {
     float eff_data = -999.;
     float eff_mc = -999.;    
@@ -582,28 +590,36 @@ float MyCorrection::GetEMuTriggerSF(const RVec<Electron> &electrons, const RVec<
     return eff_mc > 0. ? eff_data / eff_mc : 1.;
 }
 
+// This function is used for leptons passing TopHNT ID
 float MyCorrection::GetPairwiseFilterEff(const TString &filter_name, const bool isData) const {
-    if (! (Run == 2)) {
-        throw runtime_error("[MyCorrection::GetPairTriggerEff] Only Run2 is measured");
-    }
     if (filter_name.Contains("DblMu")) {
-        if (GetEra() == "2016postVFP") {
+        if (GetEra() == "2016preVFP") {
+            return 1.;
+        } else if (GetEra() == "2016postVFP") {
             return isData? 0.9798 : 0.9968;
         } else if (GetEra() == "2017") {
             return isData? 0.9961 : 0.9958;
         } else if (GetEra() == "2018") {
             return isData? 0.9988 : 0.9998;
+        } else if (GetEra() == "2023") {
+            return isData? 0.9993 : 0.9998;
         } else {
+            cerr << "[MyCorrection::GetPairwiseFilterEff] " << filter_name << " is not implemented for " << GetEra() << endl;
             return 1.;
         }
     } else if (filter_name.Contains("EMu")) {
-        if (GetEra() == "2016postVFP") {
+        if (GetEra() == "2016preVFP") {
+            return 1.;
+        } else if (GetEra() == "2016postVFP") {
             return isData? 0.9638 : 0.9878;
         } else if (GetEra() == "2017") {
             return isData? 0.9989 : 0.9955;
         } else if (GetEra() == "2018") {
             return isData? 0.9946 : 0.9981;
+        } else if (GetEra() == "2023") {
+            return isData? 0.9944 : 0.9976;
         } else {
+            cerr << "[MyCorrection::GetPairwiseFilterEff] " << filter_name << " is not implemented for " << GetEra() << endl;
             return 1.;
         }
     } else {
@@ -618,7 +634,7 @@ float MyCorrection::GetPUWeight(const float nTrueInt, const variation syst, cons
     correction::Correction::Ref cset = nullptr;
     cset = cset_puWeights->at(LUM_keys.at(GetEra().Data()));
     try {
-        return cset->evaluate({nTrueInt, getSystString_LUM(syst)});
+        return safeEvaluate(cset, "GetPUWeight", {nTrueInt, getSystString_LUM(syst)});
     } catch (exception &e) {
         cerr << "[MyCorrection::GetPUWeight] " << e.what() << endl;
         return 1.;
@@ -636,7 +652,7 @@ void MyCorrection::SetTaggingParam(JetTagging::JetFlavTagger tagger, JetTagging:
 float MyCorrection::GetBTaggingWP() const {
     try {
         correction::Correction::Ref cset = cset_btagging->at(global_taggerStr + "_wp_values");
-        return cset->evaluate({global_wpStr});
+        return safeEvaluate(cset, "GetBTaggingWP", {global_wpStr});
     } catch (const exception &e) {
         cerr << "[Correction::GetBTaggingWP] Warning: Failed to evaluate WP '" << global_wpStr << "' for tagger '" << global_taggerStr << endl;
         throw runtime_error(e.what());
@@ -651,7 +667,7 @@ float MyCorrection::GetBTaggingWP(JetTagging::JetFlavTagger tagger, JetTagging::
 
     try {
         correction::Correction::Ref cset = cset_btagging->at(this_taggerStr + "_wp_values");
-        return cset->evaluate({this_wpStr});
+        return safeEvaluate(cset, "GetBTaggingWP", {this_wpStr});
     } catch (const exception &e) {
         cerr << "[Correction::GetBTaggingWP] Warning: Failed to evaluate WP '"
                   << this_wpStr << "' for tagger '" << this_taggerStr << endl;
@@ -664,10 +680,10 @@ float MyCorrection::GetBTaggingEff(const float eta, const float pt, const int fl
     string this_taggerStr = JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
     string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
     auto cset = cset_btagging_eff->at(this_taggerStr);
-    return cset->evaluate({"central", this_wpStr, flav, fabs(eta), pt});
+    return safeEvaluate(cset, "GetBTaggingSF", {"central", this_wpStr, flav, fabs(eta), pt});
 }
 
-float MyCorrection::GetBTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFlavTagger &tagger, const JetTagging::JetFlavTaggerWP &wp, const JetTagging::JetTaggingSFMethod &method, const variation syst, const TString &source) {
+float MyCorrection::GetBTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFlavTagger tagger, const JetTagging::JetFlavTaggerWP wp, const JetTagging::JetTaggingSFMethod method, const variation syst, const TString &source) {
     if (Run == 2 && tagger != JetTagging::JetFlavTagger::DeepJet) {
         cerr << "[MyCorrection::GetBTaggingSF] DeepJet is the only supported tagger for 2016preVFP, 2016postVFP, 2017, 2018, and 2018UL" << endl;
         return 1.;
@@ -693,13 +709,13 @@ float MyCorrection::GetBTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFl
             if (this_score < 0.f)
                 continue; // defaulted jet
             if ((c_flav_source.find(source.Data()) != c_flav_source.end())) {
-                weight *= cset->evaluate({this_flav == 4 ? syst_str : getSystString_BTV(MyCorrection::variation::nom),
+                weight *= safeEvaluate(cset, "GetBTaggingSF", {this_flav == 4 ? syst_str : getSystString_BTV(MyCorrection::variation::nom),
                                           this_flav,
                                           fabs(jet.Eta()),
                                           jet.Pt(),
                                           this_score});
             } else {
-                weight *= cset->evaluate({this_flav == 4 ? getSystString_BTV(MyCorrection::variation::nom) : syst_str,
+                weight *= safeEvaluate(cset, "GetBTaggingSF", {this_flav == 4 ? getSystString_BTV(MyCorrection::variation::nom) : syst_str,
                                           this_flav,
                                           fabs(jet.Eta()),
                                           jet.Pt(),
@@ -723,8 +739,8 @@ float MyCorrection::GetBTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFl
             const float eff = GetBTaggingEff(jet.Eta(), jet.Pt(), this_flav, tagger, wp, syst);
             auto this_cset = is_heavy ? cset : cset_light;
 
-            const float sf = this_cset->evaluate({syst_str, this_wpStr, this_flav, fabs(jet.Eta()), jet.Pt()});
-            if (jet.GetTaggerResult(tagger, JetTagging::JetFlavTaggerScoreType::B) > this_cut) {
+            const float sf = safeEvaluate(this_cset, "GetBTaggingSF", {syst_str, this_wpStr, this_flav, fabs(jet.Eta()), jet.Pt()});
+            if (jet.GetBTaggerResult(tagger) > this_cut) {
                 weight *= sf;
             } else {
                 weight *= (1. - eff * sf) / (1. - eff);
@@ -758,7 +774,7 @@ float MyCorrection::GetBTaggingR(const RVec<Jet> &jets, const JetTagging::JetFla
         else if (abs(jet.hadronFlavour()) == 4)
             this_flav = 4;
 
-        weight *= cset->evaluate({syst_str,
+        weight *= safeEvaluate(cset, "GetBTaggingEff", {syst_str,
                                   this_flav,
                                   jet.Pt(),
                                   fabs(jet.Eta())});
@@ -770,8 +786,8 @@ pair<float, float> MyCorrection::GetCTaggingWP() const {
     try
     {
         correction::Correction::Ref cset = cset_ctagging->at(global_taggerStr + "_wp_values");
-        float valCvB = cset->evaluate({global_wpStr, "CvB"});
-        float valCvL = cset->evaluate({global_wpStr, "CvL"});
+        float valCvB = safeEvaluate(cset, "GetCTaggingWP", {global_wpStr, "CvB"});
+        float valCvL = safeEvaluate(cset, "GetCTaggingWP", {global_wpStr, "CvL"});
         return make_pair(valCvB, valCvL);
     }
     catch (const exception& e)
@@ -799,8 +815,8 @@ pair<float, float> MyCorrection::GetCTaggingWP(JetTagging::JetFlavTagger tagger,
     try
     {
         // Evaluate the corrections. If the WP does not exist, an exception might be thrown
-        float valCvB = cset->evaluate({this_wpStr, "CvB"});
-        float valCvL = cset->evaluate({this_wpStr, "CvL"});
+        float valCvB = safeEvaluate(cset, "GetCTaggingWP", {this_wpStr, "CvB"});
+        float valCvL = safeEvaluate(cset, "GetCTaggingWP", {this_wpStr, "CvL"});
 
         // If everything is fine, return the pair
         return make_pair(valCvB, valCvL);
@@ -824,13 +840,13 @@ float MyCorrection::GetCTaggingEff(const float eta, const float pt, const int fl
     string this_taggerStr = JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
     string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
     correction::Correction::Ref cset = cset_btagging_eff->at(this_taggerStr);
-    return cset->evaluate({
+    return safeEvaluate(cset, "GetBTaggingEff", {
         getSystString_BTV(syst),
         this_wpStr,
     });
 }
 
-float MyCorrection::GetCTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFlavTagger tagger, const JetTagging::JetFlavTaggerWP wp, const JetTagging::JetTaggingSFMethod &method, const variation syst, const TString &source)
+float MyCorrection::GetCTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFlavTagger tagger, const JetTagging::JetFlavTaggerWP wp, const JetTagging::JetTaggingSFMethod method, const variation syst, const TString &source)
 {
     if (Run == 2 && tagger != JetTagging::JetFlavTagger::DeepJet)
     {
@@ -863,7 +879,7 @@ float MyCorrection::GetCTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFl
                                           jet.GetTaggerResult(tagger, JetTagging::JetFlavTaggerScoreType::CvL));
             if (this_ctag.first < 0.f || this_ctag.second < 0.f)
                 continue; // defaulted jet
-            weight *= cset->evaluate({syst_str,
+            weight *= safeEvaluate(cset, "GetCTaggingSF", {syst_str,
                                       this_flav,
                                       this_ctag.second,
                                       this_ctag.first});
@@ -890,7 +906,7 @@ float MyCorrection::GetCTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFl
             if (this_flav == 0)
                 sf = cset_light->evaluate({syst_str, this_wpStr, this_flav, fabs(jet.Eta()), jet.Pt()});
             else
-                sf = cset->evaluate({syst_str, this_wpStr, this_flav, fabs(jet.Eta()), jet.Pt()});
+                sf = safeEvaluate(cset, "GetCTaggingSF", {syst_str, this_wpStr, this_flav, fabs(jet.Eta()), jet.Pt()});
             if (this_score.first > this_cut.first && this_score.second > this_cut.second)
             {
                 weight *= sf;
@@ -917,7 +933,7 @@ float MyCorrection::GetCTaggingR(const float nTrueInt, const float HT, const Jet
     else
         this_taggerStr += (string("_") + Sample.Data());
     auto cset = cset_ctagging_R->at(this_taggerStr);
-    return cset->evaluate({syst_str.Data(), ttBarCategory.Data(), nTrueInt, HT});
+    return safeEvaluate(cset, "GetTopPtReweight", {syst_str.Data(), ttBarCategory.Data(), nTrueInt, HT});
 }
 
 // Pileup Jet ID
@@ -936,7 +952,7 @@ float MyCorrection::GetPileupJetIDSF(const RVec<Jet> &jets, const unordered_map<
     for (int i = 0; i < jets.size(); i++) {
         if (jets.at(i).Pt() > 50.) continue;
         if (matched_idx.find(i) == matched_idx.end() || matched_idx.at(i) < 0) continue; // not matched
-        float this_eff = cset->evaluate({jets.at(i).Eta(), jets.at(i).Pt(), getSystString_JME(syst), wp_str});
+        float this_eff = safeEvaluate(cset, "GetJetVetoMapEff", {jets.at(i).Eta(), jets.at(i).Pt(), getSystString_JME(syst), wp_str});
         weight *= this_eff;
     }
     return weight;
@@ -997,7 +1013,7 @@ float MyCorrection::GetJER(const float eta, const float pt, const float rho) con
     string cset_string = JME_JER_GT.at(GetEra().Data());
     cset_string.replace(cset_string.find("######"), 6, "PtResolution");
     cset = cset_jerc->at(cset_string);
-    return cset->evaluate({eta, pt, rho});
+    return safeEvaluate(cset, "GetJER", {eta, pt, rho});
 }
 
 float MyCorrection::GetJERSF(const float eta, const float pt, const variation syst, const TString &source) const {
@@ -1007,13 +1023,33 @@ float MyCorrection::GetJERSF(const float eta, const float pt, const variation sy
     cset = cset_jerc->at(cset_string);
     if (Run == 3)
     {
-        return cset->evaluate({eta, pt, getSystString_JME(syst)});
+        return safeEvaluate(cset, "GetJERSF", {eta, pt, getSystString_JME(syst)});
     }
     else if (Run == 2)
     {
-        return cset->evaluate({eta, getSystString_JME(syst)});
+        return safeEvaluate(cset, "GetJERSF", {eta, getSystString_JME(syst)});
     }
     return 1.;
+}
+
+//JESC
+float MyCorrection::GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const {
+    correction::CompoundCorrection::Ref cset = nullptr;
+    string cset_string = JME_JES_GT.at(GetEra().Data());
+    cset_string.replace(cset_string.find("######"), 6, "L1L2L3Res");
+    cset = cset_jerc->compound().at(cset_string);
+    vector<correction::Variable::Type> args;
+    float JESSF = 1.;
+    if (GetEra() == "2023BPix" || GetEra() == "2024") {
+        args = {area, eta, pt, rho, phi};
+        if (IsDATA) args = {area, eta, pt, rho, phi, static_cast<float>(runNumber)};
+    } else if (GetEra() == "2023") {
+        args = {area, eta, pt, rho};
+        if (IsDATA) args = {area, eta, pt, rho, static_cast<float>(runNumber)};
+    } else {
+        args = {area, eta, pt, rho};
+    }
+    return safeEvaluate(cset, "GetJERSF", args);
 }
 
 float MyCorrection::GetJESUncertainty(const float eta, const float pt, const variation syst, const TString &source) const {
@@ -1030,7 +1066,7 @@ float MyCorrection::GetJESUncertainty(const float eta, const float pt, const var
     cset_string.replace(cset_string.find("######"), 6, source);
     cset = cset_jerc->at(cset_string);
     float this_factor = 1.;
-    this_factor += (int_syst * cset->evaluate({eta, pt}));
+    this_factor += (int_syst * safeEvaluate(cset, "GetJESUncertainty", {eta, pt}));
     return this_factor;
 }
 
@@ -1039,9 +1075,7 @@ bool MyCorrection::IsJetVetoZone(const float eta, const float phi, TString mapCa
     correction::Correction::Ref cset = nullptr;
     string cset_string = JME_vetomap_keys.at(GetEra().Data());
     cset = cset_jetvetomap->at(cset_string);
-    if (cset->evaluate({mapCategory.Data(), eta, phi}) > 0)
-        return true;
-
+    if (safeEvaluate(cset, "IsJetVetoZone", {mapCategory.Data(), eta, phi}) > 0) return true;
     return false;
 }
 

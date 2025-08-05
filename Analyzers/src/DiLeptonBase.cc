@@ -7,6 +7,7 @@ void DiLeptonBase::initializeAnalyzer() {
     // Flags
     RunDiMu = HasFlag("RunDiMu");
     RunEMu = HasFlag("RunEMu");
+    RunNoVetoMap = HasFlag("RunNoVetoMap");
     MeasFakeMu8 = HasFlag("MeasFakeMu8");
     MeasFakeMu17 = HasFlag("MeasFakeMu17");
     MeasFakeEl8 = HasFlag("MeasFakeEl8");
@@ -16,11 +17,11 @@ void DiLeptonBase::initializeAnalyzer() {
 
     // Lepton IDs and triggers
     MuonIDs = new IDContainer("HcToWATight", "HcToWALoose");
-    ElectronIDs = new IDContainer("HcToWATight", "HcToWALoose");
+    ElectronIDs = new IDContainer("HcToWATight", ((Run == 2) ? "HcToWALooseRun2" : "HcToWALooseRun3"));
     if (DataEra == "2016preVFP") {
         DblMuTriggers = {
             "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL",
-            "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL "
+            "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL"
         };
         EMuTriggers = {
             "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL",
@@ -75,7 +76,7 @@ void DiLeptonBase::initializeAnalyzer() {
     }
     
     // Correction
-    myCorr = new MyCorrection(DataEra, IsDATA?DataStream:MCSample ,IsDATA);
+    myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA?DataStream:MCSample ,IsDATA);
     //const string SKNANO_HOME = getenv("SKNANO_HOME");
     //if (IsDATA) {
     //    systHelper = make_unique<SystematicHelper>(SKNANO_HOME + "/docs/noSyst.yaml", DataStream);

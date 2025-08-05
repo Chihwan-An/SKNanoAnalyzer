@@ -961,6 +961,12 @@ public:
     TriggerMap_t TriggerMap;
 
     //=====Custom variables=====
+    TTreeReaderArrayWrapper<Float_t> PFCand_puppiWeight;
+
+    TTreeReaderArrayWrapper<Int_t> JetPFCand_jetIdx;
+    TTreeReaderArrayWrapper<Int_t> JetPFCand_pfCandIdx;
+    TTreeReaderValueWrapper<Int_t> nJetPFCand; 
+    
     
 };
 

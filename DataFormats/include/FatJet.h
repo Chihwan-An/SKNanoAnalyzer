@@ -2,6 +2,7 @@
 #define FatJet_h
 
 #include "Particle.h"
+#include "JetConstituent.h"
 #include "JetTaggingParameter.h"
 
 class FatJet : public Particle
@@ -150,6 +151,15 @@ public:
     inline float neEmEF() const { return j_neEmEF; };
     inline float neHEF() const { return j_neHEF; }; 
 
+    inline void SetOriginalIndex(int idx) { j_originalIndex = idx; };
+    inline int OriginalIndex() const { return j_originalIndex; };
+
+    void SetPFConstituents(const RVec<JetConstituent> &constituents)
+    {
+        j_constituents = constituents;
+    };
+    inline RVec<JetConstituent> PFConstituents() const { return j_constituents; };
+
     float GetTaggerResult(JetTagging::FatJetTagger tagger, JetTagging::FatJetTaggerScoreType scoreType) const;
 
 private:
@@ -193,6 +203,14 @@ private:
     float j_globalParT3_withMassTopvsQCD, j_globalParT3_withMassWvsQCD, j_globalParT3_withMassZvsQCD;
     unordered_map<JetTagging::FatJetTaggerScoreType, float> j_globalParT3;
     unordered_map<JetTagging::FatJetTaggerScoreType, float> j_globalParT3WithMass;
+
+    // ───── PF constituents ──────────────────────────
+    RVec<Particle> j_constituents;
+
+    // ───── Matching Information ────────────────────
+    size_t j_originalIndex; // original index in the event
+
+
 
     ClassDef(FatJet, 1)
 };

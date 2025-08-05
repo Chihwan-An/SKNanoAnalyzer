@@ -900,6 +900,19 @@ RVec<Jet> AnalyzerCore::GetAllJets()
         jet.SetJetPuIDScore(Jet_puIdDisc[i]);
         jet.SetEnergyFractions(Jet_chHEF[i], Jet_neHEF[i], Jet_neEmEF[i], Jet_chEmEF[i], Jet_muEF[i]);
         jet.SetCorrections(corrs);
+
+
+        for(size_t idx = 0; idx < nJetPFCand; idx++) {
+            if(JetPFCand_jetIdx[idx] == i) {
+                JetConstituent constituent;
+                size_t pfCandTableidx = JetPFCand_pfCandIdx[idx];
+                constituent.SetPtEtaPhiM(PFCand_pt[pfCandTableidx], PFCand_eta[pfCandTableidx], PFCand_phi[pfCandTableidx], PFCand_mass[pfCandTableidx]);
+                constituent.SetPdgId(PFCand_pdgId[pfCandTableidx]);
+                //puppiweight is only available for some sample
+                if(PFCand_puppiWeight.valid()) constituent.SetPUPPIWeight(PFCand_puppiWeight[pfCandTableidx]);
+            }
+        }
+
         Jets.push_back(jet);
     }
     if (!IsDATA)
@@ -1056,6 +1069,7 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets()
     {
 
         FatJet fatjet;
+        fatjet.SetOriginalIndex(i);
         fatjet.SetPtEtaPhiM(FatJet_pt[i], FatJet_eta[i], FatJet_phi[i], FatJet_mass[i]);
         fatjet.SetArea(FatJet_area[i]);
         fatjet.SetRawFactor(FatJet_rawFactor[i]);
@@ -1066,6 +1080,16 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets()
         fatjet.SetSubjettiness(FatJet_tau1[i], FatJet_tau2[i], FatJet_tau3[i], FatJet_n2b1[i], FatJet_n3b1[i]);
         fatjet.SetLSF3(FatJet_lsf3[i]);
 
+        for(size_t idx = 0; idx < nFatJetPFCand; idx++) {
+            if(FatJetPFCand_jetIdx[idx] == i) {
+                JetConstituent constituent;
+                size_t pfCandTableidx = FatJetPFCand_pfCandIdx[idx];
+                constituent.SetPtEtaPhiM(PFCand_pt[pfCandTableidx], PFCand_eta[pfCandTableidx], PFCand_phi[pfCandTableidx], PFCand_mass[pfCandTableidx]);
+                constituent.SetPdgId(PFCand_pdgId[pfCandTableidx]);
+                //puppiweight is only available for some sample
+                if(PFCand_puppiWeight.valid()) constituent.SetPUPPIWeight(PFCand_puppiWeight[pfCandTableidx]);
+            }
+        }
         RVec<float> pnet;
         pnet = {FatJet_particleNetWithMass_H4qvsQCD[i], FatJet_particleNetWithMass_HbbvsQCD[i], FatJet_particleNetWithMass_HccvsQCD[i],
             FatJet_particleNetWithMass_QCD[i], FatJet_particleNetWithMass_TvsQCD[i], FatJet_particleNetWithMass_WvsQCD[i], FatJet_particleNetWithMass_ZvsQCD[i]};

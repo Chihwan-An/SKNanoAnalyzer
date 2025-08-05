@@ -3,6 +3,7 @@
 
 #include "Particle.h"
 #include "JetTaggingParameter.h"
+#include "JetConstituent.h"
 
 class Jet : public Particle
 {
@@ -148,6 +149,11 @@ public:
   inline float neutralEMFraction() const { return j_neEmEF; }
   inline float neutralHadronFraction() const { return j_neHEF; }
   inline float EMFraction() const { return j_chEmEF + j_neEmEF; }
+  void SetPFConstituents(const RVec<JetConstituent> &constituents)
+  {
+    j_constituents = constituents;
+  };
+  inline RVec<JetConstituent> PFConstituents() const { return j_constituents; };
   float GetTaggerResult(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerScoreType) const;
   TLorentzVector GetUnsmearedP4() const;
 
@@ -207,6 +213,8 @@ private:
   // float j_hfsigmaPhiPhi;
   float j_m; // jet mass
   TLorentzVector j_unsmearedP4;
+  // jet constituents
+  RVec<JetConstituent> j_constituents;
   ClassDef(Jet, 1)
 };
 

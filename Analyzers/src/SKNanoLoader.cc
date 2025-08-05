@@ -997,4 +997,7 @@ void SKNanoLoader::InitBranch()
 
     // run
     RunNumber.init(*fReader, "run");
+
+    // ==== custom variables ====
+    PFCand_puppiWeight.init(*fReader, "PFCand_puppiWeight");
 }

@@ -1,0 +1,36 @@
+stages:
+  - sync
+
+# GitLab → GitHub 동기화 (GitLab에서 push될 때마다)
+sync_to_github:
+  stage: sync
+  image: alpine/git:latest
+  before_script:
+    - apk add --no-cache git
+  script:
+    - git remote add github https://$GITHUB_TOKEN@github.com/Chihwan-An/SKNanoAnalyzer.git || true
+    - git fetch origin
+    - git push github $CI_COMMIT_REF_NAME
+  only:
+    - main
+    - develop
+  when: on_success
+
+# 원본 레포에서 변경사항 가져오기 (수동 트리거 또는 스케줄)
+sync_from_upstream:
+  stage: sync
+  image: alpine/git:latest
+  before_script:
+    - apk add --no-cache git
+    - git config --global user.email "ci@gitlab.com"
+    - git config --global user.name "GitLab CI"
+  script:
+    - git remote add upstream https://github.com/choij1589/SKNanoAnalyzer.git || true
+    - git fetch upstream
+    - git checkout main
+    - git merge upstream/main --no-edit || echo "No changes to merge"
+    - git push origin main
+  only:
+    - schedules
+    - web
+  when: manual

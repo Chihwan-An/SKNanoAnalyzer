@@ -26,7 +26,7 @@ fi
 # Set up environment
 export SKNANO_HOME=`pwd`
 export SKNANO_RUNLOG="/gv0/Users/$USER/SKNanoRunlog"
-export SKNANO_OUTPUT="/data9/Users/$USER/SKNanoOutput"
+export SKNANO_OUTPUT="/gv0/Users/$USER/SKNanoOutput"
 echo "@@@@ Working Directory: $SKNANO_HOME"
 
 CONFIG_FILE="$SKNANO_HOME/config/config.$USER"
@@ -71,7 +71,7 @@ if [ $PACKAGE = "conda" ]; then
         conda activate torch
     else
         source ~/.conda-activate
-        conda activate nano
+        conda activate Nano
     fi
 elif [ $PACKAGE = "mamba" ]; then
     echo -e "\033[32m@@@@ Primary environment using mamba\033[0m"
@@ -83,20 +83,20 @@ elif [ $PACKAGE = "mamba" ]; then
         # Only add micromamba to PATH if it's not already in PATH
         if ! command -v micromamba &> /dev/null; then
             export PATH="$HOME/micromamba/bin:${PATH}"
-            export MAMBA_ROOT_PREFIX="$HOME/micromamba"
+            export MAMBA_ROOT_PREFIX="/data6/Users/achihwan/miniforge3"
         fi
     fi
 
     # micromamba shell hook should only be run once per session
     if [[ -z "$__MAMBA_SETUP_DONE" ]]; then
         unalias mamba 2>/dev/null
-        eval "$(micromamba shell hook -s zsh)"
+        eval "$(mamba shell hook -s zsh)"
         export __MAMBA_SETUP_DONE=1
     fi
-    micromamba activate Nano
+    mamba activate Nano
     # from this point on, we can follow conda version of setup
     PACKAGE="conda"
-    alias conda="micromamba"
+    alias conda="mamba"
 elif [ $PACKAGE = "cvmfs" ]; then
     echo -e "\033[31m@@@@ cvmfs is not supported anymore\033[0m"
     return 1

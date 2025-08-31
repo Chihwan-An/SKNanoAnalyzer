@@ -5,7 +5,6 @@
 
 #pragma link C++ class SKNanoLoader+;
 #pragma link C++ class AnalyzerCore+;
-#pragma link C++ class ExampleRun+;
 #pragma link C++ class GetEffLumi+;
 #pragma link C++ class MeasureJetTaggingEff+;
 #pragma link C++ class MeasureJetTaggingR+;
@@ -15,9 +14,10 @@
 #pragma link C++ class FullHadronicTriggerTnP+;
 #pragma link C++ class GeneratorBase+;
 #pragma link C++ class DiLeptonBase+;
-#pragma link C++ class DiLepton+;
 #pragma link C++ class ParseEleIDVariables+;
 #pragma link C++ class ParseMuIDVariables+;
 #pragma link C++ class TestGetLeptonType+;
-#pragma link C++ class MeasTrigEff+;
-#pragma link C++ class MuonTnPProducer+;
+#pragma link C++ class LRSM_TBChannel+;
+#pragma link C++ class TTbar_test+;
+#pragma link C++ class DY+;
+#pragma link C++ class ttbar_hadronic

@@ -28,7 +28,6 @@ public:
     inline bool isPOGSoftId() const {return j_softId;}
     inline bool isPOGSoftMvaId() const {return j_softMvaId;}
     inline bool isPOGTriggerIdLoose() const {return j_triggerIdLoose;}
-
     // Muon type methods
     void SetIsTracker(bool isTracker) { j_isTracker = isTracker; }
     void SetIsStandalone(bool isStandalone) { j_isStandalone = isStandalone; }
@@ -36,7 +35,6 @@ public:
     inline bool isTracker() const { return j_isTracker; }
     inline bool isStandalone() const { return j_isStandalone; }
     inline bool isGlobal() const { return j_isGlobal; }
-
     // Unsigned char IDs
     enum class WorkingPointID {NONE, HIGHPT, MINIISO, MULTIISO, MVAMU, PFISO, PUPPIISO, TKISO};
     enum class WorkingPoint {NONE, VLOOSE, LOOSE, MEDIUM, TIGHT, VTIGHT, VVTIGHT};
@@ -108,6 +106,14 @@ public:
     void SetJetIdx(short jetIdx) { j_jetIdx = jetIdx; }
     inline short JetIdx() const { return j_jetIdx; }
 
+    // Beamspot constrained variables
+    void SetBsConstrainedChi2(float chi2) { j_bsConstrainedChi2 = chi2; }
+    inline float bsConstrainedChi2() const { return j_bsConstrainedChi2; }
+    void SetBsConstrainedPt(float pt) { j_bsConstrainedPt = pt; }
+    inline float bsConstrainedPt() const { return j_bsConstrainedPt; }
+    void SetBsConstrainedPtErr(float ptErr) { j_bsConstrainedPtErr = ptErr; }
+    inline float bsConstrainedPtErr() const { return j_bsConstrainedPtErr; }
+
     // ID helper functions
     bool PassID(const MuonID ID) const;
     bool PassID(const TString ID) const;
@@ -126,6 +132,10 @@ private:
     short j_genPartIdx;
     unsigned char j_genPartFlav;
     short j_jetIdx;
+    // Beamspot constrained variables
+    float j_bsConstrainedChi2;
+    float j_bsConstrainedPt;
+    float j_bsConstrainedPtErr;
     ClassDef(Muon, 1);
 };
 

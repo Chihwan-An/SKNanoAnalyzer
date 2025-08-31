@@ -12,7 +12,7 @@ subheading: "LRSM Top Channel Analysis"
 
 **Decay channel**: WR→e/μ + N→e/μ + WR*→tb
 
-![Pasted image 20250729195203.png](/img/DB/Pasted image 20250729195203.png)
+![Pasted image 20250729195203.png](../DB/Pasted image 20250729195203.png)
 
 ## 1. Introduction
 
@@ -22,17 +22,17 @@ Previous research focused on the **WR high, N low** region where N particles are
 
 In this channel, due to using 2 lepton and top tagging and b tagging also with high m_ll, we can reduce lot of backgrounds and also improvements in WR ~ N region in the previous study.
 
-![Pasted image 20250729195448.png](/img/DB/Pasted image 20250729195448.png)
+![Pasted image 20250729195448.png](../DB/Pasted image 20250729195448.png)
 
 **Previous study data (EXO-20-002)**
 
-![Pasted image 20250729195530.png](/img/DB/Pasted image 20250729195530.png)
+![Pasted image 20250729195530.png](../DB/Pasted image 20250729195530.png)
 
-![Pasted image 20250729195551.png](/img/DB/Pasted image 20250729195551.png)
+![Pasted image 20250729195551.png](../DB/Pasted image 20250729195551.png)
 
-![Pasted image 20250729195609.png](/img/DB/Pasted image 20250729195609.png)
+![Pasted image 20250729195609.png](../DB/Pasted image 20250729195609.png)
 
-![Pasted image 20250729195621.png](/img/DB/Pasted image 20250729195621.png)
+![Pasted image 20250729195621.png](../DB/Pasted image 20250729195621.png)
 
 ### 1.2 Challenge with tb Channel
 
@@ -85,7 +85,7 @@ Extending the analysis to include the **tb decay channel** presents kinematic ch
 
 **Alternative approach**: In high WR, low N region, if initial WR is off-shell, reduced top boost enables WL decay mode.
 
-![이미지 2025. 6. 4. 오후 1.34.jpeg](/img/DB/이미지 2025. 6. 4. 오후 1.34.jpeg)
+![이미지 2025. 6. 4. 오후 1.34.jpeg](../DB/이미지 2025. 6. 4. 오후 1.34.jpeg)
 
 **MadGraph simulation setup**:
 - Top couples to both WR and WL: t → (WR + WL)b vs t → WL b
@@ -103,9 +103,9 @@ Extending the analysis to include the **tb decay channel** presents kinematic ch
 - `generate t > q q b / wr+`: Width = 0.97 ± 0.0007 GeV
 - **Result**: WR decay channel negligible at high masses
 
-![Pasted image 20250729195330.png](/img/DB/Pasted image 20250729195330.png)
+![Pasted image 20250729195330.png](../DB/Pasted image 20250729195330.png)
 
-![Pasted image 20250729195347.png](/img/DB/Pasted image 20250729195347.png)
+![Pasted image 20250729195347.png](../DB/Pasted image 20250729195347.png)
 
 Checked with WL + WR both decay mode and the case with decays with only SM W. There was no significance pattern when does WR contributes to cross section.
 
@@ -115,18 +115,18 @@ Yellow region means when WL + WR decays it has more cross section and it was ord
 
 Cross section is checked with LO gridpacks.
 
-![Pasted image 20250729195642.png](/img/DB/Pasted image 20250729195642.png)
+![Pasted image 20250729195642.png](../DB/Pasted image 20250729195642.png)
 
-![Pasted image 20250729195654.png](/img/DB/Pasted image 20250729195654.png)
+![Pasted image 20250729195654.png](../DB/Pasted image 20250729195654.png)
 
 * Cross section can be differ 3 order 
 Cross sections for exo 20-002
 
-![Pasted image 20250729195711.png](/img/DB/Pasted image 20250729195711.png)
+![Pasted image 20250729195711.png](../DB/Pasted image 20250729195711.png)
 
 Cross section when N is ~ WR/2 has the most cross section, because N = 200 it is constraint due to top mass, and also N ~ WR has no much kinematic phase space to decay.
 
-![Pasted image 20250729195728.png](/img/DB/Pasted image 20250729195728.png)
+![Pasted image 20250729195728.png](../DB/Pasted image 20250729195728.png)
 
 Full cross section
 
@@ -148,15 +148,15 @@ SM has
 
 **Boost Factors for non observable objects (WR, top)**
 
-![Pasted image 20250729195917.png](/img/DB/Pasted image 20250729195917.png)
+![Pasted image 20250729195917.png](../DB/Pasted image 20250729195917.png)
 
-![Pasted image 20250729195928.png](/img/DB/Pasted image 20250729195928.png)
+![Pasted image 20250729195928.png](../DB/Pasted image 20250729195928.png)
 
 **Delta R, Delta eta, Delta phi for each variables**
 
-![Pasted image 20250729195958.png](/img/DB/Pasted image 20250729195958.png)
+![Pasted image 20250729195958.png](../DB/Pasted image 20250729195958.png)
 
-![Pasted image 20250729200010.png](/img/DB/Pasted image 20250729200010.png)
+![Pasted image 20250729200010.png](../DB/Pasted image 20250729200010.png)
 
 #### 2.1.1 WR ~ N Mass Region (5000, 4900 GeV)
 
@@ -170,9 +170,9 @@ SM has
   - **Bottom quark**: Highly boosted, random direction relative to l2
   - **Interpretation**: Suggests moderate WR* boost regime
 
-![Pasted image 20250729195809.png](/img/DB/Pasted image 20250729195809.png)
+![Pasted image 20250729195809.png](../DB/Pasted image 20250729195809.png)
 
-![Pasted image 20250729195825.png](/img/DB/Pasted image 20250729195825.png)
+![Pasted image 20250729195825.png](../DB/Pasted image 20250729195825.png)
 
 #### 2.1.2 WR ~ N/2 Mass Region (5000, 2500 GeV)
 
@@ -225,7 +225,7 @@ SM has
 
 **WR = 5000, MN = 4900 GeV**:
 
-![Pasted image 20250729202722.png](/img/DB/Pasted image 20250729202722.png)
+![Pasted image 20250729202722.png](../DB/Pasted image 20250729202722.png)
 
 #### 2.2.3 Fake Jet Background Assessment
 
@@ -293,9 +293,9 @@ For cleaning strategy, it must not overlap with signal muons that is selected an
 
 **After cleaning, top pt:**
 
-![Pasted image 20250729200648.png](/img/DB/Pasted image 20250729200648.png)
+![Pasted image 20250729200648.png](../DB/Pasted image 20250729200648.png)
 
-![Pasted image 20250729200658.png](/img/DB/Pasted image 20250729200658.png)
+![Pasted image 20250729200658.png](../DB/Pasted image 20250729200658.png)
 
 ##### 2.2.5.1 B-Jet Cross-Contamination Analysis
 
@@ -317,21 +317,21 @@ For cleaning strategy, it must not overlap with signal muons that is selected an
 
 **Reference**: [CMS Top Tagging Working Points](https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetTopTagging#Workings_points_for_the_AK8_tagg)
 
-![Pasted image 20250729132038.png](/img/DB/Pasted image 20250729132038.png)
+![Pasted image 20250729132038.png](../DB/Pasted image 20250729132038.png)
 
 There is a WP with variable tau3/tau2 but it has low eff than particle net so It should be waitten until WP came with version NanoAOD v 15
 
 **For working process:**
 
-![Pasted image 20250729191656.png](/img/DB/Pasted image 20250729191656.png)
+![Pasted image 20250729191656.png](../DB/Pasted image 20250729191656.png)
 
-![Pasted image 20250729191752.png](/img/DB/Pasted image 20250729191752.png)
+![Pasted image 20250729191752.png](../DB/Pasted image 20250729191752.png)
 
-![Pasted image 20250729191722.png](/img/DB/Pasted image 20250729191722.png)
+![Pasted image 20250729191722.png](../DB/Pasted image 20250729191722.png)
 
 It might be better to use Loose WP due to high pt and for stable with error.
 
-![Pasted image 20250729192412.png](/img/DB/Pasted image 20250729192412.png)
+![Pasted image 20250729192412.png](../DB/Pasted image 20250729192412.png)
 
 which this plot show when cut slight adjusted.
 
@@ -384,40 +384,40 @@ AK8 Jet:
 **ParticleNet algorithm** [2022, Tight, 0.6734]:
 - Efficiency: 8.63% → 8.465% after HLT_IsoMu30 trigger
 
-![Pasted image 20250729200810.png](/img/DB/Pasted image 20250729200810.png)
+![Pasted image 20250729200810.png](../DB/Pasted image 20250729200810.png)
 
 **Combined selection efficiency** (2 AK8 + 2 leptons):
 - Overall efficiency: 26.9% → 26.375% after HLT_IsoMu30 trigger
 
 #### 2.3.2 After cleaning
 
-![Pasted image 20250729200521.png](/img/DB/Pasted image 20250729200521.png)
+![Pasted image 20250729200521.png](../DB/Pasted image 20250729200521.png)
 
-![Pasted image 20250729200534.png](/img/DB/Pasted image 20250729200534.png)
+![Pasted image 20250729200534.png](../DB/Pasted image 20250729200534.png)
 
 #### 2.3.3 WR Mass Reconstruction Studies
 
 **Reconstruction scenarios tested** for WR = 5000, MN = 2500 GeV:
 
-![Pasted image 20250729200943.png](/img/DB/Pasted image 20250729200943.png)
+![Pasted image 20250729200943.png](../DB/Pasted image 20250729200943.png)
 It is for another scenario bur it is quite well matched shape , which means it is well selected not choosing fake from signal sample. 
 
-![Pasted image 20250729200302.png](/img/DB/Pasted image 20250729200302.png)
+![Pasted image 20250729200302.png](../DB/Pasted image 20250729200302.png)
 
 When N is slightly boosted , N has less power to boost t , b which makes top slow and w ,b got outside of top jets. 
 
 #### 2.3.4 B jet selection 
  For working point in 2022 , 
  jet was selected with pt > 30 , eta < 2.5 , tight ID 
-![Pasted image 20250811154058.png](/img/DB/Pasted image 20250811154058.png)
+![Pasted image 20250811154058.png](../DB/Pasted image 20250811154058.png)
 
-![Pasted image 20250811152500.png](/img/DB/Pasted image 20250811152500.png)
+![Pasted image 20250811152500.png](../DB/Pasted image 20250811152500.png)
 
-![Pasted image 20250811152518.png](/img/DB/Pasted image 20250811152518.png)
+![Pasted image 20250811152518.png](../DB/Pasted image 20250811152518.png)
 
-![Pasted image 20250811152620.png](/img/DB/Pasted image 20250811152620.png)
+![Pasted image 20250811152620.png](../DB/Pasted image 20250811152620.png)
 
-![Pasted image 20250811152637.png](/img/DB/Pasted image 20250811152637.png)
+![Pasted image 20250811152637.png](../DB/Pasted image 20250811152637.png)
 
 Choosed  particle Net which is the most best score and tight . 
 also pt > 30 , eta < 2.5.
@@ -426,28 +426,28 @@ also pt > 30 , eta < 2.5.
 
 #### 2.4.1 Muon features
 
-![Pasted image 20250729200035.png](/img/DB/Pasted image 20250729200035.png)
+![Pasted image 20250729200035.png](../DB/Pasted image 20250729200035.png)
 
 - Number of reco muon by mass points 
 
 
-![Pasted image 20250730233023.png](/img/DB/Pasted image 20250730233023.png)
+![Pasted image 20250730233023.png](../DB/Pasted image 20250730233023.png)
 - Checking if the leading and subleading muon is same with lhe muons. 
 
-![Pasted image 20250729200201.png](/img/DB/Pasted image 20250729200201.png)
+![Pasted image 20250729200201.png](../DB/Pasted image 20250729200201.png)
 
 - Checking how much muon get inside top jet , which will make loss of signal . 
 
 
-![Pasted image 20250729200217.png](/img/DB/Pasted image 20250729200217.png)
+![Pasted image 20250729200217.png](../DB/Pasted image 20250729200217.png)
 
 - Checking all of reco muon and signal muon pt , to get safe pt cut from getting fake muon while using leading , subleading  muon . 
 
-![Pasted image 20250729200405.png](/img/DB/Pasted image 20250729200405.png)
+![Pasted image 20250729200405.png](../DB/Pasted image 20250729200405.png)
 
 - Checking Mll to get advantage to seperate background .
 
-![Pasted image 20250730224242.png](/img/DB/Pasted image 20250730224242.png)
+![Pasted image 20250730224242.png](../DB/Pasted image 20250730224242.png)
 
  - Also checked  mll and pt cut to make sure how much pt would seperate well from fake muon . 
 
@@ -472,30 +472,30 @@ To get Leptons, first it should go through HLT, and we should choose leptons wit
 
 **1. pt**
 
-![Pasted image 20250729132747.png](/img/DB/Pasted image 20250729132747.png)
+![Pasted image 20250729132747.png](../DB/Pasted image 20250729132747.png)
 
 **2. High pt id and isolated**
 
-![Pasted image 20250729132904.png](/img/DB/Pasted image 20250729132904.png)
+![Pasted image 20250729132904.png](../DB/Pasted image 20250729132904.png)
 
-![Pasted image 20250729132927.png](/img/DB/Pasted image 20250729132927.png)
+![Pasted image 20250729132927.png](../DB/Pasted image 20250729132927.png)
 
 which mean we can use high pt id, and iso id, must also check recommendation.
 
 **HLT recommendation gives:**
 
-![Pasted image 20250729133637.png](/img/DB/Pasted image 20250729133637.png)
+![Pasted image 20250729133637.png](../DB/Pasted image 20250729133637.png)
 
 **And for ID's:**
 
-![Pasted image 20250729143825.png](/img/DB/Pasted image 20250729143825.png)
+![Pasted image 20250729143825.png](../DB/Pasted image 20250729143825.png)
 
 **Conclusion**: For muon selection, use:
 - **HLT**: HLT_Mu50 || HLT_HighPtTkMu100 || HLT_CascadeMu100 due to pt over 1 TeV
 - **ID**: HighptID == 2 (tight), Muon_tkIsoId == 2 (tight)
 - **pT cut**: starts from 50 GeV for SF availability
 
-![Pasted image 20250729152205.png](/img/DB/Pasted image 20250729152205.png)
+![Pasted image 20250729152205.png](../DB/Pasted image 20250729152205.png)
 
 ---
 
@@ -514,7 +514,7 @@ which mean we can use high pt id, and iso id, must also check recommendation.
 
 **cut2**: BKG → ST_TW_antitop_Semilep, ST_tW_top_Semilep, TTG_PTG200toinf, TTHToNonbb, TTLJ, TTTT, TTWtoNu, TTZ_M4to50, TTZ_M50, TTZ_NoFullyHad
 
-![Pasted image 20250729193430.png](/img/DB/Pasted image 20250729193430.png)
+![Pasted image 20250729193430.png](../DB/Pasted image 20250729193430.png)
 
 **Issues with these cuts:**
 
@@ -532,395 +532,7 @@ which mean we can use high pt id, and iso id, must also check recommendation.
 
 ##### Applied code 
 
-```C++
-#include "LRSM_TBChannel.h"
-
-LRSM_TBChannel::LRSM_TBChannel() {}
-LRSM_TBChannel::~LRSM_TBChannel() {}
-
-void LRSM_TBChannel::initializeAnalyzer() {
-    cout << "[LRSM_TBChannel::initializeAnalyzer] Starting initialization" << endl;
-    
-    // Check user flags
-    RunSyst = HasFlag("RunSyst");
-    RunWRCut = HasFlag("RunWRCut");
-    
-    cout << "[LRSM_TBChannel::initializeAnalyzer] RunSyst = " << RunSyst << endl;
-    cout << "[LRSM_TBChannel::initializeAnalyzer] RunWRCut = " << RunWRCut << endl;
-    
-    // Set WR mass cut threshold
-    if (RunWRCut) {
-        WRCutThreshold = SelectionCuts::WR_CUT_2000;
-    } else {
-        WRCutThreshold = SelectionCuts::NO_WR_CUT;
-    }
-    
-    // Muon IDs and scale factor keys
-    MuonIDs.clear();
-    // Use more reasonable muon IDs for standard analysis
-    // POG_GLOBAL_HIGH_PT is very restrictive (for >200 GeV muons)
-    // For LRSM analysis, use Tight ID + isolation
-    // Your data has HighPtId=1, so use POG_TRACKER_HIGH_PT instead of POG_GLOBAL_HIGH_PT
-    MuonIDs.push_back(Muon::MuonID::POG_GLOBAL_HIGH_PT);  // This matches your data (HighPtId=2)
-    MuonIDs.push_back(Muon::MuonID::POG_TKISO_TIGHT);      // TkIsoId=2
-    
-    // Alternative: Use standard IDs if high-pT selection isn't critical
-    // MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
-    // MuonIDs.push_back(Muon::MuonID::POG_PFISO_TIGHT);
-    
-    MuonIDSFKeys = {"NUM_TightID_DEN_TrackerMuons"};
-    
-    // Jet IDs
-    JetIDs = {Jet::JetID::NOCUT};
-    
-    // Era-dependent trigger settings
-    if (DataEra == "2016preVFP" || DataEra == "2016postVFP" || DataEra == "2018") {
-        IsoMuTriggerName = "HLT_IsoMu27";
-        TriggerSafePtCut = 29.;
-    } else if (DataEra == "2017") {
-        IsoMuTriggerName = "HLT_IsoMu27"; 
-        TriggerSafePtCut = 29.;
-    } else if (DataEra == "2022") {
-        Trigger1  = "HLT_Mu50";
-        Trigger2  = "HLT_CascadeMu100";
-        Trigger3  = "HLT_HighPtTkMu100";
-        TriggerSafePtCut = 52.;
-    } else if (DataEra == "2022EE") {
-        Trigger1  = "HLT_Mu50";
-        Trigger2  = "HLT_CascadeMu100";
-        Trigger3  = "HLT_HighPtTkMu100";
-        TriggerSafePtCut = 52.;
-    } else if (DataEra == "2023") {
-        Trigger1  = "HLT_Mu50";
-        Trigger2  = "HLT_CascadeMu100";
-        Trigger3  = "HLT_HighPtTkMu100";
-        TriggerSafePtCut = 52.;
-    } else if (DataEra == "2023BPix") {
-        Trigger1  = "HLT_Mu50";
-        Trigger2  = "HLT_CascadeMu100";
-        Trigger3  = "HLT_HighPtTkMu100";
-        TriggerSafePtCut = 52.;
-    } else {
-        cerr << "[LRSM_TBChannel::initializeAnalyzer] DataEra is not set properly: " << DataEra << endl;
-        exit(EXIT_FAILURE);
-    }
-    
-    //cout << "[LRSM_TBChannel::initializeAnalyzer] IsoMuTriggerName = " << IsoMuTriggerName << endl;
-    cout << "[LRSM_TBChannel::initializeAnalyzer] TriggerSafePtCut = " << TriggerSafePtCut << endl;
-    
-    // Initialize corrections
-    myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
-    
-    // Initialize systematic helper
-    string SKNANO_HOME = getenv("SKNANO_HOME");
-    if (IsDATA) {
-        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/noSyst.yaml", DataStream, DataEra);
-    } else {
-        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/ExampleSystematic.yaml", MCSample, DataEra);
-    }
-    
-    cout << "[LRSM_TBChannel::initializeAnalyzer] Initialization complete" << endl;
-}
-
-void LRSM_TBChannel::executeEvent() {
-    // Get all physics objects at the beginning to save CPU time
-    AllMuons = GetAllMuons();
-    AllJets = GetAllJets();
-    AllFatJets = GetAllFatJets();
-    
-    
-    
-    // Loop over systematic sources
-    for (const auto &syst_dummy : *systHelper) {
-        executeEventFromParameter();
-    }
-}
-
-void LRSM_TBChannel::executeEventFromParameter() {
-    const TString this_syst = systHelper->getCurrentSysName();
-    
-    // Get event information
-    Event ev = GetEvent();
-    FillHist(this_syst + "/CutFlow", 0.0, 1.0, 10, 0., 10.); // Initial event
-    // Apply HLT trigger
-    if (!(ev.PassTrigger(Trigger1)||ev.PassTrigger(Trigger2)||ev.PassTrigger(Trigger3))) return;
-    
-    FillHist(this_syst + "/CutFlow", 1.0, 1.0, 10, 0., 10.); // HLT pass
-    
-    // Copy physics objects for systematic variations
-    RVec<Muon> muons = AllMuons;
-    RVec<Jet> jets = AllJets;
-    RVec<FatJet> fatjets = AllFatJets;
-
-    // Muon Id pass 
-    bool hasGoodMuon = false;
-    
-    for (const auto& muon : muons) {
-        // Debug output to see actual ID values
-        FillHist(this_syst + "/MuonhighPtid",muon.PassID(MuonIDs[0]), 1.0, 10, -5., 5.);
-        FillHist(this_syst + "/Muonisoid",muon.PassID(MuonIDs[1]), 1.0, 10, -5., 5.);
-        
-        // Fill additional histograms to understand what IDs are available
-        FillHist(this_syst + "/Muon_HighPtId", (int)muon.HighPtId(), 1.0,  10, -5., 5.);
-        FillHist(this_syst + "/Muon_TkIsoId", (int)muon.TkIsoId(), 1.0,  10, -5., 5.);
-        FillHist(this_syst + "/Muon_TightId", muon.isPOGTightId(), 1.0, 3, 0., 3.);
-        FillHist(this_syst + "/Muon_MediumId", muon.isPOGMediumId(), 1.0, 3, 0., 3.);
-        FillHist(this_syst + "/Muon_LooseId", muon.isPOGLooseId(), 1.0, 3, 0., 3.);
-        
-        if (muon.PassID(MuonIDs[1]) and muon.PassID(MuonIDs[0]) ) {
-            hasGoodMuon = true;
-            break;
-        }
-    }   
-    if (!hasGoodMuon) return;
-
-    // Apply muon selection
-    FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.); // 2 muons
-    muons = RemoveOverlap(muons);
-    // Require more than 2 muons
-    if (muons.size() < 2) return;
-    
-    // Sort muons by pT
-    sort(muons.begin(), muons.end(), PtComparing);
-    
-    // Apply kinematic cuts
-    if (!PassKinematicCuts(muons)) return;
-    
-    FillHist(this_syst + "/CutFlow", 3.0, 1.0, 10, 0., 10.); // Kinematic cuts
-    
-    // Apply dilepton mass cut
-    if (!PassDileptonMassCut(muons)) return;
-    
-    Muon muon1 = muons[0];
-    Muon muon2 = muons[1];
-    muon_overlap_cleaned = { muon1, muon2 };
-    
-
-
-    FillHist(this_syst + "/CutFlow", 4.0, 1.0, 10, 0., 10.); // Dilepton mass cut
-    
-    
-    
-    // Select fat jets and remove overlaps
-    // FatJet selection - using basic kinematic cuts for now
-    RVec<FatJet> selected_fatjets;
-    for (const auto& fj : fatjets) {
-        if (fj.Pt() > cuts.fatjet_pt && abs(fj.Eta()) < cuts.fatjet_eta) {
-            selected_fatjets.push_back(fj);
-        }
-    }
-    fatjets = selected_fatjets;
-    FillHist(this_syst + "/FatJetnum", fatjets.size(), 1.0, 10, 0., 10.);
-    fatjets = RemoveOverlapWithMuonsFatJet(fatjets, muon_overlap_cleaned);
-    FillHist(this_syst + "/FatJetnum_afterOverlap", fatjets.size(), 1.0, 10, 0., 10.);
-    RVec<FatJet> topjets = SelectTopTaggedJets(fatjets);
-    FillHist(this_syst + "/Topjetnum", topjets.size(), 1.0, 10, 0., 10.);
-    for (const auto& fatjet : fatjets) {
-        // Using basic mass cuts for top tagging - update with actual tagger when available
-        float toptag_score1 = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD); // placeholder
-        float softdrop_mass1 = fatjet.SDMass();
-        FillHist(this_syst + "/FatJet_SoftDropMass", softdrop_mass1, 1.0, 100, 0., 1000.);
-        FillHist(this_syst + "/FatJet_TopTagScore", toptag_score1, 1.0, 100, 0., 1.);
-        
-    }
-    for (const auto& topjet : topjets) {
-        float toptag_score2 = topjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD);
-        float softdrop_mass2 = topjet.SDMass();
-        FillHist(this_syst + "/topJet_SoftDropmass", softdrop_mass2, 1.0, 100, 0., 1000.);
-        FillHist(this_syst + "/topJet_TopTagScore", toptag_score2, 1.0, 100, 0., 1.);
-    }
-    if (topjets.size() < 1) return;
-    sort(topjets.begin(), topjets.end(), PtComparing);
-    RVec<FatJet> leading_topjet = {topjets[0]};
-    FillHist(this_syst + "/CutFlow", 5.0, 1.0, 10, 0., 10.);
-    // Remove overlap between jets and fat jets
-    jets = SelectJets(jets, JetIDs[0], cuts.jet_pt, cuts.jet_eta);
-    jets = RemoveOverlapWithMuons(jets, muon_overlap_cleaned);
-    jets = RemoveOverlapWithFatJets(jets, leading_topjet);
-    RVec<Jet> bjets = SelectBTaggedJets(jets);
-    sort(bjets.begin(), bjets.end(), PtComparing);
-    if (bjets.size() < 1 ) return;
-    RVec<Jet> leading_bjet = {bjets[0]};
-
-    FillHist(this_syst + "/CutFlow", 6.0, 1.0, 10, 0., 10.); // b-jet and top-jet
-    
-    
-    
-    // Calculate invariant masses
-    float wr_mass = CalculateWRMass(muon_overlap_cleaned, leading_bjet, leading_topjet);
-    float dilepton_mass = (muon_overlap_cleaned[0] + muon_overlap_cleaned[1]).M();
-    
-    // Apply WR mass cut if requested
-    if ( wr_mass >2000) return;
-    
-    FillHist(this_syst + "/CutFlow", 7.0, 1.0, 10, 0., 10.); // WR mass cut (if applied)
-    
-    // Event weight calculation
-    float weight = 1.0;
-    if (!IsDATA) {
-        weight *= MCweight();
-        weight *= ev.GetTriggerLumi("Full");
-        FillHist(this_syst + "/WRMass_" + this_syst, wr_mass, weight, 2000, 0., 2000.);
-        FillHist(this_syst + "/DileptonMass_" + this_syst, dilepton_mass, weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/LeadingMuonPt_" + this_syst, muon_overlap_cleaned[0].Pt(), weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/SubleadingMuonPt_" + this_syst, muon_overlap_cleaned[1].Pt(), weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/LeadingBJetPt_" + this_syst, leading_bjet[0].Pt(), weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/LeadingTopJetPt_" + this_syst, leading_topjet[0].Pt(), weight, 3000, 0., 3000.);
-        
-        // Apply systematic weights
-        //unordered_map<std::string, float> weight_map = systHelper->calculateWeight();
-        //for (const auto &w : weight_map) {
-        //    TString weight_suffix = w.first;
-        //    float total_weight = weight * w.second;
-            
-            // Fill histograms with systematic weights
-        //    FillHist(this_syst + "/WRMass_" + weight_suffix, wr_mass, total_weight, 100, 0., 8000.);
-            //FillHist(this_syst + "/DileptonMass_" + weight_suffix, dilepton_mass, total_weight, 100, 0., 8000.);
-            //FillHist(this_syst + "/LeadingMuonPt_" + weight_suffix, muons[0].Pt(), total_weight, 100, 0., 8000.);
-            //FillHist(this_syst + "/SubleadingMuonPt_" + weight_suffix, muons[1].Pt(), total_weight, 100, 0., 8000.);
-            //FillHist(this_syst + "/LeadingBJetPt_" + weight_suffix, leading_bjet[0].Pt(), total_weight, 100, 0., 8000.);
-            //FillHist(this_syst + "/LeadingTopJetPt_" + weight_suffix, leading_topjet[0].Pt(), total_weight, 100, 0., 8000.);
-        //}
-    } else {
-        // For data, only fill nominal histograms
-        FillHist(this_syst + "/WRMass_" + this_syst, wr_mass, weight, 2000, 0., 2000.);
-        FillHist(this_syst + "/DileptonMass_" + this_syst, dilepton_mass, weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/LeadingMuonPt_" + this_syst, muon_overlap_cleaned[0].Pt(), weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/SubleadingMuonPt_" + this_syst, muon_overlap_cleaned[1].Pt(), weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/LeadingBJetPt_" + this_syst, leading_bjet[0].Pt(), weight, 3000, 0., 3000.);
-        FillHist(this_syst + "/LeadingTopJetPt_" + this_syst, leading_topjet[0].Pt(), weight, 3000, 0., 3000.);
-    }
-}
-
-// Helper function implementations
-
-
-
-RVec<Jet> LRSM_TBChannel::SelectBTaggedJets(const RVec<Jet>& jets) {
-    RVec<Jet> btagged_jets;
-    for (const auto& jet : jets) {
-        if (jet.GetBTaggerResult(JetTagging::JetFlavTagger::ParticleNet) > cuts.btag_wp) {
-            btagged_jets.push_back(jet); 
-        }
-    }
-    return btagged_jets;
-}
-
-RVec<FatJet> LRSM_TBChannel::SelectTopTaggedJets(const RVec<FatJet>& fatjets) {
-    RVec<FatJet> toptagged_jets;
-    for (const auto& fatjet : fatjets) {
-        // Using basic mass cuts for top tagging - update with actual tagger when available
-        float toptag_score = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD); // placeholder
-        float softdrop_mass = fatjet.SDMass();
-        
-        if (toptag_score > cuts.toptag_score &&
-            softdrop_mass > cuts.toptag_mass_low &&
-            softdrop_mass < cuts.toptag_mass_high) {
-            toptagged_jets.push_back(fatjet);
-        }
-    }
-    return toptagged_jets;
-}
-
-RVec<Muon> LRSM_TBChannel::RemoveOverlap(const RVec<Muon>& muons, float deltaR_cut) {
-    RVec<Muon> cleaned_muons;
-    for (size_t i = 0; i < muons.size(); ++i) {
-        bool overlaps = false;
-        for (size_t j = i + 1; j < muons.size(); ++j) {
-            if (muons[i].DeltaR(muons[j]) < deltaR_cut) {
-                overlaps = true;
-                break;
-            }
-        }
-        if (!overlaps) {
-            cleaned_muons.push_back(muons[i]);
-        }
-    }
-    return cleaned_muons;
-}
-
-RVec<Jet> LRSM_TBChannel::RemoveOverlapWithMuons(const RVec<Jet>& jets, const RVec<Muon>& muons, float deltaR_cut) {
-    RVec<Jet> cleaned_jets;
-    for (const auto& jet : jets) {
-        bool overlaps = false;
-        for (const auto& muon : muons) {
-            if (jet.DeltaR(muon) < deltaR_cut) {
-                overlaps = true;
-                break;
-            }
-        }
-        if (!overlaps) {
-            cleaned_jets.push_back(jet);
-        }
-    }
-    return cleaned_jets;
-}
-
-RVec<Jet> LRSM_TBChannel::RemoveOverlapWithFatJets(const RVec<Jet>& jets, const RVec<FatJet>& fatjets, float deltaR_cut) {
-    RVec<Jet> cleaned_jets;
-    for (const auto& jet : jets) {
-        bool overlaps = false;
-        for (const auto& fatjet : fatjets) {
-            if (jet.DeltaR(fatjet) < deltaR_cut) {
-                overlaps = true;
-                break;
-            }
-        }
-        if (!overlaps) {
-            cleaned_jets.push_back(jet);
-        }
-    }
-    return cleaned_jets;
-}
-
-RVec<FatJet> LRSM_TBChannel::RemoveOverlapWithMuonsFatJet(const RVec<FatJet>& fatjets, const RVec<Muon>& muons, float deltaR_cut) {
-    RVec<FatJet> cleaned_fatjets;
-    for (const auto& fatjet : fatjets) {
-        bool overlaps = false;
-        for (const auto& muon : muons) {
-            if (fatjet.DeltaR(muon) < deltaR_cut) {
-                overlaps = true;
-                break;
-            }
-        }
-        if (!overlaps) {
-            cleaned_fatjets.push_back(fatjet);
-        }
-    }
-    return cleaned_fatjets;
-}
-
-bool LRSM_TBChannel::PassKinematicCuts(const RVec<Muon>& muons) {
-    if (muons.size() < 2) return false;
-    
-    // Leading muon pT cut
-    if (muons[0].Pt() <= 50 ) return false;
-    
-    // Eta cuts
-    for (const auto& muon : muons) {
-        if (fabs(muon.Eta()) >= cuts.muon_eta) return false;
-    }
-    
-    return true;
-}
-
-bool LRSM_TBChannel::PassDileptonMassCut(const RVec<Muon>& muons) {
-    if (muons.size() < 2) return false;
-    
-    float dilepton_mass = (muons[0] + muons[1]).M();
-    return dilepton_mass > cuts.dilepton_mass_cut;
-}
-
-float LRSM_TBChannel::CalculateWRMass(const RVec<Muon>& muons, const RVec<Jet>& bjets, const RVec<FatJet>& topjets) {
-    if (muons.size() < 2 || bjets.size() < 1 || topjets.size() < 1) return -1.0;
-    
-    Particle wr_candidate = muons[0] + muons[1] + bjets[0] + topjets[0];
-    return wr_candidate.M();
-}
-
-```
-
-
+[code](../../Analyzers/src/LRSM_TBChannel.cc)
 
 
 
@@ -962,7 +574,10 @@ Minima Selection Cut : < Using recommendation >
 [2022 ERA](2022 B . C . D . Single Muon)
 
 
-[2022EE ERA](/categories/lrsm/topchannel/post/2022EE_CR.md)
+[2022EE ERA]( 2022 E.D.F )
+
+[Control_region](/AN/topchannel/CR/CR.md)
+
 
 
 

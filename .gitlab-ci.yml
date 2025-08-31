@@ -10,6 +10,7 @@ sync_to_github:
   script:
     - git remote add github https://$GITHUB_TOKEN@github.com/Chihwan-An/SKNanoAnalyzer.git || true
     - git fetch origin
+    - git checkout -B $CI_COMMIT_REF_NAME origin/$CI_COMMIT_REF_NAME
     - git push github $CI_COMMIT_REF_NAME
   only:
     - main

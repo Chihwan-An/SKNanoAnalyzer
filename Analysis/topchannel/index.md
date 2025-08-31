@@ -12,7 +12,7 @@ subheading: "LRSM Top Channel Analysis"
 
 **Decay channel**: WR→e/μ + N→e/μ + WR*→tb
 
-![Pasted image 20250729195203.png](/img/DB/Pasted image 20250729195203.png)
+![Pasted image 20250729195203.png](../DB/Pasted image 20250729195203.png)
 
 ## 1. Introduction
 
@@ -22,17 +22,17 @@ Previous research focused on the **WR high, N low** region where N particles are
 
 In this channel, due to using 2 lepton and top tagging and b tagging also with high m_ll, we can reduce lot of backgrounds and also improvements in WR ~ N region in the previous study.
 
-![Pasted image 20250729195448.png](/img/DB/Pasted image 20250729195448.png)
+![Pasted image 20250729195448.png](../DB/Pasted image 20250729195448.png)
 
 **Previous study data (EXO-20-002)**
 
-![Pasted image 20250729195530.png](/img/DB/Pasted image 20250729195530.png)
+![Pasted image 20250729195530.png](../DB/Pasted image 20250729195530.png)
 
-![Pasted image 20250729195551.png](/img/DB/Pasted image 20250729195551.png)
+![Pasted image 20250729195551.png](../DB/Pasted image 20250729195551.png)
 
-![Pasted image 20250729195609.png](/img/DB/Pasted image 20250729195609.png)
+![Pasted image 20250729195609.png](../DB/Pasted image 20250729195609.png)
 
-![Pasted image 20250729195621.png](/img/DB/Pasted image 20250729195621.png)
+![Pasted image 20250729195621.png](../DB/Pasted image 20250729195621.png)
 
 ### 1.2 Challenge with tb Channel
 
@@ -85,7 +85,7 @@ Extending the analysis to include the **tb decay channel** presents kinematic ch
 
 **Alternative approach**: In high WR, low N region, if initial WR is off-shell, reduced top boost enables WL decay mode.
 
-![이미지 2025. 6. 4. 오후 1.34.jpeg](/img/DB/이미지 2025. 6. 4. 오후 1.34.jpeg)
+![이미지 2025. 6. 4. 오후 1.34.jpeg](../DB/이미지 2025. 6. 4. 오후 1.34.jpeg)
 
 **MadGraph simulation setup**:
 - Top couples to both WR and WL: t → (WR + WL)b vs t → WL b
@@ -103,9 +103,9 @@ Extending the analysis to include the **tb decay channel** presents kinematic ch
 - `generate t > q q b / wr+`: Width = 0.97 ± 0.0007 GeV
 - **Result**: WR decay channel negligible at high masses
 
-![Pasted image 20250729195330.png](/img/DB/Pasted image 20250729195330.png)
+![Pasted image 20250729195330.png](../DB/Pasted image 20250729195330.png)
 
-![Pasted image 20250729195347.png](/img/DB/Pasted image 20250729195347.png)
+![Pasted image 20250729195347.png](../DB/Pasted image 20250729195347.png)
 
 Checked with WL + WR both decay mode and the case with decays with only SM W. There was no significance pattern when does WR contributes to cross section.
 
@@ -115,18 +115,18 @@ Yellow region means when WL + WR decays it has more cross section and it was ord
 
 Cross section is checked with LO gridpacks.
 
-![Pasted image 20250729195642.png](/img/DB/Pasted image 20250729195642.png)
+![Pasted image 20250729195642.png](../DB/Pasted image 20250729195642.png)
 
-![Pasted image 20250729195654.png](/img/DB/Pasted image 20250729195654.png)
+![Pasted image 20250729195654.png](../DB/Pasted image 20250729195654.png)
 
 * Cross section can be differ 3 order 
 Cross sections for exo 20-002
 
-![Pasted image 20250729195711.png](/img/DB/Pasted image 20250729195711.png)
+![Pasted image 20250729195711.png](../DB/Pasted image 20250729195711.png)
 
 Cross section when N is ~ WR/2 has the most cross section, because N = 200 it is constraint due to top mass, and also N ~ WR has no much kinematic phase space to decay.
 
-![Pasted image 20250729195728.png](/img/DB/Pasted image 20250729195728.png)
+![Pasted image 20250729195728.png](../DB/Pasted image 20250729195728.png)
 
 Full cross section
 
@@ -148,15 +148,15 @@ SM has
 
 **Boost Factors for non observable objects (WR, top)**
 
-![Pasted image 20250729195917.png](/img/DB/Pasted image 20250729195917.png)
+![Pasted image 20250729195917.png](../DB/Pasted image 20250729195917.png)
 
-![Pasted image 20250729195928.png](/img/DB/Pasted image 20250729195928.png)
+![Pasted image 20250729195928.png](../DB/Pasted image 20250729195928.png)
 
 **Delta R, Delta eta, Delta phi for each variables**
 
-![Pasted image 20250729195958.png](/img/DB/Pasted image 20250729195958.png)
+![Pasted image 20250729195958.png](../DB/Pasted image 20250729195958.png)
 
-![Pasted image 20250729200010.png](/img/DB/Pasted image 20250729200010.png)
+![Pasted image 20250729200010.png](../DB/Pasted image 20250729200010.png)
 
 #### 2.1.1 WR ~ N Mass Region (5000, 4900 GeV)
 
@@ -170,9 +170,9 @@ SM has
   - **Bottom quark**: Highly boosted, random direction relative to l2
   - **Interpretation**: Suggests moderate WR* boost regime
 
-![Pasted image 20250729195809.png](/img/DB/Pasted image 20250729195809.png)
+![Pasted image 20250729195809.png](../DB/Pasted image 20250729195809.png)
 
-![Pasted image 20250729195825.png](/img/DB/Pasted image 20250729195825.png)
+![Pasted image 20250729195825.png](../DB/Pasted image 20250729195825.png)
 
 #### 2.1.2 WR ~ N/2 Mass Region (5000, 2500 GeV)
 
@@ -225,7 +225,7 @@ SM has
 
 **WR = 5000, MN = 4900 GeV**:
 
-![Pasted image 20250729202722.png](/img/DB/Pasted image 20250729202722.png)
+![Pasted image 20250729202722.png](../DB/Pasted image 20250729202722.png)
 
 #### 2.2.3 Fake Jet Background Assessment
 
@@ -293,9 +293,9 @@ For cleaning strategy, it must not overlap with signal muons that is selected an
 
 **After cleaning, top pt:**
 
-![Pasted image 20250729200648.png](/img/DB/Pasted image 20250729200648.png)
+![Pasted image 20250729200648.png](../DB/Pasted image 20250729200648.png)
 
-![Pasted image 20250729200658.png](/img/DB/Pasted image 20250729200658.png)
+![Pasted image 20250729200658.png](../DB/Pasted image 20250729200658.png)
 
 ##### 2.2.5.1 B-Jet Cross-Contamination Analysis
 
@@ -317,21 +317,21 @@ For cleaning strategy, it must not overlap with signal muons that is selected an
 
 **Reference**: [CMS Top Tagging Working Points](https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetTopTagging#Workings_points_for_the_AK8_tagg)
 
-![Pasted image 20250729132038.png](/img/DB/Pasted image 20250729132038.png)
+![Pasted image 20250729132038.png](../DB/Pasted image 20250729132038.png)
 
 There is a WP with variable tau3/tau2 but it has low eff than particle net so It should be waitten until WP came with version NanoAOD v 15
 
 **For working process:**
 
-![Pasted image 20250729191656.png](/img/DB/Pasted image 20250729191656.png)
+![Pasted image 20250729191656.png](../DB/Pasted image 20250729191656.png)
 
-![Pasted image 20250729191752.png](/img/DB/Pasted image 20250729191752.png)
+![Pasted image 20250729191752.png](../DB/Pasted image 20250729191752.png)
 
-![Pasted image 20250729191722.png](/img/DB/Pasted image 20250729191722.png)
+![Pasted image 20250729191722.png](../DB/Pasted image 20250729191722.png)
 
 It might be better to use Loose WP due to high pt and for stable with error.
 
-![Pasted image 20250729192412.png](/img/DB/Pasted image 20250729192412.png)
+![Pasted image 20250729192412.png](../DB/Pasted image 20250729192412.png)
 
 which this plot show when cut slight adjusted.
 
@@ -384,40 +384,40 @@ AK8 Jet:
 **ParticleNet algorithm** [2022, Tight, 0.6734]:
 - Efficiency: 8.63% → 8.465% after HLT_IsoMu30 trigger
 
-![Pasted image 20250729200810.png](/img/DB/Pasted image 20250729200810.png)
+![Pasted image 20250729200810.png](../DB/Pasted image 20250729200810.png)
 
 **Combined selection efficiency** (2 AK8 + 2 leptons):
 - Overall efficiency: 26.9% → 26.375% after HLT_IsoMu30 trigger
 
 #### 2.3.2 After cleaning
 
-![Pasted image 20250729200521.png](/img/DB/Pasted image 20250729200521.png)
+![Pasted image 20250729200521.png](../DB/Pasted image 20250729200521.png)
 
-![Pasted image 20250729200534.png](/img/DB/Pasted image 20250729200534.png)
+![Pasted image 20250729200534.png](../DB/Pasted image 20250729200534.png)
 
 #### 2.3.3 WR Mass Reconstruction Studies
 
 **Reconstruction scenarios tested** for WR = 5000, MN = 2500 GeV:
 
-![Pasted image 20250729200943.png](/img/DB/Pasted image 20250729200943.png)
+![Pasted image 20250729200943.png](../DB/Pasted image 20250729200943.png)
 It is for another scenario bur it is quite well matched shape , which means it is well selected not choosing fake from signal sample. 
 
-![Pasted image 20250729200302.png](/img/DB/Pasted image 20250729200302.png)
+![Pasted image 20250729200302.png](../DB/Pasted image 20250729200302.png)
 
 When N is slightly boosted , N has less power to boost t , b which makes top slow and w ,b got outside of top jets. 
 
 #### 2.3.4 B jet selection 
  For working point in 2022 , 
  jet was selected with pt > 30 , eta < 2.5 , tight ID 
-![Pasted image 20250811154058.png](/img/DB/Pasted image 20250811154058.png)
+![Pasted image 20250811154058.png](../DB/Pasted image 20250811154058.png)
 
-![Pasted image 20250811152500.png](/img/DB/Pasted image 20250811152500.png)
+![Pasted image 20250811152500.png](../DB/Pasted image 20250811152500.png)
 
-![Pasted image 20250811152518.png](/img/DB/Pasted image 20250811152518.png)
+![Pasted image 20250811152518.png](../DB/Pasted image 20250811152518.png)
 
-![Pasted image 20250811152620.png](/img/DB/Pasted image 20250811152620.png)
+![Pasted image 20250811152620.png](../DB/Pasted image 20250811152620.png)
 
-![Pasted image 20250811152637.png](/img/DB/Pasted image 20250811152637.png)
+![Pasted image 20250811152637.png](../DB/Pasted image 20250811152637.png)
 
 Choosed  particle Net which is the most best score and tight . 
 also pt > 30 , eta < 2.5.
@@ -426,28 +426,28 @@ also pt > 30 , eta < 2.5.
 
 #### 2.4.1 Muon features
 
-![Pasted image 20250729200035.png](/img/DB/Pasted image 20250729200035.png)
+![Pasted image 20250729200035.png](../DB/Pasted image 20250729200035.png)
 
 - Number of reco muon by mass points 
 
 
-![Pasted image 20250730233023.png](/img/DB/Pasted image 20250730233023.png)
+![Pasted image 20250730233023.png](../DB/Pasted image 20250730233023.png)
 - Checking if the leading and subleading muon is same with lhe muons. 
 
-![Pasted image 20250729200201.png](/img/DB/Pasted image 20250729200201.png)
+![Pasted image 20250729200201.png](../DB/Pasted image 20250729200201.png)
 
 - Checking how much muon get inside top jet , which will make loss of signal . 
 
 
-![Pasted image 20250729200217.png](/img/DB/Pasted image 20250729200217.png)
+![Pasted image 20250729200217.png](../DB/Pasted image 20250729200217.png)
 
 - Checking all of reco muon and signal muon pt , to get safe pt cut from getting fake muon while using leading , subleading  muon . 
 
-![Pasted image 20250729200405.png](/img/DB/Pasted image 20250729200405.png)
+![Pasted image 20250729200405.png](../DB/Pasted image 20250729200405.png)
 
 - Checking Mll to get advantage to seperate background .
 
-![Pasted image 20250730224242.png](/img/DB/Pasted image 20250730224242.png)
+![Pasted image 20250730224242.png](../DB/Pasted image 20250730224242.png)
 
  - Also checked  mll and pt cut to make sure how much pt would seperate well from fake muon . 
 
@@ -472,30 +472,30 @@ To get Leptons, first it should go through HLT, and we should choose leptons wit
 
 **1. pt**
 
-![Pasted image 20250729132747.png](/img/DB/Pasted image 20250729132747.png)
+![Pasted image 20250729132747.png](../DB/Pasted image 20250729132747.png)
 
 **2. High pt id and isolated**
 
-![Pasted image 20250729132904.png](/img/DB/Pasted image 20250729132904.png)
+![Pasted image 20250729132904.png](../DB/Pasted image 20250729132904.png)
 
-![Pasted image 20250729132927.png](/img/DB/Pasted image 20250729132927.png)
+![Pasted image 20250729132927.png](../DB/Pasted image 20250729132927.png)
 
 which mean we can use high pt id, and iso id, must also check recommendation.
 
 **HLT recommendation gives:**
 
-![Pasted image 20250729133637.png](/img/DB/Pasted image 20250729133637.png)
+![Pasted image 20250729133637.png](../DB/Pasted image 20250729133637.png)
 
 **And for ID's:**
 
-![Pasted image 20250729143825.png](/img/DB/Pasted image 20250729143825.png)
+![Pasted image 20250729143825.png](../DB/Pasted image 20250729143825.png)
 
 **Conclusion**: For muon selection, use:
 - **HLT**: HLT_Mu50 || HLT_HighPtTkMu100 || HLT_CascadeMu100 due to pt over 1 TeV
 - **ID**: HighptID == 2 (tight), Muon_tkIsoId == 2 (tight)
 - **pT cut**: starts from 50 GeV for SF availability
 
-![Pasted image 20250729152205.png](/img/DB/Pasted image 20250729152205.png)
+![Pasted image 20250729152205.png](../DB/Pasted image 20250729152205.png)
 
 ---
 
@@ -514,7 +514,7 @@ which mean we can use high pt id, and iso id, must also check recommendation.
 
 **cut2**: BKG → ST_TW_antitop_Semilep, ST_tW_top_Semilep, TTG_PTG200toinf, TTHToNonbb, TTLJ, TTTT, TTWtoNu, TTZ_M4to50, TTZ_M50, TTZ_NoFullyHad
 
-![Pasted image 20250729193430.png](/img/DB/Pasted image 20250729193430.png)
+![Pasted image 20250729193430.png](../DB/Pasted image 20250729193430.png)
 
 **Issues with these cuts:**
 

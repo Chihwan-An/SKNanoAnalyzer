@@ -1,0 +1,35 @@
+name: Sync to GitLab
+
+on:
+  push:
+    branches: 
+      - main
+      - develop
+  workflow_dispatch:  # 수동 실행도 가능
+
+jobs:
+  sync_to_gitlab:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 전체 히스토리 가져오기
+
+      - name: Setup Git
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Add GitLab remote and push
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          # GitLab remote 추가
+          git remote add gitlab https://oauth2:$GITLAB_TOKEN@gitlab.cern.ch/achihwan/SKNanoAnalyzer.git
+          
+          # GitLab에서 최신 상태 가져오기
+          git fetch gitlab
+          
+          # 현재 브랜치를 GitLab에 푸시
+          git push gitlab ${{ github.ref_name }} --force-with-lease

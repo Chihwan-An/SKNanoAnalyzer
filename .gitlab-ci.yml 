@@ -1,0 +1,22 @@
+stages:
+  - test
+  - sync
+
+# 기본 테스트
+test_code:
+  stage: test
+  script:
+    - echo "Running tests..."
+    - # 실제 테스트 명령어
+
+# GitHub 동기화
+sync_to_github:
+  stage: sync
+  script:
+    - git remote add github https://github.com/Chihwan-An/SKNanoAnalyzer.git
+    - git push github main
+  variables:
+    GIT_STRATEGY: clone
+  only:
+    - main
+  when: manual  # 수동 실행

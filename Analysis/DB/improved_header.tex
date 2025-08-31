@@ -1,0 +1,45 @@
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{unicode-math}
+
+% Set fonts with better Unicode support
+\setmainfont{DejaVu Serif}[
+  UprightFont = *,
+  BoldFont = * Bold,
+  ItalicFont = * Italic,
+  BoldItalicFont = * Bold Italic
+]
+\setCJKmainfont{Apple SD Gothic Neo}
+
+% Math support with better Unicode handling
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{textgreek}
+
+% Better subscript and superscript handling
+\usepackage{realscripts}
+
+% Better float handling with stricter placement
+\usepackage{float}
+\floatplacement{figure}{H}
+
+% Page layout improvements
+\usepackage{needspace}
+\usepackage{afterpage}
+
+% Prevent overfull boxes and improve line breaking
+\setlength{\emergencystretch}{3em}
+\tolerance=1000
+\hbadness=10000
+
+% Better page breaking for long content
+\widowpenalty=10000
+\clubpenalty=10000
+
+% Ensure content doesn't overflow page margins
+\usepackage{geometry}
+\geometry{
+  margin=2.5cm,
+  includeheadfoot,
+  heightrounded
+}

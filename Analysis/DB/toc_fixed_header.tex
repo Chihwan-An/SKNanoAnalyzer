@@ -1,0 +1,60 @@
+\usepackage{fontspec}
+\usepackage{xeCJK}
+
+% Set fonts
+\setmainfont{DejaVu Serif}
+\setCJKmainfont{Apple SD Gothic Neo}
+
+% Math support
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{textgreek}
+
+% Better float handling
+\usepackage{float}
+\floatplacement{figure}{H}
+
+% Page layout and spacing
+\usepackage{needspace}
+\usepackage{setspace}
+
+% Typography improvements
+\setlength{\emergencystretch}{3em}
+\tolerance=1000
+\hbadness=10000
+\widowpenalty=10000
+\clubpenalty=10000
+
+% Geometry settings
+\usepackage{geometry}
+\geometry{
+  margin=2.5cm,
+  includeheadfoot,
+  heightrounded,
+  showframe=false
+}
+
+% Better section spacing
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{12pt plus 4pt minus 2pt}{6pt plus 2pt minus 2pt}
+\titlespacing*{\subsection}{0pt}{12pt plus 4pt minus 2pt}{6pt plus 2pt minus 2pt}
+\titlespacing*{\subsubsection}{0pt}{12pt plus 4pt minus 2pt}{6pt plus 2pt minus 2pt}
+
+% Prevent page overflow
+\usepackage{microtype}
+
+% TOC formatting - 목차 후 자동 페이지 브레이크
+\usepackage{tocloft}
+\renewcommand{\cfttoctitlefont}{\hfill\Large\bfseries}
+\renewcommand{\cftaftertoctitle}{\hfill}
+\setlength{\cftbeforesecskip}{5pt}
+
+% 목차 후 페이지 브레이크 추가
+\AtEndDocument{%
+  \addtocontents{toc}{\protect\newpage}%
+}
+
+% 또는 더 직접적인 방법
+\usepackage{etoolbox}
+\preto\tableofcontents{\clearpage}
+\appto\tableofcontents{\clearpage}

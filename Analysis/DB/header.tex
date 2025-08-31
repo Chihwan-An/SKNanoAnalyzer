@@ -1,0 +1,38 @@
+\usepackage{unicode-math}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+
+% Set fonts (macOS compatible)
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Monaco}
+\setCJKmainfont{Apple SD Gothic Neo}
+
+% Math font - use XITS Math or fallback to default
+\IfFontExistsTF{XITS Math}{
+  \setmathfont{XITS Math}
+}{
+  \IfFontExistsTF{Cambria Math}{
+    \setmathfont{Cambria Math}
+  }{
+    % Fallback to default math handling
+    \usepackage{amsmath}
+    \usepackage{amssymb}
+  }
+}
+
+% Physics symbols
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% Better float handling
+\usepackage{float}
+\floatplacement{figure}{H}
+
+% Prevent overfull boxes
+\setlength{\emergencystretch}{3em}
+\tolerance=1000
+\hbadness=10000
+
+% Better page breaks
+\usepackage{needspace}

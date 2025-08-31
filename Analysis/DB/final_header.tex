@@ -1,0 +1,59 @@
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{unicode-math}
+
+% Set main fonts
+\setmainfont{DejaVu Serif}
+\setCJKmainfont{Apple SD Gothic Neo}
+
+% Set fallback fonts for missing characters
+\newfontfamily\symbolfont{STIX Two Text}[
+  UprightFont = *,
+  BoldFont = * Bold,
+  ItalicFont = * Italic,
+  BoldItalicFont = * Bold Italic
+]
+
+% Math support
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{textgreek}
+
+% Define missing characters
+\DeclareTextCommand{\textlnot}{TU}{\symbolfont ℓ}
+\DeclareTextCommand{\textgg}{TU}{\symbolfont ≫}
+
+% Better handling of special characters
+\catcode`ℓ=\active
+\catcode`≫=\active
+\def ℓ{{\symbolfont ℓ}}
+\def ≫{{\symbolfont ≫}}
+
+% Subscript and superscript improvements
+\usepackage{realscripts}
+
+% Better float handling
+\usepackage{float}
+\floatplacement{figure}{H}
+
+% Page layout
+\usepackage{needspace}
+\usepackage{afterpage}
+
+% Typography improvements
+\setlength{\emergencystretch}{3em}
+\tolerance=1000
+\hbadness=10000
+\widowpenalty=10000
+\clubpenalty=10000
+
+% Geometry
+\usepackage{geometry}
+\geometry{
+  margin=2.5cm,
+  includeheadfoot,
+  heightrounded
+}
+
+% Better line spacing
+\usepackage{setspace}

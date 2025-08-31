@@ -1,0 +1,39 @@
+\usepackage{fontspec}
+\usepackage{xeCJK}
+
+% Use system fonts available on macOS
+\setmainfont{Helvetica Neue}
+\setCJKmainfont{Apple SD Gothic Neo}
+
+% Math support
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{textgreek}
+
+% Better subscript and superscript handling
+\DeclareRobustCommand{\textsubscript}[1]{\ensuremath{_{\text{#1}}}}
+\DeclareRobustCommand{\textsuperscript}[1]{\ensuremath{^{\text{#1}}}}
+
+% Better float handling
+\usepackage{float}
+\floatplacement{figure}{H}
+
+% Page layout improvements
+\usepackage{needspace}
+
+% Prevent overfull boxes
+\setlength{\emergencystretch}{3em}
+\tolerance=1000
+\hbadness=10000
+
+% Better page breaking
+\widowpenalty=10000
+\clubpenalty=10000
+
+% Geometry settings
+\usepackage{geometry}
+\geometry{
+  margin=2.5cm,
+  includeheadfoot,
+  heightrounded
+}

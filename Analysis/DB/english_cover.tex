@@ -1,0 +1,42 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage{tikz}
+
+\setmainfont{DejaVu Serif}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+
+% 편집 날짜 (오른쪽 상단) - 영문으로
+\node[anchor=north east] at ([xshift=-1cm,yshift=-1cm]current page.north east) {
+    \footnotesize 25.07.29 edited
+};
+
+% 로고 영역 (오른쪽 상단)
+\node[anchor=north east] at ([xshift=-1cm,yshift=-3cm]current page.north east) {
+    \begin{minipage}{8cm}
+        \centering
+        \fbox{\makebox[3cm][c]{\parbox{3cm}{\centering \textbf{CMS}\\EXPERIMENT}}}
+        \hspace{0.5cm}
+        \fbox{\makebox[3cm][c]{\parbox{3cm}{\centering \textbf{SNU}\\SEOUL}}}
+    \end{minipage}
+};
+
+% 제목 (중앙)
+\node[anchor=center] at (current page.center) {
+    \begin{minipage}{15cm}
+        \centering
+        
+        {\Huge\bfseries LRSM WR→tb Channel Analysis}
+        
+    \end{minipage}
+};
+
+\end{tikzpicture}
+\end{titlepage}
+
+\end{document}

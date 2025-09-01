@@ -72,6 +72,8 @@ void LRSM_TBChannel::initializeAnalyzer() {
     //cout << "[LRSM_TBChannel::initializeAnalyzer] IsoMuTriggerName = " << IsoMuTriggerName << endl;
     cout << "[LRSM_TBChannel::initializeAnalyzer] TriggerSafePtCut = " << TriggerSafePtCut << endl;
     
+
+    /*
     // Initialize corrections
     if (IsDATA){
         if (DataEra == "2022") {
@@ -97,7 +99,7 @@ void LRSM_TBChannel::initializeAnalyzer() {
             corr_G = new MyCorrection("2022EE", "G", MCSample, false);
         }
     }
-
+    */
     
 
 
@@ -256,7 +258,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
     
 
     // correction 
-
+    /*
     float corr1_1  = corr_C -> GetMuonScaleSF(muon1, variation::this_syst, muon1.Pt());
     float corr1_2 = corr_C -> GetMuonScaleSF(muon2, variation::this_syst, muon2.Pt());
 
@@ -268,7 +270,8 @@ void LRSM_TBChannel::executeEventFromParameter() {
 
     float corr2  = corr_C -> GetMuonIDSF(MuonIDSFKeys[0], muon, variation::nom);
     float corr3  = corr_C -> GetMuonRECOSF(muon, variation::nom);
-
+    */
+    
     // Event weight calculation
     
     if (!IsDATA) {

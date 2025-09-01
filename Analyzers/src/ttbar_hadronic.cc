@@ -12,12 +12,11 @@ void ttbar_hadronic::initializeAnalyzer() {
     cout << "[ttbar_hadronic::initializeAnalyzer] RunSyst = " << RunSyst << endl;
     
     // Muon IDs and scale factor keys
-    MuonIDs.clear();
-    MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
+    
     //MuonIDSFKeys = {"NUM_TightID_DEN_TrackerMuons"};
     
     // Jet IDs
-    JetIDs = {Jet::JetID::TIGHTLEPVETO};
+    
     
     // Era-dependent trigger settings
     if (DataEra == "2016preVFP" || DataEra == "2016postVFP" || DataEra == "2018") {
@@ -91,30 +90,56 @@ void ttbar_hadronic::executeEventFromParameter() {
         }
     }
     fatjets = selected_fatjets;
-    RVec<FatJet> topjets = SelectTopTaggedJets(fatjets);
-    sort(topjets.begin(), topjets.end(), PtComparing);
-    if (topjets.size() < 2) return;
-    RVec<FatJet> leading_topjet = {topjets[0]};
-    RVec<FatJet> subleading_topjet; = {topjets[1]};
-    FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.); // At least 2 top-tagged fat jets
-
+    RVec<FatJet> topjets_wp1 = SelectTopTaggedJets_wp1(fatjets);
+    RVec<FatJet> topjets_wp2 = SelectTopTaggedJets_wp2(fatjets);
+    RVec<FatJet> topjets_wp3 = SelectTopTaggedJets_wp3(fatjets);
     
+    sort(topjets_wp1.begin(), topjets_wp1.end(), PtComparing);
+    sort(topjets_wp2.begin(), topjets_wp2.end(), PtComparing);
+    sort(topjets_wp3.begin(), topjets_wp3.end(), PtComparing);
 
-    // Calculate TTbar observables
-    TTbar_mass = (leading_topjet[0] + subleading_topjet[0]).M();
-    TTbar_pt = (leading_topjet[0] + subleading_topjet[0]).Pt();
-    
-    // Event weight calculation
     float weight = 1.0;
     if (!IsDATA) {
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("Full");
     }
     
+    FillHist("/workingpoint_passed",0.,weight,5,0.,4.);
+    
+    if (topjets_wp1.size() < 2) return;
+
+    FillHist("/workingpoint_passed",1.,weight,5,0.,4.);
+
+    if ((topjets_wp1.size() > 1) && (topjets_wp2.size() < 2)) {
+        leading_topjet = {topjets_wp1[0]};
+        subleading_topjet = {topjets_wp1[1]};
+        FillHist("/workingpoint_passed",2.,weight,5,0.,4.);
+    }
+
+    if ((topjets_wp2.size() > 1) && (topjets_wp3.size() < 2)) {
+        leading_topjet = {topjets_wp2[0]};
+        subleading_topjet = {topjets_wp2[1]};
+        FillHist("/workingpoint_passed",3.,weight,5,0.,4.);
+    }
+
+    if (topjets_wp3.size() > 1) {
+        leading_topjet = {topjets_wp3[0]};
+        subleading_topjet = {topjets_wp3[1]};
+        FillHist("/workingpoint_passed",4.,weight,5,0.,4.);
+    }
+
+
+    // Calculate TTbar observables
+    float TTbar_mass = (leading_topjet[0] + subleading_topjet[0]).M();
+    float TTbar_pt = (leading_topjet[0] + subleading_topjet[0]).Pt();
+    float leading_topjet_pt = leading_topjet[0].Pt();
+    float subleading_topjet_pt = subleading_topjet[0].Pt();
+    // Event weight calculation
+    
     // Fill histograms
     // top jet pt 
-    FillHist(this_syst + "/LeadingTopJetPt", leading_topjet[0].Pt(), weight.0, 4000, 0., 4000.);
-    FillHist(this_syst + "/SubleadingTopJetPt", subleading_topjet[0].Pt(), weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/LeadingTopJetPt", leading_topjet_pt, weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/SubleadingTopJetPt", subleading_topjet_pt, weight, 4000, 0., 4000.);
     FillHist(this_syst + "/TTbarMass", TTbar_mass, weight, 4000, 0., 4000.);
     FillHist(this_syst + "/TTbarPt", TTbar_pt, weight, 4000, 0., 4000.);
     
@@ -126,14 +151,44 @@ void ttbar_hadronic::executeEventFromParameter() {
 
 
 
-RVec<FatJet> LRSM_TBChannel::SelectTopTaggedJets(const RVec<FatJet>& fatjets) {
+RVec<FatJet> ttbar_hadronic::SelectTopTaggedJets_wp1(const RVec<FatJet>& fatjets) {
     RVec<FatJet> toptagged_jets;
     for (const auto& fatjet : fatjets) {
         // Using basic mass cuts for top tagging - update with actual tagger when available
         float toptag_score = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD); // placeholder
         float softdrop_mass = fatjet.SDMass();
         
-        if (toptag_score > cuts.toptag_score &&
+        if (toptag_score > cuts.toptag_score1 &&
+            softdrop_mass > cuts.toptag_mass_low &&
+            softdrop_mass < cuts.toptag_mass_high) {
+            toptagged_jets.push_back(fatjet);
+        }
+    }
+    return toptagged_jets;
+}
+RVec<FatJet> ttbar_hadronic::SelectTopTaggedJets_wp2(const RVec<FatJet>& fatjets) {
+    RVec<FatJet> toptagged_jets;
+    for (const auto& fatjet : fatjets) {
+        // Using basic mass cuts for top tagging - update with actual tagger when available
+        float toptag_score = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD); // placeholder
+        float softdrop_mass = fatjet.SDMass();
+        
+        if (toptag_score > cuts.toptag_score2 &&
+            softdrop_mass > cuts.toptag_mass_low &&
+            softdrop_mass < cuts.toptag_mass_high) {
+            toptagged_jets.push_back(fatjet);
+        }
+    }
+    return toptagged_jets;
+}
+RVec<FatJet> ttbar_hadronic::SelectTopTaggedJets_wp3(const RVec<FatJet>& fatjets) {
+    RVec<FatJet> toptagged_jets;
+    for (const auto& fatjet : fatjets) {
+        // Using basic mass cuts for top tagging - update with actual tagger when available
+        float toptag_score = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD); // placeholder
+        float softdrop_mass = fatjet.SDMass();
+        
+        if (toptag_score > cuts.toptag_score3 &&
             softdrop_mass > cuts.toptag_mass_low &&
             softdrop_mass < cuts.toptag_mass_high) {
             toptagged_jets.push_back(fatjet);

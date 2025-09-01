@@ -1419,7 +1419,8 @@
         "lumi": 7908.4
     },
     "HLT_PFHT400_SixPFJet32": {
-        "lumi": 7908.4
+        "lumi": 7908.4,
+        "active" : true
     },
     "HLT_PFHT450_SixPFJet36_PFBTagDeepCSV_1p59": {
         "lumi": 7908.4

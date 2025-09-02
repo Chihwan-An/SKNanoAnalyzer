@@ -3,9 +3,9 @@
     "isMC": 1,
     "PD": "DYGto2LG-1Jets_MLL-50_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",
     "xsec": 0.04331,
-    "sumsign": 524584.0,
-    "sumW": 145899.46536564827,
-    "nmc": 981022.0,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": 0,
     "path": [
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/DYGto2LG-1Jets_MLL-50_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/250617_130649/0000/NANOAOD_1.root",
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/DYGto2LG-1Jets_MLL-50_PTG-200to400_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/250617_130649/0000/NANOAOD_2.root",

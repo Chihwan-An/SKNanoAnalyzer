@@ -3,9 +3,9 @@
     "isMC": 1,
     "PD": "TTLL_MLL-50_TuneCP5_13p6TeV_amcatnlo-pythia8",
     "xsec": "0.08646",
-    "sumsign": 411332.0,
-    "sumW": 68255.89336043596,
-    "nmc": 791000.0,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": 0,
     "path": [
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/TTLL_MLL-50_TuneCP5_13p6TeV_amcatnlo-pythia8/250617_130539/0000/NANOAOD_1.root",
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/TTLL_MLL-50_TuneCP5_13p6TeV_amcatnlo-pythia8/250617_130539/0000/NANOAOD_2.root",

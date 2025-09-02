@@ -75,13 +75,13 @@ void ttbar_hadronic::executeEventFromParameter() {
     
     // Get event information
     Event ev = GetEvent();
-    FillHist(this_syst + "/CutFlow", 0.0, 1.0, 10, 0., 10.); // Initial event
+    
     
     RVec<Jet> jets = AllJets;
     RVec<FatJet> fatjets = AllFatJets;
     // Apply HLT trigger (HLT_PFHT400_SixPFJet32)
     //if (!ev.PassTrigger(Trigger)) return;  // not using HLT 
-    FillHist(this_syst + "/CutFlow", 1.0, 1.0, 10, 0., 10.); // HLT pass
+    
     
     RVec<FatJet> selected_fatjets;
     for (const auto& fj : fatjets) {
@@ -114,6 +114,9 @@ void ttbar_hadronic::executeEventFromParameter() {
     FillHist(this_syst + "/SubleadingTopJetPt_wp0", subleading_topjet_pt, weight, 4000, 0., 4000.);
     FillHist(this_syst + "/TTbarMass_wp0", TTbar_mass, weight, 4000, 0., 4000.);
     FillHist(this_syst + "/TTbarPt_wp0", TTbar_pt, weight, 4000, 0., 4000.);
+    
+    FillHist(this_syst + "/CutFlow", 0.0, weight, 10, 0., 10.); // Initial event
+    
     if (topjets_wp1.size() < 2) return;
 
     FillHist("/workingpoint_passed",1.,weight,5,0.,4.); // tagging wp1 not passed
@@ -121,6 +124,8 @@ void ttbar_hadronic::executeEventFromParameter() {
     FillHist(this_syst + "/SubleadingTopJetPt_wp1", subleading_topjet_pt, weight, 4000, 0., 4000.);
     FillHist(this_syst + "/TTbarMass_wp1", TTbar_mass, weight, 4000, 0., 4000.);
     FillHist(this_syst + "/TTbarPt_wp1", TTbar_pt, weight, 4000, 0., 4000.);
+    
+    FillHist(this_syst + "/CutFlow", 1.0, weight, 10, 0., 10.); // Passed wp
 
     if ((topjets_wp1.size() > 1) && (topjets_wp2.size() < 2)) {
         leading_topjet = {topjets_wp1[0]};
@@ -130,6 +135,9 @@ void ttbar_hadronic::executeEventFromParameter() {
         FillHist(this_syst + "/SubleadingTopJetPt_wp2", subleading_topjet_pt, weight, 4000, 0., 4000.);
         FillHist(this_syst + "/TTbarMass_wp2", TTbar_mass, weight, 4000, 0., 4000.);
         FillHist(this_syst + "/TTbarPt_wp2", TTbar_pt, weight, 4000, 0., 4000.);
+
+        FillHist(this_syst + "/CutFlow", 2.0, weight, 10, 0., 10.); // Passed wp2
+        
     }
 
     if ((topjets_wp2.size() > 1) && (topjets_wp3.size() < 2)) {
@@ -139,6 +147,10 @@ void ttbar_hadronic::executeEventFromParameter() {
         FillHist(this_syst + "/LeadingTopJetPt_wp3", leading_topjet_pt, weight, 4000, 0., 4000.);
         FillHist(this_syst + "/SubleadingTopJetPt_wp3", subleading_topjet_pt, weight, 4000, 0., 4000.);
         FillHist(this_syst + "/TTbarMass_wp3", TTbar_mass, weight, 4000,0., 4000.);
+        FillHist(this_syst + "/TTbarPt_wp3", TTbar_pt, weight, 4000, 0., 4000.);
+
+        FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // Initial event
+        
     }
 
     if (topjets_wp3.size() > 1) {
@@ -149,6 +161,8 @@ void ttbar_hadronic::executeEventFromParameter() {
         FillHist(this_syst + "/SubleadingTopJetPt_wp4", subleading_topjet_pt, weight, 4000, 0., 4000.);
         FillHist(this_syst + "/TTbarMass_wp4", TTbar_mass, weight, 4000, 0., 4000.);
         FillHist(this_syst + "/TTbarPt_wp4", TTbar_pt, weight, 4000, 0., 4000.);
+
+        FillHist(this_syst + "/CutFlow", 4.0, weight, 10, 0., 10.); // Initial event
     }
 
 

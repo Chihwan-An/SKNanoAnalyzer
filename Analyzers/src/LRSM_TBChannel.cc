@@ -103,7 +103,7 @@ void LRSM_TBChannel::initializeAnalyzer() {
     
 
 
-
+    myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
     
     // Initialize systematic helper
     string SKNANO_HOME = getenv("SKNANO_HOME");
@@ -135,12 +135,21 @@ void LRSM_TBChannel::executeEventFromParameter() {
     
     // Get event information
     Event ev = GetEvent();
+
+    float weight = 1.0;
+    if(!IsDATA){
+        weight *= MCweight();
+        weight *= ev.GetTriggerLumi("Full");
+    }
+    
+
+
     FillHist(this_syst + "/sumSign" + this_syst, sumSign, 1 , 10 , 0 , 1e+11 );
-    FillHist(this_syst + "/CutFlow", 0.0, 1.0, 10, 0., 10.); // Initial event
+    FillHist(this_syst + "/CutFlow", 0.0, weight, 10, 0., 10.); // Initial event
     // Apply HLT trigger
     if (!(ev.PassTrigger(Trigger1)||ev.PassTrigger(Trigger2)||ev.PassTrigger(Trigger3))) return;
     
-    FillHist(this_syst + "/CutFlow", 1.0, 1.0, 10, 0., 10.); // HLT pass
+    FillHist(this_syst + "/CutFlow", 1.0, weight, 10, 0., 10.); // HLT pass
     
     // Copy physics objects for systematic variations
     RVec<Muon> muons = AllMuons;
@@ -175,7 +184,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
     if (!hasGoodMuon) return;
 
     // Apply muon selection
-    FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.); // 2 muons
+    FillHist(this_syst + "/CutFlow", 2.0, weight, 10, 0., 10.); // 2 muons
     muons = RemoveOverlap(muons);
     // Require more than 2 muons
     if (muons.size() < 2) return;
@@ -186,7 +195,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
     // Apply kinematic cuts
     if (!PassKinematicCuts(muons)) return;
     
-    FillHist(this_syst + "/CutFlow", 3.0, 1.0, 10, 0., 10.); // Kinematic cuts
+    FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // Kinematic cuts
     
     // Apply dilepton mass cut
     if (!PassDileptonMassCut(muons)) return;
@@ -197,7 +206,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
     
 
 
-    FillHist(this_syst + "/CutFlow", 4.0, 1.0, 10, 0., 10.); // Dilepton mass cut
+    FillHist(this_syst + "/CutFlow", 4.0, weight, 10, 0., 10.); // Dilepton mass cut
     
     
     
@@ -226,13 +235,24 @@ void LRSM_TBChannel::executeEventFromParameter() {
     for (const auto& topjet : topjets) {
         float toptag_score2 = topjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD);
         float softdrop_mass2 = topjet.SDMass();
+        float topjet_pt = topjet.Pt();
         FillHist(this_syst + "/topJet_SoftDropmass", softdrop_mass2, 1.0, 100, 0., 1000.);
         FillHist(this_syst + "/topJet_TopTagScore", toptag_score2, 1.0, 100, 0., 1.);
+        FillHist("all fat jets topscore & sdm",toptag_score2,softdrop_mass2, weight,100,0.,1.,300,0.,300.);
+        FillHist("all fat jets topscore & pt",toptag_score2,topjet_pt, weight,100,0.,1.,300,0.,3000.);
+        FillHist("all fat jets sdm & pt",softdrop_mass2,topjet_pt, weight,300,0.,300.,300,0.,3000.);
     }
     if (topjets.size() < 1) return;
     sort(topjets.begin(), topjets.end(), PtComparing);
     RVec<FatJet> leading_topjet = {topjets[0]};
-    FillHist(this_syst + "/CutFlow", 5.0, 1.0, 10, 0., 10.);
+    float leading_topjet_sdm = leading_topjet[0].SDMass();
+    float leading_topjet_topscore = leading_topjet[0].GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD);
+    float leading_topjet_pt = leading_topjet[0].Pt();
+    FillHist("used top jet sdm & topscore",leading_topjet_topscore,leading_topjet_sdm, weight,100,0.,1.,300,0.,300.);
+    FillHist("used top jet topscore& pt", leading_topjet_topscore,leading_topjet_pt, weight,100,0.,1.,300,0.,3000.);
+    FillHist("used top jet sdm & pt",leading_topjet_sdm,leading_topjet_pt, weight,300,0.,300.,300,0.,3000.);
+
+    FillHist(this_syst + "/CutFlow", 5.0, weight, 10, 0., 10.);
     // Remove overlap between jets and fat jets
     jets = SelectJets(jets, JetIDs[0], cuts.jet_pt, cuts.jet_eta);
     jets = RemoveOverlapWithMuons(jets, muon_overlap_cleaned);
@@ -242,19 +262,22 @@ void LRSM_TBChannel::executeEventFromParameter() {
     if (bjets.size() < 1 ) return;
     
     RVec<Jet> leading_bjet = {bjets[0]};
-    FillHist(this_syst + "/CutFlow", 6.0, 1.0, 10, 0., 10.); // b-jet and top-jet
+    FillHist(this_syst + "/CutFlow", 6.0, weight, 10, 0., 10.); // b-jet and top-jet
     
     
     
-    float weight = 1.0;
+    
     // Calculate invariant masses
     float wr_mass = CalculateWRMass(muon_overlap_cleaned, leading_bjet, leading_topjet);
     float dilepton_mass = (muon_overlap_cleaned[0] + muon_overlap_cleaned[1]).M();
     
     // Apply WR mass cut if requested
-    if ( wr_mass <0.00) return;
+    if (IsDATA){
+        if ( wr_mass > 2000.00) return;
+    }
     
-    FillHist(this_syst + "/CutFlow", 7.0, 1.0, 10, 0., 10.); // WR mass cut (if applied)
+    
+    FillHist(this_syst + "/CutFlow", 7.0,weight, 10, 0., 10.); // WR mass cut (if applied)
     
 
     // correction 
@@ -275,13 +298,11 @@ void LRSM_TBChannel::executeEventFromParameter() {
     // Event weight calculation
     
     if (!IsDATA) {
-        weight *= MCweight();
-        //cout << "[LRSM_TBChannel::executeEventFromParameter] MC weight: " << MCweight() << endl;
-        weight *= ev.GetTriggerLumi("Full");
+        
         //cout << "[LRSM_TBChannel::executeEventFromParameter] Trigger lumi : " << ev.GetTriggerLumi("Full") << endl;
         //cout << "[LRSM_TBChannel::executeEventFromParameter] Event weight: " << weight << endl;
         
-        FillHist(this_syst + "/xsec" + this_syst, xsec , 1, 100 , 0 , 1000 );
+        FillHist(this_syst + "/xsec" + this_syst, xsec , weight, 100 , 0 , 1000 );
         FillHist(this_syst + "/Bjetnum", bjets.size(), weight, 10, 0., 10.);
         FillHist(this_syst + "/Topjetnum", topjets.size(), weight, 10, 0., 10.);
         FillHist(this_syst + "/WRMass_" + this_syst, wr_mass, weight, 2000, 0., 2000.);
@@ -307,14 +328,14 @@ void LRSM_TBChannel::executeEventFromParameter() {
         //}
     } else {
         // For data, only fill nominal histograms
-        FillHist(this_syst + "/Bjetnum", bjets.size(), weight, 10, 0., 10.);
-        FillHist(this_syst + "/Topjetnum", topjets.size(), weight, 10, 0., 10.);
-        FillHist(this_syst + "/WRMass_" + this_syst, wr_mass, weight, 2000, 0., 2000.);
-        FillHist(this_syst + "/DileptonMass_" + this_syst, dilepton_mass, weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingMuonPt_" + this_syst, muon_overlap_cleaned[0].Pt(), weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/SubleadingMuonPt_" + this_syst, muon_overlap_cleaned[1].Pt(), weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingBJetPt_" + this_syst, leading_bjet[0].Pt(), weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingTopJetPt_" + this_syst, leading_topjet[0].Pt(), weight, 5000, 0., 5000.);
+        FillHist(this_syst + "/Bjetnum", bjets.size(), 1, 10, 0., 10.);
+        FillHist(this_syst + "/Topjetnum", topjets.size(), 1, 10, 0., 10.);
+        FillHist(this_syst + "/WRMass_" + this_syst, wr_mass, 1, 2000, 0., 2000.);
+        FillHist(this_syst + "/DileptonMass_" + this_syst, dilepton_mass, 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingMuonPt_" + this_syst, muon_overlap_cleaned[0].Pt(), 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/SubleadingMuonPt_" + this_syst, muon_overlap_cleaned[1].Pt(), 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingBJetPt_" + this_syst, leading_bjet[0].Pt(), 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingTopJetPt_" + this_syst, leading_topjet[0].Pt(), 1, 5000, 0., 5000.);
     }
 }
 

@@ -18,6 +18,7 @@
 #pragma link C++ class ParseMuIDVariables+;
 #pragma link C++ class TestGetLeptonType+;
 #pragma link C++ class LRSM_TBChannel+;
+#pragma link C++ class LRSM_TBChannel_wtagging+;
 #pragma link C++ class TTbar_test+;
 #pragma link C++ class DY+;
 #pragma link C++ class ttbar_hadronic+;

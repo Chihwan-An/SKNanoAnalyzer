@@ -138,7 +138,7 @@ void ttbar_hadronic::executeEventFromParameter() {
         FillHist("/workingpoint_passed",3.,weight,5,0.,4.); // wp2 passed, wp3 not passed
         FillHist(this_syst + "/LeadingTopJetPt_wp3", leading_topjet_pt, weight, 4000, 0., 4000.);
         FillHist(this_syst + "/SubleadingTopJetPt_wp3", subleading_topjet_pt, weight, 4000, 0., 4000.);
-        FillHist(this_syst + "/TTbarMass_wp3", TTbar_mass, weight, 4000,
+        FillHist(this_syst + "/TTbarMass_wp3", TTbar_mass, weight, 4000,0., 4000.);
     }
 
     if (topjets_wp3.size() > 1) {

@@ -80,7 +80,7 @@ void ttbar_hadronic::executeEventFromParameter() {
     RVec<Jet> jets = AllJets;
     RVec<FatJet> fatjets = AllFatJets;
     // Apply HLT trigger (HLT_PFHT400_SixPFJet32)
-    if (!ev.PassTrigger(Trigger)) return;
+    //if (!ev.PassTrigger(Trigger)) return;  // not using HLT 
     FillHist(this_syst + "/CutFlow", 1.0, 1.0, 10, 0., 10.); // HLT pass
     
     RVec<FatJet> selected_fatjets;
@@ -103,47 +103,56 @@ void ttbar_hadronic::executeEventFromParameter() {
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("Full");
     }
-    
-    FillHist("/workingpoint_passed",0.,weight,5,0.,4.);
-    
+
+    float TTbar_mass = (leading_topjet[0] + subleading_topjet[0]).M();
+    float TTbar_pt = (leading_topjet[0] + subleading_topjet[0]).Pt();
+    float leading_topjet_pt = leading_topjet[0].Pt();
+    float subleading_topjet_pt = subleading_topjet[0].Pt();
+
+    FillHist("/workingpoint_passed",0.,weight,5,0.,4.); // no tagging wp passed
+    FillHist(this_syst + "/LeadingTopJetPt_wp0", leading_topjet_pt, weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/SubleadingTopJetPt_wp0", subleading_topjet_pt, weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/TTbarMass_wp0", TTbar_mass, weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/TTbarPt_wp0", TTbar_pt, weight, 4000, 0., 4000.);
     if (topjets_wp1.size() < 2) return;
 
-    FillHist("/workingpoint_passed",1.,weight,5,0.,4.);
+    FillHist("/workingpoint_passed",1.,weight,5,0.,4.); // tagging wp1 not passed
+    FillHist(this_syst + "/LeadingTopJetPt_wp1", leading_topjet_pt, weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/SubleadingTopJetPt_wp1", subleading_topjet_pt, weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/TTbarMass_wp1", TTbar_mass, weight, 4000, 0., 4000.);
+    FillHist(this_syst + "/TTbarPt_wp1", TTbar_pt, weight, 4000, 0., 4000.);
 
     if ((topjets_wp1.size() > 1) && (topjets_wp2.size() < 2)) {
         leading_topjet = {topjets_wp1[0]};
         subleading_topjet = {topjets_wp1[1]};
-        FillHist("/workingpoint_passed",2.,weight,5,0.,4.);
+        FillHist("/workingpoint_passed",2.,weight,5,0.,4.); // wp1 passed, wp2 not passed
+        FillHist(this_syst + "/LeadingTopJetPt_wp2", leading_topjet_pt, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/SubleadingTopJetPt_wp2", subleading_topjet_pt, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/TTbarMass_wp2", TTbar_mass, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/TTbarPt_wp2", TTbar_pt, weight, 4000, 0., 4000.);
     }
 
     if ((topjets_wp2.size() > 1) && (topjets_wp3.size() < 2)) {
         leading_topjet = {topjets_wp2[0]};
         subleading_topjet = {topjets_wp2[1]};
-        FillHist("/workingpoint_passed",3.,weight,5,0.,4.);
+        FillHist("/workingpoint_passed",3.,weight,5,0.,4.); // wp2 passed, wp3 not passed
+        FillHist(this_syst + "/LeadingTopJetPt_wp3", leading_topjet_pt, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/SubleadingTopJetPt_wp3", subleading_topjet_pt, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/TTbarMass_wp3", TTbar_mass, weight, 4000,
     }
 
     if (topjets_wp3.size() > 1) {
         leading_topjet = {topjets_wp3[0]};
         subleading_topjet = {topjets_wp3[1]};
-        FillHist("/workingpoint_passed",4.,weight,5,0.,4.);
+        FillHist("/workingpoint_passed",4.,weight,5,0.,4.); // wp3 passed
+        FillHist(this_syst + "/LeadingTopJetPt_wp4", leading_topjet_pt, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/SubleadingTopJetPt_wp4", subleading_topjet_pt, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/TTbarMass_wp4", TTbar_mass, weight, 4000, 0., 4000.);
+        FillHist(this_syst + "/TTbarPt_wp4", TTbar_pt, weight, 4000, 0., 4000.);
     }
 
 
-    // Calculate TTbar observables
-    float TTbar_mass = (leading_topjet[0] + subleading_topjet[0]).M();
-    float TTbar_pt = (leading_topjet[0] + subleading_topjet[0]).Pt();
-    float leading_topjet_pt = leading_topjet[0].Pt();
-    float subleading_topjet_pt = subleading_topjet[0].Pt();
-    // Event weight calculation
-    
-    // Fill histograms
-    // top jet pt 
-    FillHist(this_syst + "/LeadingTopJetPt", leading_topjet_pt, weight, 4000, 0., 4000.);
-    FillHist(this_syst + "/SubleadingTopJetPt", subleading_topjet_pt, weight, 4000, 0., 4000.);
-    FillHist(this_syst + "/TTbarMass", TTbar_mass, weight, 4000, 0., 4000.);
-    FillHist(this_syst + "/TTbarPt", TTbar_pt, weight, 4000, 0., 4000.);
-    
-    
+
 }
 
 // Helper function implementations

@@ -43,7 +43,7 @@ public:
     
     // Analysis cuts
     struct AnalysisCuts {
-        float fatjet_pt = 35.0;
+        float fatjet_pt = 350.0;
         float fatjet_eta = 2.5;
         float toptag_score1 = 0.5;
         float toptag_score2 = 0.7;

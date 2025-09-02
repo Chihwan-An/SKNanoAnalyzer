@@ -47,13 +47,14 @@ public:
     // Analysis cuts
     struct AnalysisCuts {
         float muon_pt = 50.0;
+        float muon_sub_pt = 30.0;
         float muon_eta = 2.5;
         float jet_pt = 30.0;
         float jet_eta = 2.5;
-        float fatjet_pt = 30.0;
+        float fatjet_pt = 350.0;
         float fatjet_eta = 2.5;
         float btag_wp = 0.6734; // ParticleNet medium WP
-        float toptag_score = 0.9;
+        float toptag_score = 0.683;
         float toptag_mass_low = 120.0;
         float toptag_mass_high = 250.0;
         float deltaR_overlap = 0.4;

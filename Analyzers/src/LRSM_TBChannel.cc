@@ -420,7 +420,9 @@ bool LRSM_TBChannel::PassKinematicCuts(const RVec<Muon>& muons) {
     if (muons.size() < 2) return false;
     
     // Leading muon pT cut
-    if (muons[0].Pt() <= 50 ) return false;
+    if (muons[0].Pt() <= cuts.muon_pt ) return false;
+    if (muons[1].Pt() <= cuts.muon_sub_pt ) return false;
+
     
     // Eta cuts
     for (const auto& muon : muons) {

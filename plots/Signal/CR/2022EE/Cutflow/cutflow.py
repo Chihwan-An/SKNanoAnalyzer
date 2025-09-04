@@ -47,7 +47,7 @@ for file in os.listdir(data_directory):
     hist_new.GetXaxis().SetBinLabel(1, "Trigger pass")
     hist_new.GetXaxis().SetBinLabel(2, "Muon ID , pt , eta")
     hist_new.GetXaxis().SetBinLabel(3, "Dilepton cut")
-    hist_new.GetXaxis().SetBinLabel(4, "Top tagger , SDM , pt , eta")
+    hist_new.GetXaxis().SetBinLabel(4, "top tagger , SDM , pt , eta")
     hist_new.GetXaxis().SetBinLabel(5, "B Tagger , pt , eta")
     
     

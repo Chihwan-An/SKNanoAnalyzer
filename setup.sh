@@ -89,14 +89,14 @@ elif [ $PACKAGE = "mamba" ]; then
 
     # micromamba shell hook should only be run once per session
     if [[ -z "$__MAMBA_SETUP_DONE" ]]; then
-        unalias mamba 2>/dev/null
-        eval "$(mamba shell hook -s zsh)"
+        unalias micromamba 2>/dev/null
+        eval "$(micromamba shell hook -s bash)"
         export __MAMBA_SETUP_DONE=1
     fi
-    mamba activate Nano
+    micromamba activate Nano
     # from this point on, we can follow conda version of setup
     PACKAGE="conda"
-    alias conda="mamba"
+    alias conda="micromamba"
 elif [ $PACKAGE = "cvmfs" ]; then
     echo -e "\033[31m@@@@ cvmfs is not supported anymore\033[0m"
     return 1

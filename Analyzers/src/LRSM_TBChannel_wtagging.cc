@@ -1,17 +1,17 @@
-#include "LRSM_TBChannel.h"
+#include "LRSM_TBChannel_wtagging.h"
 
-LRSM_TBChannel::LRSM_TBChannel() {}
-LRSM_TBChannel::~LRSM_TBChannel() {}
+LRSM_TBChannel_wtagging::LRSM_TBChannel_wtagging() {}
+LRSM_TBChannel_wtagging::~LRSM_TBChannel_wtagging() {}
 
-void LRSM_TBChannel::initializeAnalyzer() {
-    cout << "[LRSM_TBChannel::initializeAnalyzer] Starting initialization" << endl;
+void LRSM_TBChannel_wtagging::initializeAnalyzer() {
+    cout << "[LRSM_TBChannel_wtagging::initializeAnalyzer] Starting initialization" << endl;
     
     // Check user flags
     RunSyst = HasFlag("RunSyst");
     RunWRCut = HasFlag("RunWRCut");
     
-    cout << "[LRSM_TBChannel::initializeAnalyzer] RunSyst = " << RunSyst << endl;
-    cout << "[LRSM_TBChannel::initializeAnalyzer] RunWRCut = " << RunWRCut << endl;
+    cout << "[LRSM_TBChannel_wtagging::initializeAnalyzer] RunSyst = " << RunSyst << endl;
+    cout << "[LRSM_TBChannel_wtagging::initializeAnalyzer] RunWRCut = " << RunWRCut << endl;
     
     // Set WR mass cut threshold
     if (RunWRCut) {
@@ -65,12 +65,12 @@ void LRSM_TBChannel::initializeAnalyzer() {
         Trigger3  = "HLT_HighPtTkMu100";
         TriggerSafePtCut = 52.;
     } else {
-        cerr << "[LRSM_TBChannel::initializeAnalyzer] DataEra is not set properly: " << DataEra << endl;
+        cerr << "[LRSM_TBChannel_wtagging::initializeAnalyzer] DataEra is not set properly: " << DataEra << endl;
         exit(EXIT_FAILURE);
     }
     
-    //cout << "[LRSM_TBChannel::initializeAnalyzer] IsoMuTriggerName = " << IsoMuTriggerName << endl;
-    cout << "[LRSM_TBChannel::initializeAnalyzer] TriggerSafePtCut = " << TriggerSafePtCut << endl;
+    //cout << "[LRSM_TBChannel_wtagging::initializeAnalyzer] IsoMuTriggerName = " << IsoMuTriggerName << endl;
+    cout << "[LRSM_TBChannel_wtagging::initializeAnalyzer] TriggerSafePtCut = " << TriggerSafePtCut << endl;
     
 
     /*
@@ -113,10 +113,10 @@ void LRSM_TBChannel::initializeAnalyzer() {
         systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/ExampleSystematic.yaml", MCSample, DataEra);
     }
     
-    cout << "[LRSM_TBChannel::initializeAnalyzer] Initialization complete" << endl;
+    cout << "[LRSM_TBChannel_wtagging::initializeAnalyzer] Initialization complete" << endl;
 }
 
-void LRSM_TBChannel::executeEvent() {
+void LRSM_TBChannel_wtagging::executeEvent() {
     // Get all physics objects at the beginning to save CPU time
     AllMuons = GetAllMuons();
     AllJets = GetAllJets();
@@ -130,7 +130,7 @@ void LRSM_TBChannel::executeEvent() {
     }
 }
 
-void LRSM_TBChannel::executeEventFromParameter() {
+void LRSM_TBChannel_wtagging::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
     
     // Get event information
@@ -226,14 +226,14 @@ void LRSM_TBChannel::executeEventFromParameter() {
     
     for (const auto& fatjet : fatjets) {
         // Using basic mass cuts for top tagging - update with actual tagger when available
-        float toptag_score1 = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD); // placeholder
+        float toptag_score1 = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD); // placeholder
         float softdrop_mass1 = fatjet.SDMass();
         FillHist(this_syst + "/FatJet_SoftDropMass", softdrop_mass1, 1.0, 100, 0., 1000.);
         FillHist(this_syst + "/FatJet_TopTagScore", toptag_score1, 1.0, 100, 0., 1.);
         
     }
     for (const auto& topjet : topjets) {
-        float toptag_score2 = topjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD);
+        float toptag_score2 = topjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD);
         float softdrop_mass2 = topjet.SDMass();
         float topjet_pt = topjet.Pt();
         FillHist(this_syst + "/topJet_SoftDropmass", softdrop_mass2, 1.0, 100, 0., 1000.);
@@ -246,7 +246,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
     sort(topjets.begin(), topjets.end(), PtComparing);
     RVec<FatJet> leading_topjet = {topjets[0]};
     float leading_topjet_sdm = leading_topjet[0].SDMass();
-    float leading_topjet_topscore = leading_topjet[0].GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD);
+    float leading_topjet_topscore = leading_topjet[0].GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD);
     float leading_topjet_pt = leading_topjet[0].Pt();
     FillHist("used top jet sdm & topscore",leading_topjet_topscore,leading_topjet_sdm, weight,100,0.,1.,300,0.,300.);
     FillHist("used top jet topscore& pt", leading_topjet_topscore,leading_topjet_pt, weight,100,0.,1.,300,0.,3000.);
@@ -299,8 +299,8 @@ void LRSM_TBChannel::executeEventFromParameter() {
     
     if (!IsDATA) {
         
-        //cout << "[LRSM_TBChannel::executeEventFromParameter] Trigger lumi : " << ev.GetTriggerLumi("Full") << endl;
-        //cout << "[LRSM_TBChannel::executeEventFromParameter] Event weight: " << weight << endl;
+        //cout << "[LRSM_TBChannel_wtagging::executeEventFromParameter] Trigger lumi : " << ev.GetTriggerLumi("Full") << endl;
+        //cout << "[LRSM_TBChannel_wtagging::executeEventFromParameter] Event weight: " << weight << endl;
         
         FillHist(this_syst + "/xsec" + this_syst, xsec , weight, 100 , 0 , 1000 );
         FillHist(this_syst + "/Bjetnum", bjets.size(), weight, 10, 0., 10.);
@@ -318,8 +318,6 @@ void LRSM_TBChannel::executeEventFromParameter() {
         FillHist("WRMass & SubleadingMuonPt",wr_mass,muon_overlap_cleaned[1].Pt(), weight,100,0.,8000.,100,0.,5000.);
         FillHist("WRMass & LeadingBJetPt",wr_mass,leading_bjet[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
         FillHist("WRMass & LeadingTopJetPt",wr_mass,leading_topjet[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
-
-
 
         // Apply systematic weights
         //unordered_map<std::string, float> weight_map = systHelper->calculateWeight();
@@ -346,6 +344,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
         FillHist(this_syst + "/LeadingBJetPt_" + this_syst, leading_bjet[0].Pt(), 1, 5000, 0., 5000.);
         FillHist(this_syst + "/LeadingTopJetPt_" + this_syst, leading_topjet[0].Pt(), 1, 5000, 0., 5000.);
 
+        // variable 중에서 어떤게 SR 에 영향 주는 지 2d plot 으로 파악 
         FillHist("WRMass & DileptonMass",wr_mass,dilepton_mass, weight,100,0.,8000.,100,0.,5000.);
         FillHist("WRMass & LeadingMuonPt",wr_mass,muon_overlap_cleaned[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
         FillHist("WRMass & SubleadingMuonPt",wr_mass,muon_overlap_cleaned[1].Pt(), weight,100,0.,8000.,100,0.,5000.);
@@ -358,7 +357,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
 
 
 
-RVec<Jet> LRSM_TBChannel::SelectBTaggedJets(const RVec<Jet>& jets) {
+RVec<Jet> LRSM_TBChannel_wtagging::SelectBTaggedJets(const RVec<Jet>& jets) {
     RVec<Jet> btagged_jets;
     for (const auto& jet : jets) {
         if (jet.GetBTaggerResult(JetTagging::JetFlavTagger::ParticleNet) > cuts.btag_wp) {
@@ -368,11 +367,11 @@ RVec<Jet> LRSM_TBChannel::SelectBTaggedJets(const RVec<Jet>& jets) {
     return btagged_jets;
 }
 
-RVec<FatJet> LRSM_TBChannel::SelectTopTaggedJets(const RVec<FatJet>& fatjets) {
+RVec<FatJet> LRSM_TBChannel_wtagging::SelectTopTaggedJets(const RVec<FatJet>& fatjets) {
     RVec<FatJet> toptagged_jets;
     for (const auto& fatjet : fatjets) {
         // Using basic mass cuts for top tagging - update with actual tagger when available
-        float toptag_score = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD); // placeholder
+        float toptag_score = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD); // placeholder
         float softdrop_mass = fatjet.SDMass();
         
         if (toptag_score > cuts.toptag_score &&
@@ -384,7 +383,7 @@ RVec<FatJet> LRSM_TBChannel::SelectTopTaggedJets(const RVec<FatJet>& fatjets) {
     return toptagged_jets;
 }
 
-RVec<Muon> LRSM_TBChannel::RemoveOverlap(const RVec<Muon>& muons, float deltaR_cut) {
+RVec<Muon> LRSM_TBChannel_wtagging::RemoveOverlap(const RVec<Muon>& muons, float deltaR_cut) {
     RVec<Muon> cleaned_muons;
     for (size_t i = 0; i < muons.size(); ++i) {
         bool overlaps = false;
@@ -401,7 +400,7 @@ RVec<Muon> LRSM_TBChannel::RemoveOverlap(const RVec<Muon>& muons, float deltaR_c
     return cleaned_muons;
 }
 
-RVec<Jet> LRSM_TBChannel::RemoveOverlapWithMuons(const RVec<Jet>& jets, const RVec<Muon>& muons, float deltaR_cut) {
+RVec<Jet> LRSM_TBChannel_wtagging::RemoveOverlapWithMuons(const RVec<Jet>& jets, const RVec<Muon>& muons, float deltaR_cut) {
     RVec<Jet> cleaned_jets;
     for (const auto& jet : jets) {
         bool overlaps = false;
@@ -418,7 +417,7 @@ RVec<Jet> LRSM_TBChannel::RemoveOverlapWithMuons(const RVec<Jet>& jets, const RV
     return cleaned_jets;
 }
 
-RVec<Jet> LRSM_TBChannel::RemoveOverlapWithFatJets(const RVec<Jet>& jets, const RVec<FatJet>& fatjets, float deltaR_cut) {
+RVec<Jet> LRSM_TBChannel_wtagging::RemoveOverlapWithFatJets(const RVec<Jet>& jets, const RVec<FatJet>& fatjets, float deltaR_cut) {
     RVec<Jet> cleaned_jets;
     for (const auto& jet : jets) {
         bool overlaps = false;
@@ -435,7 +434,7 @@ RVec<Jet> LRSM_TBChannel::RemoveOverlapWithFatJets(const RVec<Jet>& jets, const 
     return cleaned_jets;
 }
 
-RVec<FatJet> LRSM_TBChannel::RemoveOverlapWithMuonsFatJet(const RVec<FatJet>& fatjets, const RVec<Muon>& muons, float deltaR_cut) {
+RVec<FatJet> LRSM_TBChannel_wtagging::RemoveOverlapWithMuonsFatJet(const RVec<FatJet>& fatjets, const RVec<Muon>& muons, float deltaR_cut) {
     RVec<FatJet> cleaned_fatjets;
     for (const auto& fatjet : fatjets) {
         bool overlaps = false;
@@ -452,7 +451,7 @@ RVec<FatJet> LRSM_TBChannel::RemoveOverlapWithMuonsFatJet(const RVec<FatJet>& fa
     return cleaned_fatjets;
 }
 
-bool LRSM_TBChannel::PassKinematicCuts(const RVec<Muon>& muons) {
+bool LRSM_TBChannel_wtagging::PassKinematicCuts(const RVec<Muon>& muons) {
     if (muons.size() < 2) return false;
     
     // Leading muon pT cut
@@ -468,14 +467,14 @@ bool LRSM_TBChannel::PassKinematicCuts(const RVec<Muon>& muons) {
     return true;
 }
 
-bool LRSM_TBChannel::PassDileptonMassCut(const RVec<Muon>& muons) {
+bool LRSM_TBChannel_wtagging::PassDileptonMassCut(const RVec<Muon>& muons) {
     if (muons.size() < 2) return false;
     
     float dilepton_mass = (muons[0] + muons[1]).M();
     return dilepton_mass > cuts.dilepton_mass_cut;
 }
 
-float LRSM_TBChannel::CalculateWRMass(const RVec<Muon>& muons, const RVec<Jet>& bjets, const RVec<FatJet>& topjets) {
+float LRSM_TBChannel_wtagging::CalculateWRMass(const RVec<Muon>& muons, const RVec<Jet>& bjets, const RVec<FatJet>& topjets) {
     if (muons.size() < 2 || bjets.size() < 1 || topjets.size() < 1) return -1.0;
     
     Particle wr_candidate = muons[0] + muons[1] + bjets[0] + topjets[0];

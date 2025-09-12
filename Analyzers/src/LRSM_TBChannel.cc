@@ -146,11 +146,12 @@ void LRSM_TBChannel::executeEventFromParameter() {
 
     FillHist(this_syst + "/sumSign" + this_syst, sumSign, 1 , 10 , 0 , 1e+11 );
     FillHist(this_syst + "/CutFlow", 0.0, weight, 10, 0., 10.); // Initial event
+    FillHist(this_syst + "/CutFlow_wtagging", 0.0, weight, 10, 0., 10.); // Initial event
     // Apply HLT trigger
     if (!(ev.PassTrigger(Trigger1)||ev.PassTrigger(Trigger2)||ev.PassTrigger(Trigger3))) return;
     
     FillHist(this_syst + "/CutFlow", 1.0, weight, 10, 0., 10.); // HLT pass
-    
+    FillHist(this_syst + "/CutFlow_wtagging", 1.0, weight, 10, 0., 10.); // HLT pass
     // Copy physics objects for systematic variations
     RVec<Muon> muons = AllMuons;
     RVec<Jet> jets = AllJets;
@@ -185,6 +186,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
 
     // Apply muon selection
     FillHist(this_syst + "/CutFlow", 2.0, weight, 10, 0., 10.); // 2 muons
+    FillHist(this_syst + "/CutFlow_wtagging", 2.0, weight, 10, 0., 10.); // 2 muons
     muons = RemoveOverlap(muons);
     // Require more than 2 muons
     if (muons.size() < 2) return;
@@ -194,7 +196,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
     
     // Apply kinematic cuts
     if (!PassKinematicCuts(muons)) return;
-    
+    FillHist(this_syst + "/CutFlow_wtagging", 3.0, weight, 10, 0., 10.); // Kinematic cuts
     FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // Kinematic cuts
     
     // Apply dilepton mass cut
@@ -207,7 +209,7 @@ void LRSM_TBChannel::executeEventFromParameter() {
 
 
     FillHist(this_syst + "/CutFlow", 4.0, weight, 10, 0., 10.); // Dilepton mass cut
-    
+    FillHist(this_syst + "/CutFlow_wtagging", 4.0, weight, 10, 0., 10.); // Dilepton mass cut
     
     
     // Select fat jets and remove overlaps
@@ -242,12 +244,61 @@ void LRSM_TBChannel::executeEventFromParameter() {
         FillHist("all fat jets topscore & pt",toptag_score2,topjet_pt, weight,100,0.,1.,300,0.,3000.);
         FillHist("all fat jets sdm & pt",softdrop_mass2,topjet_pt, weight,300,0.,300.,300,0.,3000.);
     }
+    if (topjets.size()<1){
+        for (const auto& fatjet : fatjets) {
+        // Using basic mass cuts for top tagging - update with actual tagger when available
+        float wtag_score1 = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD); // placeholder
+        float wsoftdrop_mass1 = fatjet.SDMass();
+        FillHist("no top tagged all fatjet wtagg score sdm", wtag_score1, wsoftdrop_mass1, 1.0, 100, 0., 1., 300, 0., 300.);
+        }
+        RVec<FatJet> wtagged_fatjet = SelectWTaggedJets(fatjets); 
+        if (wtagged_fatjet.size()<1) {
+            FillHist("no_toptagg_no_tagg_num",1,1,1,0,1);
+            return;
+        }
+        for (const auto& fatjet : wtagged_fatjet) {
+            float wtag_score2 = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD); // placeholder
+            float wsoftdrop_mass2 = fatjet.SDMass();
+            FillHist("no top tagged , w tagged fatjet wtagg score sdm", wtag_score2, wsoftdrop_mass2, 1.0, 100, 0., 1., 300, 0., 300.);
+        }
+        FillHist(this_syst + "/CutFlow_wtagging", 5.0, weight, 10, 0., 10.); // w tagged , no top tagged
+        FillHist("no top tagged w tagged num",1, 1, 1, 0, 1);
+        RVec<FatJet> leading_wtagged_fatjet = {wtagged_fatjet[0]} ;
+        float wtagscore = leading_wtagged_fatjet[0].GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD);
+        FillHist("Wtagging_score_when_no_toptagged",wtagscore,1,100,0,1);
+        jetss = SelectJets(jets, JetIDs[0], cuts.jet_pt, cuts.jet_eta);
+        jetss = RemoveOverlapWithMuons(jetss, muon_overlap_cleaned);
+        bjetss = SelectBTaggedJets(jetss);
+        sort(bjetss.begin(), bjetss.end(), PtComparing);
+        FillHist("no top tagged b jet num", bjetss.size(), 1, 5,0,5);
+        if (bjetss.size()<2) return;
+        FillHist(this_syst + "/CutFlow_wtagging", 6.0, weight, 10, 0., 10.); // b jet and w jet
+        float wtagged_topmass = (bjetss[1]+ leading_wtagged_fatjet[0]).M();
+        FillHist("no top tagged b jet sublead + W mass", wtagged_topmass,1,1000,0,1000);
+        
+        
+        float wr_mass = (bjetss[0]+ bjetss[1]+leading_wtagged_fatjet[0]+ muon_overlap_cleaned[0]+ muon_overlap_cleaned[1]).M();
+        float dilepton_mass = (muon_overlap_cleaned[0] + muon_overlap_cleaned[1]).M();
+        
+        FillHist("no top tagged w tagged WRMass" , wr_mass, weight, 8000, 0., 8000.);
+        FillHist("no top tagged w tagged DileptonMass" , dilepton_mass, weight, 5000, 0., 5000.);
+        FillHist( "no top tagged w tagged LeadingMuonPt", muon_overlap_cleaned[0].Pt(), weight, 5000, 0., 5000.);
+        FillHist( "no top tagged w tagged SubleadingMuonPt", muon_overlap_cleaned[1].Pt(), weight, 5000, 0., 5000.);
+        FillHist( "no top tagged w tagged LeadingBJetPt" , bjetss[0].Pt(), weight, 5000, 0., 5000.);
+        FillHist( "no top tagged w tagged SubLeadingBJetPt" , bjetss[1].Pt(), weight, 5000, 0., 5000.);
+        FillHist( "no top tagged w tagged LeadingWJetPt" , leading_wtagged_fatjet[0].Pt(), weight, 5000, 0., 5000.);
+
+
+
+    }
     if (topjets.size() < 1) return;
     sort(topjets.begin(), topjets.end(), PtComparing);
     RVec<FatJet> leading_topjet = {topjets[0]};
     float leading_topjet_sdm = leading_topjet[0].SDMass();
     float leading_topjet_topscore = leading_topjet[0].GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::TvsQCD);
+    float leading_topjet_wscore = leading_topjet[0].GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD);
     float leading_topjet_pt = leading_topjet[0].Pt();
+    FillHist("top tagged jet w tagging score", leading_topjet_wscore ,1, 100 ,0,1);
     FillHist("used top jet sdm & topscore",leading_topjet_topscore,leading_topjet_sdm, weight,100,0.,1.,300,0.,300.);
     FillHist("used top jet topscore& pt", leading_topjet_topscore,leading_topjet_pt, weight,100,0.,1.,300,0.,3000.);
     FillHist("used top jet sdm & pt",leading_topjet_sdm,leading_topjet_pt, weight,300,0.,300.,300,0.,3000.);
@@ -271,56 +322,74 @@ void LRSM_TBChannel::executeEventFromParameter() {
     float wr_mass = CalculateWRMass(muon_overlap_cleaned, leading_bjet, leading_topjet);
     float dilepton_mass = (muon_overlap_cleaned[0] + muon_overlap_cleaned[1]).M();
     
-    // Apply WR mass cut if requested
-    if (IsDATA){
-        if ( wr_mass > 2000.00) return;
-    }
+   
     
     
     FillHist(this_syst + "/CutFlow", 7.0,weight, 10, 0., 10.); // WR mass cut (if applied)
+    string CR = "CR";
+    string CROP = "CR_opposite";
+    string SR = "SR";
+    string test = "test";
     
 
-    // correction 
-    /*
-    float corr1_1  = corr_C -> GetMuonScaleSF(muon1, variation::this_syst, muon1.Pt());
-    float corr1_2 = corr_C -> GetMuonScaleSF(muon2, variation::this_syst, muon2.Pt());
-
-    float coor_2_1  = coor_C -> GetMuonIDSF( , muon1, variation::this_syst);
-    float coor_2_2  = coor_C -> GetMuonIDSF( , muon2, variation::this_syst);
-
-
-
-
-    float corr2  = corr_C -> GetMuonIDSF(MuonIDSFKeys[0], muon, variation::nom);
-    float corr3  = corr_C -> GetMuonRECOSF(muon, variation::nom);
-    */
-    
-    // Event weight calculation
-    
+    float met_pt = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL).Pt();
     if (!IsDATA) {
-        
-        //cout << "[LRSM_TBChannel::executeEventFromParameter] Trigger lumi : " << ev.GetTriggerLumi("Full") << endl;
-        //cout << "[LRSM_TBChannel::executeEventFromParameter] Event weight: " << weight << endl;
-        
-        FillHist(this_syst + "/xsec" + this_syst, xsec , weight, 100 , 0 , 1000 );
-        FillHist(this_syst + "/Bjetnum", bjets.size(), weight, 10, 0., 10.);
-        FillHist(this_syst + "/Topjetnum", topjets.size(), weight, 10, 0., 10.);
-        FillHist(this_syst + "/WRMass_" + this_syst, wr_mass, weight, 8000, 0., 8000.);
-        FillHist(this_syst + "/DileptonMass_" + this_syst, dilepton_mass, weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingMuonPt_" + this_syst, muon_overlap_cleaned[0].Pt(), weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/SubleadingMuonPt_" + this_syst, muon_overlap_cleaned[1].Pt(), weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingBJetPt_" + this_syst, leading_bjet[0].Pt(), weight, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingTopJetPt_" + this_syst, leading_topjet[0].Pt(), weight, 5000, 0., 5000.);
-        
-        // variable 중에서 어떤게 SR 에 영향 주는 지 2d plot 으로 파악 
-        FillHist("WRMass & DileptonMass",wr_mass,dilepton_mass, weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & LeadingMuonPt",wr_mass,muon_overlap_cleaned[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & SubleadingMuonPt",wr_mass,muon_overlap_cleaned[1].Pt(), weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & LeadingBJetPt",wr_mass,leading_bjet[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & LeadingTopJetPt",wr_mass,leading_topjet[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
+    
+        if (wr_mass < 800.00){ // for CR
+        FillHist(this_syst + "/xsec" + CR, xsec , weight, 100 , 0 , 1000 );
+        FillHist(this_syst + "/Bjetnum" + CR, bjets.size(), weight, 10, 0., 10.);
+        FillHist(this_syst + "/Topjetnum" + CR, topjets.size(), weight, 10, 0., 10.);
+        FillHist(this_syst + "/WRMass_" + CR, wr_mass, weight, 8000, 0., 8000.);
+        FillHist(this_syst + "/DileptonMass_" + CR, dilepton_mass, weight, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingMuonPt_" + CR, muon_overlap_cleaned[0].Pt(), weight, 5000, 0., 5000.);
+        FillHist(this_syst + "/SubleadingMuonPt_" + CR, muon_overlap_cleaned[1].Pt(), weight, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingBJetPt_" + CR, leading_bjet[0].Pt(), weight, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingTopJetPt_" + CR, leading_topjet[0].Pt(), weight, 5000, 0., 5000.);
+
+        // variable 중에서 어떤게 SR 에 영향 주는 지 2d plot 으로 파악
+        FillHist(this_syst + "/WRMass & DileptonMass" + CR, wr_mass, dilepton_mass, weight, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/WRMass & LeadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/WRMass & SubleadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[1].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/WRMass & LeadingBJetPt" + CR, wr_mass, leading_bjet[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(CR + "/WRMass & LeadingTopJetPt" + CR,wr_mass,leading_topjet[0].Pt(), weight,100,0.,8000.,500,0.,5000.);
+        // met pt & leading muon pt
+        FillHist(this_syst + "/met pt & leading muon pt" + CR,met_pt,muon_overlap_cleaned[0].Pt(), weight,100,0.,5000.,500,0.,5000.);
+        }
 
 
+        if (wr_mass > 800.00){ // for SR
+            if ( muon_overlap_cleaned[0].Pt() > 150 ){
+                FillHist(this_syst + "/Bjetnum" + SR, bjets.size(), weight, 10, 0., 10.);
+                FillHist(this_syst + "/Topjetnum" + SR, topjets.size(), weight, 10, 0., 10.);
+                FillHist(this_syst + "/WRMass_" + SR, wr_mass, weight, 8000, 0., 8000.);
+                FillHist(this_syst + "/DileptonMass_" + SR, dilepton_mass, weight, 5000, 0., 5000.);
+                FillHist(this_syst + "/LeadingMuonPt_" + SR, muon_overlap_cleaned[0].Pt(), weight, 5000, 0., 5000.);
+                FillHist(this_syst + "/SubleadingMuonPt_" + SR, muon_overlap_cleaned[1].Pt(), weight, 5000, 0., 5000.);
+                FillHist(this_syst + "/LeadingBJetPt_" + SR, leading_bjet[0].Pt(), weight, 5000, 0., 5000.);
+                FillHist(this_syst + "/LeadingTopJetPt_" + SR, leading_topjet[0].Pt(), weight, 5000, 0., 5000.);
 
+                FillHist(this_syst + "/WRMass & DileptonMass" + SR, wr_mass, dilepton_mass, weight, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & LeadingMuonPt" + SR, wr_mass, muon_overlap_cleaned[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & SubleadingMuonPt" + SR, wr_mass, muon_overlap_cleaned[1].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & LeadingBJetPt" + SR, wr_mass, leading_bjet[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & LeadingTopJetPt" + SR, wr_mass, leading_topjet[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/met pt & leading muon pt" + SR, met_pt, muon_overlap_cleaned[0].Pt(), weight, 100, 0., 5000., 500, 0., 5000.);
+                }
+            FillHist(this_syst + "/Bjetnum" + CROP, bjets.size(), weight, 10, 0., 10.);
+            FillHist(this_syst + "/Topjetnum" + CROP, topjets.size(), weight, 10, 0., 10.);
+            FillHist(this_syst + "/WRMass_" + CROP, wr_mass, weight, 8000, 0., 8000.);
+            FillHist(this_syst + "/DileptonMass_" + CROP, dilepton_mass, weight, 5000, 0., 5000.);
+            FillHist(this_syst + "/LeadingMuonPt_" + CROP, muon_overlap_cleaned[0].Pt(), weight, 5000, 0., 5000.);
+            FillHist(this_syst + "/SubleadingMuonPt_" + CROP, muon_overlap_cleaned[1].Pt(), weight, 5000, 0., 5000.);
+            FillHist(this_syst + "/LeadingBJetPt_" + CROP, leading_bjet[0].Pt(), weight, 5000, 0., 5000.);
+            FillHist(this_syst + "/LeadingTopJetPt_" + CROP, leading_topjet[0].Pt(), weight, 5000, 0., 5000.);
+            FillHist(this_syst + "/WRMass & DileptonMass" + CROP, wr_mass, dilepton_mass, weight, 100, 0., 8000., 500, 0., 5000.);
+            FillHist(this_syst + "/WRMass & LeadingMuonPt" + CROP, wr_mass, muon_overlap_cleaned[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+            FillHist(this_syst + "/WRMass & SubleadingMuonPt" + CROP, wr_mass, muon_overlap_cleaned[1].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+            FillHist(this_syst + "/WRMass & LeadingBJetPt" + CROP, wr_mass, leading_bjet[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+            FillHist(this_syst + "/WRMass & LeadingTopJetPt" + CROP, wr_mass, leading_topjet[0].Pt(), weight, 100, 0., 8000., 500, 0., 5000.);
+            FillHist(this_syst + "/met pt & leading muon pt" + CROP, met_pt, muon_overlap_cleaned[0].Pt(), weight, 100, 0., 5000., 500, 0., 5000.);
+            }
         // Apply systematic weights
         //unordered_map<std::string, float> weight_map = systHelper->calculateWeight();
         //for (const auto &w : weight_map) {
@@ -335,25 +404,28 @@ void LRSM_TBChannel::executeEventFromParameter() {
             //FillHist(this_syst + "/LeadingBJetPt_" + weight_suffix, leading_bjet[0].Pt(), total_weight, 100, 0., 8000.);
             //FillHist(this_syst + "/LeadingTopJetPt_" + weight_suffix, leading_topjet[0].Pt(), total_weight, 100, 0., 8000.);
         //}
-    } else {
-        // For data, only fill nominal histograms
-        FillHist(this_syst + "/Bjetnum", bjets.size(), 1, 10, 0., 10.);
-        FillHist(this_syst + "/Topjetnum", topjets.size(), 1, 10, 0., 10.);
-        FillHist(this_syst + "/WRMass_" + this_syst, wr_mass, 1, 2000, 0., 2000.);
-        FillHist(this_syst + "/DileptonMass_" + this_syst, dilepton_mass, 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingMuonPt_" + this_syst, muon_overlap_cleaned[0].Pt(), 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/SubleadingMuonPt_" + this_syst, muon_overlap_cleaned[1].Pt(), 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingBJetPt_" + this_syst, leading_bjet[0].Pt(), 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingTopJetPt_" + this_syst, leading_topjet[0].Pt(), 1, 5000, 0., 5000.);
+    } 
+    if (IsDATA) {
+        if ( wr_mass > 800.00) return;
+        // Using only wr less than 800 GeV ( for CR )
+        FillHist(this_syst + "/Bjetnum" + CR, bjets.size(), 1, 10, 0., 10.);
+        FillHist(this_syst + "/Topjetnum" + CR, topjets.size(), 1, 10, 0., 10.);
+        FillHist(this_syst + "/WRMass_" + CR, wr_mass, 1, 8000, 0., 8000.);
+        FillHist(this_syst + "/DileptonMass_" + CR, dilepton_mass, 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingMuonPt_" + CR, muon_overlap_cleaned[0].Pt(), 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/SubleadingMuonPt_" + CR, muon_overlap_cleaned[1].Pt(), 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingBJetPt_" + CR, leading_bjet[0].Pt(), 1, 5000, 0., 5000.);
+        FillHist(this_syst + "/LeadingTopJetPt_" + CR, leading_topjet[0].Pt(), 1, 5000, 0., 5000.);
 
-        FillHist("WRMass & DileptonMass",wr_mass,dilepton_mass, weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & LeadingMuonPt",wr_mass,muon_overlap_cleaned[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & SubleadingMuonPt",wr_mass,muon_overlap_cleaned[1].Pt(), weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & LeadingBJetPt",wr_mass,leading_bjet[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
-        FillHist("WRMass & LeadingTopJetPt",wr_mass,leading_topjet[0].Pt(), weight,100,0.,8000.,100,0.,5000.);
+        FillHist(this_syst + "/WRMass & DileptonMass" + CR, wr_mass, dilepton_mass, 1, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/WRMass & LeadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/WRMass & SubleadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[1].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/WRMass & LeadingBJetPt" + CR, wr_mass, leading_bjet[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/WRMass & LeadingTopJetPt" + CR, wr_mass, leading_topjet[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+        FillHist(this_syst + "/met pt & leading muon pt" + CR, met_pt, muon_overlap_cleaned[0].Pt(), 1, 100, 0., 5000., 500, 0., 5000.);
+
     }
 }
-
 // Helper function implementations
 
 
@@ -382,6 +454,23 @@ RVec<FatJet> LRSM_TBChannel::SelectTopTaggedJets(const RVec<FatJet>& fatjets) {
         }
     }
     return toptagged_jets;
+}
+
+
+RVec<FatJet> LRSM_TBChannel::SelectWTaggedJets(const RVec<FatJet>& fatjets) {
+    RVec<FatJet> wtagged_jets;
+    for (const auto& fatjet : fatjets) {
+        // Using basic mass cuts for top tagging - update with actual tagger when available
+        float wtag_score = fatjet.GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNetWithMass, JetTagging::FatjetTaggingObject::WvsQCD); // placeholder
+        float softdrop_mass = fatjet.SDMass();
+        
+        if (wtag_score > cuts.wtag_score &&
+            softdrop_mass > cuts.wtag_mass_low &&
+            softdrop_mass < cuts.wtag_mass_high) {
+            wtagged_jets.push_back(fatjet);
+        }
+    }
+    return wtagged_jets;
 }
 
 RVec<Muon> LRSM_TBChannel::RemoveOverlap(const RVec<Muon>& muons, float deltaR_cut) {

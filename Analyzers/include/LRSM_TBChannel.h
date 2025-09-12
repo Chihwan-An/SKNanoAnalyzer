@@ -41,6 +41,8 @@ public:
     RVec<Muon> AllMuons;
     RVec<Jet> AllJets;
     RVec<FatJet> AllFatJets;
+    RVec<Jet> jetss;
+    RVec<Jet> bjetss;
     RVec<Muon> muon1;
     RVec<Muon> muon2;
     RVec<Muon> muon_overlap_cleaned;
@@ -53,13 +55,16 @@ public:
         float jet_eta = 2.5;
         float fatjet_pt = 350.0;
         float fatjet_eta = 2.5;
-        float btag_wp = 0.6734; // ParticleNet medium WP
+        float btag_wp = 0.2347; // ParticleNet medium WP
         float toptag_score = 0.683;
+        float wtag_score = 0.959;
         float toptag_mass_low = 120.0;
         float toptag_mass_high = 250.0;
+        float wtag_mass_low = 50;
+        float wtag_mass_high = 110;
         float deltaR_overlap = 0.4;
         float deltaR_fatjet_overlap = 0.8;
-        float dilepton_mass_cut = 50;
+        float dilepton_mass_cut = 0;
     } cuts;
     
     // Weight variables
@@ -72,6 +77,7 @@ public:
     RVec<Muon> SelectHighPtMuons(const RVec<Muon>& muons);
     RVec<Jet> SelectBTaggedJets(const RVec<Jet>& jets);
     RVec<FatJet> SelectTopTaggedJets(const RVec<FatJet>& fatjets);
+    RVec<FatJet> SelectWTaggedJets(const RVec<FatJet>& fatjets);
     RVec<Muon> RemoveOverlap(const RVec<Muon>& muons, float deltaR_cut = 0.4);
     RVec<Jet> RemoveOverlapWithMuons(const RVec<Jet>& jets, const RVec<Muon>& muons, float deltaR_cut = 0.4);
     RVec<Jet> RemoveOverlapWithFatJets(const RVec<Jet>& jets, const RVec<FatJet>& fatjets, float deltaR_cut = 0.8);

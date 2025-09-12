@@ -25,7 +25,9 @@ BACKGROUND_COLORS = [
     ROOT.TColor.GetColor("#009688"),  # Teal
     ROOT.TColor.GetColor("#795548"),  # Brown
     ROOT.TColor.GetColor("#00bfae"),  # Cyan
-    ROOT.TColor.GetColor("#9c9ca1")   # Gray for "Others"
+    ROOT.TColor.GetColor("#9c9ca1"),  # Gray for "Others"
+    ROOT.TColor.GetColor("#f44336"),  # Red for "WJets"
+    ROOT.TColor.GetColor("#ff9800")   # Orange for "tzq,tHq"
     
 ]
 
@@ -115,11 +117,13 @@ class SignalBackgroundCanvas():
             "TTLL": [],
             "ST": [],
             "DYJets": [],
-            "QCD" : [],
+            #"QCD" : [],
+            #"WJets" : [],
             "TTZ,TTW" : [],
-            "TTH" : [],
-            "TTTT" : [],
-            "Others": []
+            #"TTH" : [],
+            #"TTTT" : [],
+            #"tzq,tHq" : [],
+            #"Others": []
         }
         
         # Combine all histograms (backgrounds + signal) for grouping
@@ -147,17 +151,18 @@ class SignalBackgroundCanvas():
                 groups["DYJets"].append((name, hist))
             elif name.startswith("TTZ") or name.startswith("TTW"):
                 groups["TTZ,TTW"].append((name, hist))
-            elif name.startswith("TTH"):
-                groups["TTH"].append((name, hist))
-            elif name.startswith("TTTT"):
-                groups["TTTT"].append((name, hist))
-            elif name.startswith("QCD"):
-                groups["QCD"].append((name, hist))
-            elif name.startswith("TB"):
-                # Include TB samples in stack only if TB lines are disabled
-                groups["Others"].append((name, hist))
-            else:
-                groups["Others"].append((name, hist))
+            #elif name.startswith("TTH"):
+            #    groups["TTH"].append((name, hist))
+            #elif name.startswith("TTTT"):
+            #    groups["TTTT"].append((name, hist))
+            #elif name.startswith("QCD"):
+            #    groups["QCD"].append((name, hist))
+            #elif name.startswith("WJets"):
+            #    groups["WJets"].append((name, hist))
+            #elif name.startswith("tzq") or name.startswith("tHq"):
+            #    groups["tzq,tHq"].append((name, hist))
+            #else:
+            #    groups["Others"].append((name, hist))
         
         # Create combined histograms for each group
         self.grouped_hists = {}
@@ -166,11 +171,13 @@ class SignalBackgroundCanvas():
             "TTLL": BACKGROUND_COLORS[0],
             "ST": BACKGROUND_COLORS[1], 
             "DYJets": BACKGROUND_COLORS[2],
-            "QCD": BACKGROUND_COLORS[3],
+            #"QCD": BACKGROUND_COLORS[3],
             "TTZ,TTW": BACKGROUND_COLORS[4],
-            "TTH": BACKGROUND_COLORS[5],
-            "TTTT": BACKGROUND_COLORS[6],
-            "Others": BACKGROUND_COLORS[7]  
+            #"TTH": BACKGROUND_COLORS[5],
+            #"TTTT": BACKGROUND_COLORS[6],
+            #"WJets": BACKGROUND_COLORS[9],
+            #"tzq,tHq": BACKGROUND_COLORS[8],
+            #"Others": BACKGROUND_COLORS[7]  
         }
         
         group_integrals = []

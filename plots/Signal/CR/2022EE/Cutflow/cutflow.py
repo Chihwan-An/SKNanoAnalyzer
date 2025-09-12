@@ -10,9 +10,15 @@ data_directory = "/gv0/Users/achihwan/SKNanoRunlog/out/LRSM_TBChannel/2022EE/"
 import ROOT
 import cmsstyle as CMS
 import os
+ttlj = ROOT.TH1F("CutFlow" + "TTLJ", "CutFlow" + "TTLJ", 5, 0, 5)
+ttll = ROOT.TH1F("CutFlow" + "TTLL", "CutFlow" + "TTLL", 5, 0, 5)
+st = ROOT.TH1F("CutFlow" + "ST", "CutFlow" + "ST", 5, 0, 5)
+ttx = ROOT.TH1F("CutFlow" + "TTX", "CutFlow" + "TTX", 5, 0, 5)
+
+
 
 for file in os.listdir(data_directory):
-    if not file.startswith("TB"):
+    if not file.startswith("TB") and not file.startswith("TTLJ") and not file.startswith("TTLL") and not file.startswith("ST") and not file.startswith("TTX"):
         continue
 
     root_file = ROOT.TFile.Open(os.path.join(data_directory, file))
@@ -29,6 +35,14 @@ for file in os.listdir(data_directory):
     ROOT.SetOwnership(hist_clone, False)
     
     hist_new = ROOT.TH1F("CutFlow" + file, "CutFlow" + file, 5, 0, 5)
+    if file.startswith("TTLJ"):
+        hist_new = ttlj
+    elif file.startswith("TTLL"):
+        hist_new = ttll
+    elif file.startswith("ST"):
+        hist_new = st
+    elif file.startswith("TTX"):
+        hist_new = ttx
     
     print("file name", file)
     # 빈 번호는 1부터 시작 (0번은 언더플로우)
@@ -62,10 +76,22 @@ for file in os.listdir(data_directory):
     hist_new.SetLineWidth(2)
     hist_new.SetMaximum(100)
     hist_new.SetStats(0)
+    if not file.startswith("TB"):
+        canvas.SetLogy()
 
     
     canvas.Update()
-    canvas.SaveAs("CutFlow" + file.replace('.root', '') + ".png")
+    
+    if file.startswith("TTLJ"):
+        canvas.SaveAs("CutFlow" + "TTLJ" + ".png")
+    elif file.startswith("TTLL"):
+        canvas.SaveAs("CutFlow" + "TTLL" + ".png")
+    elif file.startswith("ST"):
+        canvas.SaveAs("CutFlow" + "ST" + ".png")
+    elif file.startswith("TTX"):
+        canvas.SaveAs("CutFlow" + "TTX" + ".png")
+    else:
+        canvas.SaveAs("CutFlow" + file.replace('.root', '') + ".png")
     canvas.Close()
 
     

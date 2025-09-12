@@ -736,8 +736,7 @@ def load_background_histograms(data_dir, hist_name, systematic="Central"):
             filename.startswith("SingleMuon") or
             filename.startswith("ZZTwo") or
             filename.startswith("WZTo")or
-            filename.startswith("WJets_MG")or
-            filename.startswith("DYG") ):
+            filename.startswith("WJets_MG"):
             continue
         
         hist = load_histogram(file_path, hist_name, systematic, silent=True)

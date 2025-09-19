@@ -87,6 +87,7 @@ public:
     bool PassDileptonMassCut(const RVec<Muon>& muons);
     float CalculateWRMass(const RVec<Muon>& muons, const RVec<Jet>& bjets, const RVec<FatJet>& topjets);
     float CalculateNeutrinoMass(const RVec<Muon>& muons, const RVec<Jet>& bjets, const RVec<FatJet>& topjets);
+    float CalculateTransverseMass(const Muon& lepton,  const Jet& b1, float met_pt, float met_phi);
 };
 
 #endif

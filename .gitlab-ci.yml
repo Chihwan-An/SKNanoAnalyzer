@@ -17,6 +17,18 @@ sync_to_github:
     - main
     - develop
   when: on_success
+  after_script:
+  - apk add --no-cache curl
+  - |
+    if [ "$CI_JOB_STATUS" = "success" ]; then
+      curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+        -d "chat_id=$chat_id" \
+        -d "text=CI/CD 성공: $CI_PROJECT_NAME - $CI_COMMIT_REF_NAME"
+    else
+      curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+        -d "chat_id=$chat_id" \
+        -d "text=CI/CD 실패: $CI_PROJECT_NAME - $CI_COMMIT_REF_NAME"
+    fi
 
 # 원본 레포에서 변경사항 가져오기 (수동 트리거 또는 스케줄)
 sync_from_upstream:
@@ -36,3 +48,15 @@ sync_from_upstream:
     - schedules
     - web
   when: manual
+  after_script:
+  - apk add --no-cache curl
+  - |
+    if [ "$CI_JOB_STATUS" = "success" ]; then
+      curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+        -d "chat_id=$chat_id" \
+        -d "text=CI/CD 성공: $CI_PROJECT_NAME - $CI_COMMIT_REF_NAME"
+    else
+      curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+        -d "chat_id=$chat_id" \
+        -d "text=CI/CD 실패: $CI_PROJECT_NAME - $CI_COMMIT_REF_NAME"
+    fi

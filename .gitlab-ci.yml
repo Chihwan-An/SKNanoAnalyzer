@@ -60,3 +60,5 @@ sync_from_upstream:
         -d "chat_id=$chat_id" \
         -d "text=CI/CD 실패: $CI_PROJECT_NAME - $CI_COMMIT_REF_NAME"
     fi
+
+# test

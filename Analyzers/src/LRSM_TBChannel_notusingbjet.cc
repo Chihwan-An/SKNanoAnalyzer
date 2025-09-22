@@ -430,6 +430,7 @@ void LRSM_TBChannel_notusingbjet::executeEventFromParameter() {
         FillHist(this_syst + "/mt vs wr mass" + all,b_l_met_transverse_mass, wr_mass, weight, 300, 0., 3000., 800, 0., 8000.);
         if (b_l_met_transverse_mass < 250.00){ // for CR
             if ( muon_overlap_cleaned[1].Pt() < 50 ){
+                if ( wr_mass > 800.00) return;
                 FillHist(this_syst + "/xsec" + CR, xsec , weight, 100 , 0 , 1000 );
                 FillHist(this_syst + "/Bjetnum" + CR, bjets.size(), weight, 10, 0., 10.);
                 FillHist(this_syst + "/Topjetnum" + CR, topjets.size(), weight, 10, 0., 10.);
@@ -500,24 +501,26 @@ void LRSM_TBChannel_notusingbjet::executeEventFromParameter() {
         //}
     } 
     if (IsDATA) {
+        float b_l_met_transverse_mass = CalculateTransverseMass(muon_overlap_cleaned[0], leading_bjet[0], met_pt, met_phi);
         if ( b_l_met_transverse_mass > 250.00) return;
         if ( muon_overlap_cleaned[1].Pt() < 50 ){
+            if ( wr_mass > 800.00) return;
         // Using only wr less than 800 GeV ( for CR )
-        FillHist(this_syst + "/Bjetnum" + CR, bjets.size(), 1, 10, 0., 10.);
-        FillHist(this_syst + "/Topjetnum" + CR, topjets.size(), 1, 10, 0., 10.);
-        FillHist(this_syst + "/WRMass_" + CR, wr_mass, 1, 8000, 0., 8000.);
-        FillHist(this_syst + "/DileptonMass_" + CR, dilepton_mass, 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingMuonPt_" + CR, muon_overlap_cleaned[0].Pt(), 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/SubleadingMuonPt_" + CR, muon_overlap_cleaned[1].Pt(), 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingBJetPt_" + CR, leading_bjet[0].Pt(), 1, 5000, 0., 5000.);
-        FillHist(this_syst + "/LeadingTopJetPt_" + CR, leading_topjet[0].Pt(), 1, 5000, 0., 5000.);
+                FillHist(this_syst + "/Bjetnum" + CR, bjets.size(), 1, 10, 0., 10.);
+                FillHist(this_syst + "/Topjetnum" + CR, topjets.size(), 1, 10, 0., 10.);
+                FillHist(this_syst + "/WRMass_" + CR, wr_mass, 1, 8000, 0., 8000.);
+                FillHist(this_syst + "/DileptonMass_" + CR, dilepton_mass, 1, 5000, 0., 5000.);
+                FillHist(this_syst + "/LeadingMuonPt_" + CR, muon_overlap_cleaned[0].Pt(), 1, 5000, 0., 5000.);
+                FillHist(this_syst + "/SubleadingMuonPt_" + CR, muon_overlap_cleaned[1].Pt(), 1, 5000, 0., 5000.);
+                FillHist(this_syst + "/LeadingBJetPt_" + CR, leading_bjet[0].Pt(), 1, 5000, 0., 5000.);
+                FillHist(this_syst + "/LeadingTopJetPt_" + CR, leading_topjet[0].Pt(), 1, 5000, 0., 5000.);
 
-        FillHist(this_syst + "/WRMass & DileptonMass" + CR, wr_mass, dilepton_mass, 1, 100, 0., 8000., 500, 0., 5000.);
-        FillHist(this_syst + "/WRMass & LeadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
-        FillHist(this_syst + "/WRMass & SubleadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[1].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
-        FillHist(this_syst + "/WRMass & LeadingBJetPt" + CR, wr_mass, leading_bjet[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
-        FillHist(this_syst + "/WRMass & LeadingTopJetPt" + CR, wr_mass, leading_topjet[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
-        FillHist(this_syst + "/met pt & leading muon pt" + CR, met_pt, muon_overlap_cleaned[0].Pt(), 1, 100, 0., 5000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & DileptonMass" + CR, wr_mass, dilepton_mass, 1, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & LeadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & SubleadingMuonPt" + CR, wr_mass, muon_overlap_cleaned[1].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & LeadingBJetPt" + CR, wr_mass, leading_bjet[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/WRMass & LeadingTopJetPt" + CR, wr_mass, leading_topjet[0].Pt(), 1, 100, 0., 8000., 500, 0., 5000.);
+                FillHist(this_syst + "/met pt & leading muon pt" + CR, met_pt, muon_overlap_cleaned[0].Pt(), 1, 100, 0., 5000., 500, 0., 5000.);
         }
     }
 }

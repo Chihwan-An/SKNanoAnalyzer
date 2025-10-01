@@ -68,7 +68,7 @@ bool AnalyzerCore::PassNoiseFilter(const RVec<Jet> &Alljets, const Event &ev, Ev
     
         const Particle METv = ev.GetMETVector(met_type);
         if (METv.Pt() <= 100.) return passNoiseFilter;
-        RVec<Jet> this_jet = SelectJets(Alljets, "NOCUT", 50., 0.5);
+        RVec<Jet> this_jet = SelectJets(Alljets, Jet::JetID::NOCUT, 50., 0.5);
         for(const auto &jet: this_jet){
             bool badEcal = (jet.Pt() > 50);
             badEcal = badEcal && (-0.5 < jet.Eta() && jet.Eta() < -0.1);
@@ -273,6 +273,7 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
     unordered_map<int, int> matched_idx = GenJetMatching(jets, genjets, Rho_fixedGridRhoFastjetAll);
     RVec<Jet> smeared_jets;
     gRandom->SetSeed(int(PuppiMET_pt*1e6));
+    float MIN_JET_ENERGY = 1e-2;
     for(size_t i = 0; i < jets.size(); i++){
         Jet this_jet = jets.at(i);
 
@@ -288,7 +289,7 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
 
         // Following the procedures in https://github.com/choij1589/SKFlatMaker/blob/master/SKFlatMaker/src/SKFlatMaker.cc#L3378-L3419
         float this_corr = 1.;
-        const float this_jer = myCorr->GetJER(this_jet.Eta(), this_jet.Pt(), fixedGridRhoFastjetAll);
+        const float this_jer = myCorr->GetJER(this_jet.Eta(), this_jet.Pt(), Rho_fixedGridRhoFastjetAll);
         const float this_sf = myCorr->GetJERSF(this_jet.Eta(), this_jet.Pt(), syst, source);
         if (matched_idx[i] > 0 && matched_idx[i] < genjets.size()) {
             // found matched jet
@@ -724,15 +725,15 @@ RVec<Electron> AnalyzerCore::SelectElectrons(const RVec<Electron> &electrons, co
     return selected_electrons;
 }
 
-RVec<Electron> AnalyzerCore::ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const TString &syst) {
-    if (IsDATA || syst == "nom") return electrons;
-    
+RVec<Electron> AnalyzerCore::ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const MyCorrection::variation &syst) {
+    if (IsDATA || syst == MyCorrection::variation::nom) return electrons;
+
     RVec<Electron> scaled_electrons;
     for (const auto &electron: electrons) {
         float scale_variation = 1.;
-        if (syst == "up") {
+        if (syst == MyCorrection::variation::up) {
             scale_variation = myCorr->GetElectronScaleUnc(electron.scEta(), electron.SeedGain(), ev.run(), electron.r9(), electron.Pt(), MyCorrection::variation::up);    
-        } else if (syst == "down") {
+        } else if (syst == MyCorrection::variation::down) {
             scale_variation = myCorr->GetElectronScaleUnc(electron.scEta(), electron.SeedGain(), ev.run(), electron.r9(), electron.Pt(), MyCorrection::variation::down);    
         } else {
             throw runtime_error("[AnalyzerCore::ScaleElectrons] Invalid variation");
@@ -744,15 +745,15 @@ RVec<Electron> AnalyzerCore::ScaleElectrons(const Event &ev, const RVec<Electron
     return scaled_electrons;
 }
 
-RVec<Electron> AnalyzerCore::SmearElectrons(const RVec<Electron> &electrons, const TString &syst) {
+RVec<Electron> AnalyzerCore::SmearElectrons(const RVec<Electron> &electrons, const MyCorrection::variation &syst) {
     RVec<Electron> smeared_electrons;
     switch(Run) {
         case 2:
             for (const auto &electron: electrons) {
                 float smeared_pt = electron.Pt();
-                if (syst == "up") {
+                if (syst == MyCorrection::variation::up) {
                     smeared_pt *= (electron.E() - electron.dEsigmaUp())/electron.E();
-                } else if (syst == "down") {
+                } else if (syst == MyCorrection::variation::down) {
                     smeared_pt *= (electron.E() - electron.dEsigmaDown())/electron.E();
                 } else {
                     throw runtime_error("[AnalyzerCore::SmearElectrons] Invalid variation");
@@ -765,11 +766,11 @@ RVec<Electron> AnalyzerCore::SmearElectrons(const RVec<Electron> &electrons, con
         case 3: 
             for (const auto &electron: electrons) {
                 float smeared_pt = electron.Pt();
-                if (syst == "nom") {
+                if (syst == MyCorrection::variation::nom) {
                     smeared_pt *= myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::nom, int(electron.Rho()));
-                } else if (syst == "up") {
+                } else if (syst == MyCorrection::variation::up) {
                     smeared_pt *= myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::up, int(electron.Rho()));
-                } else if (syst == "down") {
+                } else if (syst == MyCorrection::variation::down) {
                     smeared_pt *= myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::down, int(electron.Rho()));
                 } else {
                     throw runtime_error("[AnalyzerCore::SmearElectrons] Invalid variation");
@@ -887,7 +888,7 @@ RVec<Jet> AnalyzerCore::GetAllJets()
         Jet jet;
         const float rawPt = Jet_pt[i] * (1.-Jet_rawFactor[i]);
         const float rawMass = Jet_mass[i] * (1.-Jet_rawFactor[i]);
-        const float JESSF = myCorr->GetJESSF(Jet_area[i], Jet_eta[i], rawPt, Jet_phi[i], fixedGridRhoFastjetAll, RunNumber);
+        const float JESSF = myCorr->GetJESSF(Jet_area[i], Jet_eta[i], rawPt, Jet_phi[i], Rho_fixedGridRhoFastjetAll, RunNumber);
         const float correctedPt = rawPt * JESSF;
         const float correctedMass = rawMass * JESSF;
         jet.SetPtEtaPhiM(correctedPt, Jet_eta[i], Jet_phi[i], correctedMass);
@@ -1071,20 +1072,36 @@ RVec<Jet> AnalyzerCore::JetsVetoLeptonInside(const RVec<Jet> &jets, const RVec<E
     return selected_jets;
 }
 
-bool AnalyzerCore::PassJetVetoMap(const RVec<Jet> &AllJets, const RVec<Muon> &AllMuons, const TString mapCategory)
-{
-    RVec<Jet> this_jet = SelectJets(AllJets, Jet::JetID::TIGHT, 15., 5.0);
-    //this_jet = SelectJets(this_jet, Jet::JetID::PUID_TIGHT, 15., 5.0);
+// For Run2, reject jets within the veto map
+bool AnalyzerCore::PassJetVetoMap(const Jet &jet, const RVec<Muon> &AllMuons, const TString mapCategory){
+    if (! (Run == 2)) return true;
+    // Only apply to the jets with em energy fraction less than 0.9
+    if (jet.chEmEF() + jet.neEmEF() > 0.9) return true;
+
+    // Selections should be looser than Analysis jet selections
+    bool pass_loose_selection = jet.Pt() > 15.;
+    pass_loose_selection = pass_loose_selection && myCorr->PassJetID(jet, Jet::JetID::TIGHT);
+    pass_loose_selection = pass_loose_selection && (jet.Pt() > 50. || myCorr->PassJetID(jet, Jet::JetID::PUID_LOOSE));
+    for (const auto &muon: AllMuons){
+        pass_loose_selection = pass_loose_selection && (jet.DeltaR(muon) > 0.2);
+    }
+    bool pass_veto_map = pass_loose_selection && (!myCorr->IsJetVetoZone(jet.Eta(), jet.Phi(), mapCategory));
+    return pass_veto_map;
+}
+
+// For Run3, reject events if any jet is within the veto map
+bool AnalyzerCore::PassJetVetoMap(const RVec<Jet> &AllJets, const RVec<Muon> &AllMuons, const TString mapCategory) {
+    if (! (Run == 3)) return true;
     RVec<Jet> selected_jets;
     RVec<Electron> empty_electrons;
+
+    RVec<Jet> this_jet = SelectJets(AllJets, Jet::JetID::TIGHT, 15., 5.0);
     this_jet = JetsVetoLeptonInside(this_jet, empty_electrons, AllMuons, 0.2);
     for(const auto &jet: this_jet){
         if(jet.chEmEF() + jet.neEmEF() < 0.9) selected_jets.push_back(jet);
     }
-    for (const auto &jet : selected_jets)
-    {
-        if (myCorr->IsJetVetoZone(jet.Eta(), jet.Phi(), mapCategory))
-            return false;
+    for(const auto &jet: selected_jets){
+        if(myCorr->IsJetVetoZone(jet.Eta(), jet.Phi(), mapCategory)) return false;
     }
     return true;
 }

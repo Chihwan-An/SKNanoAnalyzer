@@ -33,7 +33,7 @@ void DiLepton::executeEvent() {
     fillCutflow(CutStage::NoiseFilter, Channel::NONE, initialWeight, "Central");
 
     RVec<Muon> rawMuons = GetAllMuons();
-    if (!(RunNoVetoMap || PassVetoMap(rawJets, rawMuons, "jetvetomap"))) return; // For Run3, reject events if any jet is within the veto map
+    if (!(RunNoVetoMap || PassJetVetoMap(rawJets, rawMuons, "jetvetomap"))) return; // For Run3, reject events if any jet is within the veto map
     fillCutflow(CutStage::VetoMap, Channel::NONE, initialWeight, "Central");
 
     RVec<Electron> rawElectrons = GetAllElectrons();
@@ -107,19 +107,19 @@ DiLepton::RecoObjects DiLepton::defineObjects(Event& ev,
 
     // Apply scale variations based on systematic name
     if (syst.Contains("ElectronEn")) {
-        TString variation = syst.Contains("Up") ? "up" : "down";
+        MyCorrection::variation variation = syst.Contains("Up") ? MyCorrection::variation::up : MyCorrection::variation::down;
         allElectrons = ScaleElectrons(ev, allElectrons, variation);
     } else if (syst.Contains("ElectronRes")) {
-        TString variation = syst.Contains("Up") ? "up" : "down";
+        MyCorrection::variation variation = syst.Contains("Up") ? MyCorrection::variation::up : MyCorrection::variation::down;
         allElectrons = SmearElectrons(allElectrons, variation);
     } else if (syst.Contains("MuonEn")) {
-        TString variation = syst.Contains("Up") ? "up" : "down";
+        MyCorrection::variation variation = syst.Contains("Up") ? MyCorrection::variation::up : MyCorrection::variation::down;
         allMuons = ScaleMuons(allMuons, variation);
     } else if (syst.Contains("JetEn")) {
-        TString variation = syst.Contains("Up") ? "up" : "down";
+        MyCorrection::variation variation = syst.Contains("Up") ? MyCorrection::variation::up : MyCorrection::variation::down;
         allJets = ScaleJets(allJets, variation);
     } else if (syst.Contains("JetRes")) {
-        TString variation = syst.Contains("Up") ? "up" : "down";
+        MyCorrection::variation variation = syst.Contains("Up") ? MyCorrection::variation::up : MyCorrection::variation::down;
         allJets = SmearJets(allJets, genJets, variation);
     } else {
         // Do nothing
@@ -136,15 +136,15 @@ DiLepton::RecoObjects DiLepton::defineObjects(Event& ev,
     RVec<Electron> tightElectrons = SelectElectrons(looseElectrons, ElectronIDs->GetID("tight"), 15., 2.5);
     
     const float max_jeteta = DataEra.Contains("2016") ? 2.4 : 2.5;
-    RVec<Jet> tightJets = SelectJets(allJets, "tight", 20., max_jeteta);
-    if (Run == 2) tightJets = SelectJets(tightJets, "loosePuId", 20., max_jeteta);
+    RVec<Jet> tightJets = SelectJets(allJets, Jet::JetID::TIGHT, 20., max_jeteta);
+    if (Run == 2) tightJets = SelectJets(tightJets, Jet::JetID::PUID_LOOSE, 20., max_jeteta);
     RVec<Jet> tightJets_vetoLep = JetsVetoLeptonInside(tightJets, looseElectrons, looseMuons, 0.4);
 
     // For Run2, apply jet-by-jet veto map
     if (Run == 2 && !RunNoVetoMap) {
         RVec<Jet> tightJets_vetoLep_vetoMap;
         for (const auto &jet : tightJets_vetoLep) {
-            if (PassVetoMap(jet, looseMuons, "jetvetomap")) tightJets_vetoLep_vetoMap.push_back(jet);
+            if (PassJetVetoMap(jet, looseMuons, "jetvetomap")) tightJets_vetoLep_vetoMap.push_back(jet);
         }
         tightJets_vetoLep = tightJets_vetoLep_vetoMap;
     }
@@ -152,7 +152,7 @@ DiLepton::RecoObjects DiLepton::defineObjects(Event& ev,
     RVec<Jet> bjets;
     float wp = myCorr->GetBTaggingWP(JetTagging::JetFlavTagger::DeepJet, JetTagging::JetFlavTaggerWP::Medium);
     for (auto& jet : tightJets_vetoLep) {
-        float btagScore = jet.GetBTaggerResult(JetTagging::JetFlavTagger::DeepJet);
+        float btagScore = jet.GetTaggerResult(JetTagging::JetFlavTagger::DeepJet, JetTagging::JetFlavTaggerScoreType::B);
         if (btagScore > wp) bjets.emplace_back(jet);
     }
 
@@ -363,7 +363,7 @@ DiLepton::WeightInfo DiLepton::getWeights(const DiLepton::Channel& channel,
     if (Run == 2) {
         const RVec<Jet>& jets = recoObjects.tightJets_vetoLep;
         const RVec<GenJet>& genJets = recoObjects.genJets;
-        unordered_map<int, int> matched_idx = GenJetMatching(jets, genJets, fixedGridRhoFastjetAll, 0.4, 10.);
+        unordered_map<int, int> matched_idx = GenJetMatching(jets, genJets, Rho_fixedGridRhoFastjetAll, 0.4, 10.);
         if (syst.Contains("PileupJetIDSF")) {
             weights.pileupIDSF = myCorr->GetPileupJetIDSF(jets, matched_idx, "loose", var);
         } else {

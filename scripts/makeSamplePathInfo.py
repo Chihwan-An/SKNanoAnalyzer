@@ -2,6 +2,7 @@
 import os
 import json
 import argparse
+import glob
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--era', type=str, default='2016preVFP', help='era')
@@ -30,6 +31,9 @@ elif args.era == "2023":
     BASEPATH = os.environ["SKNANO_RUN3_NANOAODPATH"]
 elif args.era == "2023BPix":
     YEAR = "2023"
+    BASEPATH = os.environ["SKNANO_RUN3_NANOAODPATH"]
+elif args.era == "2024":
+    YEAR = "2024"
     BASEPATH = os.environ["SKNANO_RUN3_NANOAODPATH"]
 else:
     raise ValueError(f"Unknown era: {args.era}")
@@ -85,16 +89,26 @@ def main():
                 json.dump(jsonData, f, indent=4)
         else:
             for period in sampleInfo["periods"]:
-                basePath = os.path.join(BASEPATH, args.era, f"{alias}/Run{YEAR}{period}")
-                fileJsonPath = os.path.join(os.environ['SKNANO_DATA'], args.era, 'Sample', 'ForSNU', alias+'_'+period+'.json')
-                jsonData = {
-                    "name": alias,
-                    "isMC": 0,
-                    "NEvents": [],  # Empty list for now, can be filled later
-                    "path": parse_rootfiles_from(basePath)
-                }
-                with open(fileJsonPath, 'w') as f:
-                    json.dump(jsonData, f, indent=4)
+                pattern = os.path.join(BASEPATH, args.era, f"{alias}/*Run{YEAR}{period}*")
+                matches = glob.glob(pattern)
+                print(matches)
+
+                for basePath in matches:
+                    fileJsonPath = os.path.join(
+                        os.environ['SKNANO_DATA'],
+                        args.era,
+                        'Sample',
+                        'ForSNU',
+                        f"{alias}_{period}.json"
+                    )
+                    jsonData = {
+                        "name": alias,
+                        "isMC": 0,
+                        "NEvents": [],
+                        "path": parse_rootfiles_from(basePath)
+                    }
+                    with open(fileJsonPath, 'w') as f:
+                        json.dump(jsonData, f, indent=4)
 
 
 if __name__ == "__main__":

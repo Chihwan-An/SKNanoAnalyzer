@@ -29,7 +29,7 @@ def loadCommonSampleInfo(era):
         #             if file.endswith('.root'):
         #                 filePaths.append(os.path.join(root,file))
         #     #sort filePaths by tree*.root
-        #     filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0])) 
+        #     #filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0])) 
         #     #now save the path information to another json file
         #     newjsondict = {}
         #     newjsondict['name'] = alias
@@ -49,7 +49,7 @@ def loadCommonSampleInfo(era):
         #                 if file.endswith('.root'):
         #                     filePaths.append(os.path.join(root,file))
         #         #sort filePaths by tree*.root
-        #         filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
+        #         #filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
         #         #now save the path information to another json file
         #         newjsondict = {}
         #         newjsondict['name'] = alias
@@ -77,7 +77,7 @@ def process_mc_sample(alias, sampleInfo, era, basePath):
         for file in files:
             if file.endswith('.root'):
                 filePaths.append(os.path.join(root, file))
-    filePaths = sorted(filePaths, key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
+    #filePaths = sorted(filePaths, key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
 
     newjsondict = {'name': alias}
     newjsondict.update(sampleInfo)
@@ -94,7 +94,7 @@ def process_data_sample(alias, sampleInfo, era, basePath):
             for file in files:
                 if file.endswith('.root'):
                     filePaths.append(os.path.join(root, file))
-        filePaths = sorted(filePaths, key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
+        #filePaths = sorted(filePaths, key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
 
         newjsondict = {'name': alias}
         for key in sampleInfo:
@@ -227,7 +227,7 @@ def makeSkimTreeInfo(era,skimTreeFolder,skimTreeSuffix,skimTreeOrigPD):
             if file.endswith('.root'):
                 filePaths.append(os.path.join(root,file))
 
-    filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
+    #filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
     if isMC:
         skimPathInfoJson = os.path.join(skimJsonFolderPath,f'Skim_{skimTreeSuffix}_{skimTreeOrigPD}.json')
     else:

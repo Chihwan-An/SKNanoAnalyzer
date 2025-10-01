@@ -14,7 +14,7 @@ public:
     inline void SetPUPPIWeight(float weight) { j_puppiWeight = weight; }
     inline float PUPPIWeight() const { return j_puppiWeight; }
 
-    inline void SetPID(int pid) { j_pid = pid; }
+    inline void SetPdgId(int pid) { j_pid = pid; }
     inline int PID() const { return j_pid; }
     
 

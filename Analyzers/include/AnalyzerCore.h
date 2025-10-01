@@ -148,8 +148,8 @@ public:
     unordered_map<int, int> GenJetMatching(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const float &rho, const float dR = 0.2, const float pTJerCut = 3.);
     unordered_map<int, int> deltaRMatching(const RVec<Particle> &objs1, const RVec<Particle> &objs2, const float dR = 0.4);
     RVec<Muon> ScaleMuons(const RVec<Muon> &muons, const MyCorrection::variation &syst=MyCorrection::variation::nom);
-    RVec<Electron> ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const TString &syst);
-    RVec<Electron> SmearElectrons(const RVec<Electron> &electrons, const TString &syst);
+    RVec<Electron> ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const MyCorrection::variation &syst=MyCorrection::variation::nom);
+    RVec<Electron> SmearElectrons(const RVec<Electron> &electrons, const MyCorrection::variation &syst=MyCorrection::variation::nom);
 
     RVec<Jet> SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
     RVec<Jet> SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const TString &syst, const TString &source="total");
@@ -160,9 +160,8 @@ public:
     TFile* GetOutfile() { return outfile; }
     inline void SetOutfilePath(const TString &outpath) { outfile = new TFile(outpath, "RECREATE"); }
     TH1D* GetHist1D(const string &histname);
-    bool PassVetoMap(const Jet &jet, const RVec<Muon> &AllMuons, const TString mapCategory="jetvetomap");
-    bool PassVetoMap(const RVec<Jet> &AllJets, const RVec<Muon> &AllMuons, const TString mapCategory="jetvetomap");
-    bool PassJetVetoMap(const RVec<Jet> &AllJet, const RVec<Muon> &AllMuon, const TString mapCategory="jetvetomap");
+    bool PassJetVetoMap(const Jet &jet, const RVec<Muon> &AllMuons, const TString mapCategory="jetvetomap");
+    bool PassJetVetoMap(const RVec<Jet> &AllJets, const RVec<Muon> &AllMuons, const TString mapCategory="jetvetomap");
     inline void FillCutFlow(const int &val,const int &maxCutN=10){
         static int storedMaxCutN = maxCutN;
         FillHist("CutFlow", val, 1., storedMaxCutN, 0, storedMaxCutN);

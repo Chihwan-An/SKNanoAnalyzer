@@ -108,6 +108,7 @@ void SKNanoLoader::Init()
 
 void SKNanoLoader::InitBranch()
 {
+    cout << "[SKNanoLoader::InitBranch] Setting up branches" << endl;
     // ==============================================================
     //  _         _                         _       _    _         _     _
     // | |__  ___| |_____ __ __  __ ___  __| |___  | |__| |___  __| |__ (_)___
@@ -491,6 +492,11 @@ void SKNanoLoader::InitBranch()
     Jet_svIdx1.init(*fReader, "Jet_svIdx1");
     Jet_svIdx2.init(*fReader, "Jet_svIdx2");
     nJet.init(*fReader, "nJet");
+
+    // JetPFCand
+    JetPFCand_jetIdx.init(*fReader, "JetPFCand_jetIdx");
+    JetPFCand_pfCandIdx.init(*fReader, "JetPFCand_pfCandIdx");
+    nJetPFCand.init(*fReader, "nJetPFCand");
 
     // LHE
     LHE_AlphaS.init(*fReader, "LHE_AlphaS");

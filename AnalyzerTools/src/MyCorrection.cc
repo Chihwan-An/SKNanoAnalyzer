@@ -102,25 +102,25 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
     const string external_roccor_str(external_roccor);
 
 
-    // config.json_muon = json_pog_path_str + "/POG/MUO";
-    // config.json_muon_trig_eff = sknano_data_str;
-    // config.json_puWeights = json_pog_path_str + "/POG/LUM";
-    // config.json_btagging = json_pog_path_str + "/POG/BTV";
-    // config.json_ctagging = json_pog_path_str + "/POG/BTV";
-    // config.json_btagging_eff = sknano_data_str;
-    // config.json_ctagging_eff = sknano_data_str;
-    // config.json_btagging_R = sknano_data_str;
-    // config.json_ctagging_R = sknano_data_str;
-    // config.json_electron = json_pog_path_str + "/POG/EGM";
-    // config.json_electron_hlt = config.json_electron;
-    // config.json_electron_variation = sknano_data_str;
-    // config.json_photon = json_pog_path_str + "/POG/EGM";
+    config.json_muon = json_pog_path_str + "/POG/MUO";
+    config.json_muon_trig_eff = sknano_data_str;
+    config.json_puWeights = json_pog_path_str + "/POG/LUM";
+    config.json_btagging = json_pog_path_str + "/POG/BTV";
+    config.json_ctagging = json_pog_path_str + "/POG/BTV";
+    config.json_btagging_eff = sknano_data_str;
+    config.json_ctagging_eff = sknano_data_str;
+    config.json_btagging_R = sknano_data_str;
+    config.json_ctagging_R = sknano_data_str;
+    config.json_electron = json_pog_path_str + "/POG/EGM";
+    config.json_electron_hlt = config.json_electron;
+    config.json_electron_variation = sknano_data_str;
+    config.json_photon = json_pog_path_str + "/POG/EGM";
     config.json_jetid = json_pog_path_str + "/POG/JME";
     config.json_jerc = json_pog_path_str + "/POG/JME";
-    // config.json_jerc_fatjet = json_pog_path_str + "/POG/JME";
+    config.json_jerc_fatjet = json_pog_path_str + "/POG/JME";
     config.json_jetvetomap = json_pog_path_str + "/POG/JME";
-    // config.json_jmar = json_pog_path_str + "/POG/JME";
-    // config.json_met = json_pog_path_str + "/POG/JME";
+    config.json_jmar = json_pog_path_str + "/POG/JME";
+    config.json_met = json_pog_path_str + "/POG/JME";
     config.txt_roccor = external_roccor_str;
     config.golden_json = sknano_data_str;
 
@@ -134,17 +134,18 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
     // config.json_electron_custom_emu_leg2_eff = sknano_data_str;
 
     if (era == "2024") {
-        // config.json_muon += "/2023_Summer23BPix/muon_Z.json.gz";
+        config.json_muon += "/2024_Summer24/muon_Z.json.gz";
         // config.json_muon_trig_eff += "/2023BPix/MUO/muon_trig.json";
-        // config.json_puWeights += "/2023_Summer23BPix/puWeights.json.gz";
-        // config.json_btagging += "/2023_Summer23BPix/btagging.json.gz";
+        config.json_puWeights += "/2024_Summer24/puWeights.json.gz";
+        config.json_btagging += "/2024_Summer24/btagging.json.gz";
         // config.json_ctagging += "/2023_Summer23BPix/ctagging.json.gz";
         // config.json_btagging_eff += "/2023BPix/BTV/" + btagging_eff_file;
         // config.json_ctagging_eff += "/2023BPix/BTV/" + ctagging_eff_file;
         // config.json_btagging_R += "/2023BPix/BTV/" + btagging_R_file;
         // config.json_ctagging_R += "/2023BPix/BTV/" + ctagging_R_file;
-        // config.json_electron += "/2023_Summer23BPix/electron.json.gz";
-        // config.json_electron_variation = json_pog_path_str + "/POG/EGM/2023_Summer23BPix/electronSS.json.gz";
+        config.json_electron += "/2024_Summer24/electron_v1.json.gz";
+        config.json_electron_id += "/2024_Summer24/electronID_v1.json.gz";
+        config.json_electron_variation = json_pog_path_str + "/POG/EGM/2024_Summer24/electronSS_EtDependent_v1.json.gz";
         // config.json_electron_hlt += "/2023_Summer23BPix/electronHlt.json.gz";
         // config.json_photon += "/2023_Summer23BPix/photon.json.gz";
         config.json_jetid += "/2024_Winter24/jetid.json.gz";

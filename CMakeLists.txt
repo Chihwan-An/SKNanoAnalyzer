@@ -15,10 +15,40 @@ find_package(ROOT REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Torch REQUIRED)
 find_package(correctionlib REQUIRED)
+find_package(VecCore QUIET)
+find_package(Vc QUIET)
 
 include(${ROOT_USE_FILE})
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    add_compile_options(
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Release>>:-O3>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:RelWithDebInfo>>:-O3>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:MinSizeRel>>:-O3>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Release>>:-ffast-math>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:RelWithDebInfo>>:-ffast-math>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:MinSizeRel>>:-ffast-math>
+        $<$<COMPILE_LANGUAGE:CXX>:-march=native>
+    )
+endif()
+
+if(VecCore_FOUND)
+    message(STATUS "VecCore detected: ${VecCore_VERSION}")
+    add_compile_definitions(ROOT_USE_VECCORE)
+    link_libraries(VecCore::VecCore)
+endif()
+
+if(Vc_FOUND)
+    message(STATUS "Vc detected: ${Vc_VERSION}")
+    add_compile_definitions(ROOT_USE_VC)
+    link_libraries(Vc::Vc)
+endif()
 
 # Add subdirectories
 add_subdirectory(external/KinematicFitter)

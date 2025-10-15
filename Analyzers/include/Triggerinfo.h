@@ -1,13 +1,16 @@
 #ifndef Triggerinfo_h
 #define Triggerinfo_h
+
 #include <memory>
-#include "TTreeReaderWrappers.h"   // Bool_t 래퍼에 필요
+#include <map>
+
+#include "BranchManager.h"
 #include "TString.h"
 
 struct TriggerInfo {
-    std::unique_ptr<TTreeReaderValueWrapper<Bool_t>> hlt;
+    std::unique_ptr<BranchScalar<Bool_t>> hlt;
     float lumi = 0.f;
-    bool  alwaysTrue = false;
+    bool alwaysTrue = false;
 };
 
 using TriggerMap_t =

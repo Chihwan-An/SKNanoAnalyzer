@@ -18,7 +18,6 @@
 #pragma link C++ class ParseEleIDVariables+;
 #pragma link C++ class ParseMuIDVariables+;
 #pragma link C++ class TestGetLeptonType+;
-#pragma link C++ class TTreeReaderWrappers+;
 #pragma link C++ class TriggerInfo+;
 #pragma link C++ class MeasTrigEff+;
 #pragma link C++ class MuonTnPProducer+;

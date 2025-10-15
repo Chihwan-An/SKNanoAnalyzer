@@ -1,8 +1,13 @@
 #ifndef Muon_h
 #define Muon_h
 
+#include <bitset>
+#include <memory>
+
 #include "TString.h"
 #include "Lepton.h"
+
+class AnalyzerCore;
 
 // Need update
 // - TuneP object
@@ -17,17 +22,57 @@ public:
     Muon();
     ~Muon();
 
+    enum class Property {
+        TkRelIso,
+        PfRelIso03,
+        PfRelIso04,
+        MiniPFRelIso,
+        Dxy,
+        DxyErr,
+        Dz,
+        DzErr,
+        Ip3d,
+        Sip3d,
+        TrackerLayers,
+        GenPartFlav,
+        GenPartIdx,
+        JetIdx,
+        LooseId,
+        MediumId,
+        MediumPromptId,
+        TightId,
+        SoftId,
+        SoftMvaId,
+        TriggerLooseId,
+        HighPtId,
+        MiniIsoId,
+        MultiIsoId,
+        MvaMuId,
+        PfIsoId,
+        PuppiIsoId,
+        TkIsoId,
+        SoftMva,
+        MvaLowPt,
+        MvaPrompt,
+        Count
+    };
+
+    using EnsureCallback = void (*)(void*, Muon&, Property);
+    void AttachLazyPayload(void *context, EnsureCallback callback, int index) const;
+    void DetachLazyPayload() const;
+    bool HasLazyPayload() const { return static_cast<bool>(lazy_); }
+
     // Boolean IDs
     enum class BooleanID {NONE, LOOSE, MEDIUM, MEDIUMPROMPT, TIGHT, SOFT, SOFTMVA, TRIGGERLOOSE};
 
     void SetBIDBit(BooleanID id, bool idbit);
-    inline bool isPOGTightId() const {return j_tightId;}
-    inline bool isPOGMediumId() const {return j_mediumId;}
-    inline bool isPOGMediumPromptId() const {return j_mediumPromptId;}
-    inline bool isPOGLooseId() const {return j_looseId;}
-    inline bool isPOGSoftId() const {return j_softId;}
-    inline bool isPOGSoftMvaId() const {return j_softMvaId;}
-    inline bool isPOGTriggerIdLoose() const {return j_triggerIdLoose;}
+    inline bool isPOGTightId() const { ensure(Property::TightId); return j_tightId; }
+    inline bool isPOGMediumId() const { ensure(Property::MediumId); return j_mediumId; }
+    inline bool isPOGMediumPromptId() const { ensure(Property::MediumPromptId); return j_mediumPromptId; }
+    inline bool isPOGLooseId() const { ensure(Property::LooseId); return j_looseId; }
+    inline bool isPOGSoftId() const { ensure(Property::SoftId); return j_softId; }
+    inline bool isPOGSoftMvaId() const { ensure(Property::SoftMvaId); return j_softMvaId; }
+    inline bool isPOGTriggerIdLoose() const { ensure(Property::TriggerLooseId); return j_triggerIdLoose; }
 
     // Muon type methods
     void SetIsTracker(bool isTracker) { j_isTracker = isTracker; }
@@ -75,38 +120,50 @@ public:
     };
 
     void SetWIDBit(WorkingPointID id, unsigned char value);
-    inline WorkingPoint HighPtId() const {return (WorkingPoint)j_highPtId;}
-    inline WorkingPoint MiniIsoId() const {return (WorkingPoint)j_miniIsoId;}
-    inline WorkingPoint MultiIsoId() const {return (WorkingPoint)j_multiIsoId;}
-    inline WorkingPoint MvaMuId() const {return (WorkingPoint)j_mvaMuId;}
-    //inline WorkingPoint MvaLowPtId() const {return (WorkingPoint)j_mvaLowPtId;}
-    inline WorkingPoint PfIsoId() const {return (WorkingPoint)j_pfIsoId;}
-    inline WorkingPoint PuppiIsoId() const {return (WorkingPoint)j_puppiIsoId;}
-    inline WorkingPoint TkIsoId() const {return (WorkingPoint)j_tkIsoId;}
+    inline WorkingPoint HighPtId() const { ensure(Property::HighPtId); return static_cast<WorkingPoint>(j_highPtId); }
+    inline WorkingPoint MiniIsoId() const { ensure(Property::MiniIsoId); return static_cast<WorkingPoint>(j_miniIsoId); }
+    inline WorkingPoint MultiIsoId() const { ensure(Property::MultiIsoId); return static_cast<WorkingPoint>(j_multiIsoId); }
+    inline WorkingPoint MvaMuId() const { ensure(Property::MvaMuId); return static_cast<WorkingPoint>(j_mvaMuId); }
+    inline WorkingPoint PfIsoId() const { ensure(Property::PfIsoId); return static_cast<WorkingPoint>(j_pfIsoId); }
+    inline WorkingPoint PuppiIsoId() const { ensure(Property::PuppiIsoId); return static_cast<WorkingPoint>(j_puppiIsoId); }
+    inline WorkingPoint TkIsoId() const { ensure(Property::TkIsoId); return static_cast<WorkingPoint>(j_tkIsoId); }
 
-    void SetNTrackerLayers(int n) {j_nTrackerLayers = n;}
-    inline int nTrackerLayers() const {return j_nTrackerLayers;}
-    void SetMiniAODPt(float pt) {j_miniAODPt = pt;}
-    inline float MiniAODPt() const {return j_miniAODPt;}
-    void SetMomentumScaleUpDown(float up, float down) {j_momentumScaleUp = up; j_momentumScaleDown = down;}
-    inline float MomentumScaleUp() const {return j_momentumScaleUp;}
-    inline float MomentumScaleDown() const {return j_momentumScaleDown;}
+    void SetNTrackerLayers(int n) { j_nTrackerLayers = n; markLoaded(Property::TrackerLayers); }
+    inline int nTrackerLayers() const { ensure(Property::TrackerLayers); return j_nTrackerLayers; }
+    void SetMiniAODPt(float pt) { j_miniAODPt = pt; }
+    inline float MiniAODPt() const { return j_miniAODPt; }
+    void SetMomentumScaleUpDown(float up, float down) { j_momentumScaleUp = up; j_momentumScaleDown = down; }
+    inline float MomentumScaleUp() const { return j_momentumScaleUp; }
+    inline float MomentumScaleDown() const { return j_momentumScaleDown; }
+
+    // Override base-class accessors to enable lazy filling
+    float TkRelIso() const { ensure(Property::TkRelIso); return Lepton::TkRelIso(); }
+    float PfRelIso03() const { ensure(Property::PfRelIso03); return Lepton::PfRelIso03(); }
+    float PfRelIso04() const { ensure(Property::PfRelIso04); return Lepton::PfRelIso04(); }
+    float MiniPFRelIso() const { ensure(Property::MiniPFRelIso); return Lepton::MiniPFRelIso(); }
+    float dXY() const { ensure(Property::Dxy); return Lepton::dXY(); }
+    float dXYerr() const { ensure(Property::DxyErr); return Lepton::dXYerr(); }
+    float dZ() const { ensure(Property::Dz); return Lepton::dZ(); }
+    float dZerr() const { ensure(Property::DzErr); return Lepton::dZerr(); }
+    float IP3D() const { ensure(Property::Ip3d); return Lepton::IP3D(); }
+    float SIP3D() const { ensure(Property::Sip3d); return Lepton::SIP3D(); }
+
     // MVA ID scores
     enum class MVAID {NONE, SOFTMVA, MVALOWPT, MVAPROMPT};
 
     void SetMVAID(MVAID id, float score);
-    inline float SoftMva() const {return j_softMva;}
-    inline float MvaLowPt() const {return j_mvaLowPt;}
-    inline float MvaTTH() const {return j_mvaPrompt;}
+    inline float SoftMva() const { ensure(Property::SoftMva); return j_softMva; }
+    inline float MvaLowPt() const { ensure(Property::MvaLowPt); return j_mvaLowPt; }
+    inline float MvaTTH() const { ensure(Property::MvaPrompt); return j_mvaPrompt; }
 
-    void SetGenPartIdx(short genPartIdx) { j_genPartIdx = genPartIdx; }
-    inline short GenPartIdx() const { return j_genPartIdx; }
+    void SetGenPartIdx(short genPartIdx) { j_genPartIdx = genPartIdx; markLoaded(Property::GenPartIdx); }
+    inline short GenPartIdx() const { ensure(Property::GenPartIdx); return j_genPartIdx; }
 
-    void SetGenPartFlav(unsigned char genPartFlav) { j_genPartFlav = genPartFlav; }
-    inline unsigned char GenPartFlav() const { return j_genPartFlav; }
+    void SetGenPartFlav(unsigned char genPartFlav) { j_genPartFlav = genPartFlav; markLoaded(Property::GenPartFlav); }
+    inline unsigned char GenPartFlav() const { ensure(Property::GenPartFlav); return j_genPartFlav; }
 
-    void SetJetIdx(short jetIdx) { j_jetIdx = jetIdx; }
-    inline short JetIdx() const { return j_jetIdx; }
+    void SetJetIdx(short jetIdx) { j_jetIdx = jetIdx; markLoaded(Property::JetIdx); }
+    inline short JetIdx() const { ensure(Property::JetIdx); return j_jetIdx; }
 
     // ID helper functions
     bool PassID(const MuonID ID) const;
@@ -117,6 +174,18 @@ public:
     bool Pass_HcToWALoose() const;
 
 private:
+    void ensure(Property property) const;
+    void markLoaded(Property property) const;
+
+    struct LazyPayload {
+        void *context = nullptr;
+        EnsureCallback callback = nullptr;
+        int index = -1;
+        mutable std::bitset<static_cast<std::size_t>(Property::Count)> loaded;
+    };
+
+    mutable std::shared_ptr<LazyPayload> lazy_;
+
     bool j_isTracker, j_isStandalone, j_isGlobal;
     bool j_looseId, j_mediumId, j_mediumPromptId, j_tightId, j_softId, j_softMvaId, j_triggerIdLoose;
     unsigned char j_highPtId, j_miniIsoId, j_multiIsoId, j_mvaMuId, j_pfIsoId, j_puppiIsoId, j_tkIsoId;
@@ -126,6 +195,8 @@ private:
     short j_genPartIdx;
     unsigned char j_genPartFlav;
     short j_jetIdx;
+
+    friend class AnalyzerCore;
     ClassDef(Muon, 1);
 };
 

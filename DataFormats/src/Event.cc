@@ -18,15 +18,17 @@ void Event::SetTrigger(const TriggerMap_t& map) {
 
 bool Event::PassTrigger(const TString trig) const {
     auto it = j_HLTmap->find(trig);
-        if (it == j_HLTmap->end()) {
-            std::cout << "[Event::PassTrigger] WARNING: " << trig
-                      << " not found\n";
-            return false;
-        }
-        const TriggerInfo& info = *it->second;
-        return info.alwaysTrue ? true :
-               (info.hlt && info.hlt->valid() ? static_cast<bool>(info.hlt->get())
-                                              : false);
+    if (it == j_HLTmap->end()) {
+        std::cout << "[Event::PassTrigger] WARNING: " << trig
+                  << " not found\n";
+        return false;
+    }
+    const TriggerInfo &info = *it->second;
+    if (info.alwaysTrue)
+        return true;
+    if (!info.hlt)
+        return false;
+    return static_cast<bool>(*info.hlt);
 }
 
 bool Event::PassTrigger(const RVec<TString> trigs) const {

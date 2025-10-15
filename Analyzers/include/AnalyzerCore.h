@@ -104,6 +104,14 @@ public:
     RVec<GenDressedLepton> GetAllGenDressedLeptons();
     RVec<GenIsolatedPhoton> GetAllGenIsolatedPhotons();
     RVec<GenVisTau> GetAllGenVisTaus();
+    static void MuonEnsureThunk(void *ctx, Muon &muon, Muon::Property property);
+    static void ElectronEnsureThunk(void *ctx, Electron &electron, Electron::Property property);
+    static void JetEnsureThunk(void *ctx, Jet &jet, Jet::Property property);
+
+    void EnsureMuonProperty(Muon &muon, Muon::Property property) const;
+    void EnsureElectronProperty(Electron &electron, Electron::Property property) const;
+    void EnsureJetProperty(Jet &jet, Jet::Property property) const;
+
     RVec<Photon> GetAllPhotons();
     RVec<Photon> GetPhotons(TString id, double ptmin, double fetamax);
     RVec<TrigObj> GetAllTrigObjs();

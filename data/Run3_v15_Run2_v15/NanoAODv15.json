@@ -4618,6 +4618,20 @@
                 "type": "Int_t"
             }
         },
+        "JetPFCand":{
+            "nJetPFCand": {
+                "description": "number of jet PF candidates in all selected jets",
+                "type": "Int_t"
+            },
+            "JetPFCand_jetIdx": {
+                "description": "index of the jet the PF candidate belongs to",
+                "type": "Int_t"
+            },
+            "JetPFCand_pfCandIdx": {
+                "description": "index of the PF candidate in the slimmedPFCandidates collection",
+                "type": "Int_t"
+            }
+        },
         "L1": {
             "L1_AXO_Loose": {
                 "description": "Trigger/flag bit (process: NANO)",
@@ -6887,6 +6901,10 @@
             },
             "PFCand_pt": {
                 "description": "Puppi-weighted pt",
+                "type": "Float_t"
+            },
+            "PFCand_puppiWeight": {
+                "description": "Puppi weight",
                 "type": "Float_t"
             },
             "nPFCand": {

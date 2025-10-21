@@ -1,10 +1,21 @@
 #include "Muon.h"
+#include <cmath>
+#include <limits>
 
 ClassImp(Muon)
 
-Muon::Muon() {
+void Muon::initializeMembers() {
+    storage_.reset();
+    index_ = std::numeric_limits<std::size_t>::max();
+    cachedProperties_.reset();
+    lazy_.reset();
+
     this->SetLeptonFlavour(MUON);
-    // boolean ID bits
+
+    j_isTracker = false;
+    j_isStandalone = false;
+    j_isGlobal = false;
+
     j_looseId = false;
     j_mediumId = false;
     j_mediumPromptId = false;
@@ -13,60 +24,307 @@ Muon::Muon() {
     j_softMvaId = false;
     j_triggerIdLoose = false;
 
-    // unsigned char ID bits
-    j_highPtId = 0;     // High PT cut-based ID (1 = tracker high pT, 2 = global high pT)
-    j_miniIsoId = 0;    // 1=Loose, 2=Medium, 3=Tight, 4=VeryTight
-    j_multiIsoId = 0;   // 1=Loose, 2=Medium
-    j_mvaMuId = 0;      // 2=Medium, 3=Tight
-    //j_mvaLowPtId = 0;   // 1=Loose, 2=Medium
-    j_pfIsoId = 0;      // 1=VLoose, 2=Loose, 3=Medium, 4=Tight, 5=VTight, 6=VVTight
-    j_puppiIsoId = 0;   // 1=Loose, 2=Medium, 3=Tight
-    j_tkIsoId = 0;      // 1=Loose, 2=Tight
+    j_highPtId = 0;
+    j_miniIsoId = 0;
+    j_multiIsoId = 0;
+    j_mvaMuId = 0;
+    j_pfIsoId = 0;
+    j_puppiIsoId = 0;
+    j_tkIsoId = 0;
 
-    // MVA ID scores
-    j_softMva = -999.;
-    j_mvaLowPt = -999.;
-    j_mvaPrompt = -999.;
-    
-    // jet matching
+    j_softMva = -999.f;
+    j_mvaLowPt = -999.f;
+    j_mvaPrompt = -999.f;
+
+    j_nTrackerLayers = -999;
+
+    j_miniAODPt = -999.f;
+    j_momentumScaleUp = -999.f;
+    j_momentumScaleDown = -999.f;
+
+    j_genPartIdx = -999;
+    j_genPartFlav = 0;
     j_jetIdx = -1;
+}
+
+Muon::Muon() {
+    initializeMembers();
 }
 
 Muon::~Muon() {}
 
+Muon::Muon(std::shared_ptr<const MuonSoA> storage, std::size_t index) {
+    initializeMembers();
+    storage_ = std::move(storage);
+    index_ = index;
+    if (storage_) {
+        const float correctedPt = storage_->correctedPt.empty() ? storage_->pt[index_] : storage_->correctedPt[index_];
+        SetPtEtaPhiM(correctedPt, storage_->eta[index_], storage_->phi[index_], storage_->mass[index_]);
+        SetCharge(storage_->charge[index_]);
+        if (!storage_->miniAODPt.empty())
+            SetMiniAODPt(storage_->miniAODPt[index_]);
+        if (!storage_->momentumScaleUp.empty())
+            SetMomentumScaleUpDown(storage_->momentumScaleUp[index_], storage_->momentumScaleDown[index_]);
+    }
+}
+
+
+void Muon::AttachLazyPayload(void *context, EnsureCallback callback, int index) const {
+    materialize();
+    if (!lazy_) {
+        lazy_ = std::make_shared<LazyPayload>();
+    }
+    lazy_->context = context;
+    lazy_->callback = callback;
+    lazy_->index = index;
+    lazy_->loaded = cachedProperties_;
+}
+
+void Muon::DetachLazyPayload() const {
+    lazy_.reset();
+}
+
+void Muon::ensure(Property property) const {
+    const auto bit = static_cast<std::size_t>(property);
+    if (cachedProperties_.test(bit))
+        return;
+
+    if (storage_) {
+        loadFromStorage(property);
+        return;
+    }
+
+    if (!lazy_ || !lazy_->callback)
+        return;
+
+    lazy_->callback(lazy_->context, const_cast<Muon &>(*this), property);
+    markLoaded(property);
+}
+
+void Muon::markLoaded(Property property) const {
+    const auto bit = static_cast<std::size_t>(property);
+    cachedProperties_.set(bit);
+    if (lazy_)
+        lazy_->loaded.set(bit);
+}
+
+void Muon::materialize() const {
+    if (!storage_)
+        return;
+
+    auto self = const_cast<Muon *>(this);
+    const auto idx = index_;
+    const float correctedPt = storage_->correctedPt.empty() ? storage_->pt[idx] : storage_->correctedPt[idx];
+    self->SetPtEtaPhiM(correctedPt, storage_->eta[idx], storage_->phi[idx], storage_->mass[idx]);
+    self->SetCharge(storage_->charge[idx]);
+    if (!storage_->miniAODPt.empty())
+        self->SetMiniAODPt(storage_->miniAODPt[idx]);
+    if (!storage_->momentumScaleUp.empty())
+        self->SetMomentumScaleUpDown(storage_->momentumScaleUp[idx], storage_->momentumScaleDown[idx]);
+
+    for (std::size_t bit = 0; bit < static_cast<std::size_t>(Property::Count); ++bit) {
+        if (!cachedProperties_.test(bit))
+            loadFromStorage(static_cast<Property>(bit));
+    }
+
+    self->storage_.reset();
+    self->index_ = std::numeric_limits<std::size_t>::max();
+}
+
+void Muon::loadFromStorage(Property property) const {
+    if (!storage_)
+        return;
+
+    const auto idx = index_;
+    auto self = const_cast<Muon *>(this);
+
+    switch (property) {
+    case Property::TkRelIso:
+        self->SetTkRelIso(storage_->tkRelIso[idx]);
+        break;
+    case Property::PfRelIso03:
+        self->SetPfRelIso03(storage_->pfRelIso03[idx]);
+        break;
+    case Property::PfRelIso04:
+        self->SetPfRelIso04(storage_->pfRelIso04[idx]);
+        break;
+    case Property::MiniPFRelIso:
+        self->SetMiniPFRelIso(storage_->miniPFRelIsoAll[idx]);
+        break;
+    case Property::Dxy:
+        self->SetdXY(storage_->dxy[idx]);
+        break;
+    case Property::DxyErr:
+        self->SetdXYErr(storage_->dxyErr[idx]);
+        break;
+    case Property::Dz:
+        self->SetdZ(storage_->dz[idx]);
+        break;
+    case Property::DzErr:
+        self->SetdZErr(storage_->dzErr[idx]);
+        break;
+    case Property::Ip3d:
+        self->SetIP3D(storage_->ip3d[idx]);
+        break;
+    case Property::Sip3d:
+        self->SetSIP3D(storage_->sip3d[idx]);
+        break;
+    case Property::TrackerLayers:
+        self->SetNTrackerLayers(storage_->nTrackerLayers[idx]);
+        break;
+    case Property::GenPartFlav:
+        self->SetGenPartFlav(storage_->genPartFlav[idx]);
+        break;
+    case Property::GenPartIdx:
+        self->SetGenPartIdx(storage_->genPartIdx[idx]);
+        break;
+    case Property::JetIdx:
+        self->SetJetIdx(storage_->jetIdx[idx]);
+        break;
+    case Property::LooseId:
+        self->SetBIDBit(BooleanID::LOOSE, storage_->looseId[idx]);
+        break;
+    case Property::MediumId:
+        self->SetBIDBit(BooleanID::MEDIUM, storage_->mediumId[idx]);
+        break;
+    case Property::MediumPromptId:
+        self->SetBIDBit(BooleanID::MEDIUMPROMPT, storage_->mediumPromptId[idx]);
+        break;
+    case Property::TightId:
+        self->SetBIDBit(BooleanID::TIGHT, storage_->tightId[idx]);
+        break;
+    case Property::SoftId:
+        self->SetBIDBit(BooleanID::SOFT, storage_->softId[idx]);
+        break;
+    case Property::SoftMvaId:
+        self->SetBIDBit(BooleanID::SOFTMVA, storage_->softMvaId[idx]);
+        break;
+    case Property::TriggerLooseId:
+        self->SetBIDBit(BooleanID::TRIGGERLOOSE, storage_->triggerLooseId[idx]);
+        break;
+    case Property::HighPtId:
+        self->SetWIDBit(WorkingPointID::HIGHPT, storage_->highPtId[idx]);
+        break;
+    case Property::MiniIsoId:
+        self->SetWIDBit(WorkingPointID::MINIISO, storage_->miniIsoId[idx]);
+        break;
+    case Property::MultiIsoId:
+        self->SetWIDBit(WorkingPointID::MULTIISO, storage_->multiIsoId[idx]);
+        break;
+    case Property::MvaMuId:
+        self->SetWIDBit(WorkingPointID::MVAMU, storage_->mvaMuId[idx]);
+        break;
+    case Property::PfIsoId:
+        self->SetWIDBit(WorkingPointID::PFISO, storage_->pfIsoId[idx]);
+        break;
+    case Property::PuppiIsoId:
+        self->SetWIDBit(WorkingPointID::PUPPIISO, storage_->puppiIsoId[idx]);
+        break;
+    case Property::TkIsoId:
+        self->SetWIDBit(WorkingPointID::TKISO, storage_->tkIsoId[idx]);
+        break;
+    case Property::SoftMva:
+        self->SetMVAID(MVAID::SOFTMVA, storage_->softMva[idx]);
+        break;
+    case Property::MvaLowPt:
+        self->SetMVAID(MVAID::MVALOWPT, storage_->mvaLowPt[idx]);
+        break;
+    case Property::MvaPrompt:
+        self->SetMVAID(MVAID::MVAPROMPT, storage_->mvaPrompt[idx]);
+        break;
+    default:
+        break;
+    }
+
+    markLoaded(property);
+}
+
 void Muon::SetBIDBit(BooleanID id, bool idbit) {
     switch (id) {
-        case BooleanID::LOOSE:           j_looseId = idbit; break;
-        case BooleanID::MEDIUM:          j_mediumId = idbit; break;
-        case BooleanID::MEDIUMPROMPT:    j_mediumPromptId = idbit; break;
-        case BooleanID::TIGHT:           j_tightId = idbit; break;
-        case BooleanID::SOFT:            j_softId = idbit; break;
-        case BooleanID::SOFTMVA:         j_softMvaId = idbit; break;
-        case BooleanID::TRIGGERLOOSE:    j_triggerIdLoose = idbit; break;
-        default: break;
+        case BooleanID::LOOSE:
+            j_looseId = idbit;
+            markLoaded(Property::LooseId);
+            break;
+        case BooleanID::MEDIUM:
+            j_mediumId = idbit;
+            markLoaded(Property::MediumId);
+            break;
+        case BooleanID::MEDIUMPROMPT:
+            j_mediumPromptId = idbit;
+            markLoaded(Property::MediumPromptId);
+            break;
+        case BooleanID::TIGHT:
+            j_tightId = idbit;
+            markLoaded(Property::TightId);
+            break;
+        case BooleanID::SOFT:
+            j_softId = idbit;
+            markLoaded(Property::SoftId);
+            break;
+        case BooleanID::SOFTMVA:
+            j_softMvaId = idbit;
+            markLoaded(Property::SoftMvaId);
+            break;
+        case BooleanID::TRIGGERLOOSE:
+            j_triggerIdLoose = idbit;
+            markLoaded(Property::TriggerLooseId);
+            break;
+        default:
+            break;
     }
 }
 
 void Muon::SetWIDBit(WorkingPointID id, unsigned char wp) {
     switch (id) {
-        case WorkingPointID::HIGHPT:    j_highPtId = (unsigned char)(wp+1); break;
-        case WorkingPointID::MINIISO:   j_miniIsoId = (unsigned char)(wp+1); break;
-        case WorkingPointID::MULTIISO:  j_multiIsoId = (unsigned char)(wp+1); break;
-        case WorkingPointID::MVAMU:     j_mvaMuId = (unsigned char)(wp+2); break;
-        //case WorkingPointID::MVALOWPT:  j_mvaLowPtId = (unsigned char)(wp+1); break;
-        case WorkingPointID::PFISO:     j_pfIsoId = (unsigned char)wp; break;
-        case WorkingPointID::PUPPIISO:  j_puppiIsoId = (unsigned char)(wp+1); break;
-        case WorkingPointID::TKISO:     j_tkIsoId = (unsigned char)(wp+1); break;
-        default: break;
+        case WorkingPointID::HIGHPT:
+            j_highPtId = static_cast<unsigned char>(wp + 1);
+            markLoaded(Property::HighPtId);
+            break;
+        case WorkingPointID::MINIISO:
+            j_miniIsoId = static_cast<unsigned char>(wp + 1);
+            markLoaded(Property::MiniIsoId);
+            break;
+        case WorkingPointID::MULTIISO:
+            j_multiIsoId = static_cast<unsigned char>(wp + 1);
+            markLoaded(Property::MultiIsoId);
+            break;
+        case WorkingPointID::MVAMU:
+            j_mvaMuId = static_cast<unsigned char>(wp + 2);
+            markLoaded(Property::MvaMuId);
+            break;
+        case WorkingPointID::PFISO:
+            j_pfIsoId = static_cast<unsigned char>(wp);
+            markLoaded(Property::PfIsoId);
+            break;
+        case WorkingPointID::PUPPIISO:
+            j_puppiIsoId = static_cast<unsigned char>(wp + 1);
+            markLoaded(Property::PuppiIsoId);
+            break;
+        case WorkingPointID::TKISO:
+            j_tkIsoId = static_cast<unsigned char>(wp + 1);
+            markLoaded(Property::TkIsoId);
+            break;
+        default:
+            break;
     }
 }
 
 void Muon::SetMVAID(MVAID id, float score) {
     switch (id) {
-        case MVAID::SOFTMVA: j_softMva = score; break;
-        case MVAID::MVALOWPT: j_mvaLowPt = score; break;
-        case MVAID::MVAPROMPT: j_mvaPrompt = score; break;
-        default: break;
+        case MVAID::SOFTMVA:
+            j_softMva = score;
+            markLoaded(Property::SoftMva);
+            break;
+        case MVAID::MVALOWPT:
+            j_mvaLowPt = score;
+            markLoaded(Property::MvaLowPt);
+            break;
+        case MVAID::MVAPROMPT:
+            j_mvaPrompt = score;
+            markLoaded(Property::MvaPrompt);
+            break;
+        default:
+            break;
     }
 }
 
@@ -80,27 +338,27 @@ bool Muon::PassID(const TString ID) const {
     if (ID == "POGSoft")          return isPOGSoftId();
     if (ID == "POGSoftMVA")       return isPOGSoftMvaId();
     if (ID == "POGTriggerLoose")  return isPOGTriggerIdLoose();
-    if (ID == "POGTrackerHighPt") return (int)HighPtId() == 1;
-    if (ID == "POGGlobalHighPt")  return (int)HighPtId() == 2;
-    if (ID == "POGMiniIsoLoose")  return (int)MiniIsoId() >= (int)(WorkingPoint::LOOSE);
-    if (ID == "POGMiniIsoMedium") return (int)MiniIsoId() >= (int)(WorkingPoint::MEDIUM);
-    if (ID == "POGMiniIsoTight")  return (int)MiniIsoId() >= (int)(WorkingPoint::TIGHT);
-    if (ID == "POGMiniIsoVTight") return (int)MiniIsoId() >= (int)(WorkingPoint::VTIGHT);
-    if (ID == "POGMultiIsoLoose") return (int)MultiIsoId() >= (int)(WorkingPoint::LOOSE);
-    if (ID == "POGMultiIsoMedium")return (int)MultiIsoId() >= (int)(WorkingPoint::MEDIUM);
-    if (ID == "POGMvaMuMedium")   return (int)MvaMuId() >= (int)(WorkingPoint::MEDIUM);
-    if (ID == "POGMvaMuTight")    return (int)MvaMuId() >= (int)(WorkingPoint::TIGHT);
-    if (ID == "POGPfIsoVLoose")   return (int)PfIsoId() >= (int)(WorkingPoint::VLOOSE);
-    if (ID == "POGPfIsoLoose")    return (int)PfIsoId() >= (int)(WorkingPoint::LOOSE);
-    if (ID == "POGPfIsoMedium")   return (int)PfIsoId() >= (int)(WorkingPoint::MEDIUM);
-    if (ID == "POGPfIsoTight")    return (int)PfIsoId() >= (int)(WorkingPoint::TIGHT);
-    if (ID == "POGPfIsoVTight")   return (int)PfIsoId() >= (int)(WorkingPoint::VTIGHT);
-    if (ID == "POGPfIsoVVTight")  return (int)PfIsoId() >= (int)(WorkingPoint::VVTIGHT);
-    if (ID == "POGPuppiIsoLoose") return (int)PuppiIsoId() >= (int)(WorkingPoint::LOOSE);
-    if (ID == "POGPuppiIsoMedium")return (int)PuppiIsoId() >= (int)(WorkingPoint::MEDIUM);
-    if (ID == "POGPuppiIsoTight") return (int)PuppiIsoId() >= (int)(WorkingPoint::TIGHT);
-    if (ID == "POGTkIsoLoose")    return (int)TkIsoId() == 1;
-    if (ID == "POGTkIsoTight")    return (int)TkIsoId() == 2;
+    if (ID == "POGTrackerHighPt") return static_cast<int>(HighPtId()) == 1;
+    if (ID == "POGGlobalHighPt")  return static_cast<int>(HighPtId()) == 2;
+    if (ID == "POGMiniIsoLoose")  return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
+    if (ID == "POGMiniIsoMedium") return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
+    if (ID == "POGMiniIsoTight")  return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::TIGHT);
+    if (ID == "POGMiniIsoVTight") return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::VTIGHT);
+    if (ID == "POGMultiIsoLoose") return static_cast<int>(MultiIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
+    if (ID == "POGMultiIsoMedium")return static_cast<int>(MultiIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
+    if (ID == "POGMvaMuMedium")   return static_cast<int>(MvaMuId()) >= static_cast<int>(WorkingPoint::MEDIUM);
+    if (ID == "POGMvaMuTight")    return static_cast<int>(MvaMuId()) >= static_cast<int>(WorkingPoint::TIGHT);
+    if (ID == "POGPfIsoVLoose")   return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::VLOOSE);
+    if (ID == "POGPfIsoLoose")    return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
+    if (ID == "POGPfIsoMedium")   return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
+    if (ID == "POGPfIsoTight")    return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::TIGHT);
+    if (ID == "POGPfIsoVTight")   return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::VTIGHT);
+    if (ID == "POGPfIsoVVTight")  return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::VVTIGHT);
+    if (ID == "POGPuppiIsoLoose") return static_cast<int>(PuppiIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
+    if (ID == "POGPuppiIsoMedium")return static_cast<int>(PuppiIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
+    if (ID == "POGPuppiIsoTight") return static_cast<int>(PuppiIsoId()) >= static_cast<int>(WorkingPoint::TIGHT);
+    if (ID == "POGTkIsoLoose")    return static_cast<int>(TkIsoId()) == 1;
+    if (ID == "POGTkIsoTight")    return static_cast<int>(TkIsoId()) == 2;
     if (ID == "HcToWATight")      return Pass_HcToWATight();
     if (ID == "HcToWALoose")      return Pass_HcToWALoose();
     cerr << "[Muon::PassID] " << ID << " is not implemented." << endl;
@@ -128,47 +386,47 @@ bool Muon::PassID(const MuonID ID) const {
         case MuonID::POG_TRIGGER_LOOSE:
             return isPOGTriggerIdLoose();
         case MuonID::POG_TRACKER_HIGH_PT:
-            return (int)HighPtId() == 1;
+            return static_cast<int>(HighPtId()) == 1;
         case MuonID::POG_GLOBAL_HIGH_PT:
-            return (int)HighPtId() == 2;
+            return static_cast<int>(HighPtId()) == 2;
         case MuonID::POG_MINISO_LOOSE:
-            return (int)MiniIsoId() >= (int)(WorkingPoint::LOOSE);
+            return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
         case MuonID::POG_MINISO_MEDIUM:
-            return (int)MiniIsoId() >= (int)(WorkingPoint::MEDIUM);
+            return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
         case MuonID::POG_MINISO_TIGHT:
-            return (int)MiniIsoId() >= (int)(WorkingPoint::TIGHT);
+            return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::TIGHT);
         case MuonID::POG_MINISO_VTIGHT:
-            return (int)MiniIsoId() >= (int)(WorkingPoint::VTIGHT);
+            return static_cast<int>(MiniIsoId()) >= static_cast<int>(WorkingPoint::VTIGHT);
         case MuonID::POG_MULTISO_LOOSE:
-            return (int)MultiIsoId() >= (int)(WorkingPoint::LOOSE);
+            return static_cast<int>(MultiIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
         case MuonID::POG_MULTISO_MEDIUM:
-            return (int)MultiIsoId() >= (int)(WorkingPoint::MEDIUM);
+            return static_cast<int>(MultiIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
         case MuonID::POG_MVA_MU_MEDIUM:
-            return (int)MvaMuId() >= (int)(WorkingPoint::MEDIUM);
+            return static_cast<int>(MvaMuId()) >= static_cast<int>(WorkingPoint::MEDIUM);
         case MuonID::POG_MVA_MU_TIGHT:
-            return (int)MvaMuId() >= (int)(WorkingPoint::TIGHT);
+            return static_cast<int>(MvaMuId()) >= static_cast<int>(WorkingPoint::TIGHT);
         case MuonID::POG_PFISO_VLOOSE:
-            return (int)PfIsoId() >= (int)(WorkingPoint::VLOOSE);
+            return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::VLOOSE);
         case MuonID::POG_PFISO_LOOSE:
-            return (int)PfIsoId() >= (int)(WorkingPoint::LOOSE);
+            return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
         case MuonID::POG_PFISO_MEDIUM:
-            return (int)PfIsoId() >= (int)(WorkingPoint::MEDIUM);
+            return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
         case MuonID::POG_PFISO_TIGHT:
-            return (int)PfIsoId() >= (int)(WorkingPoint::TIGHT);
+            return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::TIGHT);
         case MuonID::POG_PFISO_VTIGHT:
-            return (int)PfIsoId() >= (int)(WorkingPoint::VTIGHT);
+            return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::VTIGHT);
         case MuonID::POG_PFISO_VVTIGHT:
-            return (int)PfIsoId() >= (int)(WorkingPoint::VVTIGHT);
+            return static_cast<int>(PfIsoId()) >= static_cast<int>(WorkingPoint::VVTIGHT);
         case MuonID::POG_PUPPIISO_LOOSE:
-            return (int)PuppiIsoId() >= (int)(WorkingPoint::LOOSE);
+            return static_cast<int>(PuppiIsoId()) >= static_cast<int>(WorkingPoint::LOOSE);
         case MuonID::POG_PUPPIISO_MEDIUM:
-            return (int)PuppiIsoId() >= (int)(WorkingPoint::MEDIUM);
+            return static_cast<int>(PuppiIsoId()) >= static_cast<int>(WorkingPoint::MEDIUM);
         case MuonID::POG_PUPPIISO_TIGHT:
-            return (int)PuppiIsoId() >= (int)(WorkingPoint::TIGHT);
+            return static_cast<int>(PuppiIsoId()) >= static_cast<int>(WorkingPoint::TIGHT);
         case MuonID::POG_TKISO_LOOSE:
-            return (int)TkIsoId() == 1;
+            return static_cast<int>(TkIsoId()) == 1;
         case MuonID::POG_TKISO_TIGHT:
-            return (int)TkIsoId() == 2;
+            return static_cast<int>(TkIsoId()) == 2;
         default:
             break;
     }

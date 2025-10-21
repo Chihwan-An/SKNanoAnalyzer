@@ -10,15 +10,19 @@ public:
 
     void SetdXY(float dxy, float dxyErr) { j_dxy = dxy; j_dxyErr = dxyErr;}
     void SetdXY(float dxy) { j_dxy = dxy;}
+    void SetdXYErr(float dxyErr) { j_dxyErr = dxyErr;}
     inline float dXY() const {return j_dxy;}
     inline float dXYerr() const {return j_dxyErr;}
 
     void SetdZ(float dz, float dzErr) { j_dz = dz; j_dzErr = dzErr;}
     void SetdZ(float dz) { j_dz = dz;}
+    void SetdZErr(float dzErr) { j_dzErr = dzErr;}
     inline float dZ() const {return j_dz;}
     inline float dZerr() const {return j_dzErr;}
 
     void SetIP3D(float ip3d, float sip3d) { j_ip3d = ip3d; j_sip3d = sip3d;}
+    void SetIP3D(float ip3d) { j_ip3d = ip3d;}
+    void SetSIP3D(float sip3d) { j_sip3d = sip3d;}
     inline float IP3D() const {return j_ip3d;}
     inline float SIP3D() const {return j_sip3d;}
 

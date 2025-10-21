@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <string>
 #include <deque>
+#include <vector>
 
 #include "TFile.h"
 #include "TH1.h"
@@ -22,15 +23,17 @@
 #include "Particle.h"
 #include "Lepton.h"
 #include "Gen.h"
+#include "GenView.h"
 #include "LHE.h"
 #include "Muon.h"
+#include "MuonView.h"
 #include "Electron.h"
+#include "ElectronView.h"
 #include "Jet.h"
+#include "JetView.h"
 #include "FatJet.h"
 #include "Tau.h"
 #include "Photon.h"
-#include "Gen.h"
-#include "Jet.h"
 #include "GenJet.h"
 #include "GenDressedLepton.h"
 #include "GenIsolatedPhoton.h"
@@ -90,20 +93,38 @@ public:
 
     // Get objects
     Event GetEvent();
+    MuonViewCollection GetAllMuonViews();
+    GenViewCollection GetAllGenViews();
+    JetViewCollection GetAllJetViews();
     RVec<Muon> GetAllMuons();
-    RVec<Muon> GetMuons(const TString ID, const float ptmin, const float fetamax);
+    std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const TString ID, const float ptmin, const float fetamax) const;
+    std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const Muon::MuonID ID, const float ptmin, const float fetamax) const;
+    RVec<Muon> MaterializeMuons(const MuonViewCollection &muons) const;
+    RVec<Muon> MaterializeMuons(const MuonViewCollection &muons, const std::vector<std::size_t> &indices) const;
+    ElectronViewCollection GetAllElectronViews();
     RVec<Electron> GetAllElectrons();
+    std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const TString ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
+    std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const Electron::ElectronID ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
+    RVec<Electron> MaterializeElectrons(const ElectronViewCollection &electrons) const;
+    RVec<Electron> MaterializeElectrons(const ElectronViewCollection &electrons, const std::vector<std::size_t> &indices) const;
     RVec<Jet> GetAllJets();
     RVec<Gen> GetAllGens();
     RVec<LHE> GetAllLHEs();
     RVec<Jet> GetJets(const TString id, const float ptmin, const float fetamax);
-    RVec<Electron> GetElectrons(const TString id, const float ptmin, const float fetamax, bool vetoHEM = false);
     RVec<Tau> GetAllTaus();
     RVec<FatJet> GetAllFatJets();
     RVec<GenJet> GetAllGenJets();
     RVec<GenDressedLepton> GetAllGenDressedLeptons();
     RVec<GenIsolatedPhoton> GetAllGenIsolatedPhotons();
     RVec<GenVisTau> GetAllGenVisTaus();
+    static void MuonEnsureThunk(void *ctx, Muon &muon, Muon::Property property);
+    static void ElectronEnsureThunk(void *ctx, Electron &electron, Electron::Property property);
+    static void JetEnsureThunk(void *ctx, Jet &jet, Jet::Property property);
+
+    void EnsureMuonProperty(Muon &muon, Muon::Property property) const;
+    void EnsureElectronProperty(Electron &electron, Electron::Property property) const;
+    void EnsureJetProperty(Jet &jet, Jet::Property property) const;
+
     RVec<Photon> GetAllPhotons();
     RVec<Photon> GetPhotons(TString id, double ptmin, double fetamax);
     RVec<TrigObj> GetAllTrigObjs();
@@ -126,6 +147,7 @@ public:
     inline pair<float, float> GetCTaggingWP(){ return myCorr->GetCTaggingWP(); }
     float GetHT(const RVec<Jet> &jets);
     bool IsHEMElectron(const Electron& electron) const;
+    bool IsHEMElectron(const ElectronView &electron) const;
 
     // Gen Matching
     void PrintGen(const RVec<Gen> &gens);

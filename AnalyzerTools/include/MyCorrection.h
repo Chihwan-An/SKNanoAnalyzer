@@ -198,6 +198,7 @@ private:
         string json_btagging_R;
         string json_ctagging_R;
         string json_electron;
+        string json_electron_id;
         string json_electron_hlt;
         string json_electron_variation;
         string json_photon;

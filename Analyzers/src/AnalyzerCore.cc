@@ -1,4 +1,7 @@
 #include "AnalyzerCore.h"
+#include <stdexcept>
+#include <cmath>
+#include <utility>
 
 AnalyzerCore::AnalyzerCore()
 {
@@ -465,67 +468,181 @@ Event AnalyzerCore::GetEvent()
     return ev;
 }
 
-RVec<Muon> AnalyzerCore::GetAllMuons()
+GenViewCollection AnalyzerCore::GetAllGenViews()
 {
-    RVec<Muon> muons;
+    if (IsDATA)
+        return {};
+
+    auto storage = std::make_shared<GenSoA>();
+    storage->pt.bind(&GenPart_pt);
+    storage->eta.bind(&GenPart_eta);
+    storage->phi.bind(&GenPart_phi);
+    storage->mass.bind(&GenPart_mass);
+    storage->pdgId.bind(&GenPart_pdgId);
+    storage->status.bind(&GenPart_status);
+    storage->motherIdx.bind(&GenPart_genPartIdxMother);
+    storage->statusFlags.bind(&GenPart_statusFlags);
+    return GenViewCollection(std::move(storage));
+}
+
+MuonViewCollection AnalyzerCore::GetAllMuonViews()
+{
+    auto storage = std::make_shared<MuonSoA>();
+    storage->pt.bind(&Muon_pt);
+    storage->eta.bind(&Muon_eta);
+    storage->phi.bind(&Muon_phi);
+    storage->mass.bind(&Muon_mass);
+    storage->charge.bind(&Muon_charge);
+    storage->tkRelIso.bind(&Muon_tkRelIso);
+    storage->pfRelIso03.bind(&Muon_pfRelIso03_all);
+    storage->pfRelIso04.bind(&Muon_pfRelIso04_all);
+    storage->miniPFRelIsoAll.bind(&Muon_miniPFRelIso_all);
+    storage->dxy.bind(&Muon_dxy);
+    storage->dxyErr.bind(&Muon_dxyErr);
+    storage->dz.bind(&Muon_dz);
+    storage->dzErr.bind(&Muon_dzErr);
+    storage->ip3d.bind(&Muon_ip3d);
+    storage->sip3d.bind(&Muon_sip3d);
+    storage->highPtId.bind(&Muon_highPtId);
+    storage->looseId.bind(&Muon_looseId);
+    storage->mediumId.bind(&Muon_mediumId);
+    storage->mediumPromptId.bind(&Muon_mediumPromptId);
+    storage->tightId.bind(&Muon_tightId);
+    storage->softId.bind(&Muon_softId);
+    storage->softMvaId.bind(&Muon_softMvaId);
+    storage->triggerLooseId.bind(&Muon_triggerIdLoose);
+    storage->miniIsoId.bind(&Muon_miniIsoId);
+    storage->multiIsoId.bind(&Muon_multiIsoId);
+    storage->mvaMuId.bind(&Muon_mvaMuID_WP);
+    storage->pfIsoId.bind(&Muon_pfIsoId);
+    storage->puppiIsoId.bind(&Muon_puppiIsoId);
+    storage->tkIsoId.bind(&Muon_tkIsoId);
+    storage->nTrackerLayers.bind(&Muon_nTrackerLayers);
+    storage->softMva.bind(&Muon_softMva);
+    storage->mvaLowPt.bind(&Muon_mvaLowPt);
+    storage->mvaPrompt.bind(&Muon_promptMVA);
+    storage->genPartFlav.bind(&Muon_genPartFlav);
+    storage->genPartIdx.bind(&Muon_genPartIdx);
+    storage->jetIdx.bind(&Muon_jetIdx);
+
+    const std::size_t n = storage->pt.size();
+    storage->correctedPt.resize(n, 0.f);
+    storage->miniAODPt.resize(n, 0.f);
+    storage->momentumScaleUp.resize(n, 0.f);
+    storage->momentumScaleDown.resize(n, 0.f);
+
+    if (n == 0)
+        return MuonViewCollection(std::move(storage));
+
     RVec<Gen> truth;
-    if (!IsDATA) truth = GetAllGens();
+    if (!IsDATA)
+        truth = GetAllGens();
 
-    for (int i = 0; i < nMuon; i++) {
-        Muon muon;
-        muon.SetPtEtaPhiM(Muon_pt[i], Muon_eta[i], Muon_phi[i], Muon_mass[i]);
-        muon.SetCharge(Muon_charge[i]);
-        muon.SetNTrackerLayers(Muon_nTrackerLayers[i]);
-        float roccor = 1.;
-        float roccor_err = 0.;
+    for (std::size_t i = 0; i < n; ++i) {
+        Muon probe;
+        probe.SetPtEtaPhiM(storage->pt[i], storage->eta[i], storage->phi[i], storage->mass[i]);
+        probe.SetCharge(storage->charge[i]);
+
+        float roccor = 1.f;
+        float roccor_err = 0.f;
         if (IsDATA) {
-            roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom);
-            roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up) - roccor;
+            roccor = myCorr->GetMuonScaleSF(probe, MyCorrection::variation::nom);
+            roccor_err = myCorr->GetMuonScaleSF(probe, MyCorrection::variation::up) - roccor;
         } else {
-            Gen matched_gen = GetGenMatchedMuon(muon, truth);
+            Gen matched_gen = GetGenMatchedMuon(probe, truth);
             float matched_pt = matched_gen.Pt();
-            roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom, matched_pt);
-            roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up, matched_pt) - roccor;
+            roccor = myCorr->GetMuonScaleSF(probe, MyCorrection::variation::nom, matched_pt);
+            roccor_err = myCorr->GetMuonScaleSF(probe, MyCorrection::variation::up, matched_pt) - roccor;
         }
-        muon.SetMiniAODPt(muon.Pt());
-        muon.SetMomentumScaleUpDown(muon.Pt()*(roccor+roccor_err), muon.Pt()*(roccor-roccor_err)); 
-        muon.SetPtEtaPhiM(muon.Pt()*roccor, muon.Eta(), muon.Phi(), muon.M());
-        muon.SetTkRelIso(Muon_tkRelIso[i]);
-        muon.SetPfRelIso03(Muon_pfRelIso03_all[i]);
-        muon.SetPfRelIso04(Muon_pfRelIso04_all[i]);
-        muon.SetMiniPFRelIso(Muon_miniPFRelIso_all[i]);
-        muon.SetdXY(Muon_dxy[i], Muon_dxyErr[i]);
-        muon.SetdZ(Muon_dz[i], Muon_dzErr[i]);
-        muon.SetIP3D(Muon_ip3d[i], Muon_sip3d[i]);
-        muon.SetNTrackerLayers(Muon_nTrackerLayers[i]);
-        muon.SetGenPartFlav(Muon_genPartFlav[i]);
-        muon.SetBIDBit(Muon::BooleanID::LOOSE, Muon_looseId[i]);
-        muon.SetBIDBit(Muon::BooleanID::MEDIUM, Muon_mediumId[i]);
-        muon.SetBIDBit(Muon::BooleanID::MEDIUMPROMPT, Muon_mediumPromptId[i]);
-        muon.SetBIDBit(Muon::BooleanID::TIGHT, Muon_tightId[i]);
-        muon.SetBIDBit(Muon::BooleanID::SOFT, Muon_softId[i]);
-        muon.SetBIDBit(Muon::BooleanID::SOFTMVA, Muon_softMvaId[i]);
-        muon.SetBIDBit(Muon::BooleanID::TRIGGERLOOSE, Muon_triggerIdLoose[i]);
-        muon.SetWIDBit(Muon::WorkingPointID::HIGHPT, Muon_highPtId[i]);
-        muon.SetWIDBit(Muon::WorkingPointID::MINIISO, Muon_miniIsoId[i]);
-        muon.SetWIDBit(Muon::WorkingPointID::MULTIISO, Muon_multiIsoId[i]);
-        muon.SetWIDBit(Muon::WorkingPointID::MVAMU, Muon_mvaMuID_WP[i]);
-        muon.SetGenPartIdx(Muon_genPartIdx[i]);
-        muon.SetJetIdx(Muon_jetIdx[i]);
 
-        // muon.SetWIDBit(Muon::WorkingPointID::MVALOWPT, Muon_mvaLowPtId[i]);
-        muon.SetWIDBit(Muon::WorkingPointID::PFISO, Muon_pfIsoId[i]);
-        muon.SetWIDBit(Muon::WorkingPointID::PUPPIISO, Muon_puppiIsoId[i]);
-        muon.SetWIDBit(Muon::WorkingPointID::TKISO, Muon_tkIsoId[i]);
-        muon.SetMVAID(Muon::MVAID::SOFTMVA, Muon_softMva[i]);
-        muon.SetMVAID(Muon::MVAID::MVALOWPT, Muon_mvaLowPt[i]);
-        muon.SetMVAID(Muon::MVAID::MVAPROMPT, Muon_promptMVA[i]);
-
-        muons.push_back(muon);
+        const float miniAODPt = probe.Pt();
+        storage->miniAODPt[i] = miniAODPt;
+        storage->momentumScaleUp[i] = miniAODPt * (roccor + roccor_err);
+        storage->momentumScaleDown[i] = miniAODPt * (roccor - roccor_err);
+        storage->correctedPt[i] = miniAODPt * roccor;
     }
 
-    return muons;
+    return MuonViewCollection(std::move(storage));
 }
+
+RVec<Muon> AnalyzerCore::GetAllMuons()
+{
+    MuonViewCollection view = GetAllMuonViews();
+    return MaterializeMuons(view);
+}
+
+std::vector<std::size_t> AnalyzerCore::SelectMuonIndices(const MuonViewCollection &muons, const TString ID, const float ptmin, const float fetamax) const
+{
+    std::vector<std::size_t> selected;
+    selected.reserve(muons.size());
+    for (std::size_t i = 0; i < muons.size(); ++i) {
+        const auto &mu = muons[i];
+        if (!(mu.Pt() > ptmin))
+            continue;
+        if (!(std::abs(mu.Eta()) < fetamax))
+            continue;
+        if (!mu.PassID(ID))
+            continue;
+        selected.push_back(i);
+    }
+    return selected;
+}
+
+RVec<Muon> AnalyzerCore::MaterializeMuons(const MuonViewCollection &muons) const
+{
+    RVec<Muon> materialised;
+    if (muons.size() == 0)
+        return materialised;
+
+    auto storage = muons.storage();
+    if (!storage)
+        return materialised;
+
+    materialised.reserve(muons.size());
+    for (std::size_t idx = 0; idx < muons.size(); ++idx) {
+        materialised.emplace_back(storage, idx);
+    }
+    return materialised;
+}
+
+RVec<Muon> AnalyzerCore::MaterializeMuons(const MuonViewCollection &muons, const std::vector<std::size_t> &indices) const
+{
+    RVec<Muon> materialised;
+    if (indices.empty() || muons.size() == 0)
+        return materialised;
+
+    auto storage = muons.storage();
+    if (!storage)
+        return materialised;
+
+    materialised.reserve(indices.size());
+    const std::size_t n = muons.size();
+    for (const auto idx : indices) {
+        if (idx >= n)
+            continue;
+        materialised.emplace_back(storage, idx);
+    }
+    return materialised;
+}
+
+std::vector<std::size_t> AnalyzerCore::SelectMuonIndices(const MuonViewCollection &muons, const Muon::MuonID ID, const float ptmin, const float fetamax) const
+{
+    const auto viewID = static_cast<MuonView::MuonID>(ID);
+    std::vector<std::size_t> selected;
+    selected.reserve(muons.size());
+    for (std::size_t i = 0; i < muons.size(); ++i) {
+        const auto &mu = muons[i];
+        if (!(mu.Pt() > ptmin))
+            continue;
+        if (!(std::abs(mu.Eta()) < fetamax))
+            continue;
+        if (!mu.PassID(viewID))
+            continue;
+        selected.push_back(i);
+    }
+    return selected;
+}
+
 
 RVec<Muon> AnalyzerCore::ScaleMuons(const RVec<Muon> &muons, const MyCorrection::variation &syst) {
     RVec<Muon> scaled_muons;
@@ -543,21 +660,7 @@ RVec<Muon> AnalyzerCore::ScaleMuons(const RVec<Muon> &muons, const MyCorrection:
     return scaled_muons;
 }
 
-RVec<Muon> AnalyzerCore::GetMuons(const TString ID, const float ptmin, const float fetamax) {
-    RVec<Muon> muons = GetAllMuons();
-    RVec<Muon> selected_muons;
-    for (const auto &muon : muons)
-    {
-        if (!(muon.Pt() > ptmin))
-            continue;
-        if (!(fabs(muon.Eta()) < fetamax))
-            continue;
-        if (!muon.PassID(ID))
-            continue;
-        selected_muons.push_back(muon);
-    }
-    return selected_muons;
-}
+
 
 RVec<Muon> AnalyzerCore::SelectMuons(const RVec<Muon> &muons, const TString ID, const float ptmin, const float fetamax) const
 {
@@ -613,81 +716,71 @@ RVec<Muon> AnalyzerCore::SelectMuons(const RVec<Muon> &muons, const Muon::MuonID
     return selected_muons;
 }
 
+
+ElectronViewCollection AnalyzerCore::GetAllElectronViews()
+{
+    auto storage = std::make_shared<ElectronSoA>();
+    storage->pt.bind(&Electron_pt);
+    storage->eta.bind(&Electron_eta);
+    storage->phi.bind(&Electron_phi);
+    storage->mass.bind(&Electron_mass);
+    storage->charge.bind(&Electron_charge);
+    storage->pfRelIso03.bind(&Electron_pfRelIso03_all);
+    storage->miniPFRelIso.bind(&Electron_miniPFRelIso_all);
+    storage->dxy.bind(&Electron_dxy);
+    storage->dxyErr.bind(&Electron_dxyErr);
+    storage->dz.bind(&Electron_dz);
+    storage->dzErr.bind(&Electron_dzErr);
+    storage->ip3d.bind(&Electron_ip3d);
+    storage->sip3d.bind(&Electron_sip3d);
+    storage->convVeto.bind(&Electron_convVeto);
+    storage->lostHits.bind(&Electron_lostHits);
+    storage->seedGain.bind(&Electron_seedGain);
+    storage->tightCharge.bind(&Electron_tightCharge);
+    storage->sieie.bind(&Electron_sieie);
+    storage->hoe.bind(&Electron_hoe);
+    storage->eInvMinusPInv.bind(&Electron_eInvMinusPInv);
+    storage->dr03EcalRecHitSumEt.bind(&Electron_dr03EcalRecHitSumEt);
+    storage->dr03HcalDepth1TowerSumEt.bind(&Electron_dr03HcalDepth1TowerSumEt);
+    storage->dr03TkSumPt.bind(&Electron_dr03TkSumPt);
+    storage->dr03TkSumPtHEEP.bind(&Electron_dr03TkSumPtHEEP);
+    storage->r9.bind(&Electron_r9);
+    storage->energyErr.bind(&Electron_energyErr);
+    storage->cutBasedHEEP.bind(&Electron_cutBased_HEEP);
+    storage->promptMVA.bind(&Electron_promptMVA);
+    storage->mvaIsoWP80.bind(&Electron_mvaIso_WP80);
+    storage->mvaIsoWP90.bind(&Electron_mvaIso_WP90);
+    storage->mvaNoIsoWP80.bind(&Electron_mvaNoIso_WP80);
+    storage->mvaNoIsoWP90.bind(&Electron_mvaNoIso_WP90);
+    storage->mvaIso.bind(&Electron_mvaIso);
+    storage->mvaNoIso.bind(&Electron_mvaNoIso);
+    storage->cutBased.bind(&Electron_cutBased);
+    storage->genPartFlav.bind(&Electron_genPartFlav);
+    storage->genPartIdx.bind(&Electron_genPartIdx);
+    storage->jetIdx.bind(&Electron_jetIdx);
+    storage->scEta.bind(&Electron_superclusterEta);
+    storage->deltaEtaSC.bind(&Electron_deltaEtaSC);
+
+    const std::size_t n = storage->size();
+    storage->rho.assign(n, Rho_fixedGridRhoFastjetAll);
+    storage->dEsigmaUp.assign(n, -999.f);
+    storage->dEsigmaDown.assign(n, -999.f);
+    storage->ecalPFClusterIso.assign(n, -999.f);
+    storage->hcalPFClusterIso.assign(n, -999.f);
+    storage->deltaEtaSeed.assign(n, -999.f);
+    storage->deltaPhiSC.assign(n, -999.f);
+    storage->deltaPhiSeed.assign(n, -999.f);
+
+    return ElectronViewCollection(std::move(storage));
+}
+
 RVec<Electron> AnalyzerCore::GetAllElectrons()
 {
-    RVec<Electron> electrons;
-    for (int i = 0; i < nElectron; i++){
-        // Reject GAP region electrons
-        const float fscEta = fabs(Electron_superclusterEta[i]);
-        if (1.444 < fscEta && fscEta < 1.566) continue;
-
-        Electron electron;
-        electron.SetPtEtaPhiM(Electron_pt[i], Electron_eta[i], Electron_phi[i], Electron_mass[i]);
-        electron.SetCharge(Electron_charge[i]);
-        electron.SetScEta(Electron_superclusterEta[i]);
-        //electron.SetDeltaEtaInSC(Electron_deltaEtaInSC[i]);
-        //electron.SetDeltaEtaInSeed(Electron_deltaEtaInSeed[i]);
-        //electron.SetDeltaPhiInSC(Electron_deltaPhiInSC[i]);
-        //electron.SetDeltaPhiInSeed(Electron_deltaPhiInSeed[i]);
-        //electron.SetPFClusterIso(Electron_ecalPFClusterIso[i], Electron_hcalPFClusterIso[i]);
-        electron.SetPfRelIso03(Electron_pfRelIso03_all[i]);
-        electron.SetMiniPFRelIso(Electron_miniPFRelIso_all[i]);
-        electron.SetdXY(Electron_dxy[i], Electron_dxyErr[i]);
-        electron.SetdZ(Electron_dz[i], Electron_dzErr[i]);
-        electron.SetIP3D(Electron_ip3d[i], Electron_sip3d[i]);
-        electron.SetConvVeto(Electron_convVeto[i]);
-        electron.SetLostHits(Electron_lostHits[i]);
-        electron.SetSeedGain(Electron_seedGain[i]);
-        electron.SetTightCharge(Electron_tightCharge[i]);
-        electron.SetSieie(Electron_sieie[i]);
-        electron.SetHoe(Electron_hoe[i]);
-        electron.SetEInvMinusPInv(Electron_eInvMinusPInv[i]);
-        electron.SetDr03EcalRecHitSumEt(Electron_dr03EcalRecHitSumEt[i]);
-        electron.SetDr03HcalDepth1TowerSumEt(Electron_dr03HcalDepth1TowerSumEt[i]);
-        electron.SetDr03TkSumPt(Electron_dr03TkSumPt[i]);
-        electron.SetDr03TkSumPtHEEP(Electron_dr03TkSumPtHEEP[i]);
-        electron.SetR9(Electron_r9[i]);
-        electron.SetRho(Rho_fixedGridRhoFastjetAll);
-        electron.SetEnergyErr(Electron_energyErr[i]);
-        electron.SetBIDBit(Electron::BooleanID::CUTBASEDHEEP, Electron_cutBased_HEEP[i]);
-        electron.SetMVA(Electron::MVATYPE::MVAPROMPT, Electron_promptMVA[i]);
-        electron.SetGenPartFlav(Electron_genPartFlav[i]);
-        electron.SetBIDBit(Electron::BooleanID::MVAISOWP80, Electron_mvaIso_WP80[i]);
-        electron.SetBIDBit(Electron::BooleanID::MVAISOWP90, Electron_mvaIso_WP90[i]);
-        //electron.SetBIDBit(Electron::BooleanID::MVAISOWPL, Electron_mvaIso_WPL[i]);
-        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP80, Electron_mvaNoIso_WP80[i]);
-        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP90, Electron_mvaNoIso_WP90[i]);
-        //electron.SetBIDBit(Electron::BooleanID::MVANOISOWPL, Electron_mvaNoIso_WPL[i]);
-        electron.SetMVA(Electron::MVATYPE::MVAISO, Electron_mvaIso[i]);
-        electron.SetMVA(Electron::MVATYPE::MVANOISO, Electron_mvaNoIso[i]);
-        electron.SetCBIDBit(Electron::CutBasedID::CUTBASED, Electron_cutBased[i]);
-        electron.SetGenPartIdx(Electron_genPartIdx[i]);
-        electron.SetJetIdx(Electron_jetIdx[i]); 
-
-        electrons.push_back(electron);
-    }
-
-    return electrons;
+    ElectronViewCollection view = GetAllElectronViews();
+    return MaterializeElectrons(view);
 }
 
-RVec<Electron> AnalyzerCore::GetElectrons(const TString ID, const float ptmin, const float fetamax, bool vetoHEM)
-{
-    RVec<Electron> electrons = GetAllElectrons();
-    RVec<Electron> selected_electrons;
-    for (const auto &electron : electrons)
-    {
-        if (!(electron.Pt() > ptmin))
-            continue;
-        if (!(fabs(electron.Eta()) < fetamax))
-            continue;
-        if (!electron.PassID(ID))
-            continue;
-        if (vetoHEM && IsHEMElectron(electron))
-            continue;
-        selected_electrons.push_back(electron);
-    }
-    return selected_electrons;
-}
+
 
 RVec<Electron> AnalyzerCore::SelectElectrons(const RVec<Electron> &electrons, const TString ID, const float ptmin, const float fetamax, bool vetoHEM) const
 {
@@ -723,6 +816,181 @@ RVec<Electron> AnalyzerCore::SelectElectrons(const RVec<Electron> &electrons, co
         selected_electrons.push_back(electron);
     }
     return selected_electrons;
+}
+
+
+std::vector<std::size_t> AnalyzerCore::SelectElectronIndices(const ElectronViewCollection &electrons, const TString ID, const float ptmin, const float fetamax, bool vetoHEM) const
+{
+    std::vector<std::size_t> selected;
+    selected.reserve(electrons.size());
+    for (std::size_t i = 0; i < electrons.size(); ++i) {
+        const auto &electron = electrons[i];
+        if (!(electron.Pt() > ptmin))
+            continue;
+        if (!(std::abs(electron.Eta()) < fetamax))
+            continue;
+        if (!electron.PassID(ID))
+            continue;
+        if (vetoHEM && IsHEMElectron(electron))
+            continue;
+        selected.push_back(i);
+    }
+    return selected;
+}
+
+std::vector<std::size_t> AnalyzerCore::SelectElectronIndices(const ElectronViewCollection &electrons, const Electron::ElectronID ID, const float ptmin, const float fetamax, bool vetoHEM) const
+{
+    TString idString;
+    switch (ID) {
+    case Electron::ElectronID::NOCUT:
+        idString = "NOCUT";
+        break;
+    case Electron::ElectronID::POG_VETO:
+        idString = "POGVeto";
+        break;
+    case Electron::ElectronID::POG_LOOSE:
+        idString = "POGLoose";
+        break;
+    case Electron::ElectronID::POG_MEDIUM:
+        idString = "POGMedium";
+        break;
+    case Electron::ElectronID::POG_TIGHT:
+        idString = "POGTight";
+        break;
+    case Electron::ElectronID::POG_HEEP:
+        idString = "POGHEEP";
+        break;
+    case Electron::ElectronID::POG_MVAISO_WP80:
+        idString = "POGMVAIsoWP80";
+        break;
+    case Electron::ElectronID::POG_MVAISO_WP90:
+        idString = "POGMVAIsoWP90";
+        break;
+    case Electron::ElectronID::POG_MVANOISO_WP80:
+        idString = "POGMVANoIsoWP80";
+        break;
+    case Electron::ElectronID::POG_MVANOISO_WP90:
+        idString = "POGMVANoIsoWP90";
+        break;
+    default:
+        idString = "NOCUT";
+        break;
+    }
+    return SelectElectronIndices(electrons, idString, ptmin, fetamax, vetoHEM);
+}
+
+RVec<Electron> AnalyzerCore::MaterializeElectrons(const ElectronViewCollection &electrons) const
+{
+    auto populate = [](Electron &electron, const ElectronView &view) {
+        electron.SetPtEtaPhiM(view.Pt(), view.Eta(), view.Phi(), view.M());
+        electron.SetCharge(view.Charge());
+        electron.SetPfRelIso03(view.PfRelIso03());
+        electron.SetMiniPFRelIso(view.MiniPFRelIso());
+        electron.SetdXY(view.dXY(), view.dXYerr());
+        electron.SetdZ(view.dZ(), view.dZerr());
+        electron.SetIP3D(view.IP3D(), view.SIP3D());
+        electron.SetConvVeto(view.ConvVeto());
+        electron.SetLostHits(view.LostHits());
+        electron.SetSeedGain(view.SeedGain());
+        electron.SetTightCharge(view.TightCharge());
+        electron.SetSieie(view.sieie());
+        electron.SetHoe(view.hoe());
+        electron.SetEInvMinusPInv(view.eInvMinusPInv());
+        electron.SetDr03EcalRecHitSumEt(view.dr03EcalRecHitSumEt());
+        electron.SetDr03HcalDepth1TowerSumEt(view.dr03HcalDepth1TowerSumEt());
+        electron.SetDr03TkSumPt(view.dr03TkSumPt());
+        electron.SetDr03TkSumPtHEEP(view.dr03TkSumPtHEEP());
+        electron.SetR9(view.r9());
+        electron.SetEnergyErr(view.energyErr());
+        electron.SetEnergyResUnc(view.dEsigmaUp(), view.dEsigmaDown());
+        electron.SetBIDBit(Electron::BooleanID::CUTBASEDHEEP, view.isCutBasedHEEP());
+        electron.SetMVA(Electron::MVATYPE::MVAPROMPT, view.PromptMVA());
+        electron.SetBIDBit(Electron::BooleanID::MVAISOWP80, view.isMVAIsoWP80());
+        electron.SetBIDBit(Electron::BooleanID::MVAISOWP90, view.isMVAIsoWP90());
+        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP80, view.isMVANoIsoWP80());
+        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP90, view.isMVANoIsoWP90());
+        electron.SetMVA(Electron::MVATYPE::MVAISO, view.MvaIso());
+        electron.SetMVA(Electron::MVATYPE::MVANOISO, view.MvaNoIso());
+        electron.SetCBIDBit(Electron::CutBasedID::CUTBASED, static_cast<unsigned int>(view.CutBased()));
+        electron.SetGenPartFlav(view.GenPartFlav());
+        electron.SetGenPartIdx(view.GenPartIdx());
+        electron.SetJetIdx(view.JetIdx());
+        electron.SetScEta(view.ScEta());
+        electron.SetDeltaEtaInSC(view.deltaEtaInSC());
+        electron.SetDeltaPhiInSC(view.deltaPhiInSC());
+        electron.SetDeltaEtaInSeed(view.deltaEtaInSeed());
+        electron.SetDeltaPhiInSeed(view.deltaPhiInSeed());
+        electron.SetPFClusterIso(view.ecalPFClusterIso(), view.hcalPFClusterIso());
+        electron.SetRho(view.Rho());
+    };
+
+    RVec<Electron> materialised;
+    materialised.reserve(electrons.size());
+    for (std::size_t idx = 0; idx < electrons.size(); ++idx) {
+        materialised.emplace_back();
+        populate(materialised.back(), electrons[idx]);
+    }
+    return materialised;
+}
+
+RVec<Electron> AnalyzerCore::MaterializeElectrons(const ElectronViewCollection &electrons, const std::vector<std::size_t> &indices) const
+{
+    auto populate = [](Electron &electron, const ElectronView &view) {
+        electron.SetPtEtaPhiM(view.Pt(), view.Eta(), view.Phi(), view.M());
+        electron.SetCharge(view.Charge());
+        electron.SetPfRelIso03(view.PfRelIso03());
+        electron.SetMiniPFRelIso(view.MiniPFRelIso());
+        electron.SetdXY(view.dXY(), view.dXYerr());
+        electron.SetdZ(view.dZ(), view.dZerr());
+        electron.SetIP3D(view.IP3D(), view.SIP3D());
+        electron.SetConvVeto(view.ConvVeto());
+        electron.SetLostHits(view.LostHits());
+        electron.SetSeedGain(view.SeedGain());
+        electron.SetTightCharge(view.TightCharge());
+        electron.SetSieie(view.sieie());
+        electron.SetHoe(view.hoe());
+        electron.SetEInvMinusPInv(view.eInvMinusPInv());
+        electron.SetDr03EcalRecHitSumEt(view.dr03EcalRecHitSumEt());
+        electron.SetDr03HcalDepth1TowerSumEt(view.dr03HcalDepth1TowerSumEt());
+        electron.SetDr03TkSumPt(view.dr03TkSumPt());
+        electron.SetDr03TkSumPtHEEP(view.dr03TkSumPtHEEP());
+        electron.SetR9(view.r9());
+        electron.SetEnergyErr(view.energyErr());
+        electron.SetEnergyResUnc(view.dEsigmaUp(), view.dEsigmaDown());
+        electron.SetBIDBit(Electron::BooleanID::CUTBASEDHEEP, view.isCutBasedHEEP());
+        electron.SetMVA(Electron::MVATYPE::MVAPROMPT, view.PromptMVA());
+        electron.SetBIDBit(Electron::BooleanID::MVAISOWP80, view.isMVAIsoWP80());
+        electron.SetBIDBit(Electron::BooleanID::MVAISOWP90, view.isMVAIsoWP90());
+        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP80, view.isMVANoIsoWP80());
+        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP90, view.isMVANoIsoWP90());
+        electron.SetMVA(Electron::MVATYPE::MVAISO, view.MvaIso());
+        electron.SetMVA(Electron::MVATYPE::MVANOISO, view.MvaNoIso());
+        electron.SetCBIDBit(Electron::CutBasedID::CUTBASED, static_cast<unsigned int>(view.CutBased()));
+        electron.SetGenPartFlav(view.GenPartFlav());
+        electron.SetGenPartIdx(view.GenPartIdx());
+        electron.SetJetIdx(view.JetIdx());
+        electron.SetScEta(view.ScEta());
+        electron.SetDeltaEtaInSC(view.deltaEtaInSC());
+        electron.SetDeltaPhiInSC(view.deltaPhiInSC());
+        electron.SetDeltaEtaInSeed(view.deltaEtaInSeed());
+        electron.SetDeltaPhiInSeed(view.deltaPhiInSeed());
+        electron.SetPFClusterIso(view.ecalPFClusterIso(), view.hcalPFClusterIso());
+        electron.SetRho(view.Rho());
+    };
+
+    RVec<Electron> materialised;
+    if (indices.empty() || electrons.empty())
+        return materialised;
+
+    materialised.reserve(indices.size());
+    const std::size_t n = electrons.size();
+    for (const auto idx : indices) {
+        if (idx >= n)
+            continue;
+        materialised.emplace_back();
+        populate(materialised.back(), electrons[idx]);
+    }
+    return materialised;
 }
 
 RVec<Electron> AnalyzerCore::ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const MyCorrection::variation &syst) {
@@ -786,27 +1054,20 @@ RVec<Electron> AnalyzerCore::SmearElectrons(const RVec<Electron> &electrons, con
     return smeared_electrons;
 }
 
-RVec<Gen> AnalyzerCore::GetAllGens(){
-    RVec<Gen> Gens;
+RVec<Gen> AnalyzerCore::GetAllGens()
+{
+    RVec<Gen> gens;
     if (IsDATA)
-        return Gens;
+        return gens;
 
-    for (int i = 0; i < nGenPart; i++)
-    {
-
-        Gen gen;
-
-        gen.SetIsEmpty(false);
-        gen.SetPtEtaPhiM(GenPart_pt[i], GenPart_eta[i], GenPart_phi[i], GenPart_mass[i]);
-        gen.SetIndexPIDStatus(i, GenPart_pdgId[i], GenPart_status[i]);
-
-        gen.SetMother(GenPart_genPartIdxMother[i]);
-        gen.SetGenStatusFlags(GenPart_statusFlags[i]);
-
-        Gens.push_back(gen);
+    GenViewCollection view = GetAllGenViews();
+    gens.reserve(view.size());
+    auto storage = view.storage();
+    for (std::size_t i = 0; i < view.size(); ++i) {
+        gens.emplace_back(storage, i);
     }
 
-    return Gens;
+    return gens;
 }
 
 RVec<LHE> AnalyzerCore::GetAllLHEs()
@@ -881,73 +1142,668 @@ RVec<Tau> AnalyzerCore::SelectTaus(const RVec<Tau> &taus, const TString ID, cons
     return selected_taus;
 }
 
+JetViewCollection AnalyzerCore::GetAllJetViews()
+{
+    auto storage = std::make_shared<JetSoA>();
+    storage->pt.bind(&Jet_pt);
+    storage->eta.bind(&Jet_eta);
+    storage->phi.bind(&Jet_phi);
+    storage->mass.bind(&Jet_mass);
+    storage->rawFactor.bind(&Jet_rawFactor);
+    storage->area.bind(&Jet_area);
+    storage->chHEF.bind(&Jet_chHEF);
+    storage->neHEF.bind(&Jet_neHEF);
+    storage->neEmEF.bind(&Jet_neEmEF);
+    storage->chEmEF.bind(&Jet_chEmEF);
+    storage->muEF.bind(&Jet_muEF);
+    storage->partonFlavour.bind(&Jet_partonFlavour);
+    storage->hadronFlavour.bind(&Jet_hadronFlavour);
+    storage->chMultiplicity.bind(&Jet_chMultiplicity);
+    storage->neMultiplicity.bind(&Jet_neMultiplicity);
+    storage->nConstituents.bind(&Jet_nConstituents);
+    storage->nElectrons.bind(&Jet_nElectrons);
+    storage->nMuons.bind(&Jet_nMuons);
+    storage->nSVs.bind(&Jet_nSVs);
+    storage->electronIdx1.bind(&Jet_electronIdx1);
+    storage->electronIdx2.bind(&Jet_electronIdx2);
+    storage->muonIdx1.bind(&Jet_muonIdx1);
+    storage->muonIdx2.bind(&Jet_muonIdx2);
+    storage->svIdx1.bind(&Jet_svIdx1);
+    storage->svIdx2.bind(&Jet_svIdx2);
+    storage->genJetIdx.bind(&Jet_genJetIdx);
+    storage->deepFlavB.bind(&Jet_btagDeepFlavB);
+    storage->deepFlavCvB.bind(&Jet_btagDeepFlavCvB);
+    storage->deepFlavCvL.bind(&Jet_btagDeepFlavCvL);
+    storage->deepFlavQG.bind(&Jet_btagDeepFlavQG);
+    storage->pnetB.bind(&Jet_btagPNetB);
+    storage->pnetCvB.bind(&Jet_btagPNetCvB);
+    storage->pnetCvL.bind(&Jet_btagPNetCvL);
+    storage->pnetCvNotB.bind(&Jet_btagPNetCvNotB);
+    storage->pnetQvG.bind(&Jet_btagPNetQvG);
+    storage->pnetTauVJet.bind(&Jet_btagPNetTauVJet);
+    storage->uparTAK4B.bind(&Jet_btagUParTAK4B);
+    storage->uparTAK4CvB.bind(&Jet_btagUParTAK4CvB);
+    storage->uparTAK4CvL.bind(&Jet_btagUParTAK4CvL);
+    storage->uparTAK4CvNotB.bind(&Jet_btagUParTAK4CvNotB);
+    storage->uparTAK4Ele.bind(&Jet_btagUParTAK4Ele);
+    storage->uparTAK4Mu.bind(&Jet_btagUParTAK4Mu);
+    storage->uparTAK4QvG.bind(&Jet_btagUParTAK4QvG);
+    storage->uparTAK4SvCB.bind(&Jet_btagUParTAK4SvCB);
+    storage->uparTAK4SvUDG.bind(&Jet_btagUParTAK4SvUDG);
+    storage->uparTAK4TauVJet.bind(&Jet_btagUParTAK4TauVJet);
+    storage->uparTAK4UDG.bind(&Jet_btagUParTAK4UDG);
+    storage->uparTAK4ProbB.bind(&Jet_btagUParTAK4probb);
+    storage->uparTAK4ProbBB.bind(&Jet_btagUParTAK4probbb);
+    storage->pnetRegPtRawCorr.bind(&Jet_PNetRegPtRawCorr);
+    storage->pnetRegPtRawCorrNeutrino.bind(&Jet_PNetRegPtRawCorrNeutrino);
+    storage->pnetRegPtRawRes.bind(&Jet_PNetRegPtRawRes);
+    storage->uparTAK4RegPtRawCorr.bind(&Jet_UParTAK4RegPtRawCorr);
+    storage->uparTAK4RegPtRawCorrNeutrino.bind(&Jet_UParTAK4RegPtRawCorrNeutrino);
+    storage->uparTAK4RegPtRawRes.bind(&Jet_UParTAK4RegPtRawRes);
+    storage->uparTAK4V1RegPtRawCorr.bind(&Jet_UParTAK4V1RegPtRawCorr);
+    storage->uparTAK4V1RegPtRawCorrNeutrino.bind(&Jet_UParTAK4V1RegPtRawCorrNeutrino);
+    storage->uparTAK4V1RegPtRawRes.bind(&Jet_UParTAK4V1RegPtRawRes);
+    storage->puIdDisc.bind(&Jet_puIdDisc);
+
+    const std::size_t n = storage->size();
+    storage->jecFactor.assign(n, 1.f);
+    storage->correctedPt.assign(n, 0.f);
+    storage->correctedMass.assign(n, 0.f);
+    storage->smearedPtNominal.assign(n, 0.f);
+    storage->smearedPtUp.assign(n, 0.f);
+    storage->smearedPtDown.assign(n, 0.f);
+    storage->smearedMassNominal.assign(n, 0.f);
+    storage->smearedMassUp.assign(n, 0.f);
+    storage->smearedMassDown.assign(n, 0.f);
+    storage->jesPtUp.assign(n, 0.f);
+    storage->jesPtDown.assign(n, 0.f);
+    storage->jesMassUp.assign(n, 0.f);
+    storage->jesMassDown.assign(n, 0.f);
+
+    if (n == 0)
+        return JetViewCollection(std::move(storage));
+
+    if (!myCorr) {
+        for (std::size_t i = 0; i < n; ++i) {
+            const float rawPt = storage->pt[i] * (1.f - storage->rawFactor[i]);
+            const float rawMass = storage->mass[i] * (1.f - storage->rawFactor[i]);
+            storage->jecFactor[i] = 1.f;
+            storage->correctedPt[i] = rawPt;
+            storage->correctedMass[i] = rawMass;
+            storage->smearedPtNominal[i] = rawPt;
+            storage->smearedPtUp[i] = rawPt;
+            storage->smearedPtDown[i] = rawPt;
+            storage->smearedMassNominal[i] = rawMass;
+            storage->smearedMassUp[i] = rawMass;
+            storage->smearedMassDown[i] = rawMass;
+            storage->jesPtUp[i] = rawPt;
+            storage->jesPtDown[i] = rawPt;
+            storage->jesMassUp[i] = rawMass;
+            storage->jesMassDown[i] = rawMass;
+        }
+        return JetViewCollection(std::move(storage));
+    }
+
+    const bool isMC = !IsDATA;
+    const float rho = Rho_fixedGridRhoFastjetAll;
+
+    for (std::size_t i = 0; i < n; ++i) {
+        const float rawPt = storage->pt[i] * (1.f - storage->rawFactor[i]);
+        const float rawMass = storage->mass[i] * (1.f - storage->rawFactor[i]);
+        const float jecSF = myCorr ? myCorr->GetJESSF(storage->area[i], storage->eta[i], rawPt, storage->phi[i], rho, RunNumber) : 1.f;
+        storage->jecFactor[i] = jecSF;
+        storage->correctedPt[i] = rawPt * jecSF;
+        storage->correctedMass[i] = rawMass * jecSF;
+    }
+
+    std::vector<int> matchedGenIdx(n, -999);
+    RVec<GenJet> genjets;
+    if (isMC) {
+        genjets = GetAllGenJets();
+        if (!genjets.empty()) {
+            std::vector<std::tuple<std::size_t, std::size_t, float, float>> candidates;
+            candidates.reserve(n * 2);
+            const float maxDR = 0.2f;
+            const float ptJerCut = 3.f;
+            const auto deltaPhi = [](float a, float b) {
+                constexpr float pi = 3.14159265358979323846f;
+                constexpr float twoPi = 6.28318530717958647692f;
+                float d = a - b;
+                while (d > pi)
+                    d -= twoPi;
+                while (d <= -pi)
+                    d += twoPi;
+                return d;
+            };
+            for (std::size_t i = 0; i < n; ++i) {
+                const float jetPt = storage->correctedPt[i];
+                if (jetPt <= 0.f)
+                    continue;
+                for (std::size_t j = 0; j < static_cast<std::size_t>(genjets.size()); ++j) {
+                    const float deta = storage->eta[i] - genjets[j].Eta();
+                    const float dphi = deltaPhi(storage->phi[i], genjets[j].Phi());
+                    const float dr = std::sqrt(deta * deta + dphi * dphi);
+                    if (dr >= maxDR)
+                        continue;
+                    const float ptDiff = std::fabs(jetPt - genjets[j].Pt());
+                    float jerSigma = myCorr->GetJER(storage->eta[i], jetPt, rho) * jetPt;
+                    if (ptDiff < ptJerCut * jerSigma)
+                        candidates.emplace_back(i, j, dr, ptDiff);
+                }
+            }
+            std::sort(candidates.begin(), candidates.end(), [](const auto &a, const auto &b) {
+                if (std::get<2>(a) == std::get<2>(b))
+                    return std::get<3>(a) < std::get<3>(b);
+                return std::get<2>(a) < std::get<2>(b);
+            });
+            std::vector<bool> usedJet(n, false);
+            std::vector<bool> usedGen(genjets.size(), false);
+            for (const auto &match : candidates) {
+                const auto jetIdx = std::get<0>(match);
+                const auto genIdx = std::get<1>(match);
+                if (usedJet[jetIdx] || usedGen[genIdx])
+                    continue;
+                matchedGenIdx[jetIdx] = static_cast<int>(genIdx);
+                usedJet[jetIdx] = true;
+                usedGen[genIdx] = true;
+            }
+        }
+    }
+
+    if (isMC)
+        gRandom->SetSeed(static_cast<int>(PuppiMET_pt * 1e6));
+
+    const std::vector<TString> jesSources = {
+        "AbsoluteMPFBias",
+        "AbsoluteScale",
+        "AbsoluteStat",
+        "FlavorQCD",
+        "Fragmentation",
+        "PileUpEnvelope",
+        "RelativeJEREC1",
+        "RelativeJEREC2",
+        "RelativeJERHF",
+        "RelativePtBB",
+        "RelativePtEC1",
+        "RelativePtEC2",
+        "RelativePtHF",
+        "RelativeBal",
+        "RelativeSample",
+        "RelativeFSR",
+        "RelativeStatFSR",
+        "RelativeStatEC",
+        "RelativeStatHF",
+        "SinglePionECAL",
+        "SinglePionHCAL",
+        "TimePtEta"
+    };
+
+    constexpr float MIN_JET_ENERGY = 1e-2f;
+
+    for (std::size_t i = 0; i < n; ++i) {
+        const float correctedPt = storage->correctedPt[i];
+        const float correctedMass = storage->correctedMass[i];
+        const float eta = storage->eta[i];
+        const float phi = storage->phi[i];
+
+        TLorentzVector unsmearedP4;
+        unsmearedP4.SetPtEtaPhiM(correctedPt, eta, phi, correctedMass);
+        const float minCorr = MIN_JET_ENERGY / std::max(static_cast<float>(unsmearedP4.E()), MIN_JET_ENERGY);
+
+        float smearNom = 1.f;
+        float smearUp = 1.f;
+        float smearDown = 1.f;
+
+        if (isMC && correctedPt > 0.f) {
+            const int matched = matchedGenIdx[i];
+            const float sfNom = myCorr->GetJERSF(eta, correctedPt, MyCorrection::variation::nom);
+            const float sfUp = myCorr->GetJERSF(eta, correctedPt, MyCorrection::variation::up);
+            const float sfDown = myCorr->GetJERSF(eta, correctedPt, MyCorrection::variation::down);
+
+            const float jerSigma = (matched < 0) ? myCorr->GetJER(eta, correctedPt, rho) * correctedPt : 0.f;
+            const float gausSample = (matched < 0) ? gRandom->Gaus(0., jerSigma) : 0.f;
+
+            const auto computeCorr = [&](float sf) {
+                float corr = 1.f;
+                if (matched >= 0 && matched < genjets.size()) {
+                    const float genPt = genjets[matched].Pt();
+                    const float scale = 1.f - genPt / std::max(correctedPt, 1e-6f);
+                    corr += (sf - 1.f) * scale;
+                } else {
+                    const float variance = std::max(sf * sf - 1.f, 0.f);
+                    corr += gausSample * std::sqrt(variance);
+                }
+                return std::max(corr, minCorr);
+            };
+
+            smearNom = computeCorr(sfNom);
+            smearUp = computeCorr(sfUp);
+            smearDown = computeCorr(sfDown);
+        }
+
+        storage->smearedPtNominal[i] = correctedPt * smearNom;
+        storage->smearedPtUp[i] = correctedPt * smearUp;
+        storage->smearedPtDown[i] = correctedPt * smearDown;
+        storage->smearedMassNominal[i] = correctedMass * smearNom;
+        storage->smearedMassUp[i] = correctedMass * smearUp;
+        storage->smearedMassDown[i] = correctedMass * smearDown;
+
+        const auto computeJES = [&](MyCorrection::variation var) {
+            if (!isMC)
+                return 1.f;
+            float factor = 1.f;
+            for (const auto &source : jesSources)
+                factor *= myCorr->GetJESUncertainty(eta, correctedPt, var, source);
+            return factor;
+        };
+
+        const float jesUp = computeJES(MyCorrection::variation::up);
+        const float jesDown = computeJES(MyCorrection::variation::down);
+
+        storage->jesPtUp[i] = storage->smearedPtNominal[i] * jesUp;
+        storage->jesPtDown[i] = storage->smearedPtNominal[i] * jesDown;
+        storage->jesMassUp[i] = storage->smearedMassNominal[i] * jesUp;
+        storage->jesMassDown[i] = storage->smearedMassNominal[i] * jesDown;
+    }
+
+    return JetViewCollection(std::move(storage));
+}
+
 RVec<Jet> AnalyzerCore::GetAllJets()
 {
+    JetViewCollection view = GetAllJetViews();
     RVec<Jet> Jets;
-    for (int i = 0; i < nJet; i++) {
-        Jet jet;
-        const float rawPt = Jet_pt[i] * (1.-Jet_rawFactor[i]);
-        const float rawMass = Jet_mass[i] * (1.-Jet_rawFactor[i]);
-        const float JESSF = myCorr->GetJESSF(Jet_area[i], Jet_eta[i], rawPt, Jet_phi[i], Rho_fixedGridRhoFastjetAll, RunNumber);
-        const float correctedPt = rawPt * JESSF;
-        const float correctedMass = rawMass * JESSF;
-        jet.SetPtEtaPhiM(correctedPt, Jet_eta[i], Jet_phi[i], correctedMass);
+    Jets.reserve(view.size());
+    auto storage = view.storage();
+    for (std::size_t i = 0; i < view.size(); ++i) {
+        const auto &jetView = view[i];
+        Jet jet(storage, i);
+
+        const float rawPt = storage->pt[i] * (1.f - storage->rawFactor[i]);
+        const float rawMass = storage->mass[i] * (1.f - storage->rawFactor[i]);
+        const float correctedPt = !storage->correctedPt.empty() ? storage->correctedPt[i] : rawPt;
+        const float correctedMass = !storage->correctedMass.empty() ? storage->correctedMass[i] : rawMass;
+        const float smearedPt = !storage->smearedPtNominal.empty() ? storage->smearedPtNominal[i] : correctedPt;
+        const float smearedMass = !storage->smearedMassNominal.empty() ? storage->smearedMassNominal[i] : correctedMass;
+
+        jet.SetPtEtaPhiM(smearedPt, jetView.Eta(), jetView.Phi(), smearedMass);
         jet.SetRawPt(rawPt);
-        jet.SetOriginalPt(Jet_pt[i]);
-        jet.SetArea(Jet_area[i]);
-        jet.SetOriginalIndex(i);
-        jet.SetEnergyFractions(Jet_chHEF[i], Jet_neHEF[i], Jet_neEmEF[i], Jet_chEmEF[i], Jet_muEF[i]);
-        if(!IsDATA){
-            jet.SetJetFlavours(Jet_partonFlavour[i] ,Jet_hadronFlavour[i]);
-        }
-        RVec<float> tagger_deepjet;
-        tagger_deepjet = {Jet_btagDeepFlavB[i], Jet_btagDeepFlavCvB[i], Jet_btagDeepFlavCvL[i], Jet_btagDeepFlavQG[i]};
-        RVec<float> tagger_pnet;
-        tagger_pnet = {Jet_btagPNetB[i], Jet_btagPNetCvB[i], Jet_btagPNetCvL[i], Jet_btagPNetCvNotB[i], Jet_btagPNetQvG[i], Jet_btagPNetTauVJet[i]};
-        RVec<float> tagger_parT;
-        tagger_parT = {Jet_btagUParTAK4B[i], Jet_btagUParTAK4CvB[i], Jet_btagUParTAK4CvL[i],
-            Jet_btagUParTAK4CvNotB[i], Jet_btagUParTAK4Ele[i], Jet_btagUParTAK4Mu[i], Jet_btagUParTAK4QvG[i],
-            Jet_btagUParTAK4SvCB[i], Jet_btagUParTAK4SvUDG[i], Jet_btagUParTAK4TauVJet[i],
-            Jet_btagUParTAK4UDG[i], Jet_btagUParTAK4probb[i], Jet_btagUParTAK4probbb[i]};
-
-        jet.SetTaggerResults(tagger_deepjet, tagger_pnet, tagger_parT);
-        jet.SetHadronMultiplicities(Jet_chMultiplicity[i], Jet_neMultiplicity[i]);
-        jet.SetMultiplicities(Jet_nConstituents[i], Jet_nElectrons[i], Jet_nMuons[i], Jet_nSVs[i]);
-        if (!IsDATA)
-        {
-            jet.SetMatchingIndices(Jet_electronIdx1[i], Jet_electronIdx2[i], Jet_muonIdx1[i], Jet_muonIdx2[i], Jet_svIdx1[i], Jet_svIdx2[i], Jet_genJetIdx[i]);
-        }
-        else
-        {
-            jet.SetMatchingIndices(Jet_electronIdx1[i], Jet_electronIdx2[i], Jet_muonIdx1[i], Jet_muonIdx2[i], Jet_svIdx1[i], Jet_svIdx2[i]);
+        jet.SetOriginalPt(jetView.Pt());
+        jet.SetArea(jetView.Area());
+        jet.SetOriginalIndex(static_cast<int>(i));
+        jet.SetEnergyFractions(jetView.ChHEF(), jetView.NeHEF(), jetView.NeEmEF(), jetView.ChEmEF(), jetView.MuEF());
+        if (!IsDATA) {
+            jet.SetJetFlavours(jetView.PartonFlavour(), jetView.HadronFlavour());
         }
 
-        RVec<float> corrs;
-        corrs = {Jet_PNetRegPtRawCorr[i], Jet_PNetRegPtRawCorrNeutrino[i], Jet_PNetRegPtRawRes[i], Jet_UParTAK4RegPtRawCorr[i], Jet_UParTAK4RegPtRawCorrNeutrino[i],
-                Jet_UParTAK4RegPtRawRes[i], Jet_UParTAK4V1RegPtRawCorr[i], Jet_UParTAK4V1RegPtRawCorrNeutrino[i], Jet_UParTAK4V1RegPtRawRes[i], Jet_rawFactor[i]};
+        jet.SetHadronMultiplicities(jetView.ChMultiplicity(), jetView.NeMultiplicity());
+        jet.SetMultiplicities(jetView.NConstituents(), jetView.NElectrons(), jetView.NMuons(), jetView.NSVs());
+        if (!IsDATA) {
+            jet.SetMatchingIndices(jetView.ElectronIdx1(), jetView.ElectronIdx2(), jetView.MuonIdx1(), jetView.MuonIdx2(), jetView.SvIdx1(), jetView.SvIdx2(), jetView.GenJetIdx());
+        } else {
+            jet.SetMatchingIndices(jetView.ElectronIdx1(), jetView.ElectronIdx2(), jetView.MuonIdx1(), jetView.MuonIdx2(), jetView.SvIdx1(), jetView.SvIdx2());
+        }
 
-        
-        jet.SetJetPuIDScore(Jet_puIdDisc[i]);
-        jet.SetEnergyFractions(Jet_chHEF[i], Jet_neHEF[i], Jet_neEmEF[i], Jet_chEmEF[i], Jet_muEF[i]);
+        RVec<float> corrs = {
+            jetView.PNetRegPtRawCorr(),
+            jetView.PNetRegPtRawCorrNeutrino(),
+            jetView.PNetRegPtRawRes(),
+            jetView.UParTAK4RegPtRawCorr(),
+            jetView.UParTAK4RegPtRawCorrNeutrino(),
+            jetView.UParTAK4RegPtRawRes(),
+            jetView.UParTAK4V1RegPtRawCorr(),
+            jetView.UParTAK4V1RegPtRawCorrNeutrino(),
+            jetView.UParTAK4V1RegPtRawRes(),
+            jetView.RawFactor()
+        };
+
+        jet.SetJetPuIDScore(jetView.PuIdDisc());
         jet.SetCorrections(corrs);
 
-
-        for(size_t idx = 0; idx < nJetPFCand; idx++) {
-            if(JetPFCand_jetIdx[idx] == i) {
+        const int nPFCand = static_cast<int>(nJetPFCand);
+        for (int idx = 0; idx < nPFCand; ++idx) {
+            if (JetPFCand_jetIdx[idx] == static_cast<int>(i)) {
                 JetConstituent constituent;
-                size_t pfCandTableidx = JetPFCand_pfCandIdx[idx];
+                const auto pfCandTableidx = static_cast<std::size_t>(JetPFCand_pfCandIdx[idx]);
                 constituent.SetPtEtaPhiM(PFCand_pt[pfCandTableidx], PFCand_eta[pfCandTableidx], PFCand_phi[pfCandTableidx], PFCand_mass[pfCandTableidx]);
                 constituent.SetPdgId(PFCand_pdgId[pfCandTableidx]);
-                //puppiweight is only available for some sample
-                if(PFCand_puppiWeight.valid()) constituent.SetPUPPIWeight(PFCand_puppiWeight[pfCandTableidx]);
+                if (PFCand_puppiWeight.valid() && pfCandTableidx < PFCand_puppiWeight.size())
+                    constituent.SetPUPPIWeight(PFCand_puppiWeight[pfCandTableidx]);
             }
         }
 
+        Jet unsmeared;
+        unsmeared.SetPtEtaPhiM(correctedPt, jetView.Eta(), jetView.Phi(), correctedMass);
+        unsmeared.SetArea(jetView.Area());
+        unsmeared.SetRawPt(rawPt);
+        unsmeared.SetOriginalPt(jetView.Pt());
+        jet.SetUnsmearedP4(unsmeared);
+
         Jets.push_back(jet);
     }
-    if (!IsDATA)
-        Jets = SmearJets(Jets, GetAllGenJets());
+
     return Jets;
+}
+
+
+
+
+
+void AnalyzerCore::MuonEnsureThunk(void *ctx, Muon &muon, Muon::Property property)
+{
+    if (!ctx)
+        return;
+    static_cast<AnalyzerCore *>(ctx)->EnsureMuonProperty(muon, property);
+}
+
+void AnalyzerCore::ElectronEnsureThunk(void *ctx, Electron &electron, Electron::Property property)
+{
+    if (!ctx)
+        return;
+    static_cast<AnalyzerCore *>(ctx)->EnsureElectronProperty(electron, property);
+}
+
+void AnalyzerCore::JetEnsureThunk(void *ctx, Jet &jet, Jet::Property property)
+{
+    if (!ctx)
+        return;
+    static_cast<AnalyzerCore *>(ctx)->EnsureJetProperty(jet, property);
+}
+
+void AnalyzerCore::EnsureMuonProperty(Muon &muon, Muon::Property property) const
+{
+    if (!muon.lazy_)
+        return;
+    const int idx = muon.lazy_->index;
+    switch (property) {
+    case Muon::Property::TkRelIso:
+        muon.SetTkRelIso(Muon_tkRelIso[idx]);
+        break;
+    case Muon::Property::PfRelIso03:
+        muon.SetPfRelIso03(Muon_pfRelIso03_all[idx]);
+        break;
+    case Muon::Property::PfRelIso04:
+        muon.SetPfRelIso04(Muon_pfRelIso04_all[idx]);
+        break;
+    case Muon::Property::MiniPFRelIso:
+        muon.SetMiniPFRelIso(Muon_miniPFRelIso_all[idx]);
+        break;
+    case Muon::Property::Dxy:
+        muon.SetdXY(Muon_dxy[idx]);
+        break;
+    case Muon::Property::DxyErr:
+        muon.SetdXYErr(Muon_dxyErr[idx]);
+        break;
+    case Muon::Property::Dz:
+        muon.SetdZ(Muon_dz[idx]);
+        break;
+    case Muon::Property::DzErr:
+        muon.SetdZErr(Muon_dzErr[idx]);
+        break;
+    case Muon::Property::Ip3d:
+        muon.SetIP3D(Muon_ip3d[idx]);
+        break;
+    case Muon::Property::Sip3d:
+        muon.SetSIP3D(Muon_sip3d[idx]);
+        break;
+    case Muon::Property::TrackerLayers:
+        muon.SetNTrackerLayers(Muon_nTrackerLayers[idx]);
+        break;
+    case Muon::Property::GenPartFlav:
+        muon.SetGenPartFlav(Muon_genPartFlav[idx]);
+        break;
+    case Muon::Property::GenPartIdx:
+        muon.SetGenPartIdx(Muon_genPartIdx[idx]);
+        break;
+    case Muon::Property::JetIdx:
+        muon.SetJetIdx(Muon_jetIdx[idx]);
+        break;
+    case Muon::Property::LooseId:
+        muon.SetBIDBit(Muon::BooleanID::LOOSE, Muon_looseId[idx]);
+        break;
+    case Muon::Property::MediumId:
+        muon.SetBIDBit(Muon::BooleanID::MEDIUM, Muon_mediumId[idx]);
+        break;
+    case Muon::Property::MediumPromptId:
+        muon.SetBIDBit(Muon::BooleanID::MEDIUMPROMPT, Muon_mediumPromptId[idx]);
+        break;
+    case Muon::Property::TightId:
+        muon.SetBIDBit(Muon::BooleanID::TIGHT, Muon_tightId[idx]);
+        break;
+    case Muon::Property::SoftId:
+        muon.SetBIDBit(Muon::BooleanID::SOFT, Muon_softId[idx]);
+        break;
+    case Muon::Property::SoftMvaId:
+        muon.SetBIDBit(Muon::BooleanID::SOFTMVA, Muon_softMvaId[idx]);
+        break;
+    case Muon::Property::TriggerLooseId:
+        muon.SetBIDBit(Muon::BooleanID::TRIGGERLOOSE, Muon_triggerIdLoose[idx]);
+        break;
+    case Muon::Property::HighPtId:
+        muon.SetWIDBit(Muon::WorkingPointID::HIGHPT, Muon_highPtId[idx]);
+        break;
+    case Muon::Property::MiniIsoId:
+        muon.SetWIDBit(Muon::WorkingPointID::MINIISO, Muon_miniIsoId[idx]);
+        break;
+    case Muon::Property::MultiIsoId:
+        muon.SetWIDBit(Muon::WorkingPointID::MULTIISO, Muon_multiIsoId[idx]);
+        break;
+    case Muon::Property::MvaMuId:
+        muon.SetWIDBit(Muon::WorkingPointID::MVAMU, Muon_mvaMuID_WP[idx]);
+        break;
+    case Muon::Property::PfIsoId:
+        muon.SetWIDBit(Muon::WorkingPointID::PFISO, Muon_pfIsoId[idx]);
+        break;
+    case Muon::Property::PuppiIsoId:
+        muon.SetWIDBit(Muon::WorkingPointID::PUPPIISO, Muon_puppiIsoId[idx]);
+        break;
+    case Muon::Property::TkIsoId:
+        muon.SetWIDBit(Muon::WorkingPointID::TKISO, Muon_tkIsoId[idx]);
+        break;
+    case Muon::Property::SoftMva:
+        muon.SetMVAID(Muon::MVAID::SOFTMVA, Muon_softMva[idx]);
+        break;
+    case Muon::Property::MvaLowPt:
+        muon.SetMVAID(Muon::MVAID::MVALOWPT, Muon_mvaLowPt[idx]);
+        break;
+    case Muon::Property::MvaPrompt:
+        muon.SetMVAID(Muon::MVAID::MVAPROMPT, Muon_promptMVA[idx]);
+        break;
+    default:
+        throw std::runtime_error("[AnalyzerCore::EnsureMuonProperty] Unsupported property");
+    }
+}
+
+void AnalyzerCore::EnsureElectronProperty(Electron &electron, Electron::Property property) const
+{
+    if (!electron.lazy_)
+        return;
+    const int idx = electron.lazy_->index;
+    switch (property) {
+    case Electron::Property::PfRelIso03:
+        electron.SetPfRelIso03(Electron_pfRelIso03_all[idx]);
+        break;
+    case Electron::Property::MiniPFRelIso:
+        electron.SetMiniPFRelIso(Electron_miniPFRelIso_all[idx]);
+        break;
+    case Electron::Property::Dxy:
+        electron.SetdXY(Electron_dxy[idx]);
+        break;
+    case Electron::Property::DxyErr:
+        electron.SetdXYErr(Electron_dxyErr[idx]);
+        break;
+    case Electron::Property::Dz:
+        electron.SetdZ(Electron_dz[idx]);
+        break;
+    case Electron::Property::DzErr:
+        electron.SetdZErr(Electron_dzErr[idx]);
+        break;
+    case Electron::Property::Ip3d:
+        electron.SetIP3D(Electron_ip3d[idx]);
+        break;
+    case Electron::Property::Sip3d:
+        electron.SetSIP3D(Electron_sip3d[idx]);
+        break;
+    case Electron::Property::ConvVeto:
+        electron.SetConvVeto(Electron_convVeto[idx]);
+        break;
+    case Electron::Property::LostHits:
+        electron.SetLostHits(Electron_lostHits[idx]);
+        break;
+    case Electron::Property::SeedGain:
+        electron.SetSeedGain(Electron_seedGain[idx]);
+        break;
+    case Electron::Property::TightCharge:
+        electron.SetTightCharge(Electron_tightCharge[idx]);
+        break;
+    case Electron::Property::Sieie:
+        electron.SetSieie(Electron_sieie[idx]);
+        break;
+    case Electron::Property::Hoe:
+        electron.SetHoe(Electron_hoe[idx]);
+        break;
+    case Electron::Property::EInvMinusPInv:
+        electron.SetEInvMinusPInv(Electron_eInvMinusPInv[idx]);
+        break;
+    case Electron::Property::Dr03EcalRecHitSumEt:
+        electron.SetDr03EcalRecHitSumEt(Electron_dr03EcalRecHitSumEt[idx]);
+        break;
+    case Electron::Property::Dr03HcalDepth1TowerSumEt:
+        electron.SetDr03HcalDepth1TowerSumEt(Electron_dr03HcalDepth1TowerSumEt[idx]);
+        break;
+    case Electron::Property::Dr03TkSumPt:
+        electron.SetDr03TkSumPt(Electron_dr03TkSumPt[idx]);
+        break;
+    case Electron::Property::Dr03TkSumPtHEEP:
+        electron.SetDr03TkSumPtHEEP(Electron_dr03TkSumPtHEEP[idx]);
+        break;
+    case Electron::Property::R9:
+        electron.SetR9(Electron_r9[idx]);
+        break;
+    case Electron::Property::EnergyErr:
+        electron.SetEnergyErr(Electron_energyErr[idx]);
+        break;
+    case Electron::Property::CutBasedHEEP:
+        electron.SetBIDBit(Electron::BooleanID::CUTBASEDHEEP, Electron_cutBased_HEEP[idx]);
+        break;
+    case Electron::Property::PromptMVA:
+        electron.SetMVA(Electron::MVATYPE::MVAPROMPT, Electron_promptMVA[idx]);
+        break;
+    case Electron::Property::MvaIsoWP80:
+        electron.SetBIDBit(Electron::BooleanID::MVAISOWP80, Electron_mvaIso_WP80[idx]);
+        break;
+    case Electron::Property::MvaIsoWP90:
+        electron.SetBIDBit(Electron::BooleanID::MVAISOWP90, Electron_mvaIso_WP90[idx]);
+        break;
+    case Electron::Property::MvaNoIsoWP80:
+        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP80, Electron_mvaNoIso_WP80[idx]);
+        break;
+    case Electron::Property::MvaNoIsoWP90:
+        electron.SetBIDBit(Electron::BooleanID::MVANOISOWP90, Electron_mvaNoIso_WP90[idx]);
+        break;
+    case Electron::Property::MvaIso:
+        electron.SetMVA(Electron::MVATYPE::MVAISO, Electron_mvaIso[idx]);
+        break;
+    case Electron::Property::MvaNoIso:
+        electron.SetMVA(Electron::MVATYPE::MVANOISO, Electron_mvaNoIso[idx]);
+        break;
+    case Electron::Property::CutBased:
+        electron.SetCBIDBit(Electron::CutBasedID::CUTBASED, Electron_cutBased[idx]);
+        break;
+    case Electron::Property::GenPartFlav:
+        electron.SetGenPartFlav(Electron_genPartFlav[idx]);
+        break;
+    case Electron::Property::GenPartIdx:
+        electron.SetGenPartIdx(Electron_genPartIdx[idx]);
+        break;
+    case Electron::Property::JetIdx:
+        electron.SetJetIdx(Electron_jetIdx[idx]);
+        break;
+    default:
+        throw std::runtime_error("[AnalyzerCore::EnsureElectronProperty] Unsupported property");
+    }
+}
+
+void AnalyzerCore::EnsureJetProperty(Jet &jet, Jet::Property property) const
+{
+    if (!jet.lazy_)
+        return;
+    const int idx = jet.lazy_->index;
+    using Tagger = JetTagging::JetFlavTagger;
+    using Score = JetTagging::JetFlavTaggerScoreType;
+    switch (property) {
+    case Jet::Property::DeepFlavB:
+        jet.SetTaggerScore(Tagger::DeepJet, Score::B, Jet_btagDeepFlavB[idx]);
+        break;
+    case Jet::Property::DeepFlavCvB:
+        jet.SetTaggerScore(Tagger::DeepJet, Score::CvB, Jet_btagDeepFlavCvB[idx]);
+        break;
+    case Jet::Property::DeepFlavCvL:
+        jet.SetTaggerScore(Tagger::DeepJet, Score::CvL, Jet_btagDeepFlavCvL[idx]);
+        break;
+    case Jet::Property::DeepFlavQG:
+        jet.SetTaggerScore(Tagger::DeepJet, Score::QvG, Jet_btagDeepFlavQG[idx]);
+        break;
+    case Jet::Property::PNetB:
+        jet.SetTaggerScore(Tagger::ParticleNet, Score::B, Jet_btagPNetB[idx]);
+        break;
+    case Jet::Property::PNetCvB:
+        jet.SetTaggerScore(Tagger::ParticleNet, Score::CvB, Jet_btagPNetCvB[idx]);
+        break;
+    case Jet::Property::PNetCvL:
+        jet.SetTaggerScore(Tagger::ParticleNet, Score::CvL, Jet_btagPNetCvL[idx]);
+        break;
+    case Jet::Property::PNetCvNotB:
+        jet.SetTaggerScore(Tagger::ParticleNet, Score::CvNotB, Jet_btagPNetCvNotB[idx]);
+        break;
+    case Jet::Property::PNetQvG:
+        jet.SetTaggerScore(Tagger::ParticleNet, Score::QvG, Jet_btagPNetQvG[idx]);
+        break;
+    case Jet::Property::PNetTauVJet:
+        jet.SetTaggerScore(Tagger::ParticleNet, Score::TauVJet, Jet_btagPNetTauVJet[idx]);
+        break;
+    case Jet::Property::ParTB:
+        jet.SetTaggerScore(Tagger::ParT, Score::B, Jet_btagUParTAK4B[idx]);
+        break;
+    case Jet::Property::ParTCvB:
+        jet.SetTaggerScore(Tagger::ParT, Score::CvB, Jet_btagUParTAK4CvB[idx]);
+        break;
+    case Jet::Property::ParTCvL:
+        jet.SetTaggerScore(Tagger::ParT, Score::CvL, Jet_btagUParTAK4CvL[idx]);
+        break;
+    case Jet::Property::ParTCvNotB:
+        jet.SetTaggerScore(Tagger::ParT, Score::CvNotB, Jet_btagUParTAK4CvNotB[idx]);
+        break;
+    case Jet::Property::ParTEle:
+        jet.SetTaggerScore(Tagger::ParT, Score::Ele, Jet_btagUParTAK4Ele[idx]);
+        break;
+    case Jet::Property::ParTMu:
+        jet.SetTaggerScore(Tagger::ParT, Score::Mu, Jet_btagUParTAK4Mu[idx]);
+        break;
+    case Jet::Property::ParTQvG:
+        jet.SetTaggerScore(Tagger::ParT, Score::QvG, Jet_btagUParTAK4QvG[idx]);
+        break;
+    case Jet::Property::ParTSvCB:
+        jet.SetTaggerScore(Tagger::ParT, Score::SvCB, Jet_btagUParTAK4SvCB[idx]);
+        break;
+    case Jet::Property::ParTSvUDG:
+        jet.SetTaggerScore(Tagger::ParT, Score::SvUDG, Jet_btagUParTAK4SvUDG[idx]);
+        break;
+    case Jet::Property::ParTTauVJet:
+        jet.SetTaggerScore(Tagger::ParT, Score::TauVJet, Jet_btagUParTAK4TauVJet[idx]);
+        break;
+    case Jet::Property::ParTUDG:
+        jet.SetTaggerScore(Tagger::ParT, Score::probUDG, Jet_btagUParTAK4UDG[idx]);
+        break;
+    case Jet::Property::ParTProbB:
+        jet.SetTaggerScore(Tagger::ParT, Score::probB, Jet_btagUParTAK4probb[idx]);
+        break;
+    case Jet::Property::ParTProbBB:
+        jet.SetTaggerScore(Tagger::ParT, Score::probBB, Jet_btagUParTAK4probbb[idx]);
+        break;
+    default:
+        throw std::runtime_error("[AnalyzerCore::EnsureJetProperty] Unsupported property");
+    }
 }
 
 RVec<Photon> AnalyzerCore::GetAllPhotons()
@@ -1126,14 +1982,15 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets()
         fatjet.SetSubjettiness(FatJet_tau1[i], FatJet_tau2[i], FatJet_tau3[i], FatJet_n2b1[i], FatJet_n3b1[i]);
         fatjet.SetLSF3(FatJet_lsf3[i]);
 
-        for(size_t idx = 0; idx < nFatJetPFCand; idx++) {
-            if(FatJetPFCand_jetIdx[idx] == i) {
+        const int nFatPFCand = static_cast<int>(nFatJetPFCand);
+        for (int idx = 0; idx < nFatPFCand; ++idx) {
+            if (FatJetPFCand_jetIdx[idx] == i) {
                 JetConstituent constituent;
-                size_t pfCandTableidx = FatJetPFCand_pfCandIdx[idx];
+                const auto pfCandTableidx = static_cast<std::size_t>(FatJetPFCand_pfCandIdx[idx]);
                 constituent.SetPtEtaPhiM(PFCand_pt[pfCandTableidx], PFCand_eta[pfCandTableidx], PFCand_phi[pfCandTableidx], PFCand_mass[pfCandTableidx]);
                 constituent.SetPdgId(PFCand_pdgId[pfCandTableidx]);
-                //puppiweight is only available for some sample
-                if(PFCand_puppiWeight.valid()) constituent.SetPUPPIWeight(PFCand_puppiWeight[pfCandTableidx]);
+                if (PFCand_puppiWeight.valid() && pfCandTableidx < PFCand_puppiWeight.size())
+                    constituent.SetPUPPIWeight(PFCand_puppiWeight[pfCandTableidx]);
             }
         }
         RVec<float> pnet;
@@ -1239,6 +2096,17 @@ RVec<TrigObj> AnalyzerCore::GetAllTrigObjs() {
 }
 
 bool AnalyzerCore::IsHEMElectron(const Electron& electron) const {
+    if (DataYear != 2018) return false;
+
+    if (electron.Eta() < -1.25)
+    {
+        if ((electron.Phi() < -0.82) && (electron.Phi() > -1.62))
+            return true;
+    }
+    return false;
+}
+
+bool AnalyzerCore::IsHEMElectron(const ElectronView &electron) const {
     if (DataYear != 2018) return false;
 
     if (electron.Eta() < -1.25)

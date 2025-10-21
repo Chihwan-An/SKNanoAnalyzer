@@ -69,6 +69,20 @@ struct JetSoA {
     ColumnView<float> uparTAK4V1RegPtRawRes;
     ColumnView<float> puIdDisc;
 
+    std::vector<float> jecFactor;
+    std::vector<float> correctedPt;
+    std::vector<float> correctedMass;
+    std::vector<float> smearedPtNominal;
+    std::vector<float> smearedPtUp;
+    std::vector<float> smearedPtDown;
+    std::vector<float> smearedMassNominal;
+    std::vector<float> smearedMassUp;
+    std::vector<float> smearedMassDown;
+    std::vector<float> jesPtUp;
+    std::vector<float> jesPtDown;
+    std::vector<float> jesMassUp;
+    std::vector<float> jesMassDown;
+
     std::size_t size() const { return pt.size(); }
 };
 
@@ -116,6 +130,20 @@ public:
     float UParTAK4V1RegPtRawCorrNeutrino() const { return store->uparTAK4V1RegPtRawCorrNeutrino[idx]; }
     float UParTAK4V1RegPtRawRes() const { return store->uparTAK4V1RegPtRawRes[idx]; }
     float PuIdDisc() const { return store->puIdDisc[idx]; }
+
+    float JECFactor() const { return idx < store->jecFactor.size() ? store->jecFactor[idx] : 1.f; }
+    float CorrectedPt() const { return idx < store->correctedPt.size() ? store->correctedPt[idx] : Pt(); }
+    float CorrectedMass() const { return idx < store->correctedMass.size() ? store->correctedMass[idx] : Mass(); }
+    float SmearedPtNominal() const { return idx < store->smearedPtNominal.size() ? store->smearedPtNominal[idx] : CorrectedPt(); }
+    float SmearedPtUp() const { return idx < store->smearedPtUp.size() ? store->smearedPtUp[idx] : CorrectedPt(); }
+    float SmearedPtDown() const { return idx < store->smearedPtDown.size() ? store->smearedPtDown[idx] : CorrectedPt(); }
+    float SmearedMassNominal() const { return idx < store->smearedMassNominal.size() ? store->smearedMassNominal[idx] : CorrectedMass(); }
+    float SmearedMassUp() const { return idx < store->smearedMassUp.size() ? store->smearedMassUp[idx] : CorrectedMass(); }
+    float SmearedMassDown() const { return idx < store->smearedMassDown.size() ? store->smearedMassDown[idx] : CorrectedMass(); }
+    float JesPtUp() const { return idx < store->jesPtUp.size() ? store->jesPtUp[idx] : SmearedPtNominal(); }
+    float JesPtDown() const { return idx < store->jesPtDown.size() ? store->jesPtDown[idx] : SmearedPtNominal(); }
+    float JesMassUp() const { return idx < store->jesMassUp.size() ? store->jesMassUp[idx] : SmearedMassNominal(); }
+    float JesMassDown() const { return idx < store->jesMassDown.size() ? store->jesMassDown[idx] : SmearedMassNominal(); }
 
     TLorentzVector P4() const {
         TLorentzVector v;

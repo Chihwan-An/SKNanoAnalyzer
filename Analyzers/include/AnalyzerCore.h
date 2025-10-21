@@ -28,6 +28,7 @@
 #include "Muon.h"
 #include "MuonView.h"
 #include "Electron.h"
+#include "ElectronView.h"
 #include "Jet.h"
 #include "JetView.h"
 #include "FatJet.h"
@@ -98,13 +99,18 @@ public:
     RVec<Muon> GetAllMuons();
     std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const TString ID, const float ptmin, const float fetamax) const;
     std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const Muon::MuonID ID, const float ptmin, const float fetamax) const;
-    RVec<Muon> GetMuons(const TString ID, const float ptmin, const float fetamax);
+    RVec<Muon> MaterializeMuons(const MuonViewCollection &muons) const;
+    RVec<Muon> MaterializeMuons(const MuonViewCollection &muons, const std::vector<std::size_t> &indices) const;
+    ElectronViewCollection GetAllElectronViews();
     RVec<Electron> GetAllElectrons();
+    std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const TString ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
+    std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const Electron::ElectronID ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
+    RVec<Electron> MaterializeElectrons(const ElectronViewCollection &electrons) const;
+    RVec<Electron> MaterializeElectrons(const ElectronViewCollection &electrons, const std::vector<std::size_t> &indices) const;
     RVec<Jet> GetAllJets();
     RVec<Gen> GetAllGens();
     RVec<LHE> GetAllLHEs();
     RVec<Jet> GetJets(const TString id, const float ptmin, const float fetamax);
-    RVec<Electron> GetElectrons(const TString id, const float ptmin, const float fetamax, bool vetoHEM = false);
     RVec<Tau> GetAllTaus();
     RVec<FatJet> GetAllFatJets();
     RVec<GenJet> GetAllGenJets();
@@ -141,6 +147,7 @@ public:
     inline pair<float, float> GetCTaggingWP(){ return myCorr->GetCTaggingWP(); }
     float GetHT(const RVec<Jet> &jets);
     bool IsHEMElectron(const Electron& electron) const;
+    bool IsHEMElectron(const ElectronView &electron) const;
 
     // Gen Matching
     void PrintGen(const RVec<Gen> &gens);

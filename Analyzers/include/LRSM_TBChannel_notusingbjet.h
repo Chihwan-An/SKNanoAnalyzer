@@ -48,7 +48,7 @@ public:
     RVec<Muon> muon_overlap_cleaned;
     // Analysis cuts
     struct AnalysisCuts {
-        float muon_pt = 50.0;
+        float muon_pt = 55.0;
         float muon_sub_pt = 30.0;
         float muon_eta = 2.5;
         float jet_pt = 30.0;
@@ -57,8 +57,10 @@ public:
         float fatjet_eta = 2.5;
         float btag_wp = 0.2347; // ParticleNet medium WP
         float toptag_score = 0.683;
+        float toptag_score2 = 0.858;
+        float toptag_score3 = 0.979;
         float wtag_score = 0.959;
-        float toptag_mass_low = 120.0;
+        float toptag_mass_low = 50.0;
         float toptag_mass_high = 250.0;
         float wtag_mass_low = 50;
         float wtag_mass_high = 110;
@@ -77,6 +79,7 @@ public:
     RVec<Muon> SelectHighPtMuons(const RVec<Muon>& muons);
     RVec<Jet> SelectBTaggedJets(const RVec<Jet>& jets);
     RVec<FatJet> SelectTopTaggedJets(const RVec<FatJet>& fatjets);
+    RVec<FatJet> SelectTopTaggedJets_nomasscut(const RVec<FatJet>& fatjets);
     RVec<FatJet> SelectWTaggedJets(const RVec<FatJet>& fatjets);
     RVec<Muon> RemoveOverlap(const RVec<Muon>& muons, float deltaR_cut = 0.4);
     RVec<Jet> RemoveOverlapWithMuons(const RVec<Jet>& jets, const RVec<Muon>& muons, float deltaR_cut = 0.4);

@@ -55,9 +55,9 @@ for file in os.listdir(data_directory):
             next_bin_content = bin_content
         content_diff =   bin_content - next_bin_content
         if content_diff == 0:
-            hist_new.SetBinContent(i, 0)
+            hist_new.SetBinContent(i, 100)
             continue
-        percent = content_diff / bin_content * 100 
+        percent =  100 - content_diff / bin_content * 100 
         hist_new.SetBinContent(i, percent)
     final_content = hist_clone.GetBinContent(7)
     initial_content = hist_clone.GetBinContent(1)
@@ -75,16 +75,18 @@ for file in os.listdir(data_directory):
     canvas = ROOT.TCanvas("canvas", "canvas", 800, 600)
 
     hist_new.Draw()
-    hist_new.SetTitle("CutFlow" + file)
+    hist_new.SetTitle("CutFlow passed" + " " + file)
     hist_new.GetXaxis().SetTitle("Cut Stage")
     hist_new.GetXaxis().SetTitleOffset(1.2)
     hist_new.GetYaxis().SetTitle("Percent %")
     hist_new.SetLineColor(ROOT.kBlue)
     hist_new.SetLineWidth(2)
     hist_new.SetMaximum(100)
+    hist_new.SetMinimum(0)
     hist_new.SetStats(0)
     if not file.startswith("TB"):
         canvas.SetLogy()
+        hist_new.SetMinimum(1e-6)
 
     
     canvas.Update()

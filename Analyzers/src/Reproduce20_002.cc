@@ -4,63 +4,46 @@ Reproduce20_002::Reproduce20_002() {}
 Reproduce20_002::~Reproduce20_002() {}  
 
 void Reproduce20_002::initializeAnalyzer() {
-
-    Muon_Trigger.clear();
-    Muon_Trigger_Safe_Pt_Cut = 0.;
-    Ele_Trigger.clear();
-    Ele_Trigger_Safe_Pt_Cut = 0.;
+    // if signal ..  # 26 
+    // kfactor  # 51
+    mu_set.Muon_Trigger.clear();
+    mu_set.Muon_Trigger_Safe_Pt_Cut = 0.;
+    el_set.Ele_Trigger.clear();
+    el_set.Ele_Trigger_Safe_Pt_Cut = 0.;
     
     if (DataEra == "2022")
     {
-        Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        double Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        double Ele_Trigger_Safe_Pt_Cut = 35.;  
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 35.;  
     }
     if (DataEra == "2022EE")
     {
-        Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        double Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        double Ele_Trigger_Safe_Pt_Cut = 35.; 
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
     if (DataEra == "2023")
     {
-        Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        double Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        double Ele_Trigger_Safe_Pt_Cut = 35.; 
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
     if (DataEra == "2023BPix")
     {
-        Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        double Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        double Ele_Trigger_Safe_Pt_Cut = 35.; 
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
 
-    // Muon , electron SF 설정 ? 
-    ZPtReweight = 1.;
-    ZPtReweight_Up = 1.;
-    ZPtReweight_Down = 1.;
-    ZPtReweight_QCDScaleUp = 1.;
-    ZPtReweight_QCDScaleDown = 1.;
-    ZPtReweight_QCDPDFErrorUp = 1.;
-    ZPtReweight_QCDPDFErrorDown = 1.;
-    ZPtReweight_QCDPDFAlphaSUp = 1.;
-    ZPtReweight_QCDPDFAlphaSDown = 1.;
-
-  //==== Z-pt EW
-    ZPtEWCorr = 1.;
-    ZPtEWCorr_E1Up = 1.;
-    ZPtEWCorr_E1Down = 1.;
-    ZPtEWCorr_E2Up = 1.;
-    ZPtEWCorr_E2Down = 1.;
-    ZPtEWCorr_E3Up = 1.;
-    ZPtEWCorr_E3Down = 1.;
+    myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
 
     // B tagging parameters ..?  # 177
-
+    
     /*
     // PU Reweight # 188
     if(!IsDATA){
@@ -108,7 +91,7 @@ void Reproduce20_002::initializeAnalyzer() {
     hist_DYReshape_Boosted_MuMuOnlyRatio = (TH1D *)file_DYReshape->Get("Boosted_MuMuOnlyRatio");
     }   
     */
-    myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
+    
     
     // Initialize systematic helper
     string SKNANO_HOME = getenv("SKNANO_HOME");
@@ -122,11 +105,11 @@ void Reproduce20_002::initializeAnalyzer() {
 
 void Reproduce20_002::executeEvent() {
 
-    AllElectrons =  GetAllElectrons();
-    AllMuons = GetAllMuons();
-    AllJets = GetAllJets();
-    AllFatJets = GetAllFatJets();
-    gens = GetAllGens();
+    el_set.AllElectrons =  GetAllElectrons();
+    mu_set.AllMuons = GetAllMuons();
+    jet_set.AllJets = GetAllJets();
+    fatjet_set.AllFatJets = GetAllFatJets();
+    gen_set.gens = GetAllGens();
     // no tune p muon 
     
 
@@ -190,16 +173,16 @@ void Reproduce20_002::executeEventFromParameter() {
     
 
     //Event selection 
-    RVec<Electron> electrons = AllElectrons;
-    RVec<Muon> muons = AllMuons;
-    RVec<Jet> jets = AllJets;
-    RVec<FatJet> fatjets = AllFatJets;
-    if (!PassNoiseFilter(AllJets,ev,Event::MET_Type::PUPPI)) return;
+    RVec<Electron> electrons = el_set.AllElectrons;
+    RVec<Muon> muons = mu_set.AllMuons;
+    RVec<Jet> jets = jet_set.AllJets;
+    RVec<FatJet> fatjets = fatjet_set.AllFatJets;
+    if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) return;
 
     FillHist(this_syst + "/CutFlow", 1.0, weight, 10, 0., 10.); // Noise filter pass
 
-    bool pass_trig_muon = ev.PassTrigger(Muon_Trigger);
-    bool pass_trig_elec = ev.PassTrigger(Ele_Trigger);
+    bool pass_trig_muon = ev.PassTrigger(mu_set.Muon_Trigger);
+    bool pass_trig_elec = ev.PassTrigger(el_set.Ele_Trigger);
 
     FillHist(this_syst + "/CutFlow", 2.0, weight, 10, 0., 10.); // HLT pass
 
@@ -393,8 +376,8 @@ void Reproduce20_002::executeEventFromParameter() {
 
 
     ///         Leptons       ///
-    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , emu_set.Electron_MinPt, 2.4);
-    RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , emu_set.Muon_MinPt, 2.4);
+    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.4);
+    RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , mu_set.Muon_MinPt, 2.4);
 
     //prompt only 구현 필요    
     sort (my_electrons.begin(), my_electrons.end(), PtComparing);
@@ -407,13 +390,13 @@ void Reproduce20_002::executeEventFromParameter() {
 
     for (unsigned int i=0 ; i< my_electrons.size(); i ++) {
         Electron & el = my_electrons.at(i);
-        if (el.PassID(emu_set.Electron_Tight_ID[0])) {
+        if (el.PassID(el_set.Electron_Tight_ID[0])) {
             Tight_electrons.push_back(&el);
             Tight_leps_el.push_back( &el);
             Tight_leps.push_back(&el);
 
         }
-        else if (el.PassID(emu_set.Electron_Loose_ID[0])) {
+        else if (el.PassID(el_set.Electron_Loose_ID[0])) {
             Loose_electrons.push_back(&el);
             Loose_leps_el.push_back(&el);
             Loose_leps.push_back(&el);
@@ -421,12 +404,12 @@ void Reproduce20_002::executeEventFromParameter() {
     }
     for (unsigned int i=0 ; i< my_muons.size(); i ++) {
         Muon & mu = my_muons.at(i);
-        if (mu.PassID(emu_set.Muon_Tight_ID[0])) {
+        if (mu.PassID(mu_set.Muon_Tight_ID[0])) {
             Tight_muons.push_back(&mu);
             Tight_leps_mu.push_back( &mu);
             Tight_leps.push_back(&mu);
         }
-        else if (mu.PassID(emu_set.Muon_Loose_ID[0])) {
+        else if (mu.PassID(mu_set.Muon_Loose_ID[0])) {
             Loose_muons.push_back(&mu);
             Loose_leps_mu.push_back(&mu);
             Loose_leps.push_back(&mu);
@@ -437,10 +420,11 @@ void Reproduce20_002::executeEventFromParameter() {
     int n_Loose_leptons  = Loose_electrons.size() + Loose_muons.size();
     int n_Tight_leptons  = Tight_electrons.size() + Tight_muons.size();
     ///         Jets       ///
-
-    JetIds = {Jet::JetID::LOOSE};
-    RVec<Jet> selected_jets = SelectJets(jets, JetIds[0] , 40.0, 2.4);
+    FillHist(this_syst + "/Non_Selected_Jetnum", jets.size(), 1.0, 20, 0., 20.);
+    jet_set.JetIds = {Jet::JetID::NOCUT};
+    RVec<Jet> selected_jets = SelectJets(jets, jet_set.JetIds[0] , 40.0, 2.4);
     sort (selected_jets.begin(), selected_jets.end(), PtComparing);
+    FillHist(this_syst + "/Selected_Jetnum", selected_jets.size(), 1.0, 10, 0., 10.);
 
     ///         FatJets       ///
     
@@ -459,7 +443,7 @@ void Reproduce20_002::executeEventFromParameter() {
 
     // sum of pt 
     double HT(0.);
-    for(const auto &jet: AllJets){
+    for(const auto &jet: jet_set.AllJets){
         HT += jet.Pt();
     }
 
@@ -503,15 +487,15 @@ void Reproduce20_002::executeEventFromParameter() {
         FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // 2 tight leptons with pT cut
         
         if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
-            this_trigger_pass = true;
+            this_trigger_pass = pass_trig_elec;
             tmp_isEE = true;
         }
         else if ( (Tight_muons.size() == 2) && ( Tight_electrons.size() == 0 )) {
-            this_trigger_pass = true;
+            this_trigger_pass = pass_trig_muon;
             tmp_isMM = true;
         }
         else if ( (Tight_muons.size() == 1) && ( Tight_electrons.size() == 1 )) {
-            this_trigger_pass = true;
+            this_trigger_pass = pass_trig_muon;
             tmp_isEM = true;
         }
 
@@ -564,14 +548,28 @@ void Reproduce20_002::executeEventFromParameter() {
                 // DY CR ll< 150 , lljj > 800 
                 if ( DiLepMassLT150 && WRCand.M() > 800.0 ) {
                     FillHist(this_syst + "/CutFlow", 6.0, weight, 10, 0., 10.); // DY CR pass
+                    FillHist(this_syst + "DYCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "DYCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "DYCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+
                     if (tmp_isEE) {
                         FillHist(this_syst + "/DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/DYCR_Resolved_EE_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                     }
                     else if (tmp_isMM) {
                         FillHist(this_syst + "/DYCR_Resolved_MM_pt",dilepton_pt, weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/DYCR_Resolved_MM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                     }
                     else if (tmp_isEM) {
                         FillHist(this_syst + "/DYCR_Resolved_EM_pt", dilepton_pt, weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/DYCR_Resolved_EM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/DYCR_Resolved_EM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/DYCR_Resolved_EM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                     }
                 }
             }

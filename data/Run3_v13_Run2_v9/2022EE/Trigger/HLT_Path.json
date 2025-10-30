@@ -166,7 +166,8 @@
         "active": true
     },
     "HLT_Ele32_WPTight_Gsf": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "active": true
     },
     "HLT_Ele35_WPTight_Gsf": {
         "lumi": 26671.609707229
@@ -865,7 +866,8 @@
         "lumi": 26671.609707229
     },
     "HLT_Photon200": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "active": true
     },
     "HLT_Photon30EB_TightID_TightIso": {
         "lumi": 26671.609707229
@@ -1231,7 +1233,8 @@
         "lumi": 26671.609707229
     },
     "HLT_Ele115_CaloIdVT_GsfTrkIdT": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "active": true
     },
     "HLT_Ele135_CaloIdVT_GsfTrkIdT": {
         "lumi": 26671.609707229

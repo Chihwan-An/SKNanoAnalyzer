@@ -6,38 +6,40 @@ Reproduce20_002::~Reproduce20_002() {}
 void Reproduce20_002::initializeAnalyzer() {
 
     Muon_Trigger.clear();
-    Muon_Trigger_Safe_Pt_Cut.clear();
+    Muon_Trigger_Safe_Pt_Cut = 0.;
     Ele_Trigger.clear();
-    Ele_Trigger_Safe_Pt_Cut.clear();
+    Ele_Trigger_Safe_Pt_Cut = 0.;
     
     if (DataEra == "2022")
     {
         Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"}
-        Ele_Trigger_Safe_Pt_Cut = 35.;  
+        double Muon_Trigger_Safe_Pt_Cut = 52.;
+        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        double Ele_Trigger_Safe_Pt_Cut = 35.;  
     }
     if (DataEra == "2022EE")
     {
         Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"}
-        Ele_Trigger_Safe_Pt_Cut = 35.; 
+        double Muon_Trigger_Safe_Pt_Cut = 52.;
+        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        double Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
     if (DataEra == "2023")
     {
         Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"}
-        Ele_Trigger_Safe_Pt_Cut = 35.; 
+        double Muon_Trigger_Safe_Pt_Cut = 52.;
+        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        double Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
     if (DataEra == "2023BPix")
     {
         Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
-        Muon_Trigger_Safe_Pt_Cut = 52.;
-        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"}
-        Ele_Trigger_Safe_Pt_Cut = 35.; 
+        double Muon_Trigger_Safe_Pt_Cut = 52.;
+        Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        double Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
+
+    // Muon , electron SF 설정 ? 
     ZPtReweight = 1.;
     ZPtReweight_Up = 1.;
     ZPtReweight_Down = 1.;
@@ -59,72 +61,87 @@ void Reproduce20_002::initializeAnalyzer() {
 
     // B tagging parameters ..?  # 177
 
-
-
-
+    /*
     // PU Reweight # 188
-
+    if(!IsDATA){
+        TString datapath = getenv("DATA_DIR");
+        TString PUfname = datapath+"/"+TString::Itoa(DataYear,10)+"/PileUp/PUReweight_"+TString::Itoa(DataYear,10)+".root";
+        TString PUhname = "PUReweight_"+TString::Itoa(DataYear,10);
+        TFile *file_PUReweight = new TFile(PUfname);
+        hist_PUReweight = (TH1D *)file_PUReweight->Get(PUhname);
+        hist_PUReweight_Up = (TH1D *)file_PUReweight->Get(PUhname+"_Up");
+        hist_PUReweight_Down = (TH1D *)file_PUReweight->Get(PUhname+"_Down");
+    }
 
 
     //DY reshape  # 209
+    if(!IsDATA){
+    TString datapath = getenv("DATA_DIR");
+    //==== QCD
+    TFile *file_DYPtReweight = new TFile(datapath+"/"+TString::Itoa(DataYear,10)+"/HNWRDYPtReweight/ZPtQCDWithError.root");
+    hist_DYPt_PDFError = (TH1D *)file_DYPtReweight->Get("h_Ratio_PDFError");
+    hist_DYPt_ScaleUp = (TH1D *)file_DYPtReweight->Get("h_Ratio_ScaleUp");
+    hist_DYPt_ScaleDown = (TH1D *)file_DYPtReweight->Get("h_Ratio_ScaleDown");
+    hist_DYPt_PDFAlphaSUp = (TH1D *)file_DYPtReweight->Get("h_Ratio_AlphaSUp");
+    hist_DYPt_PDFAlphaSDown = (TH1D *)file_DYPtReweight->Get("h_Ratio_AlphaSDown");
+
+    //==== EW
+    TFile *file_DYPtEWCorr = new TFile(datapath+"/"+TString::Itoa(DataYear,10)+"/HNWRDYPtReweight/ZPtEWCorr.root");
+    hist_DYPtEWCorr = (TH1D *)file_DYPtEWCorr->Get("hist_v");
+    hist_DYPtEWCorrE1 = (TH1D *)file_DYPtEWCorr->Get("hist_e1");
+    hist_DYPtEWCorrE2 = (TH1D *)file_DYPtEWCorr->Get("hist_e2");
+    hist_DYPtEWCorrE3 = (TH1D *)file_DYPtEWCorr->Get("hist_e3");
+
+    //==== Shape
+    TString tmp_IsJetPt = "";
+    if(UseJetPtRwg) tmp_IsJetPt = "JetPt";
+    TString             filename_DYReshape = "DYReshape"+tmp_IsJetPt+"_"     +TString::Itoa(DataYear,10)+".root";
+    if(UseDYCR1Reshape) filename_DYReshape = "DYReshape"+tmp_IsJetPt+"DYCR1_"+TString::Itoa(DataYear,10)+".root";
+
+    cout << "[HNWRAnalyzer::initializeAnalyzer()] filename_DYReshape = " << filename_DYReshape << endl;
+    TFile *file_DYReshape = new TFile(datapath+"/"+TString::Itoa(DataYear,10)+"/HNWRDYReshape/"+filename_DYReshape);
+    hist_DYReshape_Resolved_ratio_AllCh = (TH1D *)file_DYReshape->Get("Resolved_ratio_AllCh");
+    hist_DYReshape_Resolved_EEOnlyRatio = (TH1D *)file_DYReshape->Get("Resolved_EEOnlyRatio");
+    hist_DYReshape_Resolved_MuMuOnlyRatio = (TH1D *)file_DYReshape->Get("Resolved_MuMuOnlyRatio");
+    hist_DYReshape_Boosted_ratio_AllCh = (TH1D *)file_DYReshape->Get("Boosted_ratio_AllCh");
+    hist_DYReshape_Boosted_EEOnlyRatio = (TH1D *)file_DYReshape->Get("Boosted_EEOnlyRatio");
+    hist_DYReshape_Boosted_MuMuOnlyRatio = (TH1D *)file_DYReshape->Get("Boosted_MuMuOnlyRatio");
+    }   
+    */
+    myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
+    
+    // Initialize systematic helper
+    string SKNANO_HOME = getenv("SKNANO_HOME");
+    if (IsDATA) {
+        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/noSyst.yaml", DataStream, DataEra);
+    } else {
+        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/ExampleSystematic.yaml", MCSample, DataEra);
+    }
 
 }
 
 void Reproduce20_002::executeEvent() {
 
-    Allelectrons =  GetAllElectrons();
-    Allmuons = GetAllMuons();
-    Alljets = GetAllJets();
-    Allfatjets = GetAllFatJets();
+    AllElectrons =  GetAllElectrons();
+    AllMuons = GetAllMuons();
+    AllJets = GetAllJets();
+    AllFatJets = GetAllFatJets();
+    gens = GetAllGens();
     // no tune p muon 
     
 
     // DY pt reweight
-
+    if(MCSample.Contains("DY")){
+    // wtf ?
+    }
+    for (const auto &syst_dummy : *systHelper) {
+        executeEventFromParameter();
+    }
     // Nvtx ( PU )
 
 
-    //Parameter
-    AnalyzerParameter param;
-    param.clear();
-
-    param.Name = "HNWR";
-    param.MCCorrrectionIgnoreNoHist = false;
-
-    param.Electron_Tight_ID = "HNWRTight";
-    param.Electron_Loose_ID = "HNWRLoose";
-    param.Electron_ID_SF_Key = "HEEP";
-    param.Electron_Trigger_SF_Key = "HEEP";
-    param.Electron_FR_ID = "HNWR";
-    param.Electron_FR_Key = "AwayJetPt40";
-    param.Electron_CF_ID = "HNWRTight";
-    param.Electron_CF_Key = "ZToLL";
-    param.Electron_UseMini = false;
-    param.Electron_UsePtCone = false;
-    param.Electron_MinPt = 53.;
-
-    param.Muon_Tight_ID = "HNWRTight";
-    param.Muon_Loose_ID = "HNWRLoose";
-    param.Muon_RECO_SF_Key = "HighPtMuonRecoSF";
-    param.Muon_ID_SF_Key = "NUM_HighPtID_DEN_genTracks";
-    param.Muon_ISO_SF_Key = "NUM_LooseRelTkIso_DEN_HighPtIDandIPCut";
-    param.Muon_Trigger_SF_Key = "POGHighPtLooseTrkIso";
-    param.Muon_FR_ID = "HNWR";
-    param.Muon_FR_Key = "AwayJetPt40";
-    param.Muon_CF_ID = "HNWRTight";
-    param.Muon_CF_Key = "ZToLL";
-    param.Muon_UseMini = false;
-    param.Muon_UsePtCone = false;
-    param.Muon_UseTuneP = true;
-    param.Muon_MinPt = 53.;
-
-    param.Jet_ID = "HN";
-    param.FatJet_ID = "HN";
-
-    param.dRSeparation = 0.4;
-    param.FatJet_dRSeparation = 0.8;
-
-    executeEventFromParameter(param);
+    //Parameter -no function of parameter -> use struct 
+    
 
     //Run syst  # 457
 
@@ -133,13 +150,12 @@ void Reproduce20_002::executeEvent() {
 
 }
 
-void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
+void Reproduce20_002::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
 
     Event ev = GetEvent();
-    Particle METv = ev.GetMETVector();
+    Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
     float weight = 1.0;
-
     if(!IsDATA){
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("Full");
@@ -174,19 +190,20 @@ void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
     
 
     //Event selection 
-
-    if (!PassNoiseFilter()) return;
+    RVec<Electron> electrons = AllElectrons;
+    RVec<Muon> muons = AllMuons;
+    RVec<Jet> jets = AllJets;
+    RVec<FatJet> fatjets = AllFatJets;
+    if (!PassNoiseFilter(AllJets,ev,Event::MET_Type::PUPPI)) return;
 
     FillHist(this_syst + "/CutFlow", 1.0, weight, 10, 0., 10.); // Noise filter pass
 
-    if (!(ev.PassTrigger(Muon_Trigger))) return;
+    bool pass_trig_muon = ev.PassTrigger(Muon_Trigger);
+    bool pass_trig_elec = ev.PassTrigger(Ele_Trigger);
 
     FillHist(this_syst + "/CutFlow", 2.0, weight, 10, 0., 10.); // HLT pass
 
-    RVec<Electron> electrons = Allelectrons;
-    RVec<Muon> muons = Allmuons;
-    RVec<Jet> jets = Alljets;
-    RVec<FatJet> fatjets = Allfatjets;
+    
     
 
     /*  int SystDir_MuonRecoSF(0);
@@ -376,8 +393,8 @@ void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
 
 
     ///         Leptons       ///
-    RVec<Electron> my_electrons = SelectElectrons(electrons, "HNWRLT" , param.Electron_MinPt, 2.4);
-    RVec<Muon> my_muons = SelectMuons(muons, "HNWRLT" , param.Muon_MinPt, 2.4);
+    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , emu_set.Electron_MinPt, 2.4);
+    RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , emu_set.Muon_MinPt, 2.4);
 
     //prompt only 구현 필요    
     sort (my_electrons.begin(), my_electrons.end(), PtComparing);
@@ -388,28 +405,28 @@ void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
     RVec<Lepton *> Tight_leps_el , Tight_leps_mu , Tight_leps;
     RVec<Lepton *> Loose_leps_el , Loose_leps_mu , Loose_leps;
 
-    for (unsigned int i=0 ; i< my_electrons.size()l; i ++) {
+    for (unsigned int i=0 ; i< my_electrons.size(); i ++) {
         Electron & el = my_electrons.at(i);
-        if (el.PassID(param.Electron_Tight_ID)) {
+        if (el.PassID(emu_set.Electron_Tight_ID[0])) {
             Tight_electrons.push_back(&el);
             Tight_leps_el.push_back( &el);
             Tight_leps.push_back(&el);
 
         }
-        else if (el.PassID(param.Electron_Loose_ID)) {
+        else if (el.PassID(emu_set.Electron_Loose_ID[0])) {
             Loose_electrons.push_back(&el);
             Loose_leps_el.push_back(&el);
             Loose_leps.push_back(&el);
         }
     }
-    for (unsigned int i=0 ; i< my_muons.size()l; i ++) {
+    for (unsigned int i=0 ; i< my_muons.size(); i ++) {
         Muon & mu = my_muons.at(i);
-        if (mu.PassID(param.Muon_Tight_ID)) {
+        if (mu.PassID(emu_set.Muon_Tight_ID[0])) {
             Tight_muons.push_back(&mu);
             Tight_leps_mu.push_back( &mu);
             Tight_leps.push_back(&mu);
         }
-        else if (mu.PassID(param.Muon_Loose_ID)) {
+        else if (mu.PassID(emu_set.Muon_Loose_ID[0])) {
             Loose_muons.push_back(&mu);
             Loose_leps_mu.push_back(&mu);
             Loose_leps.push_back(&mu);
@@ -421,14 +438,14 @@ void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
     int n_Tight_leptons  = Tight_electrons.size() + Tight_muons.size();
     ///         Jets       ///
 
-
-    RVec<Jet> selected_jets = SelectJets(jets, param.Jet_ID , 40.0, 2.4);
+    JetIds = {Jet::JetID::LOOSE};
+    RVec<Jet> selected_jets = SelectJets(jets, JetIds[0] , 40.0, 2.4);
     sort (selected_jets.begin(), selected_jets.end(), PtComparing);
 
     ///         FatJets       ///
-
-    RVec<FatJet> selected_fatjets = SelectFatJets(fatjets, param.FatJet_ID , 200.0, 2.4);
-    sort (selected_fatjets.begin(), selected_fatjets.end(), PtComparing);
+    
+    //RVec<FatJet> selected_fatjets = SelectFatJets(fatjets, loose , 200.0, 2.4);
+    //sort (selected_fatjets.begin(), selected_fatjets.end(), PtComparing);
 
     // # of bjets 
     /*
@@ -448,7 +465,7 @@ void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
 
     // lepton SF 
 
-    double this_trigger_SF(1.0);
+    // double this_trigger_SF(1.0);
 
     // Categorization 
     //  뭐임 이게 
@@ -479,48 +496,108 @@ void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
     // Def of resolved event 
 
     bool this_trigger_pass(false);
-
-    if ( (n_Tight_leptons.size() ==2 ) && (Tight_muons[0].Pt() > 60.0) ) {
+    bool tmp_isEE(false), tmp_isMM(false), tmp_isEM(false);
+    if (Tight_muons.size() == 0 ) return;
+    if ( (n_Tight_leptons == 2 ) && (Tight_muons[0]->Pt() > 60.0) ) {
 
         FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // 2 tight leptons with pT cut
         
         if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
             this_trigger_pass = true;
+            tmp_isEE = true;
         }
         else if ( (Tight_muons.size() == 2) && ( Tight_electrons.size() == 0 )) {
             this_trigger_pass = true;
+            tmp_isMM = true;
         }
         else if ( (Tight_muons.size() == 1) && ( Tight_electrons.size() == 1 )) {
             this_trigger_pass = true;
+            tmp_isEM = true;
         }
 
         if (this_trigger_pass) {
             // needs 2 jets 
-            if (jets.size() >= 2 ){
+            if (selected_jets.size() >= 2 ){
+                FillHist(this_syst + "/CutFlow", 4.0, weight, 10, 0., 10.); // 2 jets
                 Lepton *LeadLep = Tight_leps[0];
                 Lepton *SubLeadLep = Tight_leps[1];
 
                 // needs seperation 
 
-                bool dRLeadJetLepton = ((jets[0].DeltaR(*LeadLep) > 0.4) &&  (jets[0].DeltaR(*SubLeadLep) > 0.4) );
-                bool dRSubLeadJetLepton = ((jets[1].DeltaR(*LeadLep) > 0.4) &&  (jets[1].DeltaR(*SubLeadLep) > 0.4) );
+                bool dRLeadJetLepton = ((selected_jets[0].DeltaR(*LeadLep) > 0.4) &&  (selected_jets[0].DeltaR(*SubLeadLep) > 0.4) );
+                bool dRSubLeadJetLepton = ((selected_jets[1].DeltaR(*LeadLep) > 0.4) &&  (selected_jets[1].DeltaR(*SubLeadLep) > 0.4) );
                 bool dRTwoLepton = (LeadLep->DeltaR(*SubLeadLep) > 0.4);
-                bool dRTwoJets = (jets[0].DeltaR(jets[1]) > 0.4);
+                bool dRTwoJets = (selected_jets[0].DeltaR(selected_jets[1]) > 0.4);
 
                 
 
                 if ( dRLeadJetLepton && dRSubLeadJetLepton && dRTwoLepton && dRTwoJets ){
                     bool IsResolvedEvent(true);
-                    
+                    FillHist(this_syst + "/CutFlow", 5.0, weight, 10, 0., 10.); // dR cuts pass
                     // Mass calculation 
+                    Particle WRCand = *LeadLep + *SubLeadLep + selected_jets[0] + selected_jets[1];
+                    
+                    double dilepton_mass = ( *LeadLep + *SubLeadLep ).M();
+                    double dilepton_pt = ( *LeadLep + *SubLeadLep ).Pt();
 
+                    bool DiLepMassGT200 = ( dilepton_mass > 200.0 );
+                    bool DiLepMassGT400 = ( dilepton_mass > 400.0 );
+                    bool DiLepMassLT150 = ( dilepton_mass >= 60. ) && ( dilepton_mass < 150. );
+                    
+                    bool DiLepMass60to100  = (dilepton_mass >= 60.) && (dilepton_mass < 100.);
+                    bool DiLepMass100to150 = (dilepton_mass >= 100.) && (dilepton_mass < 150.);
+                    bool DiLepMass200to400  = (dilepton_mass >= 200.) && (dilepton_mass < 400.);
+
+                    double trigger_sf_SingleElectron = 1.0;
+                    double trigger_sf_SingleMuon = 1.0;
+
+                //SF application 
+
+                // e , mu id , reco , ISO SF
+                
+                // Trigger SF
+
+                // DY reshape ?
+
+                // saving plots for each CR 
+                
+                // DY CR ll< 150 , lljj > 800 
+                if ( DiLepMassLT150 && WRCand.M() > 800.0 ) {
+                    FillHist(this_syst + "/CutFlow", 6.0, weight, 10, 0., 10.); // DY CR pass
+                    if (tmp_isEE) {
+                        FillHist(this_syst + "/DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    }
+                    else if (tmp_isMM) {
+                        FillHist(this_syst + "/DYCR_Resolved_MM_pt",dilepton_pt, weight, 100, 0., 1000.);
+                    }
+                    else if (tmp_isEM) {
+                        FillHist(this_syst + "/DYCR_Resolved_EM_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    }
                 }
+            }
+
+
+
 
                 
 
 
             }
         }// # 1192 -> Resolved ends .
+    // # 1660  -> Boost event ends .
+
+    // double counting check?  # 1670
+
+    // Higmass info # 1722 
+
+    // veto HEM  ? # 1748 
+
+    // Fill histograms for main variables # 1771 
+    // end ## 1984
+    }
+}
+
+
         
 
 
@@ -532,6 +609,6 @@ void Reproduce20_002::executeEventFromParameter(AnalyzerParameter param) {
 
 
 
-}
+
 
 

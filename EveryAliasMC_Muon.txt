@@ -80,5 +80,5 @@ TBChannel_WR5000N2500
 TBChannel_WR5000N3300
 TBChannel_WR5000N4100
 TBChannel_WR5000N4900
-Muon*
-Single*
+#Muon*
+#Single*

@@ -27,7 +27,7 @@ def normalize_by_bin_size(hist):
         hist: ROOT 히스토그램 객체
         
     Returns:
-        정규화된 히스토그램의 복사본
+        정규화된 히스ㅂ토그램의 복사본
     """
     # 이산적 변수인지 확인 (빈 크기가 모두 1인 경우)
     first_bin_width = hist.GetXaxis().GetBinWidth(1)

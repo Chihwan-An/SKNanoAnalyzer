@@ -29,6 +29,10 @@ void LRSM_TBChannel_notusingbjet::initializeAnalyzer() {
     MuonIDs.push_back(Muon::MuonID::POG_GLOBAL_HIGH_PT);  // This matches your data (HighPtId=2)
     MuonIDs.push_back(Muon::MuonID::POG_TKISO_TIGHT);      // TkIsoId=2
     
+    MuonIDs.push_back(Muon::MuonID::POG_PFISO_LOOSE);  // reject muon decayed from neutral hadrons
+    MuonIDs.push_back(Muon::MuonID::POG_PFISO_TIGHT);   // reject muon decayed from neutral hadrons 
+    MuonIDs.push_back(Muon::MuonID::POG_PFISO_VTIGHT);
+    
 
 
     // Jet IDs
@@ -364,6 +368,22 @@ void LRSM_TBChannel_notusingbjet::executeEventFromParameter() {
     float wr_mass = CalculateWRMass(muon_overlap_cleaned, leading_bjet, leading_topjet);
     float dilepton_mass = (muon_overlap_cleaned[0] + muon_overlap_cleaned[1]).M();
     
+    bool sec_muon_pass_loose_pf = muon_overlap_cleaned[1].PassID(MuonIDs[2]);
+    bool sec_muon_pass_tight_pf = muon_overlap_cleaned[1].PassID(MuonIDs[3]);
+    bool sec_muon_pass_vtight_pf = muon_overlap_cleaned[1].PassID(MuonIDs[4]);
+
+    if (!sec_muon_pass_loose_pf){
+        FillHist(this_syst + "/sec_muon_pf",0, weight, 4, 0., 4.); // low than loose
+    }
+    else if ( sec_muon_pass_loose_pf){
+        FillHist(this_syst + "/sec_muon_pf",1, weight, 4, 0., 4.);  // loose
+    }
+    else if ( sec_muon_pass_tight_pf){
+        FillHist(this_syst + "/sec_muon_pf",2, weight, 4, 0., 4.); // tight
+    }
+    else if ( sec_muon_pass_vtight_pf){
+        FillHist(this_syst + "/sec_muon_pf",3, weight, 4, 0., 4.); // v tight
+    }
     // Apply WR mass cut if requested
    
     

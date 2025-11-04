@@ -178,7 +178,8 @@
         "active": true
     },
     "HLT_Ele32_WPTight_Gsf": {
-        "lumi": 17794.0
+        "lumi": 17794.0,
+        "active": true
     },
     "HLT_Ele35_WPTight_Gsf": {
         "lumi": 17794.0
@@ -368,16 +369,19 @@
         "lumi": 17794.0
     },
     "HLT_Mu50": {
-        "lumi": 17794.0
+        "lumi": 17794.0,
+        "active": true
     },
     "HLT_Mu55": {
         "lumi": 17794.0
     },
     "HLT_CascadeMu100": {
-        "lumi": 17794.0
+        "lumi": 17794.0,
+        "active": true
     },
     "HLT_HighPtTkMu100": {
-        "lumi": 17794.0
+        "lumi": 17794.0,
+        "active": true
     },
     "HLT_DiPFJet15_NoCaloMatched": {
         "lumi": 17794.0
@@ -978,7 +982,8 @@
         "lumi": 17794.0
     },
     "HLT_Photon200": {
-        "lumi": 17794.0
+        "lumi": 17794.0,
+        "active": true
     },
     "HLT_Photon30EB_TightID_TightIso": {
         "lumi": 17794.0
@@ -1389,7 +1394,8 @@
         "lumi": 17794.0
     },
     "HLT_Ele115_CaloIdVT_GsfTrkIdT": {
-        "lumi": 17794.0
+        "lumi": 17794.0,
+        "active": true
     },
     "HLT_Ele135_CaloIdVT_GsfTrkIdT": {
         "lumi": 17794.0

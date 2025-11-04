@@ -101,8 +101,9 @@ public:
 
     struct Jets{
         RVec<Jet> AllJets;
-
         RVec<Jet::JetID> JetIds;
+        RVec<Jet>cleanedjet_with_tight_leptons;
+        RVec<Jet>cleanedjet_with_loose_leptons;
     }jet_set;
 
     struct FatJets{
@@ -114,6 +115,8 @@ public:
     }gen_set;
 
 
+    RVec<Jet> Clean_jet_with_tight_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & tight_leps) ;
+    RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;
 
     float dR_Separation = 0.4;
     float FatJet_dR_Separation = 0.8;

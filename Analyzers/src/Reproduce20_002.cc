@@ -374,8 +374,15 @@ void Reproduce20_002::executeEventFromParameter() {
 
 
 
-
+    std::string nom = "nom";
     ///         Leptons       ///
+    /*
+    for (unsigned int i=0 ; i< muons.size(); i ++) 
+        {
+        Muon & mu = muons.at(i);
+        myCorr->GetMuonScaleSF(mu,nom,mu.Pt());
+    }    
+    */
     RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.4);
     RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , mu_set.Muon_MinPt, 2.4);
 
@@ -420,6 +427,15 @@ void Reproduce20_002::executeEventFromParameter() {
     int n_Loose_leptons  = Loose_electrons.size() + Loose_muons.size();
     int n_Tight_leptons  = Tight_electrons.size() + Tight_muons.size();
     ///         Jets       ///
+
+
+
+    // sepration lepton - jets 
+    
+
+    jet_set.cleanedjet_with_tight_leptons = Clean_jet_with_tight_leptons(jet_set.AllJets, Tight_leps);
+    jet_set.cleanedjet_with_loose_leptons = Clean_jet_with_loose_leptons(jet_set.AllJets, Loose_leps);
+
     FillHist(this_syst + "/Non_Selected_Jetnum", jets.size(), 1.0, 20, 0., 20.);
     jet_set.JetIds = {Jet::JetID::NOCUT};
     RVec<Jet> selected_jets = SelectJets(jets, jet_set.JetIds[0] , 40.0, 2.4);
@@ -481,22 +497,25 @@ void Reproduce20_002::executeEventFromParameter() {
 
     bool this_trigger_pass(false);
     bool tmp_isEE(false), tmp_isMM(false), tmp_isEM(false);
-    if (Tight_muons.size() == 0 ) return;
-    if ( (n_Tight_leptons == 2 ) && (Tight_muons[0]->Pt() > 60.0) ) {
+    
+    if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0) ) {
 
         FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // 2 tight leptons with pT cut
         
         if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
             this_trigger_pass = pass_trig_elec;
             tmp_isEE = true;
+            FillHist(this_syst + "/tightmuons", 1 , weight, 5, 0., 5.);
         }
         else if ( (Tight_muons.size() == 2) && ( Tight_electrons.size() == 0 )) {
             this_trigger_pass = pass_trig_muon;
             tmp_isMM = true;
+            FillHist(this_syst + "/tightmuons", 2 , weight, 5, 0., 5.);
         }
         else if ( (Tight_muons.size() == 1) && ( Tight_electrons.size() == 1 )) {
             this_trigger_pass = pass_trig_muon;
             tmp_isEM = true;
+            FillHist(this_syst + "/tightmuons", 3 , weight, 5, 0., 5.);
         }
 
         if (this_trigger_pass) {
@@ -506,37 +525,50 @@ void Reproduce20_002::executeEventFromParameter() {
                 Lepton *LeadLep = Tight_leps[0];
                 Lepton *SubLeadLep = Tight_leps[1];
 
-                // needs seperation 
-
-                bool dRLeadJetLepton = ((selected_jets[0].DeltaR(*LeadLep) > 0.4) &&  (selected_jets[0].DeltaR(*SubLeadLep) > 0.4) );
-                bool dRSubLeadJetLepton = ((selected_jets[1].DeltaR(*LeadLep) > 0.4) &&  (selected_jets[1].DeltaR(*SubLeadLep) > 0.4) );
-                bool dRTwoLepton = (LeadLep->DeltaR(*SubLeadLep) > 0.4);
-                bool dRTwoJets = (selected_jets[0].DeltaR(selected_jets[1]) > 0.4);
-
                 
-
-                if ( dRLeadJetLepton && dRSubLeadJetLepton && dRTwoLepton && dRTwoJets ){
-                    bool IsResolvedEvent(true);
-                    FillHist(this_syst + "/CutFlow", 5.0, weight, 10, 0., 10.); // dR cuts pass
-                    // Mass calculation 
-                    Particle WRCand = *LeadLep + *SubLeadLep + selected_jets[0] + selected_jets[1];
+                bool IsResolvedEvent(true);
+                FillHist(this_syst + "/CutFlow", 5.0, weight, 10, 0., 10.); // dR cuts pass
+                // Mass calculation 
+                Particle WRCand = *LeadLep + *SubLeadLep + selected_jets[0] + selected_jets[1];
                     
-                    double dilepton_mass = ( *LeadLep + *SubLeadLep ).M();
-                    double dilepton_pt = ( *LeadLep + *SubLeadLep ).Pt();
+                double dilepton_mass = ( *LeadLep + *SubLeadLep ).M();
+                double dilepton_pt = ( *LeadLep + *SubLeadLep ).Pt();
 
-                    bool DiLepMassGT200 = ( dilepton_mass > 200.0 );
-                    bool DiLepMassGT400 = ( dilepton_mass > 400.0 );
-                    bool DiLepMassLT150 = ( dilepton_mass >= 60. ) && ( dilepton_mass < 150. );
+                bool DiLepMassGT200 = ( dilepton_mass > 200.0 );
+                bool DiLepMassGT400 = ( dilepton_mass > 400.0 );
+                bool DiLepMassLT150 = ( dilepton_mass >= 60. ) && ( dilepton_mass < 150. );
                     
-                    bool DiLepMass60to100  = (dilepton_mass >= 60.) && (dilepton_mass < 100.);
-                    bool DiLepMass100to150 = (dilepton_mass >= 100.) && (dilepton_mass < 150.);
-                    bool DiLepMass200to400  = (dilepton_mass >= 200.) && (dilepton_mass < 400.);
+                bool DiLepMass60to100  = (dilepton_mass >= 60.) && (dilepton_mass < 100.);
+                bool DiLepMass100to150 = (dilepton_mass >= 100.) && (dilepton_mass < 150.);
+                bool DiLepMass200to400  = (dilepton_mass >= 200.) && (dilepton_mass < 400.);
 
-                    double trigger_sf_SingleElectron = 1.0;
-                    double trigger_sf_SingleMuon = 1.0;
+                double trigger_sf_SingleElectron = 1.0;
+                double trigger_sf_SingleMuon = 1.0;
+
 
                 //SF application 
+                /*
+                if (!IsDATA) {
+                    for (unsigned int i=0 ; i< Tight_electrons.size()){
+                        double thisrecosf = myCorr->GetElectronRECOSF( Tight_electrons[i]->Eta(), Tight_electrons[i]->Pt() , Tight_electrons[i]->Phi(), "nom" );    
+                        double thisidsf = myCorr->GetElectronIDSF( Tight_electrons[i]->Eta(), Tight_electrons[i]->Pt() , Tight_electrons[i]->Phi(), "nom" );
+                        weight *= thisrecosf * thisidsf;    
+                    }
+                    for (unsigned int i=0 ; i< Tight_muons.size()){
+                        double thisrecosf = myCorr->GetMuonRecoSF( Tight_muons[i], "nom" );    
+                        double thisidsf = myCorr->GetMuonIDSF( Tight_muons[i], "nom" );
+                        weight *= thisrecosf * thisidsf;
+                    }
+                    //trigger SF
+                    trigger_sf
 
+                
+                }
+                */
+
+                    
+
+                    
                 // e , mu id , reco , ISO SF
                 
                 // Trigger SF
@@ -546,33 +578,33 @@ void Reproduce20_002::executeEventFromParameter() {
                 // saving plots for each CR 
                 
                 // DY CR ll< 150 , lljj > 800 
-                if ( DiLepMassLT150 && WRCand.M() > 800.0 ) {
-                    FillHist(this_syst + "/CutFlow", 6.0, weight, 10, 0., 10.); // DY CR pass
-                    FillHist(this_syst + "DYCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
-                    FillHist(this_syst + "DYCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                    FillHist(this_syst + "DYCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                    FillHist(this_syst + "DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+            if ( DiLepMassLT150 && WRCand.M() > 800.0 ) {
+                FillHist(this_syst + "/CutFlow", 6.0, weight, 10, 0., 10.); // DY CR pass
+                FillHist(this_syst + "DYCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                FillHist(this_syst + "DYCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                FillHist(this_syst + "DYCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                FillHist(this_syst + "DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
 
-                    if (tmp_isEE) {
-                        FillHist(this_syst + "/DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EE_mlljj", WRCand.M(), weight, 800, 0., 8000.);
-                    }
-                    else if (tmp_isMM) {
-                        FillHist(this_syst + "/DYCR_Resolved_MM_pt",dilepton_pt, weight, 100, 0., 1000.);
-                        FillHist(this_syst + "/DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_MM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
-                    }
-                    else if (tmp_isEM) {
-                        FillHist(this_syst + "/DYCR_Resolved_EM_pt", dilepton_pt, weight, 100, 0., 1000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
-                    }
+                if (tmp_isEE) {
+                    FillHist(this_syst + "/DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR_Resolved_EE_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+                else if (tmp_isMM) {
+                    FillHist(this_syst + "/DYCR_Resolved_MM_pt",dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR_Resolved_MM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+                else if (tmp_isEM) {
+                    FillHist(this_syst + "/DYCR_Resolved_EM_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/DYCR_Resolved_EM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR_Resolved_EM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR_Resolved_EM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                 }
             }
+            
 
 
 
@@ -601,7 +633,43 @@ void Reproduce20_002::executeEventFromParameter() {
 
 
 
+RVec<Jet> Reproduce20_002::Clean_jet_with_tight_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & tight_leps) {
+    RVec<Jet> cleanedjets;
+    for (unsigned int i=0 ; i< jets.size(); i ++) {
+        Jet jet = jets.at(i);
+        bool isDRtoTightLepton(false);
+        for (unsigned int j=0 ; j< tight_leps.size(); j ++) {
+            Lepton * lep = tight_leps.at(j);
+            if ( jet.DeltaR(*lep) < dR_Separation ) {
+                isDRtoTightLepton = true;
+                break;
+            }
+        }
+        if (!isDRtoTightLepton) {
+            cleanedjets.push_back(jet);
+        }
+    }
+    return cleanedjets;
+}
 
+RVec<Jet> Reproduce20_002::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
+    RVec<Jet> cleanedjets;
+    for (unsigned int i=0 ; i< jets.size(); i ++) {
+        Jet jet = jets.at(i);
+        bool isDRtoLooseLepton(false);
+        for (unsigned int j=0 ; j< loose_leps.size(); j ++) {
+            Lepton * lep = loose_leps.at(j);
+            if ( jet.DeltaR(*lep) < dR_Separation ) {
+                isDRtoLooseLepton = true;
+                break;
+            }
+        }
+        if (!isDRtoLooseLepton) {
+            cleanedjets.push_back(jet);
+        }
+    }
+    return cleanedjets;
+}
     
 
 

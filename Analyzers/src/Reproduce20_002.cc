@@ -438,7 +438,7 @@ void Reproduce20_002::executeEventFromParameter() {
 
     FillHist(this_syst + "/Non_Selected_Jetnum", jets.size(), 1.0, 20, 0., 20.);
     jet_set.JetIds = {Jet::JetID::NOCUT};
-    RVec<Jet> selected_jets = SelectJets(jets, jet_set.JetIds[0] , 40.0, 2.4);
+    RVec<Jet> selected_jets = SelectJets(jet_set.cleanedjet_with_tight_leptons, jet_set.JetIds[0] , 40.0, 2.4);
     sort (selected_jets.begin(), selected_jets.end(), PtComparing);
     FillHist(this_syst + "/Selected_Jetnum", selected_jets.size(), 1.0, 10, 0., 10.);
 
@@ -497,7 +497,7 @@ void Reproduce20_002::executeEventFromParameter() {
 
     bool this_trigger_pass(false);
     bool tmp_isEE(false), tmp_isMM(false), tmp_isEM(false);
-    
+    if (n_Tight_leptons < 2) return;
     if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0) ) {
 
         FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // 2 tight leptons with pT cut

@@ -1,6 +1,2 @@
-DY*
-TT*
-ST*
-QCD*Mu*
-Muon*
-TB*
+EG*
+MuonEG*

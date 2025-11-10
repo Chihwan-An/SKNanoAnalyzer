@@ -818,7 +818,9 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
         # Include only Muon_E, Muon_F, and SingleMuon files for data
         if (filename.startswith("Muon_E.root") or 
             filename.startswith("Muon_F.root") or
-            filename.startswith("Muon_G.root")):
+            filename.startswith("Muon_G.root") ):
+            #filename.startswith("EGamma") ):
+            #or filename.startswith("MuonEG") ):
             
             hist = load_histogram(file_path, hist_name, systematic)
             if hist:

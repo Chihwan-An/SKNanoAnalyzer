@@ -804,7 +804,7 @@ def load_histogram(file_path, hist_name, systematic="Central", silent=False):
 
 def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
     """Load and combine Muon C, D and SingleMuon data histograms"""
-    print("Loading data from Muon_E, Muon_F, and SingleMuon files")
+    print("Loading data from DATA files")
     
     # Get all ROOT files in directory
     root_files = glob.glob(os.path.join(data_dir, "*.root"))
@@ -816,7 +816,8 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
         filename = os.path.basename(file_path)
         
         # Include only Muon_E, Muon_F, and SingleMuon files for data
-        if (filename.startswith("Muon") or 
+        if (#filename.startswith("Muon0") or
+            #filename.startswith("Muon1") or 
             filename.startswith("EGamma")):
             
             
@@ -828,7 +829,7 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
                 total_events += events
     
     if not data_hists:
-        print("Warning: No data histograms found (Muon_E, Muon_F, or Muon_G)")
+        print("Warning: No data histograms found (DATA)")
         return None
     
     # Create combined histogram starting with the first one
@@ -840,7 +841,7 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
         combined_hist.Add(data_hists[i][1])
     
     ROOT.SetOwnership(combined_hist, False)
-    print(f"Combined Data Total (Muon_E + Muon_F + Muon_G): {total_events:.1f} events")
+    print(f"Combined Data Total (DATA): {total_events:.1f} events")
     print(f"Total data files combined: {len(data_hists)}")
     
     return combined_hist

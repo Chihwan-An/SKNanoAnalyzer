@@ -2,10 +2,10 @@
     "name": "EGamma0",
     "isMC": 0,
     "NEvents": [
-        -1,
-        -1,
-        -1,
-        -1
+        66588747.0,
+        16943443.0,
+        21579682.0,
+        154741477.0
     ],
     "path": [
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_1.root",
@@ -445,7 +445,6 @@
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_435.root",
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_436.root",
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_437.root",
-        "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_438.root",
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_439.root",
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_440.root",
         "/gv0/DATA/SKNano/Run3NanoAODv13p1/2023/EGamma0/Run2023C_v4/250805_134726/0000/NANOAOD_441.root",

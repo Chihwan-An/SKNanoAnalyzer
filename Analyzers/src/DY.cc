@@ -64,7 +64,7 @@ void DY::initializeAnalyzer() {
 void DY::executeEvent() {
     // Get all physics objects at the beginning to save CPU time
     AllMuons = GetAllMuons();
-    
+    AllJets = GetAllJets();
     
     // Loop over systematic sources
     for (const auto &syst_dummy : *systHelper) {
@@ -80,9 +80,10 @@ void DY::executeEventFromParameter() {
     FillHist(this_syst + "/CutFlow", 0.0, 1.0, 10, 0., 10.); // Initial event
     
     RVec<Muon> muons = AllMuons;
+    RVec<Jet> jets = AllJets;
     
 
-    // Apply HLT trigger (HLT_IsoMu24)
+    // Apply HLT trigger (HLT_IsoMu20)
     if (!ev.PassTrigger(IsoMuTriggerName)) return;
     FillHist(this_syst + "/CutFlow", 1.0, 1.0, 10, 0., 10.); // HLT pass
     
@@ -90,11 +91,11 @@ void DY::executeEventFromParameter() {
     
     
     // Select muons
-    
-    selectedMuons = RemoveOverlap(muons);
-    selectedMuons = SelectMuons(selectedMuons);
+    RVec<Muon> selectedMuons;
+    //selectedMuons = RemoveOverlap(muons);
+    selectedMuons = SelectMuons(muons);
+    if (selectedMuons.size() > 2) return;  
     if (selectedMuons.size() < 2) return;
-    if (selectedMuons.size() > 2) return; // Only consider events with exactly 2 muons
     FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.); // At least 2 muons selected
     
     // Select best Z pair using beamspot constrained chi2
@@ -114,6 +115,7 @@ void DY::executeEventFromParameter() {
     FillHist(this_syst + "/CutFlow", 4.0, 1.0, 10, 0., 10.); // Best Z pair selected
     
     float dilepton_mass = (leading_muon + subleading_muon).M();
+    float dilepton_pt = (leading_muon + subleading_muon).Pt();
     //if (dilepton_mass < 15.0 || dilepton_mass > 3000.0) return; // Dilepton mass cut
     
     
@@ -127,8 +129,35 @@ void DY::executeEventFromParameter() {
     
     // Fill histograms
     FillHist(this_syst + "/DileptonMass", dilepton_mass, weight, 3000, 0., 3000.);
+    FillHist(this_syst + "/DileptonPt", dilepton_pt, weight, 2000, 0., 2000.);
     FillHist(this_syst + "/LeadingMuonPt", leading_muon.Pt(), weight, 500, 0., 500.);
     FillHist(this_syst + "/SubleadingMuonPt", subleading_muon.Pt(), weight, 500, 0., 500.);
+
+    // Jet constrains
+    RVec<Jet> selectedJets = AnalyzerCore::SelectJets(jets, Jet::JetID::NOCUT, cuts.base_jet_pt, cuts.jet_eta);
+    
+    if (selectedJets.size() < 1) return;
+    
+    sort(selectedJets.begin(), selectedJets.end(), PtComparing);
+    
+    FillHist(this_syst + "/LeadingJetPt", selectedJets[0].Pt(), weight, 2000, 0., 2000.);
+
+    if (selectedJets[0].Pt() > 30.0) {
+        FillHist(this_syst + "/jetpt_ov_30_mll", dilepton_mass, weight, 3000, 0., 3000.); // Leading jet pT > 30 GeV
+        FillHist(this_syst + "/jetpt_ov_30_ptll", dilepton_pt, weight, 2000, 0., 2000.); // Leading jet pT > 30 GeV
+    }
+    if (selectedJets[0].Pt() > 50.0) {
+        FillHist(this_syst + "/jetpt_ov_50_mll", dilepton_mass, weight, 3000, 0., 3000.); // Leading jet pT > 50 GeV
+        FillHist(this_syst + "/jetpt_ov_50_ptll", dilepton_pt, weight, 2000, 0., 2000.); // Leading jet pT > 50 GeV
+    }
+    if (selectedJets[0].Pt() > 70.0) {
+        FillHist(this_syst + "/jetpt_ov_70_mll", dilepton_mass, weight, 3000, 0., 3000.); // Leading jet pT > 70 GeV
+        FillHist(this_syst + "/jetpt_ov_70_ptll", dilepton_pt, weight, 2000, 0., 2000.); // Leading jet pT > 70 GeV
+    }
+    if (selectedJets[0].Pt() > 100.0) {
+        FillHist(this_syst + "/jetpt_ov_100_mll", dilepton_mass, weight, 3000, 0., 3000.); // Leading jet pT > 100 GeV
+        FillHist(this_syst + "/jetpt_ov_100_ptll", dilepton_pt, weight, 2000, 0., 2000.); // Leading jet pT > 100 GeV
+    }
 }
 
 // Helper function implementations
@@ -136,7 +165,25 @@ void DY::executeEventFromParameter() {
 RVec<Muon> DY::SelectMuons(const RVec<Muon>& muons) {
     RVec<Muon> selected_muons;
     for (const auto& muon : muons) {
-        if (muon.Pt() > cuts.muon_pt_lead && 
+        if (muon.Pt() > cuts.muon_pt_sublead && 
+            abs(muon.Eta()) < cuts.muon_eta &&
+            muon.PassID(MuonIDs[0])) {
+            selected_muons.push_back(muon);
+        }
+    }
+    if (selected_muons[0].Pt() > cuts.muon_pt_lead){
+        return selected_muons;
+    }
+    else{
+        RVec<Muon> empty_muons;
+        return empty_muons;
+    }
+}
+
+RVec<Muon> DY::SelectMuonssublead(const RVec<Muon>& muons) {
+    RVec<Muon> selected_muons;
+    for (const auto& muon : muons) {
+        if (muon.Pt() > cuts.muon_pt_sublead && 
             abs(muon.Eta()) < cuts.muon_eta &&
             muon.PassID(MuonIDs[0])) {
             selected_muons.push_back(muon);

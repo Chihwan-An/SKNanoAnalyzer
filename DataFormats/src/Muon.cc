@@ -22,7 +22,6 @@ Muon::Muon() {
     j_pfIsoId = 0;      // 1=VLoose, 2=Loose, 3=Medium, 4=Tight, 5=VTight, 6=VVTight
     j_puppiIsoId = 0;   // 1=Loose, 2=Medium, 3=Tight
     j_tkIsoId = 0;      // 1=Loose, 2=Tight
-
     // MVA ID scores
     j_softMva = -999.;
     j_mvaLowPt = -999.;

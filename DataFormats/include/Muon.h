@@ -35,6 +35,8 @@ public:
     inline bool isTracker() const { return j_isTracker; }
     inline bool isStandalone() const { return j_isStandalone; }
     inline bool isGlobal() const { return j_isGlobal; }
+    void SetTkRelIso(float r) { j_tkRelIso = r;}
+    inline float TkRelIso() const { return j_tkRelIso; }
     // Unsigned char IDs
     enum class WorkingPointID {NONE, HIGHPT, MINIISO, MULTIISO, MVAMU, PFISO, PUPPIISO, TKISO};
     enum class WorkingPoint {NONE, VLOOSE, LOOSE, MEDIUM, TIGHT, VTIGHT, VVTIGHT};
@@ -127,6 +129,7 @@ private:
     bool j_looseId, j_mediumId, j_mediumPromptId, j_tightId, j_softId, j_softMvaId, j_triggerIdLoose;
     unsigned char j_highPtId, j_miniIsoId, j_multiIsoId, j_mvaMuId, j_pfIsoId, j_puppiIsoId, j_tkIsoId;
     float j_softMva, j_mvaLowPt, j_mvaTTH;
+    float j_tkRelIso;
     int j_nTrackerLayers;
     float j_miniAODPt, j_momentumScaleUp, j_momentumScaleDown;
     short j_genPartIdx;

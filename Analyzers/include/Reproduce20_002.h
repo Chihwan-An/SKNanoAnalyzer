@@ -3,6 +3,7 @@
 
 #include "AnalyzerCore.h"
 #include "SystematicHelper.h"
+#include "Muon.h"
 
 class Reproduce20_002 : public AnalyzerCore {
 public:
@@ -60,7 +61,7 @@ public:
         RVec<Electron> AllElectrons;
 
         std::string TriggerNameForSF_Electron ="WREGammaTrigger";
-        RVec<Electron::ElectronID> Electron_Tight_ID = {Electron::ElectronID::POG_TIGHT};
+        RVec<Electron::ElectronID> Electron_Tight_ID = {Electron::ElectronID::POG_HEEP,};
         RVec<Electron::ElectronID> Electron_Loose_ID = {Electron::ElectronID::POG_LOOSE};
         float Electron_MinPt = 53.;
 
@@ -81,13 +82,15 @@ public:
         RVec<Muon> AllMuons;
 
         std::string TriggerNameForSF_Muon ="Mu50";
-        RVec<Muon::MuonID> Muon_Tight_ID = {Muon::MuonID::POG_TIGHT};
+        RVec<Muon::MuonID> Muon_Tight_ID = {Muon::MuonID::POG_GLOBAL_HIGH_PT};
         RVec<Muon::MuonID> Muon_Loose_ID = {Muon::MuonID::POG_LOOSE};
         float Muon_MinPt = 53.;
 
         RVec<std::string> Muon_Trigger;
         float Muon_Trigger_Safe_Pt_Cut;
-
+        
+        float Muon_TkrelISO ;
+        float Muon_Iso_Cut = 0.1;
         std::string Muon_IS_SF_Key = "HighPtMuonIDSF";
         std::string Muon_Trigger_SF_Key = "POGHighPtLooseTrkIso";
         std::string Muon_FR_ID = "HNWR";

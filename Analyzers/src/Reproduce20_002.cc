@@ -411,7 +411,10 @@ void Reproduce20_002::executeEventFromParameter() {
     }
     for (unsigned int i=0 ; i< my_muons.size(); i ++) {
         Muon & mu = my_muons.at(i);
-        if (mu.PassID(mu_set.Muon_Tight_ID[0])) {
+
+        float tkRelIso = mu.TkRelIso();
+        
+        if ((mu.PassID(mu_set.Muon_Tight_ID[0]))&&( tkRelIso < 0.1) ){ //global high pt id 
             Tight_muons.push_back(&mu);
             Tight_leps_mu.push_back( &mu);
             Tight_leps.push_back(&mu);

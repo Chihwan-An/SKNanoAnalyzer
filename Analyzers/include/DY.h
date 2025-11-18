@@ -27,16 +27,19 @@ public:
     
     // Physics objects
     RVec<Muon> AllMuons;
+    RVec<Jet> AllJets;
     
     RVec<Muon> selectedMuons;
     float dilepton_mass;
     
     // Analysis cuts
     struct AnalysisCuts {
-        float muon_pt_lead = 26.0;
-        float muon_pt_sublead = 26.0;
+        float muon_pt_lead = 28.0;
+        float muon_pt_sublead = 10.0;
         float muon_eta = 2.4;
         float deltaR_overlap = 0.4;
+        float base_jet_pt = 20.0;
+        float jet_eta = 2.4;
     } cuts;
     
     // Systematic helper
@@ -53,7 +56,7 @@ public:
     RVec<Muon> RemoveOverlap(const RVec<Muon>& muons);
     pair<Muon, Muon> selectBestZPair(const RVec<Muon>& muons);
     
-    
+    RVec<Jet> SelectJets(const RVec<Jet> &jets, const TString ID, const float ptmin, const float fetamax);
 
 };
 

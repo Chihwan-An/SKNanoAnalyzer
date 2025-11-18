@@ -1,1 +1,6 @@
 Muon*
+Single*
+DY*MG*
+TT*
+ST*
+QCD*Mu*

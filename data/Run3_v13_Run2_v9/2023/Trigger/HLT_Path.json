@@ -227,7 +227,8 @@
         "lumi": 17794.0
     },
     "HLT_IsoMu20": {
-        "lumi": 17794.0
+        "lumi": 17794.0,
+        "active": true
     },
     "HLT_IsoMu24": {
         "lumi": 17794.0,

@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/achihwan/SKNanoAnalyzer/AnalyzerTools/include/MLHelper.h
+string
+-
+vector
+-
+memory
+-
+unordered_map
+-
+variant
+-
+
+/home/achihwan/SKNanoAnalyzer/AnalyzerTools/include/MLHelperLinkDef.hpp
+

@@ -1,10 +1,8 @@
 #!/bin/bash
 # Rebuild the project without clean
-# check if the build directory exists
-if [ -d "build/${SYSTEM}" ]; then
-    cd build/${SYSTEM}
+# check if the Makefile exists (created by cmake)
+if [ -f "Makefile" ]; then
     make && make install
-    cd -
 else
-    echo "Build directory does not exist. Run build.sh first."
+    echo "Makefile does not exist. Run build.sh first."
 fi

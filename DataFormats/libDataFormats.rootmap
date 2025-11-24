@@ -1,0 +1,34 @@
+[ libDataFormats.so ]
+# List of selected classes
+class Electron
+class Event
+class FatJet
+class Gen
+class GenDressedLepton
+class GenIsolatedPhoton
+class GenJet
+class GenVisTau
+class Jet
+class LHE
+class Lepton
+class Muon
+class Particle
+class Photon
+class Tau
+class TrigObj
+header Electron.h
+header Event.h
+header FatJet.h
+header Gen.h
+header GenDressedLepton.h
+header GenIsolatedPhoton.h
+header GenJet.h
+header GenVisTau.h
+header Jet.h
+header LHE.h
+header Lepton.h
+header Muon.h
+header Particle.h
+header Photon.h
+header Tau.h
+header TrigObj.h

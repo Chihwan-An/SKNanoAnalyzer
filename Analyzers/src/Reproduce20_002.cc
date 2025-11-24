@@ -497,12 +497,12 @@ void Reproduce20_002::executeEventFromParameter() {
 
     // Requires 2 tight leptons , l1 > 60 
     // Def of resolved event 
-
+    bool IsResolvedEvent = false;
     bool this_trigger_pass(false);
     bool tmp_isEE(false), tmp_isMM(false), tmp_isEM(false);
     if (n_Tight_leptons < 2) return;
-    if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0) ) {
-
+    if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0)  && (Tight_leps[1]->Pt() > 53.0)) {
+        IsResolvedEvent = true;
         FillHist(this_syst + "/CutFlow", 3.0, weight, 10, 0., 10.); // 2 tight leptons with pT cut
         
         if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
@@ -580,13 +580,13 @@ void Reproduce20_002::executeEventFromParameter() {
 
                 // saving plots for each CR 
                 
-                // DY CR ll< 150 , lljj > 800 
+                // DY CR 60 < ll < 150 , lljj > 800 
             if ( DiLepMassLT150 && WRCand.M() > 800.0 ) {
                 FillHist(this_syst + "/CutFlow", 6.0, weight, 10, 0., 10.); // DY CR pass
-                FillHist(this_syst + "DYCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
-                FillHist(this_syst + "DYCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                FillHist(this_syst + "DYCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                FillHist(this_syst + "DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                FillHist(this_syst + "/DYCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                FillHist(this_syst + "/DYCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                FillHist(this_syst + "/DYCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                FillHist(this_syst + "/DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
 
                 if (tmp_isEE) {
                     FillHist(this_syst + "/DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
@@ -607,18 +607,130 @@ void Reproduce20_002::executeEventFromParameter() {
                     FillHist(this_syst + "/DYCR_Resolved_EM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                 }
             }
-            
 
+            // DY CR1 ( 60 < mll < 100)
+            if ( DiLepMass60to100 && WRCand.M() > 800.0 ){
+                if (tmp_isEE)
+                {
+                    FillHist(this_syst + "/DYCR1_Resolved_EE_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/DYCR1_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR1_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR1_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+                if (tmp_isMM)
+                {
+                    FillHist(this_syst + "/DYCR1_Resolved_MM_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/DYCR1_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR1_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR1_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+            }
 
-
-
-                
-
-
+            // DY CR2 ( 100 < mll < 150)
+            if ( DiLepMass100to150 && WRCand.M() > 800.0 ){
+                if (tmp_isEE)
+                {
+                    FillHist(this_syst + "/DYCR2_Resolved_EE_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/DYCR2_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR2_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR2_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+                if (tmp_isMM)
+                {
+                    FillHist(this_syst + "/DYCR2_Resolved_MM_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/DYCR2_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR2_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/DYCR2_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+            }
+            // Flavor CR
+            if ( DiLepMassGT400 && WRCand.M() > 800.0 ){
+                if (tmp_isEM)
+                {
+                    FillHist(this_syst + "/CutFlow", 6.0 , weight, 10, 0., 10.); // Flavor CR pass
+                    FillHist(this_syst + "/FlavorCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/FlavorCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/FlavorCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/FlavorCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+            }
+            // low mass CR 
+            if (DiLepMassGT200 && WRCand.M() > 800.0 ){
+                if (tmp_isEE)
+                {
+                    FillHist(this_syst + "/LowMassCR_Resolved_EE_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/LowMassCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/LowMassCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/LowMassCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
+                if (tmp_isMM)
+                {
+                    FillHist(this_syst + "/LowMassCR_Resolved_MM_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                    FillHist(this_syst + "/LowMassCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/LowMassCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                    FillHist(this_syst + "/LowMassCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                }
             }
         }// # 1192 -> Resolved ends .
-    // # 1660  -> Boost event ends .
+    
+    }
+    }
+    //if (n_Tight_leptons < 2) return;
+    //if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0)  && (Tight_leps[1]->Pt() > 53.0)) {
+    //    IsResolvedEvent = true;
+    //Resolved selections 
+    if (!IsResolvedEvent){
 
+        FillHist(this_syst + "/Boost_cutflow", 1 , weight, 5, 0., 5.);
+        if ((n_Tight_leptons >0 ) && (Tight_leps[0]->Pt() > 60.0)) {
+            FillHist(this_syst + "/Boost_cutflow", 2 , weight, 5, 0., 5.);
+            Lepton *LeadLep = Tight_leps[0];
+            bool this_trigger_pass_boost(false);
+            bool is_tmp_lead_el(false), is_tmp_lead_mu(false);
+
+            if LeadLep->IsElectron() == Lepton::FLAVOR::ELECTRON{
+                is_tmp_lead_el = true;
+                this_trigger_pass_boost = pass_trig_elec;
+            }
+            else if LeadLep->IsMuon() == Lepton::FLAVOR::MUON{
+                is_tmp_lead_mu = true;
+                this_trigger_pass_boost = pass_trig_muon;
+            }
+        if (this_trigger_pass_boost){
+            FillHist(this_syst + "/Boost_cutflow", 3 , weight, 5, 0., 5.);
+            std::vector<Lepton *> Loose_SF_leps = is_tmp_lead_el ? Loose_leps_el : Loose_leps_mu;
+            std::vector<Lepton *> Tight_SF_leps = is_tmp_lead_el ? Loose_leps_mu : Loose_leps_el;
+            bool has_lowmll(false);
+            Lepton * LowMllLooseLepton ; 
+            for (unsigned int i=0 ; i< Loose_SF_leps.size(); i ++) {
+                
+                if (Loose_SF_leps[i] == LeadLep) continue;
+                double dilep_mass = (*LeadLep + *Loose_SF_leps[i]).M();
+                
+                if ( (dilep_mass)) >= 60 && (dilep_mass < 150 ) {
+                    has_lowmll = true;
+                    LowMllLooseLepton = Loose_SF_leps[i];
+
+                    if is_tmp_lead_mu{
+                        Muon * looseMuon = (Muon *)LowMllLooseLepton;
+                    }
+                    break;
+                }
+            
+            }
+            // Boosted CR selection with low mll
+        if (has_lowmll){
+
+        }
+
+
+
+    };
+
+    
+
+    // # 1660  -> Boost event ends .
+    
     // double counting check?  # 1670
 
     // Higmass info # 1722 
@@ -627,7 +739,6 @@ void Reproduce20_002::executeEventFromParameter() {
 
     // Fill histograms for main variables # 1771 
     // end ## 1984
-    }
 }
 
 

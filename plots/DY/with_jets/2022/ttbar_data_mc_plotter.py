@@ -99,7 +99,7 @@ class SignalBackgroundCanvas():
             elif name.startswith("TTLL"):
                 groups["TT"].append((name, hist))
             elif name.startswith("ST"):
-                groups["TT"].append((name, hist))
+                groups["ST"].append((name, hist))
             elif name.startswith("QCD"):
                 groups["QCD"].append((name, hist))
             elif name.startswith("WZ"):
@@ -117,6 +117,7 @@ class SignalBackgroundCanvas():
             "DYJets": SIGNAL_COLOR,
             "TT": BACKGROUND_COLORS[0],
             "VV": BACKGROUND_COLORS[1],
+            "ST": BACKGROUND_COLORS[2],
             "QCD": BACKGROUND_COLORS[3],
             "Others": BACKGROUND_COLORS[6]  # Gray
         }
@@ -667,10 +668,9 @@ def combine_muon_data(data_dir, hist_name, systematic="Central"):
         filename = os.path.basename(file_path)
         
         # Include only Muon_C, Muon_D, and SingleMuon files for data
-        if (
-            filename.startswith("Muon_C") or 
-            filename.startswith("Muon_D") or
-            filename.startswith("Single") ):
+        if (filename.startswith("SingleMuon")or
+            filename.startswith("Muon_C.root") or 
+            filename.startswith("Muon_D.root") ):
             
             hist = load_histogram(file_path, hist_name, systematic)
             if hist:
@@ -728,7 +728,7 @@ def load_background_histograms(data_dir, hist_name, systematic="Central"):
         filename = os.path.basename(file_path)
         
         # Skip DYJets (signal), TBChannel files, and all data files (Muon_, EGamma_, MuonEG_, SingleMuon)
-        if (
+        if (filename.startswith("DYJet") or
             filename.startswith("TBChannel") or
             filename.startswith("Muon_") or
             filename.startswith("EGamma_") or
@@ -737,8 +737,7 @@ def load_background_histograms(data_dir, hist_name, systematic="Central"):
             filename.startswith("ZZTwo") or
             filename.startswith("WZTo")or
             filename.startswith("WJets_MG")or
-            filename.startswith("DYG")
-            ):
+            filename.startswith("DYG") ):
             continue
         
         hist = load_histogram(file_path, hist_name, systematic, silent=True)

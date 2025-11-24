@@ -92,8 +92,8 @@ void DY::executeEventFromParameter() {
     
     // Select muons
     RVec<Muon> selectedMuons;
-    //selectedMuons = RemoveOverlap(muons);
-    selectedMuons = SelectMuons(muons);
+    selectedMuons = RemoveOverlap(muons);
+    selectedMuons = SelectMuons(selectedMuons);
     if (selectedMuons.size() > 2) return;  
     if (selectedMuons.size() < 2) return;
     FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.); // At least 2 muons selected
@@ -165,19 +165,13 @@ void DY::executeEventFromParameter() {
 RVec<Muon> DY::SelectMuons(const RVec<Muon>& muons) {
     RVec<Muon> selected_muons;
     for (const auto& muon : muons) {
-        if (muon.Pt() > cuts.muon_pt_sublead && 
+        if (muon.Pt() > cuts.muon_pt_lead && 
             abs(muon.Eta()) < cuts.muon_eta &&
             muon.PassID(MuonIDs[0])) {
             selected_muons.push_back(muon);
         }
     }
-    if (selected_muons[0].Pt() > cuts.muon_pt_lead){
-        return selected_muons;
-    }
-    else{
-        RVec<Muon> empty_muons;
-        return empty_muons;
-    }
+    return selected_muons;
 }
 
 RVec<Muon> DY::SelectMuonssublead(const RVec<Muon>& muons) {

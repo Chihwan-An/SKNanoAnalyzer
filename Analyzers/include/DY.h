@@ -34,7 +34,7 @@ public:
     
     // Analysis cuts
     struct AnalysisCuts {
-        float muon_pt_lead = 28.0;
+        float muon_pt_lead = 26.0;
         float muon_pt_sublead = 10.0;
         float muon_eta = 2.4;
         float deltaR_overlap = 0.4;

@@ -1,0 +1,3 @@
+/data6/Users/achihwan/SKNanoAnalyzer/_deps/json-subbuild/CMakeFiles/json-populate.dir
+/data6/Users/achihwan/SKNanoAnalyzer/_deps/json-subbuild/CMakeFiles/edit_cache.dir
+/data6/Users/achihwan/SKNanoAnalyzer/_deps/json-subbuild/CMakeFiles/rebuild_cache.dir

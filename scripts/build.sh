@@ -24,8 +24,8 @@ else
           -DCMAKE_BUILD_TYPE=Release \
           $SKNANO_HOME 
     echo @@@@ make -j6
-    make -j6
+    cd $SKNANO_HOME && make -j6
 
     echo @@@@ install to $SKNANO_LIB
-    make install
+    cd $SKNANO_HOME && make install
 fi

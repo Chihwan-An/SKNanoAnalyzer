@@ -45,16 +45,12 @@ public:
     // Systematic helper
     unique_ptr<SystematicHelper> systHelper;
     
-    // Beamspot constrained variables
-    float Muon_bsConstrainedChi2;   // Beamspot constraint를 적용한 χ²
-    float Muon_bsConstrainedPt;     // BS constraint 후 재계산된 pT
-    float Muon_bsConstrainedPtErr;  // pT 오차
     
     // Helper functions
     RVec<Muon> SelectMuons(const RVec<Muon>& muons);
     RVec<Muon> SelectMuonssublead(const RVec<Muon>& muons);
     RVec<Muon> RemoveOverlap(const RVec<Muon>& muons);
-    pair<Muon, Muon> selectBestZPair(const RVec<Muon>& muons);
+    
     
     RVec<Jet> SelectJets(const RVec<Jet> &jets, const TString ID, const float ptmin, const float fetamax);
 

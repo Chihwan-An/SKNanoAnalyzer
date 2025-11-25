@@ -6,7 +6,4 @@ ZZ*
 ST*
 QCD*Mu*
 Muon*
-EG*
 WJ*
-tZ*
-tH*

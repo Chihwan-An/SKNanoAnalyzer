@@ -7,3 +7,4 @@ ST*
 QCD*Mu*
 Muon*
 WJ*
+Single*

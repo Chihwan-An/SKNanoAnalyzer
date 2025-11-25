@@ -3,7 +3,7 @@
 # No other meaning or use of this file is supported.
 
 method=git
-command=/opt/conda/envs/Nano/lib/python3.12/site-packages/cmake/data/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/data6/Users/achihwan/SKNanoAnalyzer/_deps/json-subbuild/json-populate-prefix/tmp/json-populate-gitclone.cmake
+command=/data6/Users/achihwan/miniforge3/envs/Nano/lib/python3.12/site-packages/cmake/data/bin/cmake;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/data6/Users/achihwan/SKNanoAnalyzer/_deps/json-subbuild/json-populate-prefix/tmp/json-populate-gitclone.cmake
 source_dir=/home/achihwan/SKNanoAnalyzer/_deps/json-src
 work_dir=/home/achihwan/SKNanoAnalyzer/_deps
 repository=https://github.com/nlohmann/json.git

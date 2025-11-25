@@ -14,7 +14,8 @@ void DY::initializeAnalyzer() {
     
     // Muon IDs and scale factor keys
     MuonIDs.clear();
-    MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
+    MuonIDs.push_back(Muon::MuonID::POG_TKISO_LOOSE);
+    //MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
     //MuonIDSFKeys = {"NUM_TightID_DEN_TrackerMuons"};
     
     // Jet IDs
@@ -92,27 +93,29 @@ void DY::executeEventFromParameter() {
     
     // Select muons
     RVec<Muon> selectedMuons;
-    selectedMuons = RemoveOverlap(muons);
-    selectedMuons = SelectMuons(selectedMuons);
-    if (selectedMuons.size() > 2) return;  
+    selectedMuons = SelectMuons(muons); // pt eta id cut , charge opposite
+    FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.);
+    FillHist(this_syst + "/nSelectedMuons", selectedMuons.size(), 1.0, 10, 0., 10.);
     if (selectedMuons.size() < 2) return;
-    FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.); // At least 2 muons selected
-    
+    FillHist(this_syst + "/CutFlow", 3.0, 1.0, 10, 0., 10.); 
     // Select best Z pair using beamspot constrained chi2
-    pair<Muon, Muon> bestZPair = selectBestZPair(selectedMuons);
+    pair<Muon, Muon> bestZPair = selectBestZPair(selectedMuons);//vertex chi2 < 20 
     Muon leading_muon = bestZPair.first;
     Muon subleading_muon = bestZPair.second;
     
+     // At least 2 muons selected
+    
     // Check if valid pair was found
     if (leading_muon.Pt() == 0 || subleading_muon.Pt() == 0) return;
-    FillHist(this_syst + "/CutFlow", 3.0, 1.0, 10, 0., 10.); // Valid Z pair found
-    
+    // Valid Z pair found
+    FillHist(this_syst + "/CutFlow", 4.0, 1.0, 10, 0., 10.);
     // Ensure leading muon has higher pT
     if (subleading_muon.Pt() > leading_muon.Pt()) {
         swap(leading_muon, subleading_muon);
     }
-    
-    FillHist(this_syst + "/CutFlow", 4.0, 1.0, 10, 0., 10.); // Best Z pair selected
+    if ((leading_muon.Pt() < cuts.muon_pt_lead)) return;
+    FillHist(this_syst + "/CutFlow", 5.0, 1.0, 10, 0., 10.);
+     // Best Z pair selected
     
     float dilepton_mass = (leading_muon + subleading_muon).M();
     float dilepton_pt = (leading_muon + subleading_muon).Pt();
@@ -165,11 +168,36 @@ void DY::executeEventFromParameter() {
 RVec<Muon> DY::SelectMuons(const RVec<Muon>& muons) {
     RVec<Muon> selected_muons;
     for (const auto& muon : muons) {
-        if (muon.Pt() > cuts.muon_pt_lead && 
-            abs(muon.Eta()) < cuts.muon_eta &&
-            muon.PassID(MuonIDs[0])) {
-            selected_muons.push_back(muon);
+        if ((abs(muon.Eta()) < cuts.muon_eta) &&
+            (muon.PassID(MuonIDs[0]) && 
+            (muon.Pt() > cuts.muon_pt_sublead))) {
+            selected_muons.push_back(muon) ;
         }
+        /*
+        bool globalTF = muon.isGlobal();
+        double tracklayer = muon.nTrackerLayers();
+        float muondxy = abs(muon.dXY());
+        FillHist("/globalmuonTF", globalTF, 1.0, 3, -1., 2.);
+        FillHist("/tracklayer", tracklayer, 1.0, 20, 0., 20.);
+        FillHist("/muondxy", muondxy, 1.0, 100, 0., 1.0);
+        
+        //is gloabal muon?
+        if ( muon.isGlobal() == false ) {
+            selected_muons.clear(); 
+        }
+            
+        // matched station > 1
+        //if selectedMuons.
+        
+        // trk layer > 5
+        if ( muon.nTrackerLayers() < 6 ) {
+            selected_muons.clear(); 
+        }
+        //dxy(pv) < 2mm
+        if ( muon.dXY() > 0.2 ) {
+            selected_muons.clear(); 
+        }
+            */
     }
     return selected_muons;
 }
@@ -211,12 +239,12 @@ pair<Muon, Muon> DY::selectBestZPair(const RVec<Muon>& muons) {
     pair<int,int> bestPairIndices = {-1, -1};
     
     for (int i = 0; i < muons.size(); i++) {
+        if (muons[i].bsConstrainedChi2() > 20) continue;
         for (int j = i+1; j < muons.size(); j++) {
             if (muons[i].Charge() * muons[j].Charge() < 0) {
                 // 두 뮤온의 BS chi2 합
                 double chi2Sum = muons[i].bsConstrainedChi2() + 
                                 muons[j].bsConstrainedChi2();
-                
                 if (chi2Sum < bestChi2Sum) {
                     bestChi2Sum = chi2Sum;
                     bestPairIndices = {i, j};
@@ -226,6 +254,7 @@ pair<Muon, Muon> DY::selectBestZPair(const RVec<Muon>& muons) {
     }
     
     // Return the best muon pair
+    if (bestChi2Sum > 100) return {Muon(), Muon()};
     if (bestPairIndices.first != -1 && bestPairIndices.second != -1) {
         return {muons[bestPairIndices.first], muons[bestPairIndices.second]};
     } else {

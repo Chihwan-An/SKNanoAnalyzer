@@ -707,7 +707,7 @@ def load_signal_histograms(data_dir, hist_name, systematic="Central"):
         filename = os.path.basename(file_path)
         
         # Load DYJets files as signal
-        if filename.startswith("DYJets.root") or filename.startswith("DYJets10to50.root") :
+        if filename.startswith("DYJets_MG.root") or filename.startswith("DYJets10to50.root") :
             sig_hist = load_histogram(file_path, hist_name, systematic)
             if sig_hist:
                 sample_name = filename.replace(".root", "")

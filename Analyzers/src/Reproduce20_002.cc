@@ -679,6 +679,8 @@ void Reproduce20_002::executeEventFromParameter() {
     //if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0)  && (Tight_leps[1]->Pt() > 53.0)) {
     //    IsResolvedEvent = true;
     //Resolved selections 
+
+    /*
     if (!IsResolvedEvent){
 
         FillHist(this_syst + "/Boost_cutflow", 1 , weight, 5, 0., 5.);
@@ -725,8 +727,9 @@ void Reproduce20_002::executeEventFromParameter() {
 
 
 
-    };
-
+    }
+}
+*/
     
 
     // # 1660  -> Boost event ends .

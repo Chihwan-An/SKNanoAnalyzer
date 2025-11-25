@@ -1,4 +1,4 @@
 [PACKAGE] conda / mamba
 [TOKEN_TELEGRAMBOT]
 [USER_CHATID]
-[SINGULARITY_IMAGE]
+[SINGULARITY_IMAGE] /data6/Users/achihwan/private-el9.sif

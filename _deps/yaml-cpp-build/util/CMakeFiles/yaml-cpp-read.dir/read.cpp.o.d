@@ -1,4 +1,4 @@
-/home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-build/util/CMakeFiles/yaml-cpp-read.dir/read.cpp.o: \
+_deps/yaml-cpp-build/util/CMakeFiles/yaml-cpp-read.dir/read.cpp.o: \
  /home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src/util/read.cpp \
  /data6/Users/achihwan/miniforge3/envs/Nano/x86_64-conda-linux-gnu/sysroot/usr/include/stdc-predef.h \
  /home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src/include/yaml-cpp/emitterstyle.h \

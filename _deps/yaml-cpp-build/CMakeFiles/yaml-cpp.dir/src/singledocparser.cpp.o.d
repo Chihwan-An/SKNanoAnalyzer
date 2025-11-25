@@ -1,4 +1,4 @@
-/home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-build/CMakeFiles/yaml-cpp.dir/src/singledocparser.cpp.o: \
+_deps/yaml-cpp-build/CMakeFiles/yaml-cpp.dir/src/singledocparser.cpp.o: \
  /home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src/src/singledocparser.cpp \
  /data6/Users/achihwan/miniforge3/envs/Nano/x86_64-conda-linux-gnu/sysroot/usr/include/stdc-predef.h \
  /data6/Users/achihwan/miniforge3/envs/Nano/lib/gcc/x86_64-conda-linux-gnu/13.4.0/include/c++/cstdio \

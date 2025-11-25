@@ -1,4 +1,4 @@
-/home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-build/CMakeFiles/yaml-cpp.dir/src/directives.cpp.o: \
+_deps/yaml-cpp-build/CMakeFiles/yaml-cpp.dir/src/directives.cpp.o: \
  /home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src/src/directives.cpp \
  /data6/Users/achihwan/miniforge3/envs/Nano/x86_64-conda-linux-gnu/sysroot/usr/include/stdc-predef.h \
  /home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src/src/directives.h \

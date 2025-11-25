@@ -90,7 +90,7 @@ void DY::executeEventFromParameter() {
     
     // Select muons
     RVec<Muon> selectedMuons;
-    selectedMuons = SelectMuons(muons); //  eta id cut , charge opposite
+    selectedMuons = SelectMuons(muons); //  eta id cut
     FillHist(this_syst + "/CutFlow", 2.0, 1.0, 10, 0., 10.);
     FillHist(this_syst + "/nSelectedMuons", selectedMuons.size(), 1.0, 10, 0., 10.);
     if (selectedMuons.size() < 2) return;
@@ -99,21 +99,17 @@ void DY::executeEventFromParameter() {
     //pt sort 
     sort(selectedMuons.begin(), selectedMuons.end(), PtComparing);
 
-    Muon leading_muon = selectedMuons.first;
-    Muon subleading_muon = selectedMuons.second;
-
-    if (leading_muon.Pt() == 0 || subleading_muon.Pt() == 0) return;
 
     FillHist(this_syst + "/CutFlow", 4.0, 1.0, 10, 0., 10.);
     // pt cut     
-    if ((leading_muon.Pt() < cuts.muon_pt_lead)) return;
-    if ((subleading_muon.Pt() < cuts.muon_pt_sublead)) return;
-
+    if ((selectedMuons[0].Pt() < cuts.muon_pt_lead)) return;
+    if ((selectedMuons[1].Pt() < cuts.muon_pt_sublead)) return;
     FillHist(this_syst + "/CutFlow", 5.0, 1.0, 10, 0., 10.);
-
+    if (selectedMuons[0].Charge() * selectedMuons[1].Charge() > 0) return; //opposite sign
+    FillHist(this_syst + "/CutFlow", 6.0, 1.0, 10, 0., 10.);
     
-    float dilepton_mass = (leading_muon + subleading_muon).M();
-    float dilepton_pt = (leading_muon + subleading_muon).Pt();
+    float dilepton_mass = (selectedMuons[0] + selectedMuons[1]).M();
+    float dilepton_pt = (selectedMuons[0] + selectedMuons[1]).Pt();
 
     
     
@@ -128,8 +124,8 @@ void DY::executeEventFromParameter() {
     // Fill histograms
     FillHist(this_syst + "/DileptonMass", dilepton_mass, weight, 3000, 0., 3000.);
     FillHist(this_syst + "/DileptonPt", dilepton_pt, weight, 2000, 0., 2000.);
-    FillHist(this_syst + "/LeadingMuonPt", leading_muon.Pt(), weight, 500, 0., 500.);
-    FillHist(this_syst + "/SubleadingMuonPt", subleading_muon.Pt(), weight, 500, 0., 500.);
+    FillHist(this_syst + "/LeadingMuonPt", selectedMuons[0].Pt(), weight, 500, 0., 500.);
+    FillHist(this_syst + "/SubleadingMuonPt", selectedMuons[1].Pt(), weight, 500, 0., 500.);
     /*
     // Jet constrains
     RVec<Jet> selectedJets = AnalyzerCore::SelectJets(jets, Jet::JetID::NOCUT, cuts.base_jet_pt, cuts.jet_eta);
@@ -164,43 +160,12 @@ void DY::executeEventFromParameter() {
 RVec<Muon> DY::SelectMuons(const RVec<Muon>& muons) {
     RVec<Muon> selected_muons;
     for (const auto& muon : muons) {
-        if ((abs(muon.Eta()) < cuts.muon_eta) &&
-            (muon.PassID(MuonIDs[0]) )) {
-            selected_muons.push_back(muon) ;
+        if (abs(muon.Eta()) < cuts.muon_eta && 
+            muon.PassID(MuonIDs[0])) {
+            selected_muons.push_back(muon);
         }
-        /*
-        bool globalTF = muon.isGlobal();
-        double tracklayer = muon.nTrackerLayers();
-        float muondxy = abs(muon.dXY());
-        FillHist("/globalmuonTF", globalTF, 1.0, 3, -1., 2.);
-        FillHist("/tracklayer", tracklayer, 1.0, 20, 0., 20.);
-        FillHist("/muondxy", muondxy, 1.0, 100, 0., 1.0);
-        
-        //is gloabal muon?
-        if ( muon.isGlobal() == false ) {
-            selected_muons.clear(); 
-        }
-            
-        // matched station > 1
-        //if selectedMuons.
-        
-        // trk layer > 5
-        if ( muon.nTrackerLayers() < 6 ) {
-            selected_muons.clear(); 
-        }
-        //dxy(pv) < 2mm
-        if ( muon.dXY() > 0.2 ) {
-            selected_muons.clear(); 
-        }
-            */
     }
-    RVec<Muon> oppo_muons;
-    for (const auto& muon1 : selected_muons) {
-        for (const auto& muon2 : selected_muons) {
-            if (muon1 != muon2 && muon1.Charge() * muon2.Charge() < 0) {
-                oppo_muons.push_back(muon1);
-                oppo_muons.push_back(muon2);
-    return oppo_muons;
+    return selected_muons;
 }
 
 RVec<Muon> DY::SelectMuonssublead(const RVec<Muon>& muons) {

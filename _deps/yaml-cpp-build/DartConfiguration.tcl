@@ -27,7 +27,7 @@ SubmitInactivityTimeout:
 NightlyStartTime: 00:00:00 EDT
 
 # Commands for the build/test/submit cycle
-ConfigureCommand: "/data6/Users/achihwan/miniforge3/envs/Nano/lib/python3.12/site-packages/cmake/data/bin/cmake" "/home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src"
+ConfigureCommand: "/opt/conda/envs/Nano/lib/python3.12/site-packages/cmake/data/bin/cmake" "/home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src"
 MakeCommand: /data6/Users/achihwan/miniforge3/envs/Nano/lib/python3.12/site-packages/cmake/data/bin/cmake --build . --config "${CTEST_CONFIGURATION_TYPE}"
 DefaultCTestConfigurationType: Release
 

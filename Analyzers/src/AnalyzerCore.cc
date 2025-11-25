@@ -915,6 +915,7 @@ RVec<Tau> AnalyzerCore::SelectTaus(const RVec<Tau> &taus, const TString ID, cons
 
 RVec<Jet> AnalyzerCore::GetAllJets() {
     RVec<Jet> Jets;
+    
     for (int i = 0; i < nJet; i++) {
         Jet jet;
         const float rawPt = Jet_pt[i] * (1.-Jet_rawFactor[i]);
@@ -937,16 +938,41 @@ RVec<Jet> AnalyzerCore::GetAllJets() {
         RVec<float> tvs;
         RVec<float> tvs2;
         if(Run == 3){
-            tvs = {Jet_btagDeepFlavB[i], Jet_btagDeepFlavCvB[i], Jet_btagDeepFlavCvL[i], Jet_btagDeepFlavQG[i],
-                           Jet_btagPNetB[i], Jet_btagPNetCvB[i], Jet_btagPNetCvL[i], Jet_btagPNetQvG[i],
-                           Jet_btagPNetTauVJet[i], Jet_btagRobustParTAK4B[i], Jet_btagRobustParTAK4CvB[i], Jet_btagRobustParTAK4CvL[i], Jet_btagRobustParTAK4QG[i]};
-            jet.SetMultiplicities(Jet_nConstituents[i], Jet_nElectrons[i], Jet_nMuons[i], Jet_nSVs[i]);
-            jet.SetHadronMultiplicities(Jet_chMultiplicity[i], Jet_neMultiplicity[i]);
+            tvs = {Jet_btagDeepFlavB[i], 
+                Jet_btagDeepFlavCvB[i], 
+                Jet_btagDeepFlavCvL[i], 
+                Jet_btagDeepFlavQG[i],
+                Jet_btagPNetB[i], 
+                Jet_btagPNetCvB[i], 
+                Jet_btagPNetCvL[i], 
+                Jet_btagPNetQvG[i],
+                Jet_btagPNetTauVJet[i], 
+                Jet_btagRobustParTAK4B[i],
+                Jet_btagRobustParTAK4CvB[i], 
+                Jet_btagRobustParTAK4CvL[i], 
+                Jet_btagRobustParTAK4QG[i]};
+            jet.SetMultiplicities(Jet_nConstituents[i], 
+                                Jet_nElectrons[i], 
+                                Jet_nMuons[i],
+                                Jet_nSVs[i]);
+            jet.SetHadronMultiplicities(Jet_chMultiplicity[i], 
+                                        Jet_neMultiplicity[i]);
             if(!IsDATA){
-                jet.SetMatchingIndices(Jet_electronIdx1[i], Jet_electronIdx2[i], Jet_muonIdx1[i], Jet_muonIdx2[i], Jet_svIdx1[i], Jet_svIdx2[i], Jet_genJetIdx[i]);
+                jet.SetMatchingIndices(Jet_electronIdx1[i], 
+                                    Jet_electronIdx2[i], 
+                                    Jet_muonIdx1[i],
+                                    Jet_muonIdx2[i], 
+                                    Jet_svIdx1[i], 
+                                    Jet_svIdx2[i], 
+                                    Jet_genJetIdx[i]);
             }
             else{
-                jet.SetMatchingIndices(Jet_electronIdx1[i], Jet_electronIdx2[i], Jet_muonIdx1[i], Jet_muonIdx2[i], Jet_svIdx1[i], Jet_svIdx2[i]);
+                jet.SetMatchingIndices(Jet_electronIdx1[i], 
+                                    Jet_electronIdx2[i], 
+                                    Jet_muonIdx1[i], 
+                                    Jet_muonIdx2[i], 
+                                    Jet_svIdx1[i], 
+                                    Jet_svIdx2[i]);
             }
             jet.SetJetID(Jet_jetId[i], 3);
             jet.SetJetPuID(0b111);
@@ -954,15 +980,32 @@ RVec<Jet> AnalyzerCore::GetAllJets() {
         }
         //for Run 2 DeepJet is only option
         else if(Run == 2){
-            tvs = {Jet_btagDeepFlavB[i], Jet_btagDeepFlavCvB[i], Jet_btagDeepFlavCvL[i], Jet_btagDeepFlavQG[i],
-                   -999., -999., -999., -999.,
-                   -999., -999., -999., -999., -999.};
-            jet.SetMultiplicities(Jet_nConstituents[i], Jet_nElectrons_RunII[i], Jet_nMuons_RunII[i], 0);
+            tvs = {Jet_btagDeepFlavB[i], 
+                Jet_btagDeepFlavCvB[i], 
+                Jet_btagDeepFlavCvL[i], 
+                Jet_btagDeepFlavQG[i],
+                -999., -999., -999., -999.,
+                -999., -999., -999., -999., -999.};
+            jet.SetMultiplicities(Jet_nConstituents[i], 
+                                Jet_nElectrons_RunII[i], 
+                                Jet_nMuons_RunII[i],
+                                0);
             if(!IsDATA){
-                jet.SetMatchingIndices(Jet_electronIdx1_RunII[i], Jet_electronIdx2_RunII[i], Jet_muonIdx1_RunII[i], Jet_muonIdx2_RunII[i], -9, -9, Jet_genJetIdx_RunII[i]);
+                jet.SetMatchingIndices(Jet_electronIdx1_RunII[i], 
+                                    Jet_electronIdx2_RunII[i], 
+                                    Jet_muonIdx1_RunII[i], 
+                                    Jet_muonIdx2_RunII[i], 
+                                    -9, 
+                                    -9, 
+                                    Jet_genJetIdx_RunII[i]);
             }
             else{
-                jet.SetMatchingIndices(Jet_electronIdx1_RunII[i], Jet_electronIdx2_RunII[i], Jet_muonIdx1_RunII[i], Jet_muonIdx2_RunII[i], -9, -9);
+                jet.SetMatchingIndices(Jet_electronIdx1_RunII[i], 
+                                    Jet_electronIdx2_RunII[i], 
+                                    Jet_muonIdx1_RunII[i], 
+                                    Jet_muonIdx2_RunII[i], 
+                                    -9, 
+                                    -9);
             }
             jet.SetJetID(Jet_jetId_RunII[i], 2);
             if (DataYear == 2016) {
@@ -974,7 +1017,6 @@ RVec<Jet> AnalyzerCore::GetAllJets() {
                 jet.SetJetPuID(Jet_puId[i]);
             }
             tvs2 = {-999.0, -999.0, -999.0, -999.0, Jet_rawFactor[i], Jet_bRegCorr[i], Jet_bRegRes[i], Jet_cRegCorr[i], Jet_cRegRes[i]};
-
         }
         jet.SetTaggerResults(tvs);
         jet.SetCorrections(tvs2);
@@ -1161,9 +1203,9 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets() {
 
         if(Run == 3){
             pnet_m = {FatJet_particleNetWithMass_H4qvsQCD[i], FatJet_particleNetWithMass_HccvsQCD[i],
-               FatJet_particleNetWithMass_HbbvsQCD[i], FatJet_particleNetWithMass_QCD[i],
-               FatJet_particleNetWithMass_TvsQCD[i], FatJet_particleNetWithMass_WvsQCD[i],
-               FatJet_particleNetWithMass_ZvsQCD[i]};
+            FatJet_particleNetWithMass_HbbvsQCD[i], FatJet_particleNetWithMass_QCD[i],
+            FatJet_particleNetWithMass_TvsQCD[i], FatJet_particleNetWithMass_WvsQCD[i],
+            FatJet_particleNetWithMass_ZvsQCD[i]};
 
             pnet = {FatJet_particleNet_QCD[i], FatJet_particleNet_QCD0HF[i],
                     FatJet_particleNet_QCD1HF[i], FatJet_particleNet_QCD2HF[i],
@@ -1177,9 +1219,9 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets() {
         }
         else if(Run == 2){
             pnet_m = {FatJet_particleNet_H4qvsQCD[i], FatJet_particleNet_HccvsQCD[i],
-               FatJet_particleNet_HbbvsQCD[i], FatJet_particleNet_QCD[i],
-               FatJet_particleNet_TvsQCD[i], FatJet_particleNet_WvsQCD[i],
-               FatJet_particleNet_ZvsQCD[i]};
+            FatJet_particleNet_HbbvsQCD[i], FatJet_particleNet_QCD[i],
+            FatJet_particleNet_TvsQCD[i], FatJet_particleNet_WvsQCD[i],
+            FatJet_particleNet_ZvsQCD[i]};
             
             pnet = {FatJet_particleNetMD_QCD[i], -999., -999., -999.,
                     FatJet_particleNetMD_Xbb[i], FatJet_particleNetMD_Xcc[i],
@@ -1301,16 +1343,16 @@ void AnalyzerCore::PrintGen(const RVec<Gen> &gens) {
         Gen gen = gens.at(i);
         RVec<int> history = TrackGenSelfHistory(gen, gens);
         cout << i << "\t" 
-             << gen.PID() << "\t" 
-             << gen.Status() << "\t" 
-             << gen.MotherIndex() << "\t" 
-             << gens.at(gen.MotherIndex()).PID() << "\t" 
-             << history[0] << "\t" 
-             << fixed << setprecision(2) 
-             << gen.Pt() << "\t" 
-             << gen.Eta() << "\t" 
-             << gen.Phi() << "\t" 
-             << gen.M() << endl;
+            << gen.PID() << "\t" 
+            << gen.Status() << "\t" 
+            << gen.MotherIndex() << "\t" 
+            << gens.at(gen.MotherIndex()).PID() << "\t" 
+            << history[0] << "\t" 
+            << fixed << setprecision(2) 
+            << gen.Pt() << "\t" 
+            << gen.Eta() << "\t" 
+            << gen.Phi() << "\t" 
+            << gen.M() << endl;
     }
 }
 
@@ -1790,8 +1832,8 @@ void AnalyzerCore::FillHist(const TString &histname, float value, float weight, 
 }
 
 void AnalyzerCore::FillHist(const TString &histname, float value_x, float value_y, float weight,
-                                                   int n_binx, float x_min, float x_max,
-                                                   int n_biny, float y_min, float y_max) {
+                                                int n_binx, float x_min, float x_max,
+                                                int n_biny, float y_min, float y_max) {
     auto histkey = string(histname);
     auto it = histmap2d.find(histkey);
     if (it == histmap2d.end()) {
@@ -1826,7 +1868,7 @@ void AnalyzerCore::FillHist(const TString &histname, float value_x, float value_
 }
 
 void AnalyzerCore::FillHist(const TString &histname, float value_x, float value_y, float value_z, 
-                                      float weight, int n_binx, float x_min, float x_max,
+                                    float weight, int n_binx, float x_min, float x_max,
                                                     int n_biny, float y_min, float y_max,
                                                     int n_binz, float z_min, float z_max) {
     auto histkey = string(histname);
@@ -1975,19 +2017,19 @@ void AnalyzerCore::WriteHist() {
     std::vector<std::pair<std::string, TH3 *>> sorted_histograms3d(histmap3d.begin(), histmap3d.end());
     std::sort(sorted_histograms1d.begin(), sorted_histograms1d.end(),
               [](const std::pair<std::string, TH1 *> &a, const std::pair<std::string, TH1 *> &b)
-              {
-                  return a.first < b.first;
-              });
+            {
+                return a.first < b.first;
+            });
     std::sort(sorted_histograms2d.begin(), sorted_histograms2d.end(),
               [](const std::pair<std::string, TH2 *> &a, const std::pair<std::string, TH2 *> &b)
-              {
-                  return a.first < b.first;
-              });
+            {
+                return a.first < b.first;
+            });
     std::sort(sorted_histograms3d.begin(), sorted_histograms3d.end(),
               [](const std::pair<std::string, TH3 *> &a, const std::pair<std::string, TH3 *> &b)
-              {
-                  return a.first < b.first;
-              });
+            {
+                return a.first < b.first;
+            });
     for (const auto &pair: sorted_histograms1d) {
         const string &histname = pair.first;
         TH1 *hist = pair.second;

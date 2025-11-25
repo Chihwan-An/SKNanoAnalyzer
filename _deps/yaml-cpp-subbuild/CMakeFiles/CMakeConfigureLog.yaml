@@ -81,3 +81,25 @@ events:
     message: |
       The system is: Linux - 5.14.0-503.31.1.el9_5.x86_64 - x86_64
 ...
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineSystem.cmake:204 (message)"
+      - "CMakeLists.txt:10 (project)"
+    message: |
+      The system is: Linux - 5.14.0-503.31.1.el9_5.x86_64 - x86_64
+...
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/opt/conda/envs/Nano/lib/python3.12/site-packages/cmake/data/share/cmake-4.0/Modules/CMakeDetermineSystem.cmake:205 (message)"
+      - "CMakeLists.txt:16 (project)"
+    message: |
+      The system is: Linux - 5.14.0-503.31.1.el9_5.x86_64 - x86_64
+...

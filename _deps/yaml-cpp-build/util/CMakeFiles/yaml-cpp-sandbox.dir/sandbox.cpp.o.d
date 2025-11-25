@@ -1,4 +1,4 @@
-/home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-build/util/CMakeFiles/yaml-cpp-sandbox.dir/sandbox.cpp.o: \
+_deps/yaml-cpp-build/util/CMakeFiles/yaml-cpp-sandbox.dir/sandbox.cpp.o: \
  /home/achihwan/SKNanoAnalyzer/_deps/yaml-cpp-src/util/sandbox.cpp \
  /data6/Users/achihwan/miniforge3/envs/Nano/x86_64-conda-linux-gnu/sysroot/usr/include/stdc-predef.h \
  /data6/Users/achihwan/miniforge3/envs/Nano/lib/gcc/x86_64-conda-linux-gnu/13.4.0/include/c++/iostream \

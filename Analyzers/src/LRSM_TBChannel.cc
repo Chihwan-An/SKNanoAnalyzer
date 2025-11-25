@@ -73,33 +73,7 @@ void LRSM_TBChannel::initializeAnalyzer() {
     cout << "[LRSM_TBChannel::initializeAnalyzer] TriggerSafePtCut = " << TriggerSafePtCut << endl;
     
 
-    /*
-    // Initialize corrections
-    if (IsDATA){
-        if (DataEra == "2022") {
-            corr_C = new MyCorrection("2022", "C", MCSample, true);
-            corr_D = new MyCorrection("2022", "D", MCSample, true);
-            corr_sm = new MyCorrection("2022", "SingleMuon", MCSample, true);
-
-            
-        } else if (DataEra == "2022EE") {
-            corr_E = new MyCorrection("2022EE", "E", MCSample, true);
-            corr_F = new MyCorrection("2022EE", "F", MCSample, true);
-            corr_G = new MyCorrection("2022EE", "G", MCSample, true);
-        }
-        
-    } else{
-        if (DataEra == "2022") {
-            corr_C = new MyCorrection("2022", "C", MCSample, false);
-            corr_D = new MyCorrection("2022", "D", MCSample, false);
-            corr_sm = new MyCorrection("2022", "SingleMuon", MCSample, false);
-        } else if (DataEra == "2022EE") {
-            corr_E = new MyCorrection("2022EE", "E", MCSample, false);
-            corr_F = new MyCorrection("2022EE", "F", MCSample, false);
-            corr_G = new MyCorrection("2022EE", "G", MCSample, false);
-        }
-    }
-    */
+    
     
 
 

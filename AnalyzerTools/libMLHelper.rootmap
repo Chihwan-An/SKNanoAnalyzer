@@ -1,4 +1,0 @@
-[ libMLHelper.so ]
-# List of selected classes
-class MLHelper
-header MLHelper.h

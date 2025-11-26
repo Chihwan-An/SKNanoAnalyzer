@@ -75,6 +75,7 @@ class SignalBackgroundCanvas():
             "DYJets": [],
             "TT": [],
             "VV": [],
+            "WJets": [],
             "ST": [],
             "QCD": [],
             "Others": []
@@ -102,6 +103,8 @@ class SignalBackgroundCanvas():
                 groups["ST"].append((name, hist))
             elif name.startswith("QCD"):
                 groups["QCD"].append((name, hist))
+            elif name.startswith("WJets"):
+                groups["WJets"].append((name, hist))
             elif name.startswith("WZ"):
                 groups["VV"].append((name, hist))
             elif name.startswith("WW"):
@@ -119,6 +122,7 @@ class SignalBackgroundCanvas():
             "VV": BACKGROUND_COLORS[1],
             "ST": BACKGROUND_COLORS[2],
             "QCD": BACKGROUND_COLORS[3],
+            "WJets": BACKGROUND_COLORS[4],
             "Others": BACKGROUND_COLORS[6]  # Gray
         }
         
@@ -282,7 +286,7 @@ class SignalBackgroundCanvas():
         
         # Set CMS style
         CMS.SetEnergy(13.6)
-        CMS.SetLumi("7.9104 fb^{-1}")
+        CMS.SetLumi("26.671 fb^{-1}")
         CMS.SetExtraText("Preliminary")
         
         # Create canvas
@@ -434,7 +438,7 @@ class SignalBackgroundCanvas():
         latex.DrawLatex(0.20, 0.93, "Preliminary")
         
         latex.SetTextFont(42)
-        latex.DrawLatex(0.73, 0.93, "7.9104 fb^{-1} (13.6 TeV)")
+        latex.DrawLatex(0.73, 0.93, "26.671 fb^{-1} (13.6 TeV)")
         
         ROOT.SetOwnership(latex, False)
         self._objects_to_keep.append(latex)

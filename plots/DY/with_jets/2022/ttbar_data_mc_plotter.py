@@ -74,6 +74,7 @@ class SignalBackgroundCanvas():
         groups = {
             "DYJets": [],
             "TT": [],
+            "Wjets": [],
             "VV": [],
             "ST": [],
             "QCD": [],
@@ -100,6 +101,8 @@ class SignalBackgroundCanvas():
                 groups["TT"].append((name, hist))
             elif name.startswith("ST"):
                 groups["ST"].append((name, hist))
+            elif name.startswith("WJets"):
+                groups["Wjets"].append((name, hist))
             elif name.startswith("QCD"):
                 groups["QCD"].append((name, hist))
             elif name.startswith("WZ"):
@@ -119,6 +122,7 @@ class SignalBackgroundCanvas():
             "VV": BACKGROUND_COLORS[1],
             "ST": BACKGROUND_COLORS[2],
             "QCD": BACKGROUND_COLORS[3],
+            "Wjets": BACKGROUND_COLORS[4],
             "Others": BACKGROUND_COLORS[6]  # Gray
         }
         

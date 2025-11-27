@@ -32,9 +32,12 @@ systematics:
   - syst: FSR
 
   - syst: ISR
+  
 
-  #- syst: Top_Pt_Reweight
-  #  oneSided: true
+  - syst: Top_Pt_Reweight
+    oneSided: true
+
+  - syst: hdamp
 
   - syst: B_Tag_JES
     source: jes
@@ -77,10 +80,10 @@ systematics:
     dedicatedSampleKey_up: "CP5Up"
     dedicatedSampleKey_down: "CP5Down"
 
-  - syst: hdamp
-    hasDedicatedSample: true
-    dedicatedSampleKey_up: "hDampUp"
-    dedicatedSampleKey_down: "hDampDown"
+  # - syst: hdamp
+  #   hasDedicatedSample: true
+  #   dedicatedSampleKey_up: "hDampUp"
+  #   dedicatedSampleKey_down: "hDampDown"
 
   - syst: mtop
     hasDedicatedSample: true

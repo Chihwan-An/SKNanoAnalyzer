@@ -17,10 +17,12 @@ public:
 
     const T &operator[](std::size_t idx) const {
         static const T fallback{};
-        return data ? (*data)[idx] : fallback;
+        if (!data || !data->valid())
+            return fallback;
+        return (*data)[idx];
     }
 
-    std::size_t size() const { return data ? data->size() : 0; }
+    std::size_t size() const { return (data && data->valid()) ? data->size() : 0; }
     bool empty() const { return size() == 0; }
 
     const BranchType *branch() const { return data; }
@@ -39,10 +41,10 @@ public:
     void bind(const BranchType *branch) { data = branch; }
 
     bool operator[](std::size_t idx) const {
-        return data ? static_cast<bool>((*data)[idx]) : false;
+        return (data && data->valid()) ? static_cast<bool>((*data)[idx]) : false;
     }
 
-    std::size_t size() const { return data ? data->size() : 0; }
+    std::size_t size() const { return (data && data->valid()) ? data->size() : 0; }
     bool empty() const { return size() == 0; }
 
     const BranchType *branch() const { return data; }

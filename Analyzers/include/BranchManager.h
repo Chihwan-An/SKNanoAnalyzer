@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "TBranch.h"
 #include "TTree.h"
@@ -17,17 +18,34 @@ public:
     virtual void attach(TTree *tree_) {
         tree = tree_;
         branch = tree ? tree->GetBranch(branchName.c_str()) : nullptr;
-        active = false;
+        const bool wasActive = active; // remember whether this branch had been turned on
         lastEntry = -1;
-        if (tree && branch)
-            tree->SetBranchStatus(branchName.c_str(), 0);
+        needsRebind = branch != nullptr;
+        active = wasActive && branch;
+        if (tree && branch) {
+            tree->SetBranchStatus(branchName.c_str(), wasActive ? 1 : 0);
+            if (active)
+                bindAddress();
+        }
     }
+
+    static void recordActiveBranch(const std::string &name) {
+        activeBranchNames.insert(name);
+    }
+
+    static const std::unordered_set<std::string> &GetActiveBranches() {
+        return activeBranchNames;
+    }
+
+    static void ClearActiveBranches() { activeBranchNames.clear(); }
 
     virtual void reset() { lastEntry = -1; }
 
     void bindEntrySource(const Long64_t *ptr) { entrySource = ptr; }
 
 protected:
+    virtual void bindAddress() const {}
+
     Long64_t resolveEntry(Long64_t entry) const {
         if (entry >= 0)
             return entry;
@@ -40,12 +58,23 @@ protected:
     mutable bool active = false;
     mutable Long64_t lastEntry = -1;
     const Long64_t *entrySource = nullptr;
+    mutable bool needsRebind = false;
+
+    inline static std::unordered_set<std::string> activeBranchNames{};
 };
 
 template <typename T>
 class BranchScalar : public BranchBase {
 public:
     explicit BranchScalar(const char *name) : BranchBase(name) {}
+
+    void bindAddress() const override {
+        if (branch)
+        {
+            branch->SetAddress(&value);
+            needsRebind = false;
+        }
+    }
 
     const T &get(Long64_t entry = -1) const {
         ensure(entry);
@@ -61,14 +90,19 @@ public:
     void ensure(Long64_t entry = -1) const {
         if (!branch)
             return;
+        if (needsRebind)
+            bindAddress();
         const Long64_t target = resolveEntry(entry);
         if (target < 0)
             return;
         if (!active) {
+            std::cout << "[BranchManager] activating branch '" << branchName
+                      << "'" << std::endl;
             tree->SetBranchStatus(branchName.c_str(), 1);
-            std::cout << "[BranchManager] activating branch '" << branchName << "'" << std::endl;
             branch->SetAddress(&value);
             active = true;
+            needsRebind = false;
+            recordActiveBranch(branchName);
         }
         if (lastEntry == target)
             return;
@@ -85,6 +119,16 @@ class BranchVector : public BranchBase {
 public:
     BranchVector(const char *name, BranchScalar<CountT> &count)
         : BranchBase(name), countBranch(count) {}
+
+    void bindAddress() const override {
+        if (!branch)
+            return;
+        if (capacity > 0 && !buffer.empty())
+            branch->SetAddress(buffer.data());
+        else
+            branch->SetAddress(&zeroValue);
+        needsRebind = false;
+    }
 
     const std::vector<T> &values(Long64_t entry = -1) const {
         ensure(entry);
@@ -115,11 +159,15 @@ public:
     void ensure(Long64_t entry = -1) const {
         if (!branch)
             return;
+        if (needsRebind)
+            bindAddress();
         if (!active) {
+            std::cout << "[BranchManager] activating branch '" << branchName
+                      << "'" << std::endl;
             tree->SetBranchStatus(branchName.c_str(), 1);
-            std::cout << "[BranchManager] activating branch '" << branchName << "'" << std::endl;
             active = true;
             capacity = 0;
+            recordActiveBranch(branchName);
         }
 
         const Long64_t target = resolveEntry(entry);
@@ -170,6 +218,16 @@ public:
     BranchVector(const char *name, BranchScalar<CountT> &count)
         : BranchBase(name), countBranch(count) {}
 
+    void bindAddress() const override {
+        if (!branch)
+            return;
+        if (capacity > 0 && !storage.empty())
+            branch->SetAddress(storage.data());
+        else
+            branch->SetAddress(&zeroValue);
+        needsRebind = false;
+    }
+
     bool operator[](std::size_t idx) const {
         ensure();
         return static_cast<bool>(storage.at(idx));
@@ -189,11 +247,14 @@ public:
     void ensure(Long64_t entry = -1) const {
         if (!branch)
             return;
+        if (needsRebind)
+            bindAddress();
         if (!active) {
             tree->SetBranchStatus(branchName.c_str(), 1);
             std::cout << "[BranchManager] activating branch '" << branchName << "'" << std::endl;
             active = true;
             capacity = 0;
+            recordActiveBranch(branchName);
         }
 
         const Long64_t target = resolveEntry(entry);

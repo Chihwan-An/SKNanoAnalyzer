@@ -1,4 +1,3 @@
-#define SKNanoLoader_cxx
 #include "SKNanoLoader.h"
 #include "TTreeCache.h"
 #include "TBranch.h"
@@ -22,14 +21,6 @@ SKNanoLoader::SKNanoLoader()
     Userflags.clear();
 }
 
-SKNanoLoader::~SKNanoLoader()
-{
-    if (!fChain)
-        return;
-    if (fChain->GetCurrentFile())
-        fChain->GetCurrentFile()->Close();
-}
-
 void SKNanoLoader::configureTreeCache(TTree *tree)
 {
     if (!tree)
@@ -42,10 +33,10 @@ void SKNanoLoader::configureTreeCache(TTree *tree)
     }
 
     tree->SetCacheSize(treeCacheSizeBytes);
-    tree->SetCacheEntryRange(0, tree->GetEntries());
-
-    if (treeCacheLearnEntries >= 0)
-        tree->SetCacheLearnEntries(treeCacheLearnEntries);
+    const Long64_t cacheEnd =
+        fChain ? fChain->GetEntries() : tree->GetEntries();
+    tree->SetCacheEntryRange(0, cacheEnd);
+    tree->SetCacheLearnEntries(treeCacheLearnEntries >= 0 ? treeCacheLearnEntries : -1);
 
     if (auto *file = tree->GetCurrentFile())
     {
@@ -56,23 +47,21 @@ void SKNanoLoader::configureTreeCache(TTree *tree)
         }
     }
 
-    if (auto *branches = tree->GetListOfBranches())
+    // Prefetch only branches that were actually activated (recorded by BranchManager)
+    if (enableTreePrefetching)
     {
-        TIter next(branches);
-        while (TObject *obj = next())
+        const auto &activeBranches = BranchBase::GetActiveBranches();
+        auto *branchList = tree->GetListOfBranches();
+        const int capacity = branchList ? branchList->GetSize() : -1;
+        for (const auto &name : activeBranches)
         {
-            auto *branch = dynamic_cast<TBranch *>(obj);
+            auto *branch = tree->GetBranch(name.c_str());
             if (!branch)
                 continue;
-
-            const char *name = branch->GetName();
-            if (!name)
-                continue;
-
-            if (!tree->GetBranchStatus(name))
-                continue;
-
-            tree->AddBranchToCache(name, true);
+            const int id = static_cast<int>(branch->GetUniqueID());
+            if (capacity >= 0 && id >= capacity)
+                continue; // skip pathological IDs that would overflow TObjArray
+            tree->AddBranchToCache(name.c_str(), true);
         }
     }
 }
@@ -103,6 +92,7 @@ void SKNanoLoader::Loop()
     currentEntry = -1;
     currentLocalEntry = -1;
     branchManager.bindEntrySource(&currentLocalEntry);
+    cachePrefetchConfigured = false;
 
     Long64_t processed = 0;
     for (Long64_t globalEntry = 0; globalEntry < targetEntries; ++globalEntry)
@@ -118,7 +108,6 @@ void SKNanoLoader::Loop()
         {
             currentTreeNumber = fChain->GetTreeNumber();
             TTree *currentTree = fChain->GetTree();
-            configureTreeCache(currentTree);
             branchManager.attachTree(currentTree);
             ResetBranchStates();
         }
@@ -140,6 +129,13 @@ void SKNanoLoader::Loop()
 
         executeEvent();
         ++processed;
+        if (!cachePrefetchConfigured &&
+            enableTreePrefetching &&
+            processed >= CACHE_PREFETCH_WARMUP_EVENTS)
+        {
+            configureTreeCache(fChain);
+            cachePrefetchConfigured = true;
+        }
         if (processed >= entriesToProcess)
             break;
     }
@@ -160,6 +156,7 @@ void SKNanoLoader::Init()
     }
 
     fChain->SetBranchStatus("*", 0);
+    BranchBase::ClearActiveBranches();
 
     branchManager.clear();
     branchManager.bindEntrySource(&currentLocalEntry);

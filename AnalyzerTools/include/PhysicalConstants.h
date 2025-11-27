@@ -19,11 +19,11 @@ static constexpr float G_F = 1.1663788e-5; //GeV^-2
 static constexpr float Alpha_S_MZ = 0.1180;
 
 //CKM matrix
-static constexpr float Vcb = 41.1e-3;
-static constexpr float Vcs = 0.975;
-static constexpr float Vcd = 0.221;
-static constexpr float Vub = 3.82e-3;
-static constexpr float Vud = 0.97367;
-static constexpr float Vus = 0.22431;
+// static constexpr float Vcb = 41.1e-3;
+// static constexpr float Vcs = 0.975;
+// static constexpr float Vcd = 0.221;
+// static constexpr float Vub = 3.82e-3;
+// static constexpr float Vud = 0.97367;
+// static constexpr float Vus = 0.22431;
 
 #endif

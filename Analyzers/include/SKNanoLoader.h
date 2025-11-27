@@ -24,7 +24,7 @@ class SKNanoLoader
 {
 public:
     SKNanoLoader();
-    virtual ~SKNanoLoader();
+    virtual ~SKNanoLoader() = default;
 
     // virtual long GetEntry(long entry);
     virtual void SetTreeName(TString tname) { fChain = new TChain(tname); }
@@ -80,9 +80,13 @@ public:
     Long64_t currentLocalEntry = -1;
     int currentTreeNumber = -1;
 
-    Long64_t treeCacheSizeBytes = 64LL * 1024 * 1024; // 64 MB default cache
-    int treeCacheLearnEntries = 20;
+    // A larger default cache and longer learn phase help steady throughput
+    // across file boundaries.
+    Long64_t treeCacheSizeBytes = 200LL * 1024 * 1024; // 200 MB default cache
+    int treeCacheLearnEntries = 20000;                 // learn on first 20k entries
     bool enableTreePrefetching = true;
+    static constexpr Long64_t CACHE_PREFETCH_WARMUP_EVENTS = 20000;
+    bool cachePrefetchConfigured = false;
 
 protected:
     void configureTreeCache(TTree *tree);

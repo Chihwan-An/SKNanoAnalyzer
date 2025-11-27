@@ -15,6 +15,7 @@ find_package(ROOT REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Torch REQUIRED)
 find_package(correctionlib REQUIRED)
+find_package(absl CONFIG REQUIRED)
 find_package(VecCore QUIET)
 find_package(Vc QUIET)
 
@@ -79,5 +80,4 @@ FetchContent_MakeAvailable(yaml-cpp json)
 set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 

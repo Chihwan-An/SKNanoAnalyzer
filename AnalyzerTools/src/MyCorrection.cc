@@ -1379,7 +1379,7 @@ float MyCorrection::GetTopPtReweight(const TLorentzVector &LastCopyTop, const TL
     inputShapeMap["input"] = IntArray{1, 3, 5};
     inputDataMap["input"] = FloatArray(input_minnlo.data(), input_minnlo.data() + input_minnlo.size());
     auto outputDataMap = MLHelper_TopPtReweight->Run_ONNX_Model(inputDataMap, inputShapeMap);
-    return outputDataMap["output"][1] / outputDataMap["output"][0];
+    return outputDataMap["activation_6"][1] / outputDataMap["activation_6"][0];
 
 }
 
@@ -1428,7 +1428,7 @@ float MyCorrection::GethDampReweight(const TLorentzVector &FirstCopyTop, const T
         : MLHelper_hDampDown.get();
 
     auto outputDataMap = this_model->Run_ONNX_Model(inputDataMap, inputShapeMap);
-    return outputDataMap["output"][0] / outputDataMap["output"][1];
+    return outputDataMap["activation_6"][0] / outputDataMap["activation_6"][1];
     
         
 }

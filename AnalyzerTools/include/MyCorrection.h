@@ -19,6 +19,7 @@ using namespace std;
 #include "JetView.h"
 #include "JetTaggingParameter.h"
 #include "Gen.h"
+#include "GenView.h"
 #include "Muon.h"
 #include "Electron.h"
 #include "FatJet.h"
@@ -147,7 +148,10 @@ public:
     // reweighting
     float GetTopPtReweight(const TLorentzVector &LastCopyTop, const TLorentzVector &LastCopyAntiTop) const;
     float GethDampReweight(const TLorentzVector &FirstCopyTop, const TLorentzVector &FirstCopyAntiTop, const variation &syst) const;
-
+    float GetBFragReweight(const TLorentzVector &LastCopyTop, const TLorentzVector &LastCopyAntiTop, const TLorentzVector &LastCopyWPlus, const TLorentzVector &LastCopyWMinus,
+                            const TLorentzVector &FirstCopyBHadronFromTop, const TLorentzVector &FirstCopyBHadronFromAntiTop, const variation &syst) const;
+    // helper function for getbfrag
+    std::array<size_t, 6> GetGenIdxofTopDecayProducts(const GenViewCollection &gens) const;
     // Safe evaluation function for correction sets with comprehensive error handling
     template<typename... Args>
     inline float safeEvaluate(const correction::Correction::Ref &cset, 
@@ -234,6 +238,8 @@ private:
         string onnx_toppt_reweight;
         string onnx_hDampUp;
         string onnx_hDampDown;
+        string onnx_rBnom;
+        string onnx_rBUp;
     };
     EraConfig GetEraConfig(TString era, const string &btagging_eff_file, const string &ctagging_eff_file, const string &btagging_R_file, const string &ctagging_R_file) const;
 
@@ -325,6 +331,8 @@ private:
     unique_ptr<MLHelper> MLHelper_TopPtReweight;
     unique_ptr<MLHelper> MLHelper_hDampUp;
     unique_ptr<MLHelper> MLHelper_hDampDown;
+    unique_ptr<MLHelper> MLHelper_rBnom;
+    unique_ptr<MLHelper> MLHelper_rBUp;
     
 
     unique_ptr<CorrectionSet> cset_muon;

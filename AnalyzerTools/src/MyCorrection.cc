@@ -3,6 +3,7 @@
 
 #include <TLorentzVector.h>
 #include <execution>
+#include <iostream>
 #include <numeric>
 #include <vector>
 
@@ -61,7 +62,8 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
     MLHelper_hDampUp = make_unique<MLHelper>(config.onnx_hDampUp, MLHelper::ModelType::ONNX);
     MLHelper_hDampDown = make_unique<MLHelper>(config.onnx_hDampDown, MLHelper::ModelType::ONNX);
     MLHelper_TopPtReweight = make_unique<MLHelper>(config.onnx_toppt_reweight, MLHelper::ModelType::ONNX);
-
+    MLHelper_rBnom = make_unique<MLHelper>(config.onnx_rBnom, MLHelper::ModelType::ONNX);
+    MLHelper_rBUp = make_unique<MLHelper>(config.onnx_rBUp, MLHelper::ModelType::ONNX);
 
     LUM_keys["2024"] = "Collisions2024_378981_386951_GoldenJson";
     LUM_keys["2023BPix"] = "Collisions2023_369803_370790_eraD_GoldenJson";
@@ -148,6 +150,8 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
     config.onnx_hDampDown = sknano_data_str;
     config.onnx_hDampUp = sknano_data_str;
     config.onnx_toppt_reweight = sknano_data_str;
+    config.onnx_rBnom = sknano_data_str;
+    config.onnx_rBUp = sknano_data_str;
 
     // config.json_muon_custom_TopHNT_idsf = sknano_data_str;
     // config.json_muon_custom_dblmu_leg1_eff = sknano_data_str;
@@ -185,6 +189,9 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.onnx_hDampDown += "/2024/ONNX/mymodel12_hdamp_down_13.6TeV.onnx";
         config.onnx_hDampUp += "/2024/ONNX/mymodel12_hdamp_up_13.6TeV.onnx";
         config.onnx_toppt_reweight += "/2024/ONNX/mymodel12_13TeV_MiNNLO_afterShower.onnx";
+        config.onnx_rBnom += "/2024/ONNX/mymodel12_rB_nom_CP5_2M.onnx";
+        config.onnx_rBUp += "/2024/ONNX/mymodel12_rB_up_CP5_2M.onnx";
+
 
         // print in red
         cout << "\033[1;31m[MyCorrection::GetEraConfig] Warning: ONNX models for TopPt reweight is for 13TeV! Please update the models for 13.6TeV!\033[0m" << endl;
@@ -1309,6 +1316,7 @@ float MyCorrection::GetTopPtReweight(const TLorentzVector &LastCopyTop, const TL
         at_mass
     };
 
+
     struct NormSpec {
         double mean;
         double std;
@@ -1374,11 +1382,12 @@ float MyCorrection::GetTopPtReweight(const TLorentzVector &LastCopyTop, const TL
     input_minnlo[14] = -0.6f;
 
     std::unordered_map<std::string, VariousArray> inputDataMap;
-    std::unordered_map<std::string, IntArray>     inputShapeMap;
+    static const std::unordered_map<std::string, IntArray> inputShapeMap_toppt = {
+        {"input", IntArray{1, 3, 5}}
+    };
 
-    inputShapeMap["input"] = IntArray{1, 3, 5};
     inputDataMap["input"] = FloatArray(input_minnlo.data(), input_minnlo.data() + input_minnlo.size());
-    auto outputDataMap = MLHelper_TopPtReweight->Run_ONNX_Model(inputDataMap, inputShapeMap);
+    auto outputDataMap = MLHelper_TopPtReweight->Run_ONNX_Model(inputDataMap, inputShapeMap_toppt);
     return outputDataMap["activation_6"][1] / outputDataMap["activation_6"][0];
 
 }
@@ -1405,21 +1414,23 @@ float MyCorrection::GethDampReweight(const TLorentzVector &FirstCopyTop, const T
         std::log10(t_pt),
         t_y,
         t_phi,
-        t_mass/243.95,
+        t_mass/243.95f,
         0.1,
         1.379,
         std::log10(at_pt),
         at_y,
         at_phi,
-        at_mass/243.95,
+        at_mass/243.95f,
         0.2,
         1.379
     };
 
     std::unordered_map<std::string, VariousArray> inputDataMap;
-    std::unordered_map<std::string, IntArray>     inputShapeMap;
+    static const std::unordered_map<std::string, IntArray> inputShapeMap_hdamp = {
+        {"input", IntArray{1, 2, 6}}
+    };
 
-    inputShapeMap["input"] = IntArray{1, 2, 6};
+
     inputDataMap["input"] = input_hdamp;
 
     MLHelper *this_model =
@@ -1427,8 +1438,152 @@ float MyCorrection::GethDampReweight(const TLorentzVector &FirstCopyTop, const T
         ? MLHelper_hDampUp.get()
         : MLHelper_hDampDown.get();
 
-    auto outputDataMap = this_model->Run_ONNX_Model(inputDataMap, inputShapeMap);
+    auto outputDataMap = this_model->Run_ONNX_Model(inputDataMap, inputShapeMap_hdamp);
     return outputDataMap["activation_6"][0] / outputDataMap["activation_6"][1];
     
         
+}
+
+float MyCorrection::GetBFragReweight(const TLorentzVector &LastCopyTop, const TLorentzVector &LastCopyWPlus, const TLorentzVector &FirstCopyBHadronFromTop, const TLorentzVector &LastCopyAntiTop, const TLorentzVector &LastCopyWMinus,
+                             const TLorentzVector &FirstCopyBHadronFromAntiTop, const variation &syst) const{
+    if(syst == variation::down) return 1.f;
+    const float x_e_top = 2*FirstCopyBHadronFromTop * LastCopyTop / LastCopyTop.M2();
+    const float x_e_antitop = 2*FirstCopyBHadronFromAntiTop * LastCopyAntiTop / LastCopyAntiTop.M2();
+    const float w_top = LastCopyWPlus.M2() / LastCopyTop.M2();
+    const float w_antitop = LastCopyWMinus.M2() / LastCopyAntiTop.M2();
+    const float clip_value = 1.2f;
+    const float x_b_top = std::min(x_e_top / (1 - w_top), clip_value);
+    const float x_b_antitop = std::min(x_e_antitop / (1 - w_antitop), clip_value);    
+    FloatArray input_bfrag(4);
+    MLHelper *this_model = (syst == variation::up) ? MLHelper_rBUp.get() : MLHelper_rBnom.get();                      
+    input_bfrag= {
+        x_b_top,
+        0.855,
+        x_b_antitop,
+        0.855
+    };
+
+    std::unordered_map<std::string, VariousArray> inputDataMap;
+    static const std::unordered_map<std::string, IntArray> inputShapeMap_bfrag = {
+        {"input", IntArray{1, 2, 2}}
+    };
+
+    inputDataMap["input"] = input_bfrag;
+    auto outputDataMap = this_model->Run_ONNX_Model(inputDataMap, inputShapeMap_bfrag);
+    return outputDataMap["activation_6"][0] / outputDataMap["activation_6"][1];
+}
+
+std::array<std::size_t, 6>
+MyCorrection::GetGenIdxofTopDecayProducts(const GenViewCollection &gens) const
+{
+    constexpr std::size_t npos = std::numeric_limits<std::size_t>::max();
+    std::array<std::size_t, 6> out{npos, npos, npos, npos, npos, npos};
+
+    const auto &storage = gens.storage();
+    if (!storage) return out;
+
+    const std::size_t n = storage->size();
+    if (n == 0) return out;
+
+    const auto &pt    = storage->pt;
+    const auto &eta   = storage->eta;
+    const auto &phi   = storage->phi;
+    const auto &mass  = storage->mass;
+    const auto &pdgId = storage->pdgId;
+    const auto &statusFlags = storage->statusFlags;
+    const auto &motherIdx   = storage->motherIdx;
+
+    constexpr unsigned short FIRST_COPY = 1u << 12;
+    constexpr unsigned short LAST_COPY  = 1u << 13;
+
+    auto isBottomHadron = [](int pdg) {
+        int ap = std::abs(pdg);
+        if (ap < 500) return false;
+        int hundreds  = (ap / 100) % 10;
+        int thousands = (ap / 1000) % 10;
+        return (hundreds == 5) || (thousands == 5);
+    };
+
+
+    std::size_t topIdx      = npos;
+    std::size_t antiTopIdx  = npos;
+    std::size_t WTopIdx     = npos;
+    std::size_t WAntiTopIdx = npos;
+    std::size_t bFromTopIdx    = npos;
+    std::size_t bFromAntiTopIdx= npos;
+
+    std::vector<std::size_t> Bcands;
+    Bcands.reserve(8);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        const int id = pdgId[i];
+        const unsigned short flg = statusFlags[i];
+
+        if (flg & LAST_COPY) {
+            if (id == 6 && topIdx == npos)
+                topIdx = i;
+            else if (id == -6 && antiTopIdx == npos)
+                antiTopIdx = i;
+            else if (id == 24 && WTopIdx == npos)
+                WTopIdx = i;
+            else if (id == -24 && WAntiTopIdx == npos)
+                WAntiTopIdx = i;
+            else if (id == 5 && bFromTopIdx == npos)
+                bFromTopIdx = i;
+            else if (id == -5 && bFromAntiTopIdx == npos)
+                bFromAntiTopIdx = i;
+        }
+
+        if ((flg & FIRST_COPY) && isBottomHadron(id)) {
+            Bcands.push_back(i);
+        }
+    }
+
+    if(topIdx == npos || antiTopIdx == npos ||
+       WTopIdx == npos || WAntiTopIdx == npos){
+        throw runtime_error("[MyCorrection::GetGenIdxofTopDecayProducts] Unable to find top/anti-top or W bosons in the event.");
+       }
+
+    if(Bcands.size() < 2){
+        throw runtime_error("[MyCorrection::GetGenIdxofTopDecayProducts] Unable to find sufficient b-hadron candidates in the event.");
+    }
+
+
+    auto matchBHad = [&](std::size_t bIdx) -> std::size_t {
+        if (bIdx == npos || Bcands.empty()) return npos;
+
+        const float eta_b = eta[bIdx];
+        const float phi_b = phi[bIdx];
+
+        double bestDR2 = 1e9;
+        std::size_t best = npos;
+        const double maxDR2 = 1e9;
+
+        for (auto cand : Bcands) {
+            const double dEta = static_cast<double>(eta[cand]) - eta_b;
+            double dPhi = static_cast<double>(phi[cand]) - phi_b;
+            // wrap to [-pi, pi]
+            if (dPhi > M_PI)      dPhi -= 2 * M_PI;
+            else if (dPhi < -M_PI) dPhi += 2 * M_PI;
+
+            const double dr2 = dEta * dEta + dPhi * dPhi;
+            if (dr2 < bestDR2 && dr2 < maxDR2) {
+                bestDR2 = dr2;
+                best = cand;
+            }
+        }
+        return best;
+    };
+
+    std::size_t BHadTopIdx  = matchBHad(bFromTopIdx);
+    std::size_t BHadAntiIdx = matchBHad(bFromAntiTopIdx);
+
+    out[0] = topIdx;
+    out[1] = WTopIdx;
+    out[2] = BHadTopIdx;
+    out[3] = antiTopIdx;
+    out[4] = WAntiTopIdx;
+    out[5] = BHadAntiIdx;
+
+    return out;
 }

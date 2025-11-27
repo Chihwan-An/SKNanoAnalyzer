@@ -119,7 +119,8 @@ void ExampleRun::executeEvent() {
   // Analyzers/include/ExampleRun.h, and save muons objects at the very
   // beginning of executeEvent(). Later, do "SelectMuons(AllMuons, ID, pt, eta)"
   // to get muons with ID cuts
-  AllMuons = GetAllMuons();
+  // AllMuons = GetAllMuons();
+  AllMuonViews = GetAllMuonViews();
   // AllJets = GetAllJets();
 
   // No prefire weight for Run3?
@@ -190,12 +191,18 @@ void ExampleRun::executeEventFromParameter() {
     return;
 
   // Copy All objects
-  RVec<Muon> this_AllMuons = AllMuons;
+  //RVec<Muon> this_AllMuons = AllMuons;
   // RVec<Jet> this_AllJets = AllJets;
 
   // apply ID selections using this_AllXXX
-  RVec<Muon> muons = SelectMuons(this_AllMuons, this_muon_id, 20., 2.4);
+  //RVec<Muon> muons = SelectMuons(this_AllMuons, this_muon_id, 20., 2.4);
   // RVec<Jet> jets = SelectJets(this_AllJets, param.Jet_ID, 30., 2.4);
+  std::vector<size_t> SelectedMuonIndices =
+      SelectMuonIndices(AllMuonViews, this_muon_id, 20., 2.4);
+  if (SelectedMuonIndices.size() != 2)
+    return;
+
+  RVec<Muon> muons = MaterializeMuons(AllMuonViews, SelectedMuonIndices);
 
   // sort in pt-order
   // 1) leptons : after scaling/smearing, pt ordring can differ from NANOAOD
@@ -213,8 +220,8 @@ void ExampleRun::executeEventFromParameter() {
 
   // Event selection
   // dimuon
-  if (muons.size() != 2)
-    return;
+  //if (muons.size() != 2)
+  //  return;
   // leading muon has to pass trigger-safe cut
   if (muons.at(0).Pt() <= TriggerSafePtCut)
     return;
@@ -224,8 +231,11 @@ void ExampleRun::executeEventFromParameter() {
     return;
 
   // example of applying muon scale factors
-  auto mu_id_lambda = [&](MyCorrection::variation syst, TString source="total")
-  { return myCorr->GetMuonIDSF(this_muon_id_sf_key, muons, syst); };
+  std::function<float(MyCorrection::variation, TString)> mu_id_lambda =
+      [&](MyCorrection::variation syst, TString source) {
+        (void)source;
+        return myCorr->GetMuonIDSF(this_muon_id_sf_key, muons, syst);
+      };
   weight_function_map["Muon_ID"] = mu_id_lambda;
   systHelper->assignWeightFunctionMap(weight_function_map);
 
@@ -233,7 +243,7 @@ void ExampleRun::executeEventFromParameter() {
   float weight = 1.;
   if (!IsDATA) {
     weight *= MCweight();
-    weight *= ev.GetTriggerLumi("Full");
+    weight *= ev.GetTriggerLumi("HLT_IsoMu24");
     //weight *= weight_Prefire;
     float default_weight = weight;
     // Below line will caculate weight for each systematic sources

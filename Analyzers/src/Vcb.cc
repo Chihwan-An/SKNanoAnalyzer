@@ -235,19 +235,19 @@ void Vcb::initializeAnalyzer() {
     myMLHelper_RECO_folds.reserve(4);
     for (int i = 0; i < 4; ++i) {
       myMLHelper_CLASSIF_folds.push_back(std::make_unique<MLHelper>(
-          "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/spanet_version_" +
+          SKNANO_HOME + "/data/spanet_version_" +
               std::to_string(i) + "_CLASSIF.onnx",
           MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
     }
     for (int i = 0; i < 4; ++i) {
       myMLHelper_RECO_folds.push_back(std::make_unique<MLHelper>(
-          "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/spanet_version_" +
+          SKNANO_HOME + "/data/spanet_version_" +
               std::to_string(i) + "_RECO.onnx",
           MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
     }
     for (int i = 0; i < 4; ++i) {
       myMLHelper_TabNet_folds.push_back(std::make_unique<MLHelper>(
-          "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/tabnet_fold" +
+          SKNANO_HOME + "/data/tabnet_fold" +
               std::to_string(i) + ".onnx",
           MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
     }
@@ -273,14 +273,14 @@ void Vcb::initializeAnalyzer() {
         "spanet_FH_2022EE.onnx",
         MLHelper::ModelType::ONNX);
   }
-
   if (IsDATA) {
     systHelper = std::make_unique<SystematicHelper>(
-        "/data6/Users/yeonjoon/SKNanoAnalyzer/AnalyzerTools/noSyst.yaml",
+         SKNANO_HOME + "/AnalyzerTools/noSyst.yaml",
         DataStream, DataEra);
   } else {
+    
     systHelper = std::make_unique<SystematicHelper>(
-        "/data6/Users/yeonjoon/SKNanoAnalyzer/AnalyzerTools/"
+        SKNANO_HOME + "/AnalyzerTools/"
         "VcbSystematic_BTag.yaml",
         MCSample, DataEra);
   }
@@ -784,7 +784,9 @@ void Vcb::SetSystematicLambda(bool remove_flavtagging_sf) {
   weight_function_map["MuR"] = MuR_lambda;
   weight_function_map["ISR"] = ISR_lambda;
   weight_function_map["FSR"] = FSR_lambda;
-  weight_function_map["Top_Pt_Reweight"] = dummy_oneside_lambda;
+  weight_function_map["Top_Pt_Reweight"] = top_pt_reweight_lambda;
+  weight_function_map["hdamp"] = hDamp_lambda;
+
   if (remove_flavtagging_sf)
     weight_function_map["btag"] = dummy_lambda;
   else

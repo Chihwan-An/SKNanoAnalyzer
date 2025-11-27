@@ -768,6 +768,22 @@ void Vcb::SetSystematicLambda(bool remove_flavtagging_sf) {
       }
     };
 
+  
+  std::function<float(MyCorrection::variation, TString)> bFrag_lambda =
+      [&](MyCorrection::variation syst, TString source) {
+        if (!MCSample.Contains("TT"))
+          return 1.f;
+        auto [topIdx, WTopIdx, BHadTopIdx, antiTopIdx, WAntiTopIdx,
+         BHadAntiTopIdx] = myCorr->GetGenIdxofTopDecayProducts(AllGenViews);
+         return myCorr->GetBFragReweight(AllGenViews[topIdx].P4(),
+                                        AllGenViews[WTopIdx].P4(),
+                                        AllGenViews[BHadTopIdx].P4(),
+                                        AllGenViews[antiTopIdx].P4(),
+                                        AllGenViews[WAntiTopIdx].P4(),
+                                        AllGenViews[BHadAntiTopIdx].P4(),
+                                        syst);
+      };
+
   std::function<float(MyCorrection::variation, TString)> dummy_lambda =
       [&](MyCorrection::variation, TString /*source*/) { return 1.f; };
 
@@ -786,6 +802,7 @@ void Vcb::SetSystematicLambda(bool remove_flavtagging_sf) {
   weight_function_map["FSR"] = FSR_lambda;
   weight_function_map["Top_Pt_Reweight"] = top_pt_reweight_lambda;
   weight_function_map["hdamp"] = hDamp_lambda;
+  weight_function_map["BFrag"] = bFrag_lambda;
 
   if (remove_flavtagging_sf)
     weight_function_map["btag"] = dummy_lambda;

@@ -39,6 +39,8 @@ systematics:
 
   - syst: hdamp
 
+  - syst: BFrag
+
   - syst: B_Tag_JES
     source: jes
     target: btag

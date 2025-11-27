@@ -2,6 +2,7 @@
 #define ExampleRun_h
 
 #include "AnalyzerCore.h"
+#include "MuonView.h"
 #include "SystematicHelper.h"
 
 
@@ -21,6 +22,7 @@ public:
     RVec<TString> MuonIDSFKeys;
     RVec<Muon::MuonID> MuonIDs;
     RVec<Muon> AllMuons;
+    MuonViewCollection AllMuonViews;
     RVec<Jet> AllJets;
     Event ev;
 

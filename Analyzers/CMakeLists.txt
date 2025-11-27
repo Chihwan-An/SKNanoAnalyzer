@@ -42,6 +42,7 @@ target_link_libraries(Analyzers PUBLIC DataFormats)
 target_link_libraries(Analyzers PUBLIC AnalyzerTools)
 target_link_libraries(Analyzers PUBLIC KinFitter)
 #target_link_libraries(Analyzers PUBLIC MLHelper)
+target_link_libraries(Analyzers PUBLIC absl::flat_hash_map absl::strings absl::hash)
 target_link_libraries(Analyzers PUBLIC nlohmann_json::nlohmann_json)
 
 # Specify where to install the library

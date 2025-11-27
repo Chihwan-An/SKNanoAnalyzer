@@ -1338,7 +1338,7 @@ float MyCorrection::GetTopPtReweight(const TLorentzVector &LastCopyTop, const TL
         for (int j = 0; j < 4; ++j) {
             double v = static_cast<double>(x[j]);
             if (specs[j].use_log) {
-                v = std::log(std::max(v, 1e-6));
+                v = std::log10(std::max(v, 1e-6));
             }
             v -= specs[j].mean;
             if (specs[j].std >= 1e-2) {

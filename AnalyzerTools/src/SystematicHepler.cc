@@ -17,6 +17,7 @@ Era(Era.Data()){
         std::string syst_name = node["syst"].as<std::string>();
         SystematicHelper::SYST syst;
         syst.syst = syst_name;
+        syst.raw_name = syst_name;
         if (node["decorrelate_by_era"].IsDefined())
         {
             syst.decorrelate_by_era = node["decorrelate_by_era"].as<bool>();
@@ -60,6 +61,8 @@ Era(Era.Data()){
         systematics.push_back(syst);
     }
 
+    rebuildSystLookup();
+
     for (const auto &node : config["correlations"])
     {
         CORRELATION correlation;
@@ -78,7 +81,17 @@ Era(Era.Data()){
                 correlation.child_syst_names.insert(node["sources"][i].as<std::string>());
             }
             std::string source = node["sources"][i].as<std::string>();
-            correlation.sources.push_back(findSystematic(source));
+            SystematicHelper::SYST *source_ptr = findSystematic(source);
+            correlation.sources.push_back(source_ptr);
+            if (i == 0)
+            {
+                correlation.rep_ptr = source_ptr;
+            }
+            else
+            {
+                correlation.child_ptrs.push_back(source_ptr);
+            }
+            correlation.member_ptrs.push_back(source_ptr);
         }
         correlations[name] = correlation;
     }
@@ -109,6 +122,10 @@ SystematicHelper::~SystematicHelper() {}
 
 SystematicHelper::SYST *SystematicHelper::findSystematic(std::string syst_name)
 {
+    auto it_lookup = syst_lookup.find(syst_name);
+    if (it_lookup != syst_lookup.end())
+        return it_lookup->second;
+
     for (auto &syst : systematics)
     {
         if (syst.syst == syst_name)
@@ -362,30 +379,33 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case
 
     for (const auto &correlation : correlations)
     {
-        unordered_set<std::string> all_sources_name = correlation.second.child_syst_names;
-        all_sources_name.insert(correlation.second.rep_name);
+        const auto &member_ptrs = correlation.second.member_ptrs;
         float weight_up = nominal_weight;
         float weight_down = nominal_weight;
         // If current Iter_obj is Central and correlation include systematic that has dedicated sample of require evtLoopAgain, skip.
         // that correlation set will be calculated in that situation
         bool correlation_should_be_skipped = false;
-        for (const auto &sources_in_table : all_sources_name)
+        for (const auto *sources_in_table : member_ptrs)
         {
-            if (findSystematic(sources_in_table)->hasDedicatedSample || findSystematic(sources_in_table)->evtLoopAgain)
+            if (!sources_in_table)
+                continue;
+            if (sources_in_table->hasDedicatedSample || sources_in_table->evtLoopAgain)
             {
                 correlation_should_be_skipped = true;
                 break;
             }
         }
         
-        for (const auto &sources_in_table : all_sources_name)
+        for (const auto *sources_in_table : member_ptrs)
         {
-            std::string this_target = findSystematic(sources_in_table)->target;
+            if (!sources_in_table)
+                continue;
+            const std::string &this_target = sources_in_table->target;
             weight_up = safe_divide(weight_up, weight_map_nominal[this_target]);
             weight_down = safe_divide(weight_down, weight_map_nominal[this_target]);
-            weight_up *= weight_map_up[sources_in_table];
-            weight_down *= weight_map_down[sources_in_table];
-            auto it = find(all_weight_systs.begin(), all_weight_systs.end(), sources_in_table);
+            weight_up *= weight_map_up[sources_in_table->syst];
+            weight_down *= weight_map_down[sources_in_table->syst];
+            auto it = find(all_weight_systs.begin(), all_weight_systs.end(), sources_in_table->syst);
             if (it != all_weight_systs.end())
             {
                 all_weight_systs.erase(it);
@@ -397,21 +417,24 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case
     }
 
     // systematic that not in correlation table
-    for (const auto &syst : all_weight_systs)
+    for (const auto &syst_name : all_weight_systs)
     {
         float weight_up = nominal_weight;
         float weight_down = nominal_weight;
-        if(findSystematic(syst)->hasDedicatedSample || findSystematic(syst)->evtLoopAgain)
+        SystematicHelper::SYST *syst_ptr = findSystematic(syst_name);
+        if (!syst_ptr)
+            continue;
+        if(syst_ptr->hasDedicatedSample || syst_ptr->evtLoopAgain)
         {
             continue;
         }
-        std::string this_target = findSystematic(syst)->target;
+        const std::string &this_target = syst_ptr->target;
         weight_up = safe_divide(weight_up, weight_map_nominal[this_target]);
         weight_down = safe_divide(weight_down, weight_map_nominal[this_target]);
-        weight_up *= weight_map_up[syst];
-        weight_down *= weight_map_down[syst];
-        weights[syst + variation_prefix[MyCorrection::variation::up]] = weight_up;
-        weights[syst + variation_prefix[MyCorrection::variation::down]] = weight_down;
+        weight_up *= weight_map_up[syst_ptr->syst];
+        weight_down *= weight_map_down[syst_ptr->syst];
+        weights[syst_ptr->syst + variation_prefix[MyCorrection::variation::up]] = weight_up;
+        weights[syst_ptr->syst + variation_prefix[MyCorrection::variation::down]] = weight_down;
     }
     if(isDedicatedSample)
     {
@@ -473,21 +496,31 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_non_central_
         switch (current_Iter_obj.variation)
         {
         case MyCorrection::variation::up:
-            weights[current_Iter_obj.iter_name]  = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[findSystematic(this_correlation.rep_name)->target]);
-            weights[current_Iter_obj.iter_name] *= weight_map_up[findSystematic(this_correlation.rep_name)->syst];
-            for (const auto &syst : this_correlation.child_syst_names)
+            if (this_correlation.rep_ptr)
             {
-                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name] ,weight_map_nominal[findSystematic(syst)->target]);
-                weights[current_Iter_obj.iter_name] *= weight_map_up[syst];
+                weights[current_Iter_obj.iter_name]  = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[this_correlation.rep_ptr->target]);
+                weights[current_Iter_obj.iter_name] *= weight_map_up[this_correlation.rep_ptr->syst];
+            }
+            for (const auto *syst : this_correlation.child_ptrs)
+            {
+                if (!syst)
+                    continue;
+                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name] ,weight_map_nominal[syst->target]);
+                weights[current_Iter_obj.iter_name] *= weight_map_up[syst->syst];
             }
             break;
         case MyCorrection::variation::down:
-            weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[findSystematic(this_correlation.rep_name)->target]);
-            weights[current_Iter_obj.iter_name] *= weight_map_down[findSystematic(this_correlation.rep_name)->syst];
-            for (const auto &syst : this_correlation.child_syst_names)
+            if (this_correlation.rep_ptr)
             {
-                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[findSystematic(syst)->target]);
-                weights[current_Iter_obj.iter_name] *= weight_map_down[syst];
+                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[this_correlation.rep_ptr->target]);
+                weights[current_Iter_obj.iter_name] *= weight_map_down[this_correlation.rep_ptr->syst];
+            }
+            for (const auto *syst : this_correlation.child_ptrs)
+            {
+                if (!syst)
+                    continue;
+                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[syst->target]);
+                weights[current_Iter_obj.iter_name] *= weight_map_down[syst->syst];
             }
             break;
         default:
@@ -533,15 +566,18 @@ std::vector<std::string> SystematicHelper::get_targets_from_name(const std::stri
     {
         if (correlation.second.rep_name == syst_name_no_variation)
         {
-            targets.push_back(findSystematic(correlation.second.rep_name)->target);
-            for (const auto &child_syst : correlation.second.child_syst_names)
+            if (correlation.second.rep_ptr)
+                targets.push_back(correlation.second.rep_ptr->target);
+            for (const auto *child_syst : correlation.second.child_ptrs)
             {
-                targets.push_back(findSystematic(child_syst)->target);
+                if (child_syst)
+                    targets.push_back(child_syst->target);
             }
             return targets;
         }
     }
-    targets.push_back(syst->target);
+    if (syst)
+        targets.push_back(syst->target);
     return targets;
 }
 
@@ -570,15 +606,18 @@ std::vector<std::string> SystematicHelper::get_sources_from_name(const std::stri
     {
         if (correlation.second.rep_name == syst_name_no_variation)
         {
-            sources.push_back(findSystematic(correlation.second.rep_name)->source);
-            for (const auto &child_syst : correlation.second.child_syst_names)
+            if (correlation.second.rep_ptr)
+                sources.push_back(correlation.second.rep_ptr->source);
+            for (const auto *child_syst : correlation.second.child_ptrs)
             {
-                sources.push_back(findSystematic(child_syst)->source);
+                if (child_syst)
+                    sources.push_back(child_syst->source);
             }
             return sources;
         }
     }
-    sources.push_back(syst->source);
+    if (syst)
+        sources.push_back(syst->source);
     return sources;
 }
 
@@ -596,4 +635,14 @@ MyCorrection::variation SystematicHelper::get_variation_from_name(const std::str
         }
     }
     throw std::runtime_error("[SystematicHelper::get_variation_from_name] weird syst_name");
+}
+
+void SystematicHelper::rebuildSystLookup()
+{
+    syst_lookup.clear();
+    for (auto &syst : systematics)
+    {
+        syst_lookup[syst.syst] = &syst;
+        syst_lookup[syst.raw_name] = &syst;
+    }
 }

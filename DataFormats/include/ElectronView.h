@@ -148,6 +148,7 @@ public:
     short GenPartIdx() const { return store->genPartIdx[idx]; }
     short JetIdx() const { return store->jetIdx[idx]; }
     float ScEta() const { return store->scEta[idx]; }
+    std::size_t rawIndex() const { return idx; }
     float deltaEtaInSC() const { return store->deltaEtaSC[idx]; }
     float deltaEtaInSeed() const { return idx < store->deltaEtaSeed.size() ? store->deltaEtaSeed[idx] : 0.f; }
     float deltaPhiInSC() const { return idx < store->deltaPhiSC.size() ? store->deltaPhiSC[idx] : 0.f; }

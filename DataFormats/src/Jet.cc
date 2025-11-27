@@ -26,9 +26,9 @@ void Jet::initializeMembers() {
   j_UParTAK4V1RegPtRawRes = -999.f;
   j_rawFactor = -999.f;
 
-  j_btagDeepFlav.clear();
-  j_btagPNet.clear();
-  j_btagUParTAK4.clear();
+  j_btagDeepFlav.fill(Jet::kInvalidTagScore);
+  j_btagPNet.fill(Jet::kInvalidTagScore);
+  j_btagUParTAK4.fill(Jet::kInvalidTagScore);
 
   j_chEmEF = -999.f;
   j_chHEF = -999.f;
@@ -342,15 +342,16 @@ void Jet::ensureScore(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTagge
 }
 
 void Jet::SetTaggerScore(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerScoreType scoreType, float value) {
+  const auto idx = JetTagging::JetFlavTaggerScoreIndex(scoreType);
   switch (tagger) {
     case JetTagging::JetFlavTagger::DeepJet:
-      j_btagDeepFlav[scoreType] = value;
+      j_btagDeepFlav[idx] = value;
       break;
     case JetTagging::JetFlavTagger::ParticleNet:
-      j_btagPNet[scoreType] = value;
+      j_btagPNet[idx] = value;
       break;
     case JetTagging::JetFlavTagger::ParT:
-      j_btagUParTAK4[scoreType] = value;
+      j_btagUParTAK4[idx] = value;
       break;
     default:
       break;
@@ -360,32 +361,21 @@ void Jet::SetTaggerScore(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTa
 
 float Jet::GetTaggerResult(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerScoreType scoreType) const {
     ensureScore(tagger, scoreType);
-    const unordered_map<JetTagging::JetFlavTaggerScoreType, float> *taggerResult = nullptr;
+    const auto idx = JetTagging::JetFlavTaggerScoreIndex(scoreType);
     switch (tagger)
     {
     case JetTagging::JetFlavTagger::DeepJet:
-        taggerResult = &j_btagDeepFlav;
-        break;
+        return j_btagDeepFlav[idx];
     case JetTagging::JetFlavTagger::ParticleNet:
-        taggerResult = &j_btagPNet;
-        break;
+        return j_btagPNet[idx];
     case JetTagging::JetFlavTagger::ParT:
-        taggerResult = &j_btagUParTAK4;
-        break;
+        return j_btagUParTAK4[idx];
 
     default:
-        cout << "[FatJet::GetTaggerResult] No tagger " << JetTagging::GetTaggerCorrectionLibStr(tagger) << endl;
+        cout << "[Jet::GetTaggerResult] No tagger " << JetTagging::GetTaggerCorrectionLibStr(tagger) << endl;
         exit(ENODATA);
     }
-    auto it = taggerResult->find(scoreType);
-    if (it == taggerResult->end())
-    {
-        cout << "[FatJet::GetTaggerResult] No tagger score type "
-            << JetTagging::GetJetFlavTaggerScoreTypeStr(scoreType) 
-            << " for tagger " << JetTagging::GetTaggerCorrectionLibStr(tagger) << endl;
-        exit(ENODATA);
-    }
-    return it->second;
+    return kInvalidTagScore;
 }
 
 TLorentzVector Jet::GetUnsmearedP4() const{

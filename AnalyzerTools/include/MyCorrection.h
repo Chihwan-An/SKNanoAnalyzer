@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_set>
 #include <variant>
+#include <memory>
 using namespace std;
 
 #include "TString.h"
@@ -15,12 +16,16 @@ using namespace std;
 #include "correction.h"
 #include "RoccoR.h"
 #include "Jet.h"
+#include "JetView.h"
 #include "JetTaggingParameter.h"
 #include "Gen.h"
 #include "Muon.h"
 #include "Electron.h"
 #include "FatJet.h"
 #include "GoldenJsonParser.h"
+
+#include "MLHelper.h"
+#include "TString.h"
 
 using correction::CorrectionSet;
 
@@ -57,7 +62,6 @@ public:
     float GetMuonRECOSF(const Muon &muon, const variation syst = variation::nom) const;
     float GetMuonRECOSF(const RVec<Muon> &muons, const variation syst = variation::nom) const;
     inline float GetMuonISOSF(const TString &Muon_ISO_SF_Key, const Muon &muon, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_ISO_SF_Key, muon, syst); }
-    inline float GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key, const Muon &muon, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_Trigger_SF_Key, muon, syst); };
     inline float GetMuonISOSF(const TString &Muon_ISO_SF_Key, const RVec<Muon> &muons, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_ISO_SF_Key, muons, syst); }
     float GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon, const variation syst = variation::nom) const;
     float GetMuonIDSF(const TString &Muon_ID_SF_Key, const RVec<Muon> &muons, const variation syst = variation::nom) const;
@@ -75,6 +79,7 @@ public:
     // Single lepton trigger from POG
     float GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key, const float abseta, const float pt, const bool isData, const variation syst = variation::nom) const;
     float GetMuonTriggerSF(const TString &Muon_Trigger_Eff_Key, const RVec<Muon> &muons, const variation syst = variation::nom) const;
+    float GetMuonTriggerSF(const TString &Muon_Trigger_Eff_Key, const Muon muon, const variation syst = variation::nom) const;
     float GetElectronTriggerEff(const TString &Electron_ID_SF_Key, const float eta, const float pt, const float phi, const bool isDATA, const variation syst = variation::nom) const;
     inline float GetElectronTriggerDataEff(const TString &Electron_ID_SF_Key, const float eta, const float pt, const float phi, const variation syst = variation::nom) {
         return GetElectronTriggerEff(Electron_ID_SF_Key, eta, pt, phi, true, syst);
@@ -122,13 +127,15 @@ public:
 
     // Jet ID
     bool PassJetID(const Jet &jet, const Jet::JetID &id) const;
+    bool PassJetID(const JetView &jet, const Jet::JetID &id) const;
     bool PassFatJetID(const FatJet &fatjet, const FatJet::FatJetID &id) const;
 
     // JERC
     float GetJER(const float eta, const float pt, const float rho) const;
     float GetJERSF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     float GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
-    float GetJESUncertainty(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    float GetJESUncertaintySF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    float GetJESUncertainty(const float eta, const float pt, const TString &source = "total") const;
     // jerc_fatjet
     
     // jetvetomap
@@ -138,7 +145,8 @@ public:
     void METXYCorrection(Particle &Met, const int RunNumber, const int npvs, const XYCorrection_MetType MetType);
     
     // reweighting
-    float GetTopPtReweight(const RVec<Gen> &gens) const;
+    float GetTopPtReweight(const TLorentzVector &LastCopyTop, const TLorentzVector &LastCopyAntiTop) const;
+    float GethDampReweight(const TLorentzVector &FirstCopyTop, const TLorentzVector &FirstCopyAntiTop, const variation &syst) const;
 
     // Safe evaluation function for correction sets with comprehensive error handling
     template<typename... Args>
@@ -189,6 +197,7 @@ public:
 private:
     struct EraConfig {
         string json_muon;
+        string json_muon_trig_sf;
         string json_muon_trig_eff;
         string json_puWeights;
         string json_btagging;
@@ -220,6 +229,11 @@ private:
         string json_electron_TopHNT_idsf;
         string json_electron_TopHNT_emu_leg1_eff;
         string json_electron_TopHNT_emu_leg2_eff;
+
+        //onnx file location
+        string onnx_toppt_reweight;
+        string onnx_hDampUp;
+        string onnx_hDampDown;
     };
     EraConfig GetEraConfig(TString era, const string &btagging_eff_file, const string &ctagging_eff_file, const string &btagging_R_file, const string &ctagging_R_file) const;
 
@@ -308,8 +322,14 @@ private:
     TString Sample;
     bool IsDATA;
 
+    unique_ptr<MLHelper> MLHelper_TopPtReweight;
+    unique_ptr<MLHelper> MLHelper_hDampUp;
+    unique_ptr<MLHelper> MLHelper_hDampDown;
+    
+
     unique_ptr<CorrectionSet> cset_muon;
     unique_ptr<CorrectionSet> cset_muon_trig_eff;
+    unique_ptr<CorrectionSet> cset_muon_trig_sf;
     unique_ptr<CorrectionSet> cset_puWeights;
     unique_ptr<CorrectionSet> cset_btagging;
     unique_ptr<CorrectionSet> cset_ctagging;
@@ -318,6 +338,7 @@ private:
     unique_ptr<CorrectionSet> cset_btagging_R;
     unique_ptr<CorrectionSet> cset_ctagging_R;
     unique_ptr<CorrectionSet> cset_electron;
+    unique_ptr<CorrectionSet> cset_electron_id;
     unique_ptr<CorrectionSet> cset_electron_hlt;
     unique_ptr<CorrectionSet> cset_electron_variation;
     unique_ptr<CorrectionSet> cset_photon;

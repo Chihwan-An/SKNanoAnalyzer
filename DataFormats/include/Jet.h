@@ -1,6 +1,7 @@
 #ifndef Jet_h
 #define Jet_h
 
+#include <array>
 #include <bitset>
 #include <memory>
 #include <limits>
@@ -226,6 +227,8 @@ private:
     mutable std::bitset<static_cast<std::size_t>(Property::Count)> loaded;
   };
 
+  static constexpr float kInvalidTagScore = -1.f;
+
   std::shared_ptr<const JetSoA> storage_;
   std::size_t index_ = std::numeric_limits<std::size_t>::max();
 
@@ -246,9 +249,9 @@ private:
   float j_UParTAK4V1RegPtRawCorrNeutrino;
   float j_UParTAK4V1RegPtRawRes;
   float j_rawFactor;
-  unordered_map<JetTagging::JetFlavTaggerScoreType, float> j_btagDeepFlav;
-  unordered_map<JetTagging::JetFlavTaggerScoreType, float> j_btagPNet;
-  unordered_map<JetTagging::JetFlavTaggerScoreType, float> j_btagUParTAK4;
+  std::array<float, JetTagging::JetFlavTaggerScoreCount> j_btagDeepFlav;
+  std::array<float, JetTagging::JetFlavTaggerScoreCount> j_btagPNet;
+  std::array<float, JetTagging::JetFlavTaggerScoreCount> j_btagUParTAK4;
   float j_chEmEF;
   float j_chHEF;
   float j_neEmEF;

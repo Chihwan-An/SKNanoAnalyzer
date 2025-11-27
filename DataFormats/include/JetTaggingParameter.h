@@ -1,6 +1,7 @@
 #ifndef JetTaggingParameter_h
 #define JetTaggingParameter_h
 
+#include <cstddef>
 #include <iostream>
 #include <TString.h>
 
@@ -183,6 +184,13 @@ namespace JetTagging
             exit(ENODATA);
         }
     };
+
+    constexpr std::size_t JetFlavTaggerScoreCount = static_cast<std::size_t>(JetFlavTaggerScoreType::probUDG) + 1;
+
+    inline constexpr std::size_t JetFlavTaggerScoreIndex(JetFlavTaggerScoreType type)
+    {
+        return static_cast<std::size_t>(type);
+    }
     
     inline TString GetFatJetTaggerCorrectionLibStr(FatJetTagger tagger)
     {

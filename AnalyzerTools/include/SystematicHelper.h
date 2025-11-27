@@ -20,6 +20,7 @@ public:
     struct SYST
     {
         std::string syst;
+        std::string raw_name;
         std::string source = "total";
         std::string target = "";
         bool evtLoopAgain = false;
@@ -36,6 +37,9 @@ public:
         std::string rep_name;                        // the first one in the sources
         unordered_set<std::string> child_syst_names; // the rest of the sources
         RVec<SYST *> sources;
+        SYST *rep_ptr = nullptr;
+        std::vector<SYST *> member_ptrs;
+        std::vector<SYST *> child_ptrs;
     };
 
     struct Iter_obj
@@ -142,6 +146,7 @@ private:
     
     std::unordered_map<std::string, float> calculateWeight_central_case();
     std::unordered_map<std::string, float> calculateWeight_non_central_case();
+    void rebuildSystLookup();
 
     std::vector<SYST> systematics;
     std::unordered_map<std::string, CORRELATION> correlations;
@@ -158,10 +163,11 @@ private:
     std::unordered_map<MyCorrection::variation, std::string> variation_prefix; 
 
     bool isDedicatedSample;
-    bool weight_functions_assigned;
+    bool weight_functions_assigned = false;
     std::string sample;
     std::string Era;
     Internal_Iter_obj current_Iter_obj;
+    std::unordered_map<std::string, SYST *> syst_lookup;
 };
 
 #endif

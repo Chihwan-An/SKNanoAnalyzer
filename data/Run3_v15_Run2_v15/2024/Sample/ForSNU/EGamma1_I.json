@@ -1,15 +1,7 @@
 {
     "name": "EGamma1",
     "isMC": 0,
-    "NEvents": [
-        156086667.0,
-        154260195.0,
-        247655431.0,
-        622221613.0,
-        877206649.0,
-        126937287.0,
-        130952897.0
-    ],
+    "NEvents": [],
     "path": [
         "/gv0/DATA/SKNano/NanoAODv15/2024/EGamma1/crab_DATA_2024_EGamma1_Run2024I_v2-v1/250917_030920/0000/NANOAOD_1.root",
         "/gv0/DATA/SKNano/NanoAODv15/2024/EGamma1/crab_DATA_2024_EGamma1_Run2024I_v2-v1/250917_030920/0000/NANOAOD_2.root",

@@ -1,0 +1,368 @@
+{
+    "Skim_Vcb_SL_ttZtoLL_MLL50toInf": {
+        "suffix": "Vcb_SL",
+        "PD": "ttZtoLL_MLL50toInf",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ttZtoLL_MLL4to50": {
+        "suffix": "Vcb_SL",
+        "PD": "ttZtoLL_MLL4to50",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ttHtoNonbb_M125": {
+        "suffix": "Vcb_SL",
+        "PD": "ttHtoNonbb_M125",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ttHtobb_M125": {
+        "suffix": "Vcb_SL",
+        "PD": "ttHtobb_M125",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_TTLL_powheg": {
+        "suffix": "Vcb_SL",
+        "PD": "TTLL_powheg",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_TTLJ_Vcb_powheg": {
+        "suffix": "Vcb_SL",
+        "PD": "TTLJ_Vcb_powheg",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_TTLJ_powheg": {
+        "suffix": "Vcb_SL",
+        "PD": "TTLJ_powheg",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tch_antitop_lep": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tch_antitop_lep",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tch_antitop_had": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tch_antitop_had",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tch_top_lep": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tch_top_lep",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tch_top_had": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tch_top_had",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tW_antitop_Fullyhad": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tW_antitop_Fullyhad",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tW_top_Fullyhad": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tW_top_Fullyhad",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tW_antitop_Lep": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tW_antitop_Lep",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tW_top_Lep": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tW_top_Lep",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tW_antitop_Semilep": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tW_antitop_Semilep",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ST_tW_top_Semilep": {
+        "suffix": "Vcb_SL",
+        "PD": "ST_tW_top_Semilep",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WtoLNu_4J": {
+        "suffix": "Vcb_SL",
+        "PD": "WtoLNu_4J",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WtoLNu_3J": {
+        "suffix": "Vcb_SL",
+        "PD": "WtoLNu_3J",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WtoLNu_2J": {
+        "suffix": "Vcb_SL",
+        "PD": "WtoLNu_2J",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WtoLNu_1J": {
+        "suffix": "Vcb_SL",
+        "PD": "WtoLNu_1J",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL6000toInf": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL6000toInf",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL4000to6000": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL4000to6000",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL2500to4000": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL2500to4000",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL1500to2500": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL1500to2500",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL800to1500": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL800to1500",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL400to800": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL400to800",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL200to400": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL200to400",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL120to200": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL120to200",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL50to120": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL50to120",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2Mu_MLL10to50": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2Mu_MLL10to50",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL6000toInf": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL6000toInf",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL4000to6000": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL4000to6000",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL2500to4000": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL2500to4000",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL1500to2500": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL1500to2500",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL800to1500": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL800to1500",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL400to800": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL400to800",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL200to400": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL200to400",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL120to200": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL120to200",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL50to120": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL50to120",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_DYto2E_MLL10to50": {
+        "suffix": "Vcb_SL",
+        "PD": "DYto2E_MLL10to50",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT2000toInf": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT2000toInf",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT1500to2000": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT1500to2000",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT1200to1500": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT1200to1500",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT1000to1200": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT1000to1200",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT800to1000": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT800to1000",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT600to800": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT600to800",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT400to600": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT400to600",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT200to400": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT200to400",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT100to200": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT100to200",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT70to100": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT70to100",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_QCD_HT40to70": {
+        "suffix": "Vcb_SL",
+        "PD": "QCD_HT40to70",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ZZto2L2Nu": {
+        "suffix": "Vcb_SL",
+        "PD": "ZZto2L2Nu",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_EGamma1": {
+        "suffix": "Vcb_SL",
+        "PD": "EGamma1",
+        "isMC": 0,
+        "periods": [
+            "I",
+            "H",
+            "G",
+            "F",
+            "E",
+            "D",
+            "C"
+        ]
+    },
+    "Skim_Vcb_SL_ZZto2L2Q": {
+        "suffix": "Vcb_SL",
+        "PD": "ZZto2L2Q",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ZZto2Nu2Q": {
+        "suffix": "Vcb_SL",
+        "PD": "ZZto2Nu2Q",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_ZZto4L": {
+        "suffix": "Vcb_SL",
+        "PD": "ZZto4L",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WZtoLNu2Q": {
+        "suffix": "Vcb_SL",
+        "PD": "WZtoLNu2Q",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WZto2L2Q": {
+        "suffix": "Vcb_SL",
+        "PD": "WZto2L2Q",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WZto3LNu": {
+        "suffix": "Vcb_SL",
+        "PD": "WZto3LNu",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WWto4Q": {
+        "suffix": "Vcb_SL",
+        "PD": "WWto4Q",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WWtoLNu2Q": {
+        "suffix": "Vcb_SL",
+        "PD": "WWtoLNu2Q",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_WWto2L2Nu": {
+        "suffix": "Vcb_SL",
+        "PD": "WWto2L2Nu",
+        "isMC": 1
+    },
+    "Skim_Vcb_SL_EGamma0": {
+        "suffix": "Vcb_SL",
+        "PD": "EGamma0",
+        "isMC": 0,
+        "periods": [
+            "I",
+            "H",
+            "G",
+            "F",
+            "E",
+            "D",
+            "C"
+        ]
+    },
+    "Skim_Vcb_SL_Muon1": {
+        "suffix": "Vcb_SL",
+        "PD": "Muon1",
+        "isMC": 0,
+        "periods": [
+            "I",
+            "H",
+            "G",
+            "F",
+            "E",
+            "D",
+            "C"
+        ]
+    },
+    "Skim_Vcb_SL_Muon0": {
+        "suffix": "Vcb_SL",
+        "PD": "Muon0",
+        "isMC": 0,
+        "periods": [
+            "I",
+            "H",
+            "G",
+            "F",
+            "E",
+            "D",
+            "C"
+        ]
+    }
+}

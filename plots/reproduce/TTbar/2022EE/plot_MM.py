@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-data_directory = "/gv0/Users/achihwan/SKNanoRunlog/out/Reproduce20_002/2022EE"
+data_directory = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002/2022EE/"
 
 import ROOT
 import cmsstyle as CMS
@@ -771,7 +771,11 @@ def load_histogram(file_path, hist_name, systematic="Central", silent=False):
     
     # Navigate to systematic directory
     directory = root_file.Get(systematic)
-    directory = root_file  # Fallback to root if systematic dir not found
+    if not directory:
+        if not silent:
+            print(f"Error: Cannot find directory {systematic} in {file_path}")
+        root_file.Close()
+        return None
     
     hist = directory.Get(hist_name)
     if not hist:
@@ -814,7 +818,7 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
         # Include only Muon_E, Muon_F, and SingleMuon files for data
         if (filename.startswith("Muon_E.root") or 
             filename.startswith("Muon_F.root") or
-            filename.startswith("Muon_G.root")  ):
+            filename.startswith("Muon_G.root") ):
             #filename.startswith("EGamma") ):
             #or filename.startswith("MuonEG") ):
             
@@ -876,10 +880,12 @@ def load_background_histograms(data_dir, hist_name, systematic="Central", draw_t
             filename.startswith("EGamma_") or
             filename.startswith("MuonEG_") or
             filename.startswith("SingleMuon") or
-            #filename.startswith("DYG") or
+            filename.startswith("ZZTo") or
+            filename.startswith("WZTo") or
+            filename.startswith("DYG") or
             filename.startswith("TTG") or
-            #filename.startswith("DYJets_MG") or
-            #filename.startswith("DYJets10to50_MG") or
+            filename.startswith("DYJets_MG") or
+            filename.startswith("DYJets10to50_MG") or
             filename.endswith("bcToE.root") ):
             continue
         

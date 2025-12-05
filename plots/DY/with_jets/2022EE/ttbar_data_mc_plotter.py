@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-data_directory = "/gv0/Users/achihwan/SKNanoRunlog/out/DY/2022EE"
+data_directory = "/gv0/Users/achihwan/SKNanoOutput/DY/2022EE"
 
 import ROOT
 import cmsstyle as CMS
@@ -737,7 +737,7 @@ def load_background_histograms(data_dir, hist_name, systematic="Central"):
             filename.startswith("EGamma_") or
             filename.startswith("MuonEG_") or
             filename.startswith("SingleMuon") or
-            filename.startswith("ZZTwo") or
+            filename.startswith("ZZTo") or
             filename.startswith("WZTo")or
             filename.startswith("WJets_MG")or
             filename.startswith("DYG") ):

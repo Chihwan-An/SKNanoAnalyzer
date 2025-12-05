@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-data_directory = "/gv0/Users/achihwan/SKNanoRunlog/out/Reproduce20_002/2023"
+data_directory = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002/2023/"
 
 import ROOT
 import cmsstyle as CMS
@@ -771,7 +771,11 @@ def load_histogram(file_path, hist_name, systematic="Central", silent=False):
     
     # Navigate to systematic directory
     directory = root_file.Get(systematic)
-    directory = root_file  # Fallback to root if systematic dir not found
+    if not directory:
+        if not silent:
+            print(f"Error: Cannot find directory {systematic} in {file_path}")
+        root_file.Close()
+        return None
     
     hist = directory.Get(hist_name)
     if not hist:
@@ -800,7 +804,7 @@ def load_histogram(file_path, hist_name, systematic="Central", silent=False):
 
 def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
     """Load and combine Muon C, D and SingleMuon data histograms"""
-    print("Loading data from Muon_E, Muon_F, and SingleMuon files")
+    print("Loading data from DATA files")
     
     # Get all ROOT files in directory
     root_files = glob.glob(os.path.join(data_dir, "*.root"))
@@ -812,9 +816,10 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
         filename = os.path.basename(file_path)
         
         # Include only Muon_E, Muon_F, and SingleMuon files for data
-        if (filename.startswith("Muon0")or filename.startswith("Muon1") ):
-            #filename.startswith("EGamma") ):
-            #or filename.startswith("MuonEG") ):
+        if (filename.startswith("Muon0") or
+            filename.startswith("Muon1")):
+            #filename.startswith("EGamma")):
+            
             
             hist = load_histogram(file_path, hist_name, systematic)
             if hist:
@@ -824,7 +829,7 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
                 total_events += events
     
     if not data_hists:
-        print("Warning: No data histograms found (Muon_E, Muon_F, or Muon_G)")
+        print("Warning: No data histograms found (DATA)")
         return None
     
     # Create combined histogram starting with the first one
@@ -836,7 +841,7 @@ def combine_Muon_Fata(data_dir, hist_name, systematic="Central"):
         combined_hist.Add(data_hists[i][1])
     
     ROOT.SetOwnership(combined_hist, False)
-    print(f"Combined Data Total (Muon_E + Muon_F + Muon_G): {total_events:.1f} events")
+    print(f"Combined Data Total (DATA): {total_events:.1f} events")
     print(f"Total data files combined: {len(data_hists)}")
     
     return combined_hist
@@ -866,18 +871,23 @@ def load_background_histograms(data_dir, hist_name, systematic="Central", draw_t
         sample_name = filename.replace(".root", "")
         
         # Skip data files (Muon_E, Muon_F, Muon_G) - everything else becomes background
-        if ((filename.startswith("Muon_E.root") or 
-            filename.startswith("Muon_F.root") or
-            filename.startswith("TB") or
-            filename.startswith("Muon_G.root"))or
-            filename.startswith("Muon") or
+        if (filename.startswith("Muon") or 
             filename.startswith("EGamma") or
+            filename.startswith("TB") or
+            filename.startswith("Muon_G.root")or
+            filename.startswith("Muon_") or
+            filename.startswith("EGamma_") or
             filename.startswith("MuonEG_") or
-            filename.startswith("SingleMuon") or
-            #filename.startswith("DYG") or
-            filename.startswith("TTG") or
-            #filename.startswith("DYJets_MG") or
-            #filename.startswith("DYJets10to50_MG") or
+            filename.startswith("SingleMuon")or
+            filename.startswith("WJets.root")or
+            filename.startswith("WZTo")or
+            filename.startswith("ZZTo") or
+            #filename.startswith("ZZTo") or
+            #filename.startswith("WZTo") or
+            filename.startswith("DYG") or
+            #filename.startswith("TTG") or
+            filename.startswith("DYJets_MG") or
+            filename.startswith("DYJets10to50_MG") or
             filename.endswith("bcToE.root") ):
             continue
         

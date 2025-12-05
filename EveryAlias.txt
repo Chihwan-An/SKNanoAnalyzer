@@ -1,11 +1,11 @@
 #WJets
 #WJets_MG
 WJ*
-#DYJets
+DYJets
 #DYJets_MG
-#DYJets10to50
+DYJets10to50
 #DYJets10to50_MG
-DY*MG
+
 #TTLJ_powheg
 #TTJJ_powheg
 #TTLL_powheg

@@ -15,8 +15,8 @@ void DY_backup::initializeAnalyzer() {
     // Muon IDs and scale factor keys
     MuonIDs.clear();
     //MuonIDs.push_back(Muon::MuonID::POG_TKISO_LOOSE);
-    MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
-    //MuonIDSFKeys = {"NUM_TightID_DEN_TrackerMuons"};
+    //MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
+    MuonIDSFKeys = {"NUM_TightID_DEN_TrackerMuons"};
     
     // Jet IDs
     
@@ -127,8 +127,7 @@ void DY_backup::executeEventFromParameter() {
     FillHist(this_syst + "/DileptonPt", dilepton_pt, weight, 2000, 0., 2000.);
     FillHist(this_syst + "/LeadingMuonPt", selectedMuons[0].Pt(), weight, 500, 0., 500.);
     FillHist(this_syst + "/SubleadingMuonPt", selectedMuons[1].Pt(), weight, 500, 0., 500.);
-    /*
-    // Jet constrains
+
     RVec<Jet> selectedJets = AnalyzerCore::SelectJets(jets, Jet::JetID::NOCUT, cuts.base_jet_pt, cuts.jet_eta);
     
     if (selectedJets.size() < 1) return;
@@ -153,7 +152,7 @@ void DY_backup::executeEventFromParameter() {
         FillHist(this_syst + "/jetpt_ov_100_mll", dilepton_mass, weight, 3000, 0., 3000.); // Leading jet pT > 100 GeV
         FillHist(this_syst + "/jetpt_ov_100_ptll", dilepton_pt, weight, 2000, 0., 2000.); // Leading jet pT > 100 GeV
     }
-        */
+        
 }
 
 // Helper function implementations

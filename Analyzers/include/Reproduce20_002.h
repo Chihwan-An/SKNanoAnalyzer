@@ -61,7 +61,7 @@ public:
         RVec<Electron> AllElectrons;
 
         std::string TriggerNameForSF_Electron ="WREGammaTrigger";
-        RVec<Electron::ElectronID> Electron_Tight_ID = {Electron::ElectronID::POG_HEEP,};
+        RVec<Electron::ElectronID> Electron_Tight_ID = {Electron::ElectronID::POG_HEEP};
         RVec<Electron::ElectronID> Electron_Loose_ID = {Electron::ElectronID::POG_LOOSE};
         float Electron_MinPt = 53.;
 
@@ -111,6 +111,10 @@ public:
 
     struct FatJets{
         RVec<FatJet> AllFatJets;
+        TString FatJet_ID ="Loose";
+        float Fatjet_LSF = 0.75;
+        float FatJet_MinPt = 200.;
+        float FatJet_MaxEta = 2.4;
     }fatjet_set;
 
     struct Gens{

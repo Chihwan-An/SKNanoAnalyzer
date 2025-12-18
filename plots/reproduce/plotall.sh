@@ -5,8 +5,8 @@ source plotter.sh
 cd /data6/Users/achihwan/SKNanoAnalyzer/plots/reproduce/DY/2023
 source plotter.sh
 cd /data6/Users/achihwan/SKNanoAnalyzer/plots/reproduce/TTbar/2022
-source plotter.sh
+#source plotter.sh
 cd /data6/Users/achihwan/SKNanoAnalyzer/plots/reproduce/TTbar/2022EE
-source plotter.sh
+#source plotter.sh
 cd /data6/Users/achihwan/SKNanoAnalyzer/plots/reproduce/TTbar/2023
-source plotter.sh
+#source plotter.sh

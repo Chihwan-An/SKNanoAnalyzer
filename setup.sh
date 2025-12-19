@@ -257,6 +257,8 @@ check_jsonpog_updates() {
 # To enable auto-update, call with: check_jsonpog_updates true
 check_jsonpog_updates false
 
+export JSONPOG_REPO_PATH="$SKNANO_HOME/CMS_corrections"
+
 # env for onnxruntime
 ONNXRUNTIME=$(conda list | grep "onnxruntime")
 if [ -z "$ONNXRUNTIME" ]; then

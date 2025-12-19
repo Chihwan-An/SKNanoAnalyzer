@@ -1,0 +1,51 @@
+{
+  "PD": "ST_tW_antitop_Semilep",
+  "era": "2024",
+  "input": "/data9/Users/yeonjoon/SKNanoOutput/ModellingPatch/2024/ST_tW_antitop_Semilep.root",
+  "subprocesses": {
+    "ST_tW_antitop_Semilep": {
+      "nMC": 29395659,
+      "sumSign": 29394617.0,
+      "sumScaleVariation": [
+        30213115.543284178,
+        30823801.89209175,
+        31532924.28305483,
+        28558771.31418991,
+        29394617.0,
+        30207453.797353745,
+        27015773.43841985,
+        27993703.349836916,
+        28865804.090668082
+      ],
+      "sumPSVariation": [
+        29393159.18587564,
+        29397362.43000412,
+        29395899.79978007,
+        29391245.21885872
+      ],
+      "sum_hdamp_up": null,
+      "sum_hdamp_down": null,
+      "sum_minnlo": null,
+      "patch_ScaleVariation": [
+        0.9729091644947515,
+        0.9536337244479103,
+        0.9321881071396885,
+        1.0292675646516622,
+        1.0,
+        0.9730915156634303,
+        1.088053875895966,
+        1.0500438842498216,
+        1.018319701321013
+      ],
+      "patch_PSVariation": [
+        1.000049597054714,
+        0.9999066096487174,
+        0.9999563612684488,
+        1.0001147205950676
+      ],
+      "patch_hdamp_up": null,
+      "patch_hdamp_down": null,
+      "patch_minnlo": null
+    }
+  }
+}

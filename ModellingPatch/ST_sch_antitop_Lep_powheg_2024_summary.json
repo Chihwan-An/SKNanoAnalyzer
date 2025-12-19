@@ -1,0 +1,51 @@
+{
+  "PD": "ST_sch_antitop_Lep_powheg",
+  "era": "2024",
+  "input": "/data9/Users/yeonjoon/SKNanoOutput/ModellingPatch/2024/ST_sch_antitop_Lep_powheg.root",
+  "subprocesses": {
+    "ST_sch_antitop_Lep_powheg": {
+      "nMC": 29566000,
+      "sumSign": 29558500.0,
+      "sumScaleVariation": [
+        29924252.27725847,
+        30344613.205913395,
+        30709446.36706853,
+        29099115.295675278,
+        29558500.0,
+        29949446.750291348,
+        28418826.251544952,
+        28910599.859272003,
+        29322864.22622204
+      ],
+      "sumPSVariation": [
+        29556973.52507498,
+        29557281.024360657,
+        29559460.03088203,
+        29561058.19718361
+      ],
+      "sum_hdamp_up": null,
+      "sum_hdamp_down": null,
+      "sum_minnlo": null,
+      "patch_ScaleVariation": [
+        0.9877773962781208,
+        0.9740938136011501,
+        0.9625214224538169,
+        1.0157868959127083,
+        1.0,
+        0.9869464450027764,
+        1.040102773364649,
+        1.0224104703424273,
+        1.008035905768279
+      ],
+      "patch_PSVariation": [
+        1.000051645170089,
+        1.0000412411289907,
+        0.9999675220426548,
+        0.9999134605680708
+      ],
+      "patch_hdamp_up": null,
+      "patch_hdamp_down": null,
+      "patch_minnlo": null
+    }
+  }
+}

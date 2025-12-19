@@ -8,10 +8,17 @@ import htcondor
 import datetime
 import json
 import re
+import sys
+from pathlib import Path
 
 from htcondor import dags
 from tqdm.rich import tqdm
 from tqdm import TqdmExperimentalWarning
+
+HERE = Path(__file__).resolve()
+REPO_ROOT = HERE.parents[1]  # .../SKNANOAnalyzer_NanoV15
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from templates.job_dict import main_job, hadd_job, final_job
 

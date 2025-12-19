@@ -158,7 +158,7 @@ public:
     void SetMVAID(MVAID id, float score);
     inline float SoftMva() const { ensure(Property::SoftMva); return j_softMva; }
     inline float MvaLowPt() const { ensure(Property::MvaLowPt); return j_mvaLowPt; }
-    inline float MvaTTH() const { ensure(Property::MvaPrompt); return j_mvaPrompt; }
+    inline float PromptMVA() const { ensure(Property::MvaPrompt); return j_mvaPrompt; }
 
     void SetGenPartIdx(short genPartIdx) { j_genPartIdx = genPartIdx; markLoaded(Property::GenPartIdx); }
     inline short GenPartIdx() const { ensure(Property::GenPartIdx); return j_genPartIdx; }

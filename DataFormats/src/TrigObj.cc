@@ -1,17 +1,65 @@
 #include "TrigObj.h"
+#include "TrigObjView.h"
+
+#include <utility>
 
 ClassImp(TrigObj)
 
-TrigObj::TrigObj() : Particle() {
+void TrigObj::initializeMembers() {
+    storage_.reset();
+    index_ = std::numeric_limits<std::size_t>::max();
+
     j_id = -999;
     j_filterBits = 0;
     j_run = 2; // Default to Run 2
+    j_l1charge = 0;
+    j_l1iso = 0;
+    j_l1pt = 0.f;
+    j_l1pt2 = 0.f;
+    j_l2pt = 0.f;
+}
+
+TrigObj::TrigObj() : Particle() { initializeMembers(); }
+
+TrigObj::TrigObj(std::shared_ptr<const TrigObjSoA> storage, std::size_t index)
+    : Particle() {
+    initializeMembers();
+    storage_ = std::move(storage);
+    index_ = index;
+    materialize();
 }
 
 TrigObj::~TrigObj() {}
 
+void TrigObj::materialize() const {
+    if (!storage_)
+        return;
+
+    auto self = const_cast<TrigObj *>(this);
+    if (index_ >= storage_->size()) {
+        self->storage_.reset();
+        self->index_ = std::numeric_limits<std::size_t>::max();
+        return;
+    }
+
+    const std::size_t idx = index_;
+    self->j_run = storage_->run;
+    self->j_id = static_cast<int>(storage_->id[idx]);
+    self->j_filterBits = storage_->filterBits[idx];
+    self->j_l1charge = storage_->l1charge[idx];
+    self->j_l1iso = storage_->l1iso[idx];
+    self->j_l1pt = storage_->l1pt[idx];
+    self->j_l1pt2 = storage_->l1pt2[idx];
+    self->j_l2pt = storage_->l2pt[idx];
+    self->SetPtEtaPhiM(storage_->pt[idx], storage_->eta[idx],
+                       storage_->phi[idx], 0.0);
+
+    self->storage_.reset();
+    self->index_ = std::numeric_limits<std::size_t>::max();
+}
+
 bool TrigObj::passTriggerFilter(int id, const TString& hltPath) const {
-    // Check if the object ID matches
+    materialize();
     if (j_id != id) return false;
     
     // Route to specific filter checks based on object type
@@ -40,6 +88,7 @@ bool TrigObj::passTriggerFilter(int id, const TString& hltPath) const {
 }
 
 bool TrigObj::passElectronFilter(const TString& hltPath) const {
+    materialize();
     if (!isElectron()) return false;
     
     // Electron filter bits are the same for Run 2 and Run 3:
@@ -97,6 +146,7 @@ bool TrigObj::passElectronFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passMuonFilter(const TString& hltPath) const {
+    materialize();
     if (!isMuon()) return false;
     
     if (j_run == 2) {
@@ -190,6 +240,7 @@ bool TrigObj::passMuonFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passTauFilter(const TString& hltPath) const {
+    materialize();
     if (!isTau()) return false;
     
     if (j_run == 2) {
@@ -318,6 +369,7 @@ bool TrigObj::passTauFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passJetFilter(const TString& hltPath) const {
+    materialize();
     if (!isJet()) return false;
     
     if (j_run == 2) {
@@ -431,6 +483,7 @@ bool TrigObj::passJetFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passHTFilter(const TString& hltPath) const {
+    materialize();
     if (!isHT()) return false;
     
     if (j_run == 2) {
@@ -484,6 +537,7 @@ bool TrigObj::passHTFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passMHTFilter(const TString& hltPath) const {
+    materialize();
     if (!isMHT()) return false;
     
     // MHT filter bits are the same for Run 2 and Run 3:
@@ -509,6 +563,7 @@ bool TrigObj::passMHTFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passPhotonFilter(const TString& hltPath) const {
+    materialize();
     if (!isPhoton()) return false;
     
     if (j_run == 3) {
@@ -567,6 +622,7 @@ bool TrigObj::passPhotonFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passFatJetFilter(const TString& hltPath) const {
+    materialize();
     if (!isFatJet()) return false;
     
     if (j_run == 3) {
@@ -601,6 +657,7 @@ bool TrigObj::passFatJetFilter(const TString& hltPath) const {
 }
 
 bool TrigObj::passBoostedTauFilter(const TString& hltPath) const {
+    materialize();
     if (j_id != 1515) return false; // BoostedTau ID only exists in Run 3
     
     if (j_run == 3) {

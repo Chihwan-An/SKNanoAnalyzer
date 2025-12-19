@@ -100,7 +100,7 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   MLHelper_rBUp =
       make_unique<MLHelper>(config.onnx_rBUp, MLHelper::ModelType::ONNX);
 
-  LUM_keys["2024"] = "Collisions2024_378981_386951_GoldenJson";
+  LUM_keys["2024"] = "Collisions24_BCDEFGHI_goldenJSON";
   LUM_keys["2023BPix"] = "Collisions2023_369803_370790_eraD_GoldenJson";
   LUM_keys["2023"] = "Collisions2023_366403_369802_eraBC_GoldenJson";
   LUM_keys["2022EE"] = "Collisions2022_359022_362760_eraEFG_GoldenJson";
@@ -127,15 +127,15 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
                                                                // because real
                                                                // content of
                                                                // file is this
-    JME_JES_GT["2024"] = "Winter24Prompt24_V3_MC_######_AK4PFPuppi";
+    JME_JES_GT["2024"] = "Summer24Prompt24_V2_MC_######_AK4PFPuppi";
   } else {
     // JME_JER_GT["2024"] =
     // "Summer23BPixPrompt23_RunD_JRV1_DATA_######_AK4PFPuppi"; // this is
     // because real content of file is this
-    JME_JES_GT["2024"] = "Winter24Prompt24_V3_DATA_######_AK4PFPuppi";
+    JME_JES_GT["2024"] = "Summer24Prompt24_V2_DATA_######_AK4PFPuppi";
   }
 
-  JME_vetomap_keys["2024"] = "Winter24Prompt2024BCDEFGHI_V1";
+  JME_vetomap_keys["2024"] = "Summer24Prompt24_RunBCDEFGHI_V1";
 
   JME_PILEUP_keys["2016preVFP"] = "PUJetID_eff";
   JME_PILEUP_keys["2016postVFP"] = "PUJetID_eff";
@@ -170,10 +170,10 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
   const string sknano_data_str(sknano_data);
   const string external_roccor_str(external_roccor);
 
-  config.json_muon = json_pog_path_str + "/POG/MUO";
+  config.json_muon = json_pog_path_str + "/MUO";
   config.json_muon_trig_eff = sknano_data_str;
   config.json_muon_trig_sf =
-      json_pog_path_str + "/POG/MUO"; // temporary due to no mu trig sf for 2024
+      json_pog_path_str + "/MUO"; // temporary due to no mu trig sf for 2024
   config.json_puWeights = json_pog_path_str + "/LUM";
   config.json_btagging = json_pog_path_str + "/BTV";
   config.json_ctagging = json_pog_path_str + "/BTV";
@@ -215,7 +215,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     config.json_muon += tag + "muon_Z.json.gz";
     config.json_muon_trig_eff += "/2023BPix/MUO/muon_trig.json";
     config.json_muon_trig_sf += 
-        tag_temp + "muon_Z.json.gz"; // temporary due to no mu trig sf
+        tag + "muon_Z.json.gz"; // temporary due to no mu trig sf
                                              // for 2024
     config.json_puWeights += tag + "puWeights_BCDEFGHI.json.gz";
     config.json_btagging += tag + "btagging.json.gz";
@@ -227,7 +227,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     config.json_electron += tag + "electron.json.gz";
     config.json_electron_variation =
         tag + "electronSS_EtDependent.json.gz";
-    config.json_electron_hlt += tag_temp + "electronHlt.json.gz";
+    config.json_electron_hlt += tag + "electronHlt.json.gz";
     // config.json_photon += "/2023_Summer23BPix/photon.json.gz";
     config.json_jetid += tag + "jetid.json.gz";
     config.json_jerc += tag + "jet_jerc.json.gz";
@@ -533,7 +533,7 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key,
 
     auto cset = cset_electron->at(key);
     return safeEvaluate(cset, "GetElectronIDSF",
-                        {DataEra.Data(), getSystString_EGM(syst),
+                        {DataEra.Data() + std::string("Prompt"), getSystString_EGM(syst),
                          string(Electron_ID_SF_Key), eta,
                          pt < 999.9f ? pt : 999.9f});
   }

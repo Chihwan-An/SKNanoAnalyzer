@@ -12,5 +12,6 @@
 #pragma link C++ class ExampleParameter+;
 #pragma link C++ class NonpromptParameter+;
 #pragma link C++ class SystematicHelper+;
+#pragma link C++ class OtJsonLutBank+;
 
 #endif

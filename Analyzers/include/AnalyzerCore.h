@@ -10,6 +10,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash.h"
+#include <nlohmann/json.hpp>
 
 #include "TFile.h"
 #include "TH1.h"
@@ -45,6 +46,7 @@
 #include "GenIsolatedPhoton.h"
 #include "GenVisTau.h"
 #include "TrigObj.h"
+#include "TrigObjView.h"
 
 #include "LHAPDFHandler.h"
 #include "PDFReweight.h"
@@ -126,6 +128,16 @@ public:
     // MC weights
     float MCweight(bool usesign = true, bool norm_1invpb = true) const;
 
+    struct ModellingPatch {
+        std::vector<float> patch_ScaleVariation;
+        std::vector<float> patch_PSVariation;
+        float patch_hdamp_up = 0.f;
+        float patch_hdamp_down = 0.f;
+        float patch_minnlo = 0.f;
+    };
+
+    void load_modelling_json(const TString &filename);
+
     // Get objects
     Event GetEvent();
     MuonViewCollection GetAllMuonViews();
@@ -179,6 +191,8 @@ public:
 
     RVec<Photon> GetAllPhotons();
     RVec<Photon> GetPhotons(TString id, double ptmin, double fetamax);
+    TrigObjViewCollection GetAllTrigObjViews();
+    RVec<TrigObj> MaterializeTrigObjs(const TrigObjViewCollection &trigobjs) const;
     RVec<TrigObj> GetAllTrigObjs();
 
     // Select objects
@@ -229,6 +243,13 @@ public:
 
     // Scale and smear
     void METType1Propagation(Particle &MET, RVec<Particle> &original_objects, RVec<Particle> &corrected_objects);
+    struct Type1METInfo {
+        Particle met;
+        MyCorrection::variation jesVar = MyCorrection::variation::nom;
+        MyCorrection::variation jerVar = MyCorrection::variation::nom;
+        bool skip = false;
+    };
+    Type1METInfo PropagateType1MET(const Event &ev, JetViewCollection &jets, const std::string &systTarget, MyCorrection::variation variation, const TString &systSource, bool doBreakdown = false, Event::MET_Type met_type = Event::MET_Type::PUPPI) const;
     float GetL1PrefireWeight(MyCorrection::variation syst = MyCorrection::variation::nom);
     unordered_map<int, int> GenJetMatching(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const float &rho, const float dR = 0.2, const float pTJerCut = 3.);
     unordered_map<int, int> deltaRMatching(const RVec<Particle> &objs1, const RVec<Particle> &objs2, const float dR = 0.4);
@@ -341,6 +362,8 @@ protected:
     std::unordered_map<std::string, std::unique_ptr<float>> scalar_float_storage;
     std::unordered_map<std::string, std::unique_ptr<int>> scalar_int_storage;
     std::unordered_map<std::string, std::unique_ptr<bool>> scalar_bool_storage;
+    std::unordered_map<std::string, ModellingPatch> modelling_patches;
+    nlohmann::json modelling_json;
     TFile *outfile;
     void SetBranch(const TString &treename, const TString &branchname, void *address, const TString &leaflist);
     template <typename T>

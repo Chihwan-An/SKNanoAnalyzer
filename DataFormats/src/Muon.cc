@@ -361,8 +361,8 @@ bool Muon::PassID(const TString ID) const {
     if (ID == "POGTkIsoTight")    return static_cast<int>(TkIsoId()) == 2;
     if (ID == "HcToWATight")      return Pass_HcToWATight();
     if (ID == "HcToWALoose")      return Pass_HcToWALoose();
-    cerr << "[Muon::PassID] " << ID << " is not implemented." << endl;
-    exit(ENODATA);
+    if (ID == "POGPromptMVA_WP0p64") return SoftMva() > 0.64;
+    throw std::runtime_error("[Muon::PassID] " + std::string(ID.Data()) + " is not implemented.");
 
     return false;
 }
@@ -427,8 +427,10 @@ bool Muon::PassID(const MuonID ID) const {
             return static_cast<int>(TkIsoId()) == 1;
         case MuonID::POG_TKISO_TIGHT:
             return static_cast<int>(TkIsoId()) == 2;
+        case MuonID::POG_PROMPTMVA_WP0p64:
+            return SoftMva() > 0.64;
         default:
-            break;
+            throw std::runtime_error("[Muon::PassID] MuonID not implemented.");
     }
     return false;
 }

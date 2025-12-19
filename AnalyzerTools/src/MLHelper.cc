@@ -273,6 +273,16 @@ public:
         return modelType_;
     }
 
+    const std::vector<std::string> &GetInputNodeNames() const
+    {
+        return inputNodeNames_;
+    }
+
+    const std::vector<std::string> &GetOutputNodeNames() const
+    {
+        return outputNodeNames_;
+    }
+
 private:
     // Member variables
     std::string modelPath_;
@@ -327,4 +337,18 @@ std::unordered_map<std::string, FloatArray> MLHelper::Run_ONNX_Model(const std::
 MLHelper::ModelType MLHelper::GetModelType() const
 {
     return pImpl->GetModelType();
+}
+
+std::vector<std::string> MLHelper::GetInputNames() const
+{
+    if (!pImpl)
+        return {};
+    return pImpl->GetInputNodeNames();
+}
+
+std::vector<std::string> MLHelper::GetOutputNames() const
+{
+    if (!pImpl)
+        return {};
+    return pImpl->GetOutputNodeNames();
 }

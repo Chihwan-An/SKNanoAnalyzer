@@ -84,6 +84,8 @@ public:
         POG_MVANOISO_WP80,
         POG_MVANOISO_WP90,
         POG_MVANOISO_WPL,
+        POG_PROMPTMVA_TIGHT,
+        POG_PROMPTMVA_MEDIUM
     };
 
     void SetConvVeto(bool convVeto) { j_convVeto = convVeto; markLoaded(Property::ConvVeto); }

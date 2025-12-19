@@ -42,6 +42,8 @@ public:
     tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> FitKinFitter(const RVec<Jet> &jets, const RVec<unsigned int> &permutation, Particle &neutrino, Lepton &lepton);
     void FillTrainingTree() override;
     void FillTemplateTrainingTree() override;
+    void FillTreeAtThisPoint(  std::string_view treePrefix, float MCNormalizationWeight,
+    const std::unordered_map<std::string, float> &weight_map) override;
     void virtual CreateTrainingTree() override;
     void virtual CreateTemplateTrainingTree() override;
     RVec<RVec<unsigned int>> GetPermutations(const RVec<Jet> &jets) override;

@@ -1,6 +1,7 @@
 #include "Vcb_SL.h"
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <numeric>
@@ -25,8 +26,8 @@ Vcb_SL::Vcb_SL() {
   onnx_input_data["Lepton_data"] = FloatArray{};
   onnx_input_data["Lepton_mask"] = BoolArray{};
 
-  std::get<FloatArray>(onnx_input_data["Momenta_data"]).reserve(max_jet *
-                                                                mom_feat_dim);
+  std::get<FloatArray>(onnx_input_data["Momenta_data"])
+      .reserve(max_jet * mom_feat_dim);
   std::get<BoolArray>(onnx_input_data["Momenta_mask"]).reserve(max_jet);
   std::get<FloatArray>(onnx_input_data["Met_data"]).reserve(3);
   std::get<BoolArray>(onnx_input_data["Met_mask"]).reserve(1);
@@ -40,7 +41,6 @@ Vcb_SL::Vcb_SL() {
   tabnet_class_scores.reserve(7);
   tabnet_weighted_scores.reserve(7);
 }
-
 
 void Vcb_SL::CreateTrainingTree() {
   if (HasFlag("Skim"))
@@ -250,19 +250,25 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
 
   if (channel == Channel::El) {
     if (!(Electrons_indices.size() == 1 && Muons_Veto_indices.size() == 0 &&
-          Muons_indices.size() == 0))
+          Muons_indices.size() == 0 && Electron_Veto_indices.size() == 1))
       return false;
     Muons = MaterializeMuons(AllMuonViews, Muons_indices);
     Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
     lepton = Electrons[0];
+    leptons.push_back(lepton);
   }
   if (channel == Channel::Mu) {
     if (!(Muons_indices.size() == 1 && Electron_Veto_indices.size() == 0 &&
-          Electrons_indices.size() == 0))
+          Electrons_indices.size() == 0 && Muons_Veto_indices.size() == 1))
       return false;
     Muons = MaterializeMuons(AllMuonViews, Muons_indices);
+    //additional muon prompt mva cut
+    if (Muons[0].PassID(Muon::MuonID::POG_PROMPTMVA_WP0p64)) {
+      return false;
+    }
     Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
     lepton = Muons[0];
+    leptons.push_back(lepton);
   }
   FillCutFlow(4); // lepton passed
 
@@ -311,7 +317,7 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
                           systHelper->getCurrentIterVariation(),
                           Event::MET_Syst::JER);
-    p4_shifted = p4_nominal; // 안 흔들리게
+    p4_shifted = p4_nominal; 
   } else if (systHelper->getCurrentIterSysTarget() == "UE") {
     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
                           systHelper->getCurrentIterVariation(),
@@ -345,9 +351,8 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
 
   // 6) jets
   float Jet_Pt_Cut = loose_cut ? SL_Jet_Pt_cut - 5.f : SL_Jet_Pt_cut;
-  std::vector<std::size_t> jetIndices =
-      SelectJetIndices(AllJetViews, Jet_ID, Jet_Pt_Cut, Jet_Eta_cut, jesVar,
-                       jerVar);
+  std::vector<std::size_t> jetIndices = SelectJetIndices(
+      AllJetViews, Jet_ID, Jet_Pt_Cut, Jet_Eta_cut, jesVar, jerVar);
 
   jetIndices = JetsVetoLeptonInside(AllJetViews, jetIndices, AllElectronViews,
                                     Electrons_indices, AllMuonViews,
@@ -364,7 +369,7 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
 
   // 7) flavour tagging
   short bWP_work = loose_cut ? 0 : 1;
-  short cWP_work = loose_cut ? 1 : 1;
+  short cWP_work = loose_cut ? 0 : 1;
 
   for (const auto &jet : Jets) {
     const short bWP = GetPassedBTaggingWP(jet);
@@ -674,10 +679,227 @@ void Vcb_SL::FillTrainingTree() {
   } else
     answer = category_for_training_SL["Others"];
   SetBranch("Training_Tree", "y", answer);
-
   SetBranch("Training_Tree", "KF_chi2", best_KF_result.chi2);
 
   FillTrees();
+}
+
+std::string sanitize_branch_name(std::string_view raw) {
+  std::string sanitized;
+  sanitized.reserve(raw.size());
+  for (char c : raw) {
+    const unsigned char uc = static_cast<unsigned char>(c);
+    if (std::isalnum(uc) || c == '_') {
+      sanitized.push_back(c);
+    } else {
+      sanitized.push_back('_');
+    }
+  }
+  while (!sanitized.empty() && sanitized.front() == '_') {
+    sanitized.erase(sanitized.begin());
+  }
+  while (!sanitized.empty() && sanitized.back() == '_') {
+    sanitized.pop_back();
+  }
+  if (sanitized.empty())
+    sanitized = "Tree";
+  return sanitized;
+}
+
+void Vcb_SL::FillTreeAtThisPoint(
+    std::string_view treePrefix, float MCNormalizationWeight,
+    const std::unordered_map<std::string, float> &weight_map) {
+  const std::string tree_name = sanitize_branch_name(treePrefix);
+  auto [buffers_it, _] = tree_buffers.try_emplace(tree_name);
+  auto &buffers = buffers_it->second;
+
+  if (!buffers.booked) {
+    NewTree(tree_name, {}, {});
+    TTree *tree = GetTree(tree_name);
+    tree->Branch("Jet_Pt", &buffers.Jet_Pt);
+    tree->Branch("Jet_Eta", &buffers.Jet_Eta);
+    tree->Branch("Jet_Phi", &buffers.Jet_Phi);
+    tree->Branch("Jet_Mass", &buffers.Jet_Mass);
+    tree->Branch("Jet_Category", &buffers.Jet_Category);
+    tree->Branch("Lepton_Pt", &buffers.Lepton_Pt);
+    tree->Branch("Lepton_Eta", &buffers.Lepton_Eta);
+    tree->Branch("Lepton_Phi", &buffers.Lepton_Phi);
+    tree->Branch("Lepton_Mass", &buffers.Lepton_Mass);
+    tree->Branch("Met_Pt", &buffers.Met_Pt);
+    tree->Branch("Met_Eta", &buffers.Met_Eta);
+    tree->Branch("Met_Phi", &buffers.Met_Phi);
+    tree->Branch("HT", &buffers.HT);
+    tree->Branch("n_jets", &buffers.n_jets);
+    tree->Branch("n_b_tagged_jets", &buffers.n_b_tagged_jets);
+    tree->Branch("n_c_tagged_jets", &buffers.n_c_tagged_jets);
+    tree->Branch("nPVsGood", &buffers.nPVsGood);
+    tree->Branch("ZCand_Mass", &buffers.ZCand_Mass);
+    tree->Branch("ZCand_Pt", &buffers.ZCand_Pt);
+    tree->Branch("ZCand_Eta", &buffers.ZCand_Eta);
+    tree->Branch("weight_mc", &buffers.MCNormalization);
+    tree->Branch("index_fold_spanet", &buffers.fold_idx_spanet);
+    tree->Branch("index_fold", &buffers.fold_idx_tabnet);
+
+    std::unordered_map<std::string, float> skeleton_weights(weight_map.begin(),
+                                                            weight_map.end());
+    if (systHelper) {
+      const auto prebook_weights = systHelper->calculateWeight(true);
+      skeleton_weights.insert(prebook_weights.begin(), prebook_weights.end());
+    }
+
+    buffers.weight_keys.reserve(skeleton_weights.size());
+    buffers.weight_values.assign(skeleton_weights.size(), 0.f);
+
+    std::size_t idx = 0;
+    for (const auto &kv : skeleton_weights) {
+      const std::string branch_name =
+          "weight_" + sanitize_branch_name(kv.first);
+      buffers.weight_keys.push_back(kv.first);
+      buffers.weight_index.emplace(kv.first, idx);
+      tree->Branch(branch_name.c_str(), &buffers.weight_values[idx]);
+      ++idx;
+    }
+    buffers.booked = true;
+  }
+
+  buffers.Jet_Pt.clear();
+  buffers.Jet_Eta.clear();
+  buffers.Jet_Phi.clear();
+  buffers.Jet_Mass.clear();
+  buffers.Jet_Category.clear();
+  for (const auto &jet : Jets) {
+    buffers.Jet_Pt.push_back(jet.Pt());
+    buffers.Jet_Eta.push_back(jet.Eta());
+    buffers.Jet_Phi.push_back(jet.Phi());
+    buffers.Jet_Mass.push_back(jet.M());
+    buffers.Jet_Category.push_back(static_cast<int>(JetCategory(jet)));
+  }
+
+  buffers.Lepton_Pt.clear();
+  buffers.Lepton_Eta.clear();
+  buffers.Lepton_Phi.clear();
+  buffers.Lepton_Mass.clear();
+  for (const auto &lep : leptons) {
+    buffers.Lepton_Pt.push_back(lep.Pt());
+    buffers.Lepton_Eta.push_back(lep.Eta());
+    buffers.Lepton_Phi.push_back(lep.Phi());
+    buffers.Lepton_Mass.push_back(lep.M());
+  }
+
+  buffers.Met_Pt = MET.Pt();
+  buffers.Met_Eta = MET.Eta();
+  buffers.Met_Phi = MET.Phi();
+  buffers.HT = HT;
+  buffers.n_jets = n_jets;
+  buffers.n_b_tagged_jets = n_b_tagged_jets;
+  buffers.n_c_tagged_jets = n_c_tagged_jets;
+  buffers.nPVsGood = ev.nPVsGood();
+  buffers.MCNormalization = MCNormalizationWeight;
+
+  if (leptons.size() == 2) {
+    Particle ZCand = leptons[0] + leptons[1];
+    buffers.ZCand_Mass = ZCand.M();
+    buffers.ZCand_Pt = ZCand.Pt();
+    buffers.ZCand_Eta = ZCand.Eta();
+  } else {
+    buffers.ZCand_Mass = -999.f;
+    buffers.ZCand_Pt = -999.f;
+    buffers.ZCand_Eta = -999.f;
+  }
+
+  std::fill(buffers.weight_values.begin(), buffers.weight_values.end(), 0.f);
+  for (const auto &kv : weight_map) {
+    auto idx_it = buffers.weight_index.find(kv.first);
+    if (idx_it != buffers.weight_index.end() &&
+        idx_it->second < buffers.weight_values.size()) {
+      buffers.weight_values[idx_it->second] = kv.second;
+    }
+  }
+
+  buffers.fold_idx_spanet = rle_bucket(RunNumber, luminosityBlock, event, 4);
+  buffers.fold_idx_tabnet = rle_bucket(luminosityBlock, RunNumber, event, 4);
+
+  if (MCSample.Contains("TT")) {
+    auto [firstTopIdx, firstAntiTopIdx, lastTopIdx, lastAntiTopIdx] =
+        GetTopAndAntiTopIndices(AllGenViews);
+
+    const TLorentzVector top = AllGenViews[firstTopIdx].P4();
+    const TLorentzVector antiTop = AllGenViews[firstAntiTopIdx].P4();
+
+    SetBranch(tree_name, "Gen_Top_Pt", top.Pt());
+    SetBranch(tree_name, "Gen_AntiTop_Pt", antiTop.Pt());
+    SetBranch(tree_name, "Gen_Top_Eta", top.Eta());
+    SetBranch(tree_name, "Gen_AntiTop_Eta", antiTop.Eta());
+    SetBranch(tree_name, "Gen_Top_Phi", top.Phi());
+    SetBranch(tree_name, "Gen_AntiTop_Phi", antiTop.Phi());
+    SetBranch(tree_name, "Gen_Top_Mass", top.M());
+    SetBranch(tree_name, "Gen_AntiTop_Mass", antiTop.M());
+    SetBranch(tree_name, "Gen_TTbar_Pt", (top + antiTop).Pt());
+    SetBranch(tree_name, "Gen_TTbar_Mass", (top + antiTop).M());
+    SetBranch(tree_name, "Gen_TTbar_Eta", (top + antiTop).Eta());
+    SetBranch(tree_name, "Gen_TTbar_Phi", (top + antiTop).Phi());
+
+    float w_toppt = myCorr->GetTopPtReweight(top, antiTop);
+    auto [topIdx, WTopIdx, BHadTopIdx, antiTopIdx, WAntiTopIdx,
+          BHadAntiTopIdx] = myCorr->GetGenIdxofTopDecayProducts(AllGenViews);
+    float weight_bfrag = 1.f;
+    float weight_bfrag_up = 1.f;
+    float xb = -1.f;
+    float xb_anti = -1.f;
+    if ((BHadTopIdx == std::numeric_limits<std::size_t>::max()) ||
+        (BHadAntiTopIdx == std::numeric_limits<std::size_t>::max())) {
+      weight_bfrag = -1.f;
+      weight_bfrag_up = -1.f;
+    } else {
+      auto LastCopyTop = AllGenViews[topIdx].P4();
+      auto LastCopyAntiTop = AllGenViews[antiTopIdx].P4();
+      auto LastCopyWPlus = AllGenViews[WTopIdx].P4();
+      auto LastCopyWMinus = AllGenViews[WAntiTopIdx].P4();
+      auto FirstCopyAntiTopBHad = AllGenViews[BHadAntiTopIdx].P4();
+      auto FirstCopyTopBHad = AllGenViews[BHadTopIdx].P4();
+
+      const float x_e_top =
+          2 * FirstCopyTopBHad * LastCopyTop / LastCopyTop.M2();
+      const float x_e_antitop = 2 * FirstCopyAntiTopBHad *
+                                LastCopyAntiTop / LastCopyAntiTop.M2();
+      const float w_top = LastCopyWPlus.M2() / LastCopyTop.M2();
+      const float w_antitop = LastCopyWMinus.M2() / LastCopyAntiTop.M2();
+      const float clip_value = 1.2f;
+      const float x_b_top = std::min(x_e_top / (1 - w_top), clip_value);
+      const float x_b_antitop =
+          std::min(x_e_antitop / (1 - w_antitop), clip_value);
+      xb = x_b_top;
+      xb_anti = x_b_antitop;
+
+
+      weight_bfrag = myCorr->GetBFragReweight(
+          LastCopyTop, LastCopyAntiTop, LastCopyWPlus, LastCopyWMinus,
+          FirstCopyTopBHad, FirstCopyAntiTopBHad, MyCorrection::variation::nom);
+      weight_bfrag_up = myCorr->GetBFragReweight(
+          LastCopyTop, LastCopyAntiTop, LastCopyWPlus, LastCopyWMinus,
+          FirstCopyTopBHad, FirstCopyAntiTopBHad, MyCorrection::variation::up);
+    }
+
+    SetBranch(tree_name, "weight_top_pt", w_toppt);
+    SetBranch(tree_name, "weight_bfrag", weight_bfrag);
+    SetBranch(tree_name, "weight_bfrag_up", weight_bfrag_up);
+    SetBranch(tree_name, "xb", xb);
+    SetBranch(tree_name, "xb_anti", xb_anti);
+  } else {
+    SetBranch(tree_name, "weight_top_pt", 1.f);
+    SetBranch(tree_name, "weight_bfrag", 1.f);
+    SetBranch(tree_name, "weight_bfrag_up", 1.f);
+    SetBranch(tree_name, "xb", -1.f);
+    SetBranch(tree_name, "xb_anti", -1.f);
+  }
+
+  SetBranch(tree_name, "genTtbarId", genTtbarId);
+  SetBranch(tree_name, "decay_mode", static_cast<int>(tt_decay_code / 100));
+  SetBranch(tree_name, "run", static_cast<int>(RunNumber));
+  SetBranch(tree_name, "luminosityBlock", static_cast<int>(luminosityBlock));
+  SetBranch(tree_name, "event", static_cast<int>(event));
+
+  FillTrees(tree_name);
 }
 
 void Vcb_SL::FillTemplateTrainingTree() {
@@ -1514,7 +1736,6 @@ void Vcb_SL::InferONNX() {
   }
   Lepton_mask.push_back(1);
 
-
   // ------------------------
   // 5. 추론 호출
   // ------------------------
@@ -1689,14 +1910,13 @@ void Vcb_SL::InferONNX() {
 }
 
 void Vcb_SL::InferTabNet() {
-  static const std::array<float, 7> class_weight_vec = {
-            1.0,
-      1.4111744165420532,
-      0.3698510229587555,
-      0.2933323383331299,
-      0.23698416352272034,
-      6.4362874031066895,
-      3.2500813007354736};
+  static const std::array<float, 7> class_weight_vec = {1.0,
+                                                        1.4111744165420532,
+                                                        0.3698510229587555,
+                                                        0.2933323383331299,
+                                                        0.23698416352272034,
+                                                        6.4362874031066895,
+                                                        3.2500813007354736};
 
   //                                                "varlist": [
   //   "m_had_w",
@@ -1722,7 +1942,6 @@ void Vcb_SL::InferTabNet() {
   auto winsorize = [](float val, float lower, float upper) {
     return std::clamp(val, lower, upper);
   };
-
 
   // m_had_w
   {
@@ -1762,8 +1981,8 @@ void Vcb_SL::InferTabNet() {
   tabnet_weighted_scores.resize(tabnet_class_logits.size());
 
   if (!tabnet_class_logits.empty()) {
-    const float max_val =
-        *std::max_element(tabnet_class_logits.begin(), tabnet_class_logits.end());
+    const float max_val = *std::max_element(tabnet_class_logits.begin(),
+                                            tabnet_class_logits.end());
     float sum = 0.f;
     for (float x : tabnet_class_logits) {
       float e = std::exp(x - max_val);
@@ -1788,9 +2007,8 @@ void Vcb_SL::InferTabNet() {
   }
 
   final_template_score = tabnet_weighted_scores[0] + tabnet_weighted_scores[1];
-  final_template_score /=
-      std::accumulate(tabnet_weighted_scores.begin(),
-                      tabnet_weighted_scores.end(), 0.f);
+  final_template_score /= std::accumulate(tabnet_weighted_scores.begin(),
+                                          tabnet_weighted_scores.end(), 0.f);
 }
 
 bool Vcb_SL::FillTabNetInfo(const TString &histPrefix, float weight) {
@@ -1815,12 +2033,14 @@ bool Vcb_SL::FillONNXRecoInfo(const TString &histPrefix, float weight) {
       std::cerr
           << "[Vcb_SL::FillONNXRecoInfo] Received invalid assignment index "
           << idx << " (nJets=" << Jets.size() << "). Skipping event.\n";
-          return false;
+      return false;
     }
   }
 
   if (!ttbar_indices_computed) {
-    ttbar_jet_indices = MCSample.Contains("TT") ? FindTTbarJetIndices() : std::vector<int>{-1, -1, -1, -1};
+    ttbar_jet_indices = MCSample.Contains("TT")
+                            ? FindTTbarJetIndices()
+                            : std::vector<int>{-1, -1, -1, -1};
     ttbar_indices_computed = true;
   }
   if (find_all_jets) {

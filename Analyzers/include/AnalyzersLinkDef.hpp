@@ -12,6 +12,8 @@
 #pragma link C++ class GetEffLumi+;
 #pragma link C++ class GeneratorBase+;
 #pragma link C++ class TriggerInfo+;
+#pragma link C++ class ModellingPatch+;
+#pragma link C++ class CalibrationTree+;
 #pragma link C++ class Vcb+;
 #pragma link C++ class Vcb_SL+;
 #pragma link C++ class Vcb_DL+;

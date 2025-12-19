@@ -6,15 +6,18 @@
 #include <functional>
 #include <future>
 #include <memory>
-#include <string_view>
 #include <set>
+#include <string_view>
 #include <tuple>
+#include <unordered_map>
 #include <variant>
+#include <vector>
 
 #include "AnalyzerCore.h"
 #include "Gen.h"
 #include "GenView.h"
 #include "MLHelper.h"
+#include "OtJsonLutBank.h"
 #include "SystematicHelper.h"
 #include "TFitConstraintEp.h"
 #include "TFitConstraintM.h"
@@ -34,9 +37,17 @@ using VariousArray = std::variant<FloatArray, IntArray, BoolArray>;
 
 class Vcb : public AnalyzerCore {
 public:
-  void load_modelling_json(const TString &filename);
+  struct Prob3 {
+    double pb = 0.0;
+    double pc = 0.0;
+    double pl = 1.0; // light/udsg
+    bool ok = false;
+  };
   uint32_t rle_bucket(uint64_t run, uint64_t lumi, uint64_t event,
                       uint32_t nbuckets);
+
+  void rle_bucket_compute_checksum();
+
   enum class Cat { N0, L0, C0, C1, C2, C3, C4, B0, B1, B2, B3, B4 };
   inline bool isPIDUpTypeQuark(int pdg) {
     return (abs(pdg) == 2 || abs(pdg) == 4 || abs(pdg) == 6);
@@ -94,8 +105,13 @@ public:
                                      bool loose_cut = false) = 0;
   void virtual FillHistogramsAtThisPoint(std::string_view histPrefix,
                                          float weight = 1.f);
+  void virtual FillTreeAtThisPoint(
+      std::string_view treePrefix, float MCNormalizationWeight,
+      const std::unordered_map<std::string, float> &weight_map);
   void virtual FillKinematicFitterResult(const TString &histPrefix,
                                          float weight);
+  std::pair<double, double> HFvLF_BvC_from_storage(const JetSoA &store,
+                                                   std::size_t idx);
   void virtual SkimTree();
   void SetTTbarId();
   void SetSystematicLambda(bool remove_flavtagging_sf = false);
@@ -173,23 +189,17 @@ public:
   inline std::pair<float, float> JetCScorePair(const Jet &jet) const {
     return {JetCvBScore(jet), JetCvLScore(jet)};
   }
+
   float JetHFvLFScore(const Jet &jet) const;
   float JetBvCScore(const Jet &jet) const;
+  float JetProbBScore(const Jet &jet) const;
+  float JetProbCScore(const Jet &jet) const;
+  float JetProbLScore(const Jet &jet) const;
   Cat JetCategory(const Jet &jet) const;
   void UpdateAllJetTaggingCaches(const JetViewCollection &jets);
   Vcb();
   virtual ~Vcb() = default;
 
-  // modelling constant
-  struct ModellingPatch {
-    std::vector<float> patch_ScaleVariation;
-    std::vector<float> patch_PSVariation;
-    float patch_hdamp_up = 0.f;
-    float patch_hdamp_down = 0.f;
-    float patch_minnlo = 0.f;
-  };
-
-  std::unordered_map<std::string, ModellingPatch> modelling_patches;
   // Objects
   MuonViewCollection AllMuonViews;
   ElectronViewCollection AllElectronViews;
@@ -228,9 +238,43 @@ public:
   bool skimTreeInitialized = false;
   std::vector<Long64_t> skim_passed_global_entries;
   std::unique_ptr<SystematicHelper> systHelper;
-  std::vector<float> jetHFvLFAll;
-  std::vector<float> jetBvCAll;
-  std::vector<Vcb::Cat> jetCategoryAll;
+  mutable std::vector<float> jetHFvLFAll;
+  mutable std::vector<float> jetBvCAll;
+  mutable std::vector<Vcb::Cat> jetCategoryAll;
+  mutable std::vector<float> jetProbBAll;
+  mutable std::vector<float> jetProbCAll;
+  mutable std::vector<float> jetProbLAll;
+
+  struct TreeKinematicsBuffers {
+    std::vector<float> Jet_Pt;
+    std::vector<float> Jet_Eta;
+    std::vector<float> Jet_Phi;
+    std::vector<float> Jet_Mass;
+    std::vector<int> Jet_Category;
+    std::vector<float> Lepton_Pt;
+    std::vector<float> Lepton_Eta;
+    std::vector<float> Lepton_Phi;
+    std::vector<float> Lepton_Mass;
+    float Met_Pt = 0.f;
+    float Met_Eta = 0.f;
+    float Met_Phi = 0.f;
+    float HT = 0.f;
+    int n_jets = 0;
+    int n_b_tagged_jets = 0;
+    int n_c_tagged_jets = 0;
+    int nPVsGood = 0;
+    float ZCand_Mass = -999.f;
+    float ZCand_Pt = -999.f;
+    float ZCand_Eta = -999.f;
+    float MCNormalization = -999.f;
+    bool booked = false;
+    std::vector<std::string> weight_keys;
+    std::vector<float> weight_values;
+    std::unordered_map<std::string, std::size_t> weight_index;
+    int fold_idx_spanet = -999;
+    int fold_idx_tabnet = -999;
+  };
+  std::unordered_map<std::string, TreeKinematicsBuffers> tree_buffers;
 
   enum class Channel { MM, ME, EE, Mu, El, FH };
 
@@ -259,8 +303,59 @@ public:
   std::vector<std::unique_ptr<MLHelper>> myMLHelper_RECO_folds;
   std::vector<std::unique_ptr<MLHelper>> myMLHelper_CLASSIF_folds;
   std::vector<std::unique_ptr<MLHelper>> myMLHelper_TabNet_folds;
-  // json holder for modelling patch
-  nlohmann::json modelling_json;
+
+  std::unique_ptr<OtJsonLutBank> UParT_OT_Central;
+
+protected:
+  inline static constexpr double HF_T1 = 0.264;
+  inline static constexpr double HF_T2 = 0.448;
+  inline static constexpr double HF_T3 = 0.767;
+  inline static constexpr double BVC_T1 = 0.01;
+  inline static constexpr double BVC_T2 = 0.028;
+  inline static constexpr double BVC_T3 = 0.094;
+  inline static constexpr double BVC_T4 = 0.69;
+  inline static constexpr double BVC_T5 = 0.918;
+  inline static constexpr double BVC_T6 = 0.978;
+  inline static constexpr double BVC_T7 = 0.994;
+
+  // --- pure helpers: static
+  static int bin_hf(double x);
+  static int bin_bvc(double y);
+
+  std::pair<double, double> HFvLF_BvC_from_components(double probudg,
+                                                      double SvUDG, double CvL,
+                                                      double CvB, float pt,
+                                                      int partonFlavor) const;
+
+  // --- Vcb 컨텍스트에서 쓰도록 멤버로 (지금은 멤버 접근 안 해도 OK)
+  std::pair<double, double> HFvLF_BvC_from_ParT(const Jet &j) const;
+  std::pair<double, double> HFvLF_BvC_from_storage(const JetSoA &store,
+                                                   std::size_t idx) const;
+
+  Cat classify_from_scores(double hf, double bvc) const;
+  Cat classify_from_storage(const JetSoA &store, std::size_t idx) const;
+
+
+
+  void ComputeParTScores(const JetViewCollection &jets,
+                         std::vector<float> &hfScores,
+                         std::vector<float> &bvcScores,
+                         std::vector<Vcb::Cat> &categories) const;
+  static inline double clip(double x, double lo, double hi);
+
+
+
+  static Prob3 sanitize_prob3(double pb, double pc, double pl,
+                              double eps = 1e-12);
+  static Prob3 compute_prob3_from_branches(double p_udg, double CvL, double CvB,
+                                           double SvUDG, double eps = 1e-12);
+  static std::pair<double, double> hf_bvc_from_prob3(const Prob3 &p,
+                                                     double eps = 1e-12);
+
+  // 네가 실제로 외부에서 쓰는 핵심 API(캐시 채우는 쪽에서 호출)
+  Prob3 MappedProb3_from_components(double probudg, double SvUDG, double CvL,
+                                    double CvB, float pt,
+                                    int partonFlavor) const;
 };
 
 #endif

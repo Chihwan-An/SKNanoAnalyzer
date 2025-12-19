@@ -14,10 +14,10 @@ static constexpr Muon::MuonID Muon_Veto_ID = Muon::MuonID::POG_TIGHT;
 static constexpr Electron::ElectronID Electron_Veto_ID =
     Electron::ElectronID::POG_MVAISO_WP90;
 static constexpr Muon::MuonID Muon_Veto_Iso = Muon::MuonID::POG_PFISO_TIGHT;
-static constexpr Muon::MuonID Muon_Tight_ID = Muon::MuonID::POG_TIGHT;
+static constexpr Muon::MuonID Muon_Tight_ID = Muon::MuonID::POG_PROMPTMVA_WP0p64;
 static constexpr Muon::MuonID Muon_Tight_Iso = Muon::MuonID::POG_PFISO_TIGHT;
 static constexpr Electron::ElectronID Electron_Tight_ID =
-    Electron::ElectronID::POG_MVAISO_WP80;
+    Electron::ElectronID::POG_PROMPTMVA_TIGHT;
 
 static constexpr float Muon_Veto_Pt = 10.f;
 static constexpr float Muon_Veto_Eta = 2.4;
@@ -177,7 +177,7 @@ static inline std::unordered_map<std::string, TString> El_ID_SF_Key = {
     {"2017", "wp80iso"},       {"2018", "wp80iso"},
     {"2022", "wp80iso"},       {"2022EE", "wp80iso"},
     {"2023", "wp80iso"},       {"2023BPix", "wp80iso"},
-    {"2024", "wp80iso"}};
+    {"2024", "PromptMVA-Tight"}};
 
 static constexpr JetTagging::JetFlavTaggerWP SL_BTag_WP =
     JetTagging::JetFlavTaggerWP::Medium;

@@ -638,18 +638,18 @@ def calculate_patch(final_data: Dict[str, Any]) -> Dict[str, Any]:
             continue
         # 평균값 계산
         sp_data["patch_ScaleVariation"] = (
-            list(np.array(sp_data["sumScaleVariation"]) / sumSign)
+            list(np.array(sumSign / sp_data["sumScaleVariation"]) )
             if sp_data["sumScaleVariation"] is not None
             else None
         )
         sp_data["patch_PSVariation"] = (
-            list(np.array(sp_data["sumPSVariation"]) / sumSign)
+            list(np.array(sumSign / sp_data["sumPSVariation"]) )
             if sp_data["sumPSVariation"] is not None
             else None
         )
-        sp_data["patch_hdamp_up"] = sp_data["sum_hdamp_up"] / sumSign
-        sp_data["patch_hdamp_down"] = sp_data["sum_hdamp_down"] / sumSign
-        sp_data["patch_minnlo"] = sp_data["sum_minnlo"] / sumSign
+        sp_data["patch_hdamp_up"] = sumSign / sp_data["sum_hdamp_up"]
+        sp_data["patch_hdamp_down"] = sumSign / sp_data["sum_hdamp_down"]
+        sp_data["patch_minnlo"] = sumSign / sp_data["sum_minnlo"]
     return final_data
 
 # ----------------------------

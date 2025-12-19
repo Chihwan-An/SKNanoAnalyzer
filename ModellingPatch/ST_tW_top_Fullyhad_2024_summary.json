@@ -1,6 +1,7 @@
 {
   "PD": "ST_tW_top_Fullyhad",
   "era": "2024",
+  "input": "/data9/Users/yeonjoon/SKNanoOutput/ModellingPatch/2024/ST_tW_top_Fullyhad.root",
   "subprocesses": {
     "ST_tW_top_Fullyhad": {
       "nMC": 23999000,
@@ -22,29 +23,29 @@
         23998101.21982137,
         24000565.38633442
       ],
-      "sum_hdamp_up": 0.0,
-      "sum_hdamp_down": 0.0,
-      "sum_minnlo": 0.0,
+      "sum_hdamp_up": null,
+      "sum_hdamp_down": null,
+      "sum_minnlo": null,
       "patch_ScaleVariation": [
-        1.027983796648263,
-        1.0486247036763514,
-        1.0726394501119665,
-        0.9716783408704248,
+        0.9727779788557912,
+        0.9536300227279798,
+        0.9322797142092956,
+        1.0291471549156943,
         1.0,
-        1.0275854471096912,
-        0.9191661890967868,
-        0.952344141166645,
-        0.9819555909455474
+        0.973155081957144,
+        1.0879425416884012,
+        1.0500405859324922,
+        1.0183759929887228
       ],
       "patch_PSVariation": [
-        0.9999754681213389,
-        0.9999629486956156,
-        1.0000000508299145,
-        1.0001027325635954
+        1.000024532480489,
+        1.0000370526772344,
+        0.999999949170088,
+        0.9998972779893001
       ],
-      "patch_hdamp_up": 0.0,
-      "patch_hdamp_down": 0.0,
-      "patch_minnlo": 0.0
+      "patch_hdamp_up": null,
+      "patch_hdamp_down": null,
+      "patch_minnlo": null
     }
   }
 }

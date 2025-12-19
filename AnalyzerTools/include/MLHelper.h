@@ -48,6 +48,8 @@ public:
 
     // Getter for the model type
     ModelType GetModelType() const;
+    std::vector<std::string> GetInputNames() const;
+    std::vector<std::string> GetOutputNames() const;
 
 private:
     // Pointer to the implementation

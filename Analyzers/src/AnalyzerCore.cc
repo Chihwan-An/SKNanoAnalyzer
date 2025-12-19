@@ -4,12 +4,14 @@
 #include "TObjString.h"
 #include <Compression.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <execution>
+#include <fstream>
+#include <iostream>
 #include <numeric>
-#include <array>
-#include <string_view>
 #include <stdexcept>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
@@ -44,6 +46,85 @@ AnalyzerCore::~AnalyzerCore() {
   if (myCorr)
     delete myCorr;
   // if (pdfReweight) delete pdfReweight;
+}
+
+void AnalyzerCore::load_modelling_json(const TString &filename) {
+  using json = nlohmann::json;
+
+  std::cout << "Loading modelling json file: " << filename.Data() << std::endl;
+  std::ifstream file_stream(filename.Data());
+  if (!file_stream.is_open()) {
+    throw std::runtime_error("Could not open modelling json file: " +
+                             std::string(filename.Data()));
+  }
+
+  json j;
+  file_stream >> j;
+  file_stream.close();
+
+  modelling_json = j;
+
+  if (!j.contains("PD")) {
+    throw std::runtime_error("modelling_json does not contain 'PD' field");
+  }
+  std::string pd_key = j["PD"].get<std::string>();
+
+  if (!j.contains("subprocesses")) {
+    throw std::runtime_error(
+        "modelling_json does not contain 'subprocesses' field");
+  }
+  const auto &subprocs = j["subprocesses"];
+
+  modelling_patches.clear();
+
+  for (auto it = subprocs.begin(); it != subprocs.end(); ++it) {
+    const std::string sub_name = it.key();
+    const auto &sub = it.value();
+
+    ModellingPatch mp;
+
+    if (sub.contains("patch_ScaleVariation") &&
+        sub["patch_ScaleVariation"].is_array()) {
+      for (const auto &v : sub["patch_ScaleVariation"]) {
+        if (v.is_null())
+          continue;
+        mp.patch_ScaleVariation.push_back(static_cast<float>(v.get<double>()));
+      }
+    }
+
+    if (sub.contains("patch_PSVariation") &&
+        sub["patch_PSVariation"].is_array()) {
+      for (const auto &v : sub["patch_PSVariation"]) {
+        if (v.is_null())
+          continue;
+        mp.patch_PSVariation.push_back(static_cast<float>(v.get<double>()));
+      }
+    }
+
+    if (sub.contains("patch_hdamp_up") && !sub["patch_hdamp_up"].is_null())
+      mp.patch_hdamp_up = sub["patch_hdamp_up"].get<float>();
+    else
+      mp.patch_hdamp_up = 0.0f;
+
+    if (sub.contains("patch_hdamp_down") && !sub["patch_hdamp_down"].is_null())
+      mp.patch_hdamp_down = sub["patch_hdamp_down"].get<float>();
+    else
+      mp.patch_hdamp_down = 0.0f;
+
+    if (sub.contains("patch_minnlo") && !sub["patch_minnlo"].is_null())
+      mp.patch_minnlo = sub["patch_minnlo"].get<float>();
+    else
+      mp.patch_minnlo = 0.0f;
+
+    modelling_patches.emplace(sub_name, std::move(mp));
+  }
+
+  std::cout << "[modelling] PD = " << pd_key << std::endl;
+  std::cout << "[modelling] loaded subprocesses: ";
+  for (const auto &kv : modelling_patches) {
+    std::cout << kv.first << " ";
+  }
+  std::cout << std::endl;
 }
 
 // https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2
@@ -344,19 +425,13 @@ RVec<Jet> AnalyzerCore::ScaleJets(const RVec<Jet> &jets,
 
   RVec<Jet> scaled_jets;
   RVec<TString> syst_sources = {
-      "AbsoluteMPFBias", "AbsoluteScale", "AbsoluteStat", "FlavorQCD",
-      "Fragmentation",
-      //"PileUpDataMC",
-      //"PileUpPtBB",
-      //"PileUpPtEC1",
-      //"PileUpPtEC2",
-      //"PileUpPtHF",
-      //"PileUpPtRef",
-      "PileUpEnvelope", "RelativeJEREC1", "RelativeJEREC2", "RelativeJERHF",
-      "RelativePtBB", "RelativePtEC1", "RelativePtEC2", "RelativePtHF",
-      "RelativeBal", "RelativeSample", "RelativeFSR", "RelativeStatFSR",
-      "RelativeStatEC", "RelativeStatHF", "SinglePionECAL", "SinglePionHCAL",
-      "TimePtEta"};
+      "AbsoluteMPFBias", "AbsoluteScale",   "AbsoluteStat",   "FlavorQCD",
+      "Fragmentation",   "PileUpDataMC",    "PileUpPtBB",     "PileUpPtEC1",
+      "PileUpPtEC2",     "PileUpPtHF",      "PileUpPtRef",    "RelativeJEREC1",
+      "RelativeJEREC2",  "RelativeJERHF",   "RelativePtBB",   "RelativePtEC1",
+      "RelativePtEC2",   "RelativePtHF",    "RelativeBal",    "RelativeSample",
+      "RelativeFSR",     "RelativeStatFSR", "RelativeStatEC", "RelativeStatHF",
+      "SinglePionECAL",  "SinglePionHCAL",  "TimePtEta"};
 
   if (syst == MyCorrection::variation::nom)
     return jets;
@@ -1399,16 +1474,13 @@ void AnalyzerCore::ApplyJetScaleVariation(JetViewCollection &jets,
       for (const auto &src : jesSources) {
         const float srcUnc = myCorr->GetJESUncertainty(
             storage.eta[i], storage.correctedPt[i], src);
-        unc += srcUnc * srcUnc;
+        unc += (srcUnc) * (srcUnc);
       }
       unc = std::sqrt(unc);
     } else {
       unc = myCorr->GetJESUncertainty(storage.eta[i], storage.correctedPt[i],
                                       source);
     }
-
-    if (unc == 1.f)
-      continue;
 
     // storage.jecFactor[i]; untouched
     // storage.correctedPt[i]; untouched
@@ -1438,12 +1510,14 @@ void AnalyzerCore::ApplyJetSmearVariation(JetViewCollection &jets,
 
 const std::vector<TString> &AnalyzerCore::JetEnergyScaleSources() const {
   static const std::vector<TString> sources = {
-      "AbsoluteMPFBias", "AbsoluteScale",  "AbsoluteStat",   "FlavorQCD",
-      "Fragmentation",   "PileUpEnvelope", "RelativeJEREC1", "RelativeJEREC2",
-      "RelativeJERHF",   "RelativePtBB",   "RelativePtEC1",  "RelativePtEC2",
-      "RelativePtHF",    "RelativeBal",    "RelativeSample", "RelativeFSR",
-      "RelativeStatFSR", "RelativeStatEC", "RelativeStatHF", "SinglePionECAL",
-      "SinglePionHCAL",  "TimePtEta"};
+      "AbsoluteMPFBias", "AbsoluteScale",   "AbsoluteStat",   "FlavorQCD",
+      "Fragmentation",   "PileUpDataMC",    "PileUpPtBB",     "PileUpPtEC1",
+      "PileUpPtEC2",     "PileUpPtHF",      "PileUpPtRef",    "RelativeJEREC1",
+      "RelativeJEREC2",  "RelativeJERHF",   "RelativePtBB",   "RelativePtEC1",
+      "RelativePtEC2",   "RelativePtHF",    "RelativeBal",    "RelativeSample",
+      "RelativeFSR",     "RelativeStatFSR", "RelativeStatEC", "RelativeStatHF",
+      "SinglePionECAL",  "SinglePionHCAL",  "TimePtEta"};
+  ;
   return sources;
 }
 
@@ -1644,9 +1718,10 @@ inline void ApplyJetVariationScale(const JetView &view,
 }
 } // namespace
 
-RVec<Jet> AnalyzerCore::MaterializeJets(const JetViewCollection &jets,
-                                        const MyCorrection::variation &jesVar,
-                                        const MyCorrection::variation &jerVar) const {
+RVec<Jet>
+AnalyzerCore::MaterializeJets(const JetViewCollection &jets,
+                              const MyCorrection::variation &jesVar,
+                              const MyCorrection::variation &jerVar) const {
   RVec<Jet> materialised;
   if (jets.empty())
     return materialised;
@@ -2629,19 +2704,42 @@ RVec<GenVisTau> AnalyzerCore::GetAllGenVisTaus() {
   return GenVisTaus;
 }
 
-RVec<TrigObj> AnalyzerCore::GetAllTrigObjs() {
-  RVec<TrigObj> TrigObjs;
+TrigObjViewCollection AnalyzerCore::GetAllTrigObjViews() {
+  auto storage = std::make_shared<TrigObjSoA>();
+  storage->run = Run;
+  storage->pt.bind(&TrigObj_pt);
+  storage->eta.bind(&TrigObj_eta);
+  storage->phi.bind(&TrigObj_phi);
+  storage->id.bind(&TrigObj_id);
+  storage->filterBits.bind(&TrigObj_filterBits);
+  storage->l1charge.bind(&TrigObj_l1charge);
+  storage->l1iso.bind(&TrigObj_l1iso);
+  storage->l1pt.bind(&TrigObj_l1pt);
+  storage->l1pt2.bind(&TrigObj_l1pt_2);
+  storage->l2pt.bind(&TrigObj_l2pt);
+  return TrigObjViewCollection(std::move(storage));
+}
 
-  for (int i = 0; i < nTrigObj; i++) {
-    TrigObj trigObj;
-    trigObj.SetRun(Run);
-    trigObj.SetPtEtaPhiM(TrigObj_pt[i], TrigObj_eta[i], TrigObj_phi[i],
-                         0.0); // TrigObj mass is typically 0
-    trigObj.SetId(static_cast<Int_t>(TrigObj_id[i]));
-    trigObj.SetFilterBits(TrigObj_filterBits[i]);
-    TrigObjs.push_back(trigObj);
+RVec<TrigObj>
+AnalyzerCore::MaterializeTrigObjs(const TrigObjViewCollection &trigobjs) const {
+  RVec<TrigObj> materialised;
+  if (trigobjs.size() == 0)
+    return materialised;
+
+  auto storage = trigobjs.storage();
+  if (!storage)
+    return materialised;
+
+  materialised.reserve(trigobjs.size());
+  for (std::size_t idx = 0; idx < trigobjs.size(); ++idx) {
+    materialised.emplace_back(storage, idx);
   }
-  return TrigObjs;
+  return materialised;
+}
+
+RVec<TrigObj> AnalyzerCore::GetAllTrigObjs() {
+  TrigObjViewCollection views = GetAllTrigObjViews();
+  return MaterializeTrigObjs(views);
 }
 
 bool AnalyzerCore::IsHEMElectron(const Electron &electron) const {
@@ -3259,8 +3357,7 @@ int AnalyzerCore::GetPrElType_InSameSCRange_Public(int genIdx,
 
 // Histogram Handlers
 namespace {
-template <typename HistT>
-struct HistCache {
+template <typename HistT> struct HistCache {
   static constexpr size_t kSize = 8;
   std::array<std::string, kSize> keys{};
   std::array<HistT *, kSize> hists{};
@@ -3294,8 +3391,7 @@ static thread_local HistCache<TH3> cache3d;
 } // namespace
 
 void AnalyzerCore::FillHist(std::string_view histname, float value,
-                            float weight, int n_bin, float x_min,
-                            float x_max) {
+                            float weight, int n_bin, float x_min, float x_max) {
   if (TH1 *cached = cache1d.Find(histname)) {
     cached->Fill(value, weight);
     return;
@@ -3357,12 +3453,10 @@ void AnalyzerCore::FillHist(std::string_view histname, float value_x,
     TH2 *this_hist = nullptr;
     if (useTH1F)
       this_hist =
-          new TH2F(key.c_str(), "", n_binx, x_min, x_max, n_biny, y_min,
-                   y_max);
+          new TH2F(key.c_str(), "", n_binx, x_min, x_max, n_biny, y_min, y_max);
     else
       this_hist =
-          new TH2D(key.c_str(), "", n_binx, x_min, x_max, n_biny, y_min,
-                   y_max);
+          new TH2D(key.c_str(), "", n_binx, x_min, x_max, n_biny, y_min, y_max);
     this_hist->SetDirectory(nullptr);
     it = histmap2d.emplace(std::move(key), this_hist).first;
   }
@@ -3410,11 +3504,11 @@ void AnalyzerCore::FillHist(std::string_view histname, float value_x,
     std::string key(histname);
     TH3 *this_hist = nullptr;
     if (useTH1F)
-      this_hist = new TH3F(key.c_str(), "", n_binx, x_min, x_max, n_biny,
-                           y_min, y_max, n_binz, z_min, z_max);
+      this_hist = new TH3F(key.c_str(), "", n_binx, x_min, x_max, n_biny, y_min,
+                           y_max, n_binz, z_min, z_max);
     else
-      this_hist = new TH3D(key.c_str(), "", n_binx, x_min, x_max, n_biny,
-                           y_min, y_max, n_binz, z_min, z_max);
+      this_hist = new TH3D(key.c_str(), "", n_binx, x_min, x_max, n_biny, y_min,
+                           y_max, n_binz, z_min, z_max);
     this_hist->SetDirectory(nullptr);
     it = histmap3d.emplace(std::move(key), this_hist).first;
   }
@@ -3437,13 +3531,11 @@ void AnalyzerCore::FillHist(std::string_view histname, float value_x,
     std::string key(histname);
     TH3 *this_hist = nullptr;
     if (useTH1F)
-      this_hist =
-          new TH3F(key.c_str(), "", n_binx, xbins, n_biny, ybins, n_binz,
-                   zbins);
+      this_hist = new TH3F(key.c_str(), "", n_binx, xbins, n_biny, ybins,
+                           n_binz, zbins);
     else
-      this_hist =
-          new TH3D(key.c_str(), "", n_binx, xbins, n_biny, ybins, n_binz,
-                   zbins);
+      this_hist = new TH3D(key.c_str(), "", n_binx, xbins, n_biny, ybins,
+                           n_binz, zbins);
     this_hist->SetDirectory(nullptr);
     it = histmap3d.emplace(std::move(key), this_hist).first;
   }
@@ -3563,7 +3655,8 @@ void AnalyzerCore::WriteHist() {
   const int compression_algorithm = ROOT::RCompressionSetting::EAlgorithm::kLZ4;
   cout << "[AnalyzerCore::WriteHist] Writing histograms to "
        << outfile->GetName() << endl;
-  cout << "[AnalyzerCore::WriteHist] Set compression algorithm to LZ4 with level "
+  cout << "[AnalyzerCore::WriteHist] Set compression algorithm to LZ4 with "
+          "level "
        << compression_level << endl;
   outfile->SetCompressionAlgorithm(compression_algorithm);
   outfile->SetCompressionLevel(compression_level);

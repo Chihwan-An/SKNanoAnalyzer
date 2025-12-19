@@ -70,6 +70,8 @@ bool MuonView::PassID(MuonID id) const {
         return store->tkIsoId[idx] == 1;
     case MuonID::POG_TKISO_TIGHT:
         return store->tkIsoId[idx] == 2;
+    case MuonID::POG_PROMPTMVA_WP0p64:
+        return MvaPrompt() > 0.64;
     default:
         break;
     }
@@ -139,6 +141,8 @@ bool MuonView::PassID(const TString &id) const {
         return Pass_HcToWATight();
     if (id == "HcToWALoose")
         return Pass_HcToWALoose();
+    if (id == "POGPromptMVA_WP0p64")
+        return MvaPrompt() > 0.64;
     return false;
 }
 

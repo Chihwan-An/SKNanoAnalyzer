@@ -124,7 +124,7 @@ namespace JetTagging
         case JetFlavTagger::ParticleNet:
             return "particleNet";
         case JetFlavTagger::ParT:
-            return "robustParticleTransformer";
+            return "UParTAK4";
         default:
             cerr << "[JetTagging::GetTaggerCorrectionLibStr] No such tagger" << endl;
             exit(ENODATA);

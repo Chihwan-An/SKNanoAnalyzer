@@ -119,7 +119,8 @@ public:
         POG_PUPPIISO_MEDIUM,
         POG_PUPPIISO_TIGHT,
         POG_TKISO_LOOSE,
-        POG_TKISO_TIGHT
+        POG_TKISO_TIGHT,
+        POG_PROMPTMVA_WP0p64
     };
 
     void SetWIDBit(WorkingPointID id, unsigned char value);

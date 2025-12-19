@@ -59,6 +59,12 @@ bool ElectronView::PassID(ElectronID id) const {
         return PassID("HcToWALooseRun2");
     case ElectronID::HCTOWA_LOOSE_RUN3:
         return PassID("HcToWALooseRun3");
+    case ElectronID::POG_PROMPTMVA_TIGHT:
+        return PassID("POGPromptMVA_Tight");
+    case ElectronID::POG_PROMPTMVA_MEDIUM:
+        return PassID("POGPromptMVA_Medium");
+    default:
+        throw std::runtime_error("[ElectronView::PassID] ElectronID not implemented.");
     }
     return false;
 }
@@ -93,6 +99,11 @@ bool ElectronView::PassID(const TString &id) const {
         return Pass_HcToWALooseRun2();
     if (id == "HcToWALooseRun3")
         return Pass_HcToWALooseRun3();
+    if (id == "POGPromptMVA_Tight")
+        return PromptMVA() > 0.9f;
+    if (id == "POGPromptMVA_Medium")
+        return PromptMVA() > 0.8f;
+    throw std::runtime_error("[ElectronView::PassID] " + std::string(id.Data()) + " is not implemented.");
 
     return false;
 }

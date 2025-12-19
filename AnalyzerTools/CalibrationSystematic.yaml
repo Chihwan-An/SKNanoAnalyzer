@@ -1,0 +1,30 @@
+systematics:
+  - syst: Jet_En
+    source: "total"
+    evtLoopAgain: true
+
+  - syst: Jet_Res
+    source: "total"
+    evtLoopAgain: true
+
+  - syst: Mu_ID
+
+  - syst: Mu_Iso
+
+  - syst: Mu_Trig
+
+  - syst: El_ID
+
+  - syst: El_Reco
+
+  - syst: El_Trig
+
+  - syst: Pileup
+
+  - syst: MuF
+
+  - syst: MuR
+
+  - syst: FSR
+
+  - syst: ISR

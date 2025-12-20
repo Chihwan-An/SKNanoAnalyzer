@@ -593,6 +593,7 @@ MuonViewCollection AnalyzerCore::GetAllMuonViews() {
   storage->tkIsoId.bind(&Muon_tkIsoId);
   storage->nTrackerLayers.bind(&Muon_nTrackerLayers);
   storage->softMva.bind(&Muon_softMva);
+  storage->softMvaRun3.bind(&Muon_softMvaRun3);
   storage->mvaLowPt.bind(&Muon_mvaLowPt);
   storage->mvaPrompt.bind(&Muon_promptMVA);
   storage->genPartFlav.bind(&Muon_genPartFlav);
@@ -1883,6 +1884,9 @@ void AnalyzerCore::EnsureMuonProperty(Muon &muon,
     break;
   case Muon::Property::MvaPrompt:
     muon.SetMVAID(Muon::MVAID::MVAPROMPT, Muon_promptMVA[idx]);
+    break;
+  case Muon::Property::SoftMvaRun3:
+    muon.SetMVAID(Muon::MVAID::SOFTMVARUN3, Muon_softMvaRun3[idx]);
     break;
   default:
     throw std::runtime_error(

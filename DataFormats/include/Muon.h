@@ -58,6 +58,7 @@ public:
         SoftMva,
         MvaLowPt,
         MvaPrompt,
+        SoftMvaRun3,
         Count
     };
 
@@ -121,12 +122,13 @@ public:
     float SIP3D() const { ensure(Property::Sip3d); return Lepton::SIP3D(); }
 
     // MVA ID scores
-    enum class MVAID {NONE, SOFTMVA, MVALOWPT, MVAPROMPT};
+    enum class MVAID {NONE, SOFTMVA, MVALOWPT, MVAPROMPT, SOFTMVARUN3};
 
     void SetMVAID(MVAID id, float score);
     inline float SoftMva() const { ensure(Property::SoftMva); return j_softMva; }
     inline float MvaLowPt() const { ensure(Property::MvaLowPt); return j_mvaLowPt; }
     inline float PromptMVA() const { ensure(Property::MvaPrompt); return j_mvaPrompt; }
+    inline float SoftMvaRun3() const { ensure(Property::SoftMvaRun3); return j_softMvaRun3; }
 
     void SetGenPartIdx(short genPartIdx) { j_genPartIdx = genPartIdx; markLoaded(Property::GenPartIdx); }
     inline short GenPartIdx() const { ensure(Property::GenPartIdx); return j_genPartIdx; }
@@ -170,7 +172,7 @@ private:
     bool j_isTracker, j_isStandalone, j_isGlobal;
     bool j_looseId, j_mediumId, j_mediumPromptId, j_tightId, j_softId, j_softMvaId, j_triggerIdLoose;
     unsigned char j_highPtId, j_miniIsoId, j_multiIsoId, j_mvaMuId, j_pfIsoId, j_puppiIsoId, j_tkIsoId;
-    float j_softMva, j_mvaLowPt, j_mvaPrompt;
+    float j_softMva, j_mvaLowPt, j_mvaPrompt, j_softMvaRun3;
     int j_nTrackerLayers;
     float j_miniAODPt, j_momentumScaleUp, j_momentumScaleDown;
     short j_genPartIdx;

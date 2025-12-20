@@ -17,6 +17,7 @@ parser.add_argument("--categoryName", type=str, default="", help="Name of the ca
 parser.add_argument("--outputPath", type=str, help="Output JSON file path")
 parser.add_argument("--name", type=str, default="", help="Name of the correction")
 parser.add_argument("--version", type=int, default=1, help="Version of the correction")
+parser.add_argument("--corrName", type=str, default="", help="Correction name(s), colon-separated to match inputHist order")
 args = parser.parse_args()
 
 def create_binning(hist):
@@ -58,15 +59,27 @@ def create_binning(hist):
         flow="clamp"
     )
 
+if not args.inputHist:
+    parser.error("--inputHist is required")
+if not args.outputName:
+    parser.error("--outputName is required")
+
 # Open the ROOT file and get the histograms
 with TFile.Open(args.inputFile) as f:
     # split inputHist by :
     inputHists = args.inputHist.split(":")
     outputNames = args.outputName.split(":")
+    if len(outputNames) != len(inputHists):
+        parser.error("--outputName count must match --inputHist count (use ':' to separate)")
+    corrNames = args.corrName.split(":") if args.corrName else inputHists
+    if len(corrNames) != len(inputHists):
+        parser.error("--corrName count must match --inputHist count (use ':' to separate)")
     cset_items = []
-    for inputHist, outputName in zip(inputHists, outputNames):
+    for inputHist, outputName, corrName in zip(inputHists, outputNames, corrNames):
         # Get nominal histogram
         hist_nom = f.Get(inputHist)
+        if not hist_nom:
+            raise RuntimeError(f"Histogram '{inputHist}' not found in {args.inputFile}")
         
         # Create up/down variations using bin errors instead of separate histograms
         hist_up = hist_nom.Clone(f"{inputHist}_up")
@@ -86,7 +99,7 @@ with TFile.Open(args.inputFile) as f:
         binning_down = create_binning(hist_down)
 
         cset = cs.Correction(
-            name=inputHist,
+            name=corrName,
             version=args.version,
             description=args.categoryName,
             inputs=[

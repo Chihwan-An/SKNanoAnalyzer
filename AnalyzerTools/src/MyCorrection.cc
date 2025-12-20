@@ -213,10 +213,8 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     const string tag = "/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/";
     const string tag_temp = "/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/";
     config.json_muon += tag + "muon_Z.json.gz";
-    config.json_muon_trig_eff += "/2023BPix/MUO/muon_trig.json";
-    config.json_muon_trig_sf += 
-        tag + "muon_Z.json.gz"; // temporary due to no mu trig sf
-                                             // for 2024
+    config.json_muon_trig_eff += "/2024/MUO/muon_trig.json";
+    config.json_muon_trig_sf += tag + "muon_Z.json.gz";
     config.json_puWeights += tag + "puWeights_BCDEFGHI.json.gz";
     config.json_btagging += tag + "btagging.json.gz";
     // config.json_ctagging += "/2023_Summer23BPix/ctagging.json.gz";
@@ -261,6 +259,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
 // GoldenLumi
 bool MyCorrection::IsGoldenLumi(const unsigned int runNumber,
                                 const unsigned int lumiSection) const {
+  if(!IsDATA) return true;  
   return golden_json_parser->isGood(runNumber, lumiSection);
 }
 
@@ -557,7 +556,7 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key,
 
 // Trigger
 float MyCorrection::GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key,
-                                      const float abseta, const float pt,
+                                      const float eta, const float pt,
                                       const bool isData,
                                       const variation syst) const {
   static bool warned_missing_trig_eff = false;
@@ -586,10 +585,10 @@ float MyCorrection::GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key,
   }
   if (isData)
     return safeEvaluate(cset, "GetTriggerEff",
-                        {"data", getSystString_MUO(syst), fabs(abseta), pt});
+                        {"data", getSystString_MUO(syst), eta, pt});
   else
     return safeEvaluate(cset, "GetTriggerEff",
-                        {"mc", getSystString_MUO(syst), fabs(abseta), pt});
+                        {"mc", getSystString_MUO(syst), eta, pt});
 }
 
 float MyCorrection::GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key,
@@ -629,7 +628,7 @@ float MyCorrection::GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key,
     try {
       auto cset = set->at(Muon_Trigger_SF_Key.Data());
       weight = safeEvaluate(cset, "GetMuonTriggerSF",
-                            {fabs(muon.Eta()),
+                            {muon.Eta(),
                              muon.MiniAODPt() > 26.f ? muon.MiniAODPt() : 26.f,
                              getSystString_MUO(syst)});
       return true;

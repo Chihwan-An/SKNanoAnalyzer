@@ -263,7 +263,7 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
       return false;
     Muons = MaterializeMuons(AllMuonViews, Muons_indices);
     //additional muon prompt mva cut
-    if (Muons[0].PassID(Muon::MuonID::POG_PROMPTMVA_WP0p64)) {
+    if (!Muons[0].PassID(Muon::MuonID::POG_PROMPTMVA_WP0p64)) {
       return false;
     }
     Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
@@ -358,7 +358,7 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
                                     Electrons_indices, AllMuonViews,
                                     Muons_indices, Jet_Veto_DR);
 
-  if (jetIndices.size() < 3)
+  if (jetIndices.size() < 4)
     return false;
   Jets = MaterializeJets(AllJetViews, jetIndices, jesVar, jerVar);
   std::sort(Jets.begin(), Jets.end(), PtComparing);

@@ -28,7 +28,7 @@ using VariousArray = std::variant<FloatArray, IntArray, BoolArray>;
 
 class CalibrationTree : public AnalyzerCore {
 public:
-  enum class Channel { TTDilep, WCharm, DYLight, TTSemilep};
+  enum class Channel { TTDilep, WCharm_Mu, WCharm_El, DYLight, TTSemilep};
  
   void Clear();
   void SetChannel();
@@ -90,8 +90,10 @@ public:
     switch (ch) {
     case Channel::TTDilep:
       return "TTDilep";
-    case Channel::WCharm:
-      return "WCharm";
+    case Channel::WCharm_Mu:
+      return "WCharm_Mu";
+    case Channel::WCharm_El:
+      return "WCharm_El";
     case Channel::DYLight:
       return "DYLight";
     case Channel::TTSemilep:

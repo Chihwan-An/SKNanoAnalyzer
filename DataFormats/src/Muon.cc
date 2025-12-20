@@ -35,6 +35,7 @@ void Muon::initializeMembers() {
     j_softMva = -999.f;
     j_mvaLowPt = -999.f;
     j_mvaPrompt = -999.f;
+    j_softMvaRun3 = -999.f;
 
     j_nTrackerLayers = -999;
 
@@ -232,6 +233,9 @@ void Muon::loadFromStorage(Property property) const {
     case Property::MvaPrompt:
         self->SetMVAID(MVAID::MVAPROMPT, storage_->mvaPrompt[idx]);
         break;
+    case Property::SoftMvaRun3:
+        self->SetMVAID(MVAID::SOFTMVA, storage_->softMvaRun3[idx]);
+        break;
     default:
         break;
     }
@@ -323,6 +327,10 @@ void Muon::SetMVAID(MVAID id, float score) {
             j_mvaPrompt = score;
             markLoaded(Property::MvaPrompt);
             break;
+        case MVAID::SOFTMVARUN3:
+            j_softMvaRun3 = score;
+            markLoaded(Property::SoftMvaRun3);
+            break;
         default:
             break;
     }
@@ -362,6 +370,10 @@ bool Muon::PassID(const TString ID) const {
     if (ID == "HcToWATight")      return Pass_HcToWATight();
     if (ID == "HcToWALoose")      return Pass_HcToWALoose();
     if (ID == "POGPromptMVA_WP0p64") return PromptMVA() > 0.64;
+    if (ID == "POGSoftMVA_Run3_Tight")   return SoftMvaRun3() > 0.83;
+    if (ID == "POGSoftMVA_Run3_Medium")  return SoftMvaRun3() > 0.74;
+    if (ID == "POGSoftMVA_Run3_Loose")   return SoftMvaRun3() > 0.63;
+    if (ID == "POGSoftMVA_Run3_VLoose")  return SoftMvaRun3() > 0.47;
     throw std::runtime_error("[Muon::PassID] " + std::string(ID.Data()) + " is not implemented.");
 
     return false;
@@ -429,6 +441,14 @@ bool Muon::PassID(const MuonID ID) const {
             return static_cast<int>(TkIsoId()) == 2;
         case MuonID::POG_PROMPTMVA_WP0p64:
             return PromptMVA() > 0.64;
+        case MuonID::POG_SOFTMVA_RUN3_TIGHT:
+            return SoftMvaRun3() > 0.83;
+        case MuonID::POG_SOFTMVA_RUN3_MEDIUM:
+            return SoftMvaRun3() > 0.74;
+        case MuonID::POG_SOFTMVA_RUN3_LOOSE:
+            return SoftMvaRun3() > 0.63;
+        case MuonID::POG_SOFTMVA_RUN3_VLOOSE:
+            return SoftMvaRun3() > 0.47;
         default:
             throw std::runtime_error("[Muon::PassID] MuonID not implemented.");
     }

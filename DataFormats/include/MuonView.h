@@ -49,6 +49,7 @@ struct MuonSoA {
     ColumnView<unsigned char> tkIsoId;
     ColumnView<unsigned char> nTrackerLayers;
     ColumnView<float> softMva;
+    ColumnView<float> softMvaRun3;
     ColumnView<float> mvaLowPt;
     ColumnView<float> mvaPrompt;
     ColumnView<unsigned char> genPartFlav;
@@ -99,6 +100,7 @@ public:
     float SoftMva() const { return store->softMva[idx]; }
     float MvaLowPt() const { return store->mvaLowPt[idx]; }
     float MvaPrompt() const { return store->mvaPrompt[idx]; }
+    float SoftMvaRun3() const { return store->softMvaRun3[idx]; }
 
     unsigned char GenPartFlav() const { return store->genPartFlav[idx]; }
     short GenPartIdx() const { return store->genPartIdx[idx]; }

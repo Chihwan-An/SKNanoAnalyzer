@@ -986,6 +986,9 @@ void Vcb::executeEvent() {
   AllGens = GetAllGens();
   AllGenJets = GetAllGenJets();
   ev = GetEvent();
+  if(!myCorr->IsGoldenLumi(RunNumber, luminosityBlock)){
+    return;
+  }
 
   if (HasFlag("Skim")) {
     Clear();

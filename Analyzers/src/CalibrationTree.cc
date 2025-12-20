@@ -230,6 +230,8 @@ void CalibrationTree::executeEvent() {
   AllMuonViews = GetAllMuonViews();
   AllElectronViews = GetAllElectronViews();
   AllJetViews = GetAllJetViews();
+  AllTrigObjViews = GetAllTrigObjViews();
+
   ev = GetEvent();
   for (const auto &syst_dummy : *systHelper) {
     leptons.clear();
@@ -459,16 +461,27 @@ float CalibrationTree::LeptonTriggerWeight(bool isEle,
                                         lepton.Eta(), lepton.Pt(), lepton.Phi(),
                                         syst);
   else if (Muons.size() == 1 && Electrons.size() == 1) {
-    float mu_sf = myCorr->GetMuonTriggerSF(Mu_Trigger_SF_Key[DataEra.Data()],
-                                           Muons[0], syst);
-    float el_sf = myCorr->GetElectronTriggerSF(
-        El_Trigger_SF_Key[DataEra.Data()], Electrons[0].Eta(),
-        Electrons[0].Pt(), Electrons[0].Phi(), syst);
-    return mu_sf * el_sf;
+    float mu_eff_data = myCorr->GetMuonTriggerEff(
+        Mu_Trigger_SF_Key[DataEra.Data()], fabs(Muons[0].Eta()), Muons[0].Pt(),
+        true, syst);
+    float mu_eff_mc = myCorr->GetMuonTriggerEff(
+        Mu_Trigger_SF_Key[DataEra.Data()], fabs(Muons[0].Eta()), Muons[0].Pt(),
+        false, syst);
+    float el_eff_data = myCorr->GetElectronTriggerEff(
+        El_Trigger_SF_Key[DataEra.Data()], fabs(Electrons[0].Eta()),
+        Electrons[0].Pt(), Electrons[0].Phi(), true, syst);
+    float el_eff_mc = myCorr->GetElectronTriggerEff(
+        El_Trigger_SF_Key[DataEra.Data()], fabs(Electrons[0].Eta()),
+        Electrons[0].Pt(), Electrons[0].Phi(), false, syst);
+    float combined_eff_data = 1 - (1 - mu_eff_data) * (1 - el_eff_data);
+    float combined_eff_mc = 1 - (1 - mu_eff_mc) * (1 - el_eff_mc);
+    if (combined_eff_mc == 0)
+      return 1.f;
+    return combined_eff_data / combined_eff_mc;
   }
 
   else if (Muons.size() == 2 && Electrons.size() == 0) {
-    return myCorr->GetMuonTriggerSF(Mu_Trigger_SF_Key[DataEra.Data()], Muons[0],
+    return myCorr->GetMuonTriggerSF(Mu_Trigger_SF_Key[DataEra.Data()], Muons,
                                     syst);
   }
 
@@ -480,6 +493,9 @@ float CalibrationTree::LeptonTriggerWeight(bool isEle,
 }
 
 bool CalibrationTree::PassBaseLineSelection() {
+  if(!myCorr->IsGoldenLumi(RunNumber, luminosityBlock)){
+    return false;
+  }
   switch (channel) {
   case Channel::TTDilep:
     return PassTTDilepBaselineSelection();
@@ -497,9 +513,17 @@ bool CalibrationTree::PassBaseLineSelection() {
 }
 
 bool CalibrationTree::PassTTDilepBaselineSelection() {
-  if (!(ev.PassTrigger(Mu_Trigger[DataEra.Data()]) &&
-        ev.PassTrigger(El_Trigger[DataEra.Data()])))
-    return false;
+  if(IsDATA && DataStream.Contains("EGamma")) {
+    if (!ev.PassTrigger(El_Trigger[DataEra.Data()]))
+      return false;
+    if (ev.PassTrigger(Mu_Trigger[DataEra.Data()]))
+      return false;
+  }
+  else{
+    if (!(ev.PassTrigger(Mu_Trigger[DataEra.Data()]) ||
+          ev.PassTrigger(El_Trigger[DataEra.Data()])))
+      return false;
+  }
   if (!PassJetVetoMap(AllJetViews, AllMuonViews))
     return false;
   if (!PassMetFilter(AllJetViews, ev))
@@ -742,15 +766,18 @@ bool CalibrationTree::PassDYLightBaselineSelection() {
 }
 bool CalibrationTree::PassWCharmBaselineSelection() {
   // --- common preselection ---
-  if (!PassJetVetoMap(AllJetViews, AllMuonViews)) return false;
-  if (!PassMetFilter(AllJetViews, ev)) return false;
+  if (!PassJetVetoMap(AllJetViews, AllMuonViews))
+    return false;
+  if (!PassMetFilter(AllJetViews, ev))
+    return false;
 
   // primary lepton indices (no shadowing!)
   std::vector<size_t> tight_muon_indices;
   std::vector<size_t> tight_electron_indices;
 
   // keep primary lepton as base
-  Lepton primary_lepton;   // assumes Muon/Electron derive from Lepton (slicing OK for base-only use)
+  Lepton primary_lepton; // assumes Muon/Electron derive from Lepton (slicing OK
+                         // for base-only use)
   bool primary_is_mu = false;
 
   // also keep real primary muon for dimuon veto
@@ -759,68 +786,72 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
 
   // --- channel-dependent trigger + exactly-one tight lepton ---
   if (channel == Channel::WCharm_Mu) {
-    if (!ev.PassTrigger(Mu_Trigger[DataEra.Data()])) return false;
+    if (!ev.PassTrigger(Mu_Trigger[DataEra.Data()]))
+      return false;
 
-    auto loose_muon_indices = SelectMuonIndices(
-        AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
-    loose_muon_indices = SelectMuonIndices(
-        AllMuonViews, loose_muon_indices, Muon_Veto_Iso, Muon_Veto_Pt, Muon_Veto_Eta);
+    auto loose_muon_indices = SelectMuonIndices(AllMuonViews, Muon_Veto_ID,
+                                                Muon_Veto_Pt, Muon_Veto_Eta);
+    loose_muon_indices =
+        SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Veto_Iso,
+                          Muon_Veto_Pt, Muon_Veto_Eta);
 
-    tight_muon_indices = SelectMuonIndices(
-        AllMuonViews, loose_muon_indices, Muon_Tight_ID,
-        Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-    tight_muon_indices = SelectMuonIndices(
-        AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
-        Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+    tight_muon_indices =
+        SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Tight_ID,
+                          Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+    tight_muon_indices =
+        SelectMuonIndices(AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
+                          Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
 
-    auto loose_electron_indices = SelectElectronIndices(
-        AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt, Electron_Veto_Eta);
+    auto loose_electron_indices =
+        SelectElectronIndices(AllElectronViews, Electron_Veto_ID,
+                              Electron_Veto_Pt, Electron_Veto_Eta);
     tight_electron_indices = SelectElectronIndices(
         AllElectronViews, loose_electron_indices, Electron_Tight_ID,
         Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
 
     if (!(tight_muon_indices.size() == 1 &&
           tight_electron_indices.size() == 0 &&
-          loose_muon_indices.size() == 1 &&
-          loose_electron_indices.size() == 0))
+          loose_muon_indices.size() == 1 && loose_electron_indices.size() == 0))
       return false;
 
     Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
     primary_muon = Muons[0];
     has_primary_muon = true;
 
-    primary_lepton = static_cast<Lepton&>(Muons[0]);
+    primary_lepton = static_cast<Lepton &>(Muons[0]);
     primary_is_mu = true;
 
   } else if (channel == Channel::WCharm_El) {
-    if (!ev.PassTrigger(El_Trigger[DataEra.Data()])) return false;
+    if (!ev.PassTrigger(El_Trigger[DataEra.Data()]))
+      return false;
 
-    auto loose_muon_indices = SelectMuonIndices(
-        AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
-    loose_muon_indices = SelectMuonIndices(
-        AllMuonViews, loose_muon_indices, Muon_Veto_Iso, Muon_Veto_Pt, Muon_Veto_Eta);
+    auto loose_muon_indices = SelectMuonIndices(AllMuonViews, Muon_Veto_ID,
+                                                Muon_Veto_Pt, Muon_Veto_Eta);
+    loose_muon_indices =
+        SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Veto_Iso,
+                          Muon_Veto_Pt, Muon_Veto_Eta);
 
-    tight_muon_indices = SelectMuonIndices(
-        AllMuonViews, loose_muon_indices, Muon_Tight_ID,
-        Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-    tight_muon_indices = SelectMuonIndices(
-        AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
-        Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+    tight_muon_indices =
+        SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Tight_ID,
+                          Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+    tight_muon_indices =
+        SelectMuonIndices(AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
+                          Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
 
-    auto loose_electron_indices = SelectElectronIndices(
-        AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt, Electron_Veto_Eta);
+    auto loose_electron_indices =
+        SelectElectronIndices(AllElectronViews, Electron_Veto_ID,
+                              Electron_Veto_Pt, Electron_Veto_Eta);
     tight_electron_indices = SelectElectronIndices(
         AllElectronViews, loose_electron_indices, Electron_Tight_ID,
         Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
 
     if (!(tight_muon_indices.size() == 0 &&
           tight_electron_indices.size() == 1 &&
-          loose_muon_indices.size() == 0 &&
-          loose_electron_indices.size() == 1))
+          loose_muon_indices.size() == 0 && loose_electron_indices.size() == 1))
       return false;
 
     Electrons = MaterializeElectrons(AllElectronViews, tight_electron_indices);
-    primary_lepton = static_cast<Lepton&>(Electrons[0]);
+    primary_lepton = static_cast<Lepton &>(Electrons[0]);
     primary_is_mu = false;
 
   } else {
@@ -828,17 +859,18 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
   }
 
   // --- soft muon (non-iso) list ---
-  std::vector<size_t> soft_muon_indices =
-      SelectMuonIndices(AllMuonViews, Muon::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
+  std::vector<size_t> soft_muon_indices = SelectMuonIndices(
+      AllMuonViews, Muon::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
 
   std::vector<size_t> soft_muon_indices_iso =
-      SelectMuonIndices(AllMuonViews, soft_muon_indices, Muon::MuonID::POG_MEDIUM, 5.f, Muon_Tight_Eta);
+      SelectMuonIndices(AllMuonViews, soft_muon_indices,
+                        Muon::MuonID::POG_MEDIUM, 5.f, Muon_Tight_Eta);
 
   std::vector<size_t> soft_muon_indices_noniso;
   soft_muon_indices_noniso.reserve(soft_muon_indices.size());
   for (auto idx : soft_muon_indices) {
-    if (std::find(soft_muon_indices_iso.begin(), soft_muon_indices_iso.end(), idx)
-        == soft_muon_indices_iso.end())
+    if (std::find(soft_muon_indices_iso.begin(), soft_muon_indices_iso.end(),
+                  idx) == soft_muon_indices_iso.end())
       soft_muon_indices_noniso.push_back(idx);
   }
 
@@ -846,7 +878,8 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
   MyCorrection::variation jesVar = MyCorrection::variation::nom;
   MyCorrection::variation jerVar = MyCorrection::variation::nom;
   if (!IsDATA) {
-    if (systHelper->getCurrentIterSysTarget().find("Jet_En") != std::string::npos)
+    if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
+        std::string::npos)
       jesVar = systHelper->getCurrentIterVariation();
     else if (systHelper->getCurrentIterSysTarget() == "Jet_Res")
       jerVar = systHelper->getCurrentIterVariation();
@@ -856,21 +889,25 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
   std::vector<size_t> jet_indices = SelectJetIndices(
       AllJetViews, Jet::JetID::TIGHT, 25.f, 2.4, jesVar, jerVar);
 
-  jet_indices = JetsVetoLeptonInside(AllJetViews, jet_indices,
-                                     AllElectronViews, tight_electron_indices,
-                                     AllMuonViews, tight_muon_indices, 0.4);
+  jet_indices = JetsVetoLeptonInside(AllJetViews, jet_indices, AllElectronViews,
+                                     tight_electron_indices, AllMuonViews,
+                                     tight_muon_indices, 0.4);
 
-  if (jet_indices.size() != 1) return false;
+  if (jet_indices.size() != 1)
+    return false;
 
   Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
   std::sort(Jets.begin(), Jets.end(), PtComparing);
 
-  // --- match non-iso soft muon to the (only) jet, require exactly one unique muon ---
+  // --- match non-iso soft muon to the (only) jet, require exactly one unique
+  // muon ---
   auto deltaR2 = [](float eta1, float phi1, float eta2, float phi2) {
     const float deta = eta1 - eta2;
     float dphi = phi1 - phi2;
-    while (dphi > M_PI)  dphi -= 2.f * M_PI;
-    while (dphi < -M_PI) dphi += 2.f * M_PI;
+    while (dphi > M_PI)
+      dphi -= 2.f * M_PI;
+    while (dphi < -M_PI)
+      dphi += 2.f * M_PI;
     return deta * deta + dphi * dphi;
   };
 
@@ -899,23 +936,29 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
 
     if (best_jet_idx != std::numeric_limits<size_t>::max()) {
       auto it = jet_to_mu.find(best_jet_idx);
-      if (it == jet_to_mu.end()) jet_to_mu.emplace(best_jet_idx, mu_idx);
-      else it->second = kAmbiguous; // multiple muons on this jet
+      if (it == jet_to_mu.end())
+        jet_to_mu.emplace(best_jet_idx, mu_idx);
+      else
+        it->second = kAmbiguous; // multiple muons on this jet
     }
   }
 
   size_t unique_softmu_idx = std::numeric_limits<size_t>::max();
   size_t unique_count = 0;
-  for (const auto& [jet_idx, mu_idx] : jet_to_mu) {
-    if (mu_idx == kAmbiguous) continue;
+  for (const auto &[jet_idx, mu_idx] : jet_to_mu) {
+    if (mu_idx == kAmbiguous)
+      continue;
     unique_softmu_idx = mu_idx;
     ++unique_count;
   }
-  if (unique_count != 1) return false;
+  if (unique_count != 1)
+    return false;
 
   // --- jet composition veto ---
-  if (Jets[0].muEF() > 0.5f) return false;
-  if (Jets[0].muEF() + Jets[0].neHEF() > 0.7f) return false;
+  if (Jets[0].muEF() > 0.5f)
+    return false;
+  if (Jets[0].muEF() + Jets[0].neHEF() > 0.7f)
+    return false;
 
   // --- materialize soft muon ---
   Muon soft_muon = MaterializeMuons(AllMuonViews, {unique_softmu_idx})[0];
@@ -923,44 +966,52 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
   // --- dimuon mass veto only for mu-channel ---
   if (primary_is_mu && has_primary_muon) {
     Particle DiMuon = primary_muon + soft_muon;
-    if (DiMuon.M() < 12.f || (DiMuon.M() > 81.f && DiMuon.M() < 101.f)) return false;
+    if (DiMuon.M() < 12.f || (DiMuon.M() > 81.f && DiMuon.M() < 101.f))
+      return false;
   }
 
   // --- opposite sign between primary lepton and soft muon ---
-  if (primary_lepton.Charge() * soft_muon.Charge() > 0) return false;
+  if (primary_lepton.Charge() * soft_muon.Charge() > 0)
+    return false;
 
   // --- MET and systematic shift logic (kept same structure) ---
   MET = ev.GetMETVector(Event::MET_Type::PUPPI);
 
   TLorentzVector p4_nominal(0, 0, 0, 0);
   TLorentzVector p4_shifted(0, 0, 0, 0);
-  for (const auto& jetView : AllJetViews) {
+  for (const auto &jetView : AllJetViews) {
     TLorentzVector v;
     v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(), jetView.Mass());
     p4_nominal += v;
   }
 
-  if (systHelper->getCurrentIterSysTarget().find("Jet_En") != std::string::npos) {
+  if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
+      std::string::npos) {
     const bool doBreakdown = HasFlag("doBreakdown");
     const TString srcT = systHelper->getCurrentIterSysSource();
     if (doBreakdown) {
-      if (srcT.EqualTo("total", TString::kIgnoreCase)) return false;
+      if (srcT.EqualTo("total", TString::kIgnoreCase))
+        return false;
       ApplyJetScaleVariation(AllJetViews, srcT);
     } else {
-      if (!srcT.EqualTo("total", TString::kIgnoreCase)) return false;
+      if (!srcT.EqualTo("total", TString::kIgnoreCase))
+        return false;
       ApplyJetScaleVariation(AllJetViews, "total");
     }
 
     if (systHelper->getCurrentIterVariation() == MyCorrection::variation::up) {
-      for (const auto& jetView : AllJetViews) {
+      for (const auto &jetView : AllJetViews) {
         TLorentzVector v;
-        v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(), jetView.JesMassUp());
+        v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
+                       jetView.JesMassUp());
         p4_shifted += v;
       }
-    } else if (systHelper->getCurrentIterVariation() == MyCorrection::variation::down) {
-      for (const auto& jetView : AllJetViews) {
+    } else if (systHelper->getCurrentIterVariation() ==
+               MyCorrection::variation::down) {
+      for (const auto &jetView : AllJetViews) {
         TLorentzVector v;
-        v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(), jetView.JesMassDown());
+        v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
+                       jetView.JesMassDown());
         p4_shifted += v;
       }
     }
@@ -975,7 +1026,7 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
                           Event::MET_Syst::UE);
     p4_shifted = p4_nominal;
   } else {
-    for (const auto& jetView : AllJetViews) {
+    for (const auto &jetView : AllJetViews) {
       TLorentzVector v;
       v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(), jetView.Phi(),
                      jetView.SmearedMassNominal());
@@ -988,21 +1039,28 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
     MET.SetXYZM(MET.Px() - delta.Px(), MET.Py() - delta.Py(), 0., 0.);
   }
 
-  if (MET.Pt() < 30.f) return false;
+  if (MET.Pt() < 30.f)
+    return false;
 
   // --- W kinematics + topology (now using base Lepton) ---
   Particle WT = primary_lepton + MET;
   const float MT = std::sqrt(2.f * primary_lepton.Pt() * MET.Pt() *
                              (1.f - std::cos(primary_lepton.DeltaPhi(MET))));
-  if (MT < 40.f || MT > 120.f) return false;
-  if (WT.Pt() < 30.f) return false;
+  if (MT < 40.f || MT > 120.f)
+    return false;
+  if (WT.Pt() < 30.f)
+    return false;
 
-  if (std::abs(MET.DeltaPhi(Jets[0])) < 1.0) return false;
-  if (std::abs(primary_lepton.DeltaPhi(Jets[0])) > 2.8) return false;
-  if (std::abs(WT.DeltaPhi(Jets[0])) < 2.0) return false;
+  if (std::abs(MET.DeltaPhi(Jets[0])) < 1.0)
+    return false;
+  if (std::abs(primary_lepton.DeltaPhi(Jets[0])) > 2.8)
+    return false;
+  if (std::abs(WT.DeltaPhi(Jets[0])) < 2.0)
+    return false;
 
   const float pt_ratio = Jets[0].Pt() / WT.Pt();
-  if (pt_ratio < 0.5f || pt_ratio > 2.0f) return false;
+  if (pt_ratio < 0.5f || pt_ratio > 2.0f)
+    return false;
 
   return true;
 }

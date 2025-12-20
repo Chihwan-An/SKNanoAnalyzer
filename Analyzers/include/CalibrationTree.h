@@ -18,6 +18,7 @@
 #include "GenView.h"
 #include "MLHelper.h"
 #include "SystematicHelper.h"
+#include "TrigObjView.h"
 #include "VcbParameters.h"
 
 using FloatArray = std::vector<float>;
@@ -58,6 +59,7 @@ public:
   ElectronViewCollection AllElectronViews;
   JetViewCollection AllJetViews;
   GenViewCollection AllGenViews;
+  TrigObjViewCollection AllTrigObjViews;
   // Selected Objects
   RVec<Jet> Jets;
   RVec<Electron> Electrons_Veto;

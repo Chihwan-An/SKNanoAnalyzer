@@ -7,6 +7,7 @@
 
 #include "TString.h"
 #include "Lepton.h"
+#include "LeptonIDEnums.h"
 #include "MuonView.h"
 
 class AnalyzerCore;
@@ -87,41 +88,8 @@ public:
 
     // Unsigned char IDs
     enum class WorkingPointID {NONE, HIGHPT, MINIISO, MULTIISO, MVAMU, PFISO, PUPPIISO, TKISO};
-    enum class WorkingPoint {NONE, VLOOSE, LOOSE, MEDIUM, TIGHT, VTIGHT, VVTIGHT};
-
-    enum class MuonID
-    {
-        NOCUT,
-        POG_TIGHT,
-        POG_MEDIUM,
-        POG_MEDIUM_PROMPT,
-        POG_LOOSE,
-        POG_SOFT,
-        POG_SOFT_MVA,
-        POG_TRIGGER_LOOSE,
-        POG_TRACKER_HIGH_PT,
-        POG_GLOBAL_HIGH_PT,
-        POG_MINISO_LOOSE,
-        POG_MINISO_MEDIUM,
-        POG_MINISO_TIGHT,
-        POG_MINISO_VTIGHT,
-        POG_MULTISO_LOOSE,
-        POG_MULTISO_MEDIUM,
-        POG_MVA_MU_MEDIUM,
-        POG_MVA_MU_TIGHT,
-        POG_PFISO_VLOOSE,
-        POG_PFISO_LOOSE,
-        POG_PFISO_MEDIUM,
-        POG_PFISO_TIGHT,
-        POG_PFISO_VTIGHT,
-        POG_PFISO_VVTIGHT,
-        POG_PUPPIISO_LOOSE,
-        POG_PUPPIISO_MEDIUM,
-        POG_PUPPIISO_TIGHT,
-        POG_TKISO_LOOSE,
-        POG_TKISO_TIGHT,
-        POG_PROMPTMVA_WP0p64
-    };
+    using WorkingPoint = LeptonID::MuonWorkingPoint;
+    using MuonID = LeptonID::MuonID;
 
     void SetWIDBit(WorkingPointID id, unsigned char value);
     inline WorkingPoint HighPtId() const { ensure(Property::HighPtId); return static_cast<WorkingPoint>(j_highPtId); }

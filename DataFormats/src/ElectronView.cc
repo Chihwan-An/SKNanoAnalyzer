@@ -53,12 +53,6 @@ bool ElectronView::PassID(ElectronID id) const {
         return PassID("POGMVANoIsoWP80");
     case ElectronID::POG_MVANOISO_WP90:
         return PassID("POGMVANoIsoWP90");
-    case ElectronID::HCTOWA_TIGHT:
-        return PassID("HcToWATight");
-    case ElectronID::HCTOWA_LOOSE_RUN2:
-        return PassID("HcToWALooseRun2");
-    case ElectronID::HCTOWA_LOOSE_RUN3:
-        return PassID("HcToWALooseRun3");
     case ElectronID::POG_PROMPTMVA_TIGHT:
         return PassID("POGPromptMVA_Tight");
     case ElectronID::POG_PROMPTMVA_MEDIUM:

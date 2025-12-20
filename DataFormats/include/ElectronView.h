@@ -8,6 +8,7 @@
 
 #include "TLorentzVector.h"
 #include "TString.h"
+#include "LeptonIDEnums.h"
 #include "ViewColumns.h"
 
 /**
@@ -72,38 +73,9 @@ struct ElectronSoA {
 
 class ElectronView {
 public:
-    enum class ElectronID {
-        NOCUT,
-        POG_VETO,
-        POG_LOOSE,
-        POG_MEDIUM,
-        POG_TIGHT,
-        POG_HEEP,
-        POG_MVAISO_WP80,
-        POG_MVAISO_WP90,
-        POG_MVANOISO_WP80,
-        POG_MVANOISO_WP90,
-        POG_PROMPTMVA_TIGHT,
-        POG_PROMPTMVA_MEDIUM,
-        HCTOWA_TIGHT,
-        HCTOWA_LOOSE_RUN2,
-        HCTOWA_LOOSE_RUN3
-    };
-
-    enum class CutBasedWP : unsigned char {
-        NONE = 0,
-        VETO = 1,
-        LOOSE = 2,
-        MEDIUM = 3,
-        TIGHT = 4
-    };
-
-    enum class EtaRegion {
-        IB,
-        OB,
-        GAP,
-        EC
-    };
+    using ElectronID = LeptonID::ElectronID;
+    using CutBasedWP = LeptonID::ElectronCutBasedWP;
+    using EtaRegion = LeptonID::ElectronEtaRegion;
 
     ElectronView() = default;
     ElectronView(std::shared_ptr<const ElectronSoA> storage, std::size_t index)

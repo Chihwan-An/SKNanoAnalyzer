@@ -1,10 +1,13 @@
 #ifndef AnalyzerCore_h
 #define AnalyzerCore_h
 
+#include <algorithm>
+#include <cmath>
 #include <map>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -192,7 +195,10 @@ public:
     RVec<Photon> GetAllPhotons();
     RVec<Photon> GetPhotons(TString id, double ptmin, double fetamax);
     TrigObjViewCollection GetAllTrigObjViews();
+    std::vector<std::size_t> SelectTrigObjIndices(const TrigObjViewCollection &trigobjs, const std::vector<std::size_t> &seed_indices, const int id, const float ptmin, const float fetamax) const;
+    std::vector<std::size_t> SelectTrigObjIndices(const TrigObjViewCollection &trigobjs, const int id, const float ptmin, const float fetamax) const;
     RVec<TrigObj> MaterializeTrigObjs(const TrigObjViewCollection &trigobjs) const;
+    RVec<TrigObj> MaterializeTrigObjs(const TrigObjViewCollection &trigobjs, const std::vector<std::size_t> &indices) const;
     RVec<TrigObj> GetAllTrigObjs();
 
     // Select objects
@@ -253,6 +259,8 @@ public:
     float GetL1PrefireWeight(MyCorrection::variation syst = MyCorrection::variation::nom);
     unordered_map<int, int> GenJetMatching(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const float &rho, const float dR = 0.2, const float pTJerCut = 3.);
     unordered_map<int, int> deltaRMatching(const RVec<Particle> &objs1, const RVec<Particle> &objs2, const float dR = 0.4);
+    template <typename ViewCollection>
+    std::vector<int> MatchViewsToTrigObjs(const ViewCollection &objects, const TrigObjViewCollection &trigobjs, float dR = 0.4f, int trigId = -1) const;
     RVec<Muon> ScaleMuons(const RVec<Muon> &muons, const MyCorrection::variation &syst=MyCorrection::variation::nom);
     RVec<Electron> ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const MyCorrection::variation &syst=MyCorrection::variation::nom);
     RVec<Electron> SmearElectrons(const RVec<Electron> &electrons, const MyCorrection::variation &syst=MyCorrection::variation::nom);
@@ -443,6 +451,72 @@ bool AnalyzerCore::PassNoiseFilterCommon(const JetCollection &AllJets, const Eve
             return false;
     }
     return true;
+}
+
+template <typename ViewCollection>
+std::vector<int> AnalyzerCore::MatchViewsToTrigObjs(
+    const ViewCollection &objects, const TrigObjViewCollection &trigobjs,
+    float dR, int trigId) const {
+  const std::size_t nObj = objects.size();
+  std::vector<int> matchedIdx(nObj, -999);
+  if (nObj == 0 || trigobjs.size() == 0)
+    return matchedIdx;
+
+  const auto &storage = trigobjs.storage();
+  if (!storage)
+    return matchedIdx;
+
+  const std::size_t nTrig = storage->size();
+  if (nTrig == 0)
+    return matchedIdx;
+
+  const float maxDR2 = dR * dR;
+  constexpr float kPi = 3.14159265358979323846f;
+  constexpr float kTwoPi = 6.28318530717958647692f;
+
+  std::vector<std::tuple<std::size_t, std::size_t, float>> candidates;
+  candidates.reserve(nObj * 2);
+
+  for (std::size_t i = 0; i < nObj; ++i) {
+    const auto &obj = objects[i];
+    const float objEta = obj.Eta();
+    const float objPhi = obj.Phi();
+    for (std::size_t j = 0; j < nTrig; ++j) {
+      if (trigId >= 0 && static_cast<int>(storage->id[j]) != trigId)
+        continue;
+
+      const float dEta = objEta - storage->eta[j];
+      float dPhi = objPhi - storage->phi[j];
+      if (dPhi > kPi)
+        dPhi -= kTwoPi;
+      else if (dPhi <= -kPi)
+        dPhi += kTwoPi;
+
+      const float dr2 = dEta * dEta + dPhi * dPhi;
+      if (dr2 < maxDR2)
+        candidates.emplace_back(i, j, dr2);
+    }
+  }
+
+  std::sort(candidates.begin(), candidates.end(),
+            [](const auto &a, const auto &b) {
+              return std::get<2>(a) < std::get<2>(b);
+            });
+
+  std::vector<bool> usedObj(nObj, false);
+  std::vector<bool> usedTrig(nTrig, false);
+  for (const auto &candidate : candidates) {
+    const std::size_t objIdx = std::get<0>(candidate);
+    const std::size_t trigIdx = std::get<1>(candidate);
+    if (usedObj[objIdx] || usedTrig[trigIdx])
+      continue;
+
+    matchedIdx[objIdx] = static_cast<int>(trigIdx);
+    usedObj[objIdx] = true;
+    usedTrig[trigIdx] = true;
+  }
+
+  return matchedIdx;
 }
 
 #endif

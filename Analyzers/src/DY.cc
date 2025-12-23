@@ -14,8 +14,8 @@ void DY::initializeAnalyzer() {
     
     // Muon IDs and scale factor keys
     MuonIDs.clear();
-    MuonIDs.push_back(Muon::MuonID::POG_TKISO_LOOSE);
-    //MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
+    //MuonIDs.push_back(Muon::MuonID::POG_TKISO_LOOSE);
+    MuonIDs.push_back(Muon::MuonID::POG_TIGHT);
     //MuonIDSFKeys = {"NUM_TightID_DEN_TrackerMuons"};
     
     // Jet IDs

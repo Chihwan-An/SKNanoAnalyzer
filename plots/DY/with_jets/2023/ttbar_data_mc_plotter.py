@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-data_directory = "/gv0/Users/achihwan/SKNanoRunlog/out/DY/2023"
+data_directory = "/gv0/Users/achihwan/SKNanoOutput/DY/2023"
 
 import ROOT
 import cmsstyle as CMS

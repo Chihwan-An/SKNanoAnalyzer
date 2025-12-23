@@ -704,8 +704,7 @@ void Reproduce20_002::executeEventFromParameter() {
                     FillHist(this_syst + "/LowMassCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                 }
             }
-        }// # 1192 -> Resolved ends .34434.758_TTbar_14TeV+Run4D121_HLT75e33TimingTiclBarrel Step0-PASSED Step1-PASSED Step2-PASSED  - time date Wed Dec 17 17:19:22 2025-date Wed Dec 17 16:00:57 2025; exit: 0 0 0
-1 1 1 tests passed, 0 0 0 failed
+        }// # 1192 -> Resolved ends 
     
     }
     }
@@ -725,13 +724,14 @@ void Reproduce20_002::executeEventFromParameter() {
             bool this_trigger_pass_boost(false);
             bool is_tmp_lead_el(false), is_tmp_lead_mu(false);
             Lepton * LeadLep = Tight_leps[0];
-            if ( LeadLep->IsElectron() == Lepton::FLAVOR::ELECTRON ) {
+            if ( LeadLep->IsElectron() ) {
                 is_tmp_lead_el = true;
                 this_trigger_pass_boost = pass_trig_elec;
             }
-            else if ( LeadLep->IsMuon() == Lepton::FLAVOR::MUON ){
+            else if ( LeadLep->IsMuon()){
                 is_tmp_lead_mu = true;
                 this_trigger_pass_boost = pass_trig_muon;
+                FillHist(this_syst + "/Check_is_tmp_lead_muon_ok", 1 , weight, 5, 0., 5.);
             }
             
             if (this_trigger_pass_boost){
@@ -790,14 +790,28 @@ void Reproduce20_002::executeEventFromParameter() {
                                 FillHist(this_syst + "/Boost_cutflow_DY", 6 , weight, 20,-10,10.);
                                 if (lowmllmass < 100){
                             // Boosted CR1    
-                                FillHist(this_syst + "/ pt(ll) boosted DY CR1", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                FillHist(this_syst + "/ leading fatjet pt boosted DY CR1", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                FillHist(this_syst + "/ m(lljj) boosted DY CR1", WRCand.M(), weight, 8000, 0., 8000.);
+                                    if (is_tmp_lead_el){ // ee 
+                                        FillHist(this_syst + "/pt(ll)_boosted_DY_CR1_EE", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR1_EE", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/m(lljj)_boosted_DY_CR1_EE", WRCand.M(), weight, 8000, 0., 8000.);
+                                    }
+                                    if (is_tmp_lead_mu){// mumu
+                                        FillHist(this_syst + "/pt(ll)_boosted_DY_CR1_MM", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR1_MM", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/m(lljj)_boosted_DY_CR1_MM", WRCand.M(), weight, 8000, 0., 8000.);
+                                    }
                                 }
                                 else{ // 100 < lowmllmass < 150
-                                FillHist(this_syst + "/ pt(ll) boosted DY CR2", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                FillHist(this_syst + "/ leading fatjet pt boosted DY CR2", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                FillHist(this_syst + "/ m(lljj) boosted DY CR2", WRCand.M(), weight, 8000, 0., 8000.);
+                                    if (is_tmp_lead_el){ // ee 
+                                        FillHist(this_syst + "/pt(ll)_boosted_DY_CR2_EE", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR2_EE", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/m(lljj)_boosted_DY_CR2_EE", WRCand.M(), weight, 8000, 0., 8000.);
+                                    }
+                                    if (is_tmp_lead_mu){// mumu
+                                        FillHist(this_syst + "/pt(ll)_boosted_DY_CR2_MM", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR2_MM", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/m(lljj)_boosted_DY_CR2_MM", WRCand.M(), weight, 8000, 0., 8000.);
+                                    }
                             // Boosted CR2
                                 }
                             }
@@ -908,15 +922,15 @@ void Reproduce20_002::executeEventFromParameter() {
                                         else{ // low wr CR
                                             if (is_tmp_lead_el) {
                                                 // Boosted low WR ee CR
-                                                FillHist(this_syst + "/ pt(ll) boosted low WR ee Flavor CR", (*LeadLep + *SFLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                                FillHist(this_syst + "/ leading fatjet pt boosted low WR ee Flavor CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                                FillHist(this_syst + "/ m(lljj) boosted low WR ee Flavor CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                                FillHist(this_syst + "/pt(ll)_boosted_low_WR_ee_Flavor_CR", (*LeadLep + *SFLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                                FillHist(this_syst + "/leading_fatjet_pt_boosted_low_WR_ee_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                                FillHist(this_syst + "/m(lljj)_boosted_low_WR_ee_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                             }
                                             else if (is_tmp_lead_mu) {
                                                 // Boosted low WR mumu CR
-                                                FillHist(this_syst + "/ pt(ll) boosted low WR mumu Flavor CR", (*LeadLep + *SFLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                                FillHist(this_syst + "/ leading fatjet pt boosted low WR mumu Flavor CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                                FillHist(this_syst + "/ m(lljj) boosted low WR mumu Flavor CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                                FillHist(this_syst + "/pt(ll)_boosted_low_WR_mumu_Flavor_CR", (*LeadLep + *SFLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                                FillHist(this_syst + "/leading_fatjet_pt_boosted_low_WR_mumu_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                                FillHist(this_syst + "/m(lljj)_boosted_low_WR_mumu_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                             }
                                         }
                                         // Boosted DY CR
@@ -935,30 +949,30 @@ void Reproduce20_002::executeEventFromParameter() {
                                         FillHist(this_syst + "/Boost_cutflow_FLV", -8 , weight, 20, -10, 10.);
                                         if (is_tmp_lead_el) {
                                             // Boosted Flavor CR
-                                            FillHist(this_syst + "/ pt(ll) boosted e mujet Flavor CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                            FillHist(this_syst + "/ leading fatjet pt boosted e mujet Flavor CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                            FillHist(this_syst + "/ m(lljj) boosted e mujet Flavor CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/pt(ll)_boosted_e_mujet_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/leading_fatjet_pt_boosted_e_mujet_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/m(lljj)_boosted_e_mujet_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                         }
                                         else if (is_tmp_lead_mu) {
                                             // Boosted Flavor CR
-                                            FillHist(this_syst + "/ pt(ll) boosted mu ejets Flavor CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                            FillHist(this_syst + "/ leading fatjet pt boosted mu ejets Flavor CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                            FillHist(this_syst + "/ m(lljj) boosted mu ejets Flavor CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/pt(ll)_boosted_mu_ejets_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/leading_fatjet_pt_boosted_mu_ejets_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/m(lljj)_boosted_mu_ejets_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                         }
                                         // B    oosted Flavor CR
                                     }
                                     else {
                                             if (is_tmp_lead_el) {
                                         // Boosted low WR Flavor CR
-                                            FillHist(this_syst + "/ pt(ll) boosted low WR e mujet Flavor CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                            FillHist(this_syst + "/ leading fatjet pt boosted low WR e mujet Flavor CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                            FillHist(this_syst + "/ m(lljj) boosted low WR e mujet Flavor CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/pt(ll)_boosted_low_WR_e_mujet_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/leading_fatjet_pt_boosted_low_WR_e_mujet_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/m(lljj)_boosted_low_WR_e_mujet_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                         }
                                         else if (is_tmp_lead_mu) {
                                             // Boosted low WR Flavor CR
-                                            FillHist(this_syst + "/ pt(ll) boosted low WR mu ejets Flavor CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
-                                            FillHist(this_syst + "/ leading fatjet pt boosted low WR mu ejets Flavor CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
-                                            FillHist(this_syst + "/ m(lljj) boosted low WR mu ejets Flavor CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/pt(ll)_boosted_low_WR_mu_ejets_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/leading_fatjet_pt_boosted_low_WR_mu_ejets_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/m(lljj)_boosted_low_WR_mu_ejets_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                         }
                                     }
                                 }

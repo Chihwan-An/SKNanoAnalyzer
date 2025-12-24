@@ -788,6 +788,17 @@ void Reproduce20_002::executeEventFromParameter() {
                             FillHist(this_syst + "/WRCand_mass_boosted_DY", WRCand.M() , weight, 8000, 0., 8000.);
                             if ( WRCand.M() > 800.0 )  {
                                 FillHist(this_syst + "/Boost_cutflow_DY", 6 , weight, 20,-10,10.);
+                                // DY CR
+                                if (is_tmp_lead_el){ // ee 
+                                        FillHist(this_syst + "/pt(ll)_boosted_DY_CR_EE", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR_EE", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/m(lljj)_boosted_DY_CR_EE", WRCand.M(), weight, 8000, 0., 8000.);
+                                    }
+                                    if (is_tmp_lead_mu){// mumu
+                                        FillHist(this_syst + "/pt(ll)_boosted_DY_CR_MM", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR_MM", HNFatJet.Pt(), weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/m(lljj)_boosted_DY_CR_MM", WRCand.M(), weight, 8000, 0., 8000.);
+                                    }
                                 if (lowmllmass < 100){
                             // Boosted CR1    
                                     if (is_tmp_lead_el){ // ee 

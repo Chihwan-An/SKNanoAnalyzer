@@ -5,6 +5,7 @@
 #include "JetTaggingParameter.h"
 #include "Muon.h"
 #include "MyCorrection.h"
+#include "Particle.h"
 #include "TBranch.h"
 #include "TEntryList.h"
 #include "TEntryListArray.h"
@@ -18,6 +19,31 @@
 #include <vector>
 
 CalibrationTree::CalibrationTree() {}
+
+std::variant<float, std::pair<float, float>>
+CalibrationTree::SolveNeutrinoPz(const Lepton &lepton, const Particle &met) {
+  float Ptl_dot_Ptnu = lepton.Px() * met.Px() + lepton.Py() * met.Py();
+  float lepton_mass = lepton.M();
+
+  // solve a*x^2 + b*x + c = 0, where x = pz of neutrino
+  float k = TMath::Power(W_MASS, 2.) / 2.0 - lepton_mass * lepton_mass / 2.0 +
+            Ptl_dot_Ptnu;
+  float a = TMath::Power(lepton.Pt(), 2.0);
+  float b = -2 * k * lepton.Pz();
+  float c = TMath::Power(lepton.Pt(), 2.0) * TMath::Power(met.Pt(), 2.0) -
+            TMath::Power(k, 2.0);
+
+  float determinant = TMath::Power(b, 2.f) - 4.f * a * c;
+  if (determinant < 0) {
+    float real_pz = -b / (2.f * a);
+    return real_pz;
+  } else {
+    float pz1 = (-b + TMath::Sqrt(determinant)) / (2.f * a);
+    float pz2 = (-b - TMath::Sqrt(determinant)) / (2.f * a);
+    return std::make_pair(pz1, pz2);
+  }
+}
+
 
 void CalibrationTree::initializeAnalyzer() {
   SetChannel();
@@ -638,8 +664,285 @@ bool CalibrationTree::PassTTDilepBaselineSelection() {
     return false;
   Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
   std::sort(Jets.begin(), Jets.end(), PtComparing);
+  size_t jet_0_hadflav = AllJetViews[jet_indices[0]].HadronFlavour();
+  size_t jet_1_hadflav = AllJetViews[jet_indices[1]].HadronFlavour();
+  std::string jet_0_hadflav_str =
+      (jet_0_hadflav == 5)   ? "b"
+      : (jet_0_hadflav == 4) ? "c"
+                             : "light";
+  std::string jet_1_hadflav_str =
+      (jet_1_hadflav == 5)   ? "b"
+      : (jet_1_hadflav == 4) ? "c"
+                             : "light";
+
+  float mmuj0 = (Muons[0] + Jets[0]).M();;
+  float mmuj1 = (Muons[0] + Jets[1]).M();
+  float melj0 = (Electrons[0] + Jets[0]).M();
+  float melj1 = (Electrons[0] + Jets[1]).M();
+  FillHist("TTDilep_MuJet0_Mass_" + jet_0_hadflav_str, mmuj0, 1.f, 100,
+           0, 500);
+  FillHist("TTDilep_MuJet1_Mass_" + jet_1_hadflav_str, mmuj1, 1.f, 100,
+           0, 500);
+  FillHist("TTDilep_ElJet0_Mass_" + jet_0_hadflav_str, melj0, 1.f, 100,
+           0, 500);
+  FillHist("TTDilep_ElJet1_Mass_" + jet_1_hadflav_str, melj1, 1.f, 100,
+           0, 500);
   return true;
 }
+
+
+// bool CalibrationTree::PassTTDilepBaselineSelection() {
+//   if(IsDATA && DataStream.Contains("EGamma")) {
+//     if (!ev.PassTrigger(El_Trigger[DataEra.Data()]))
+//       return false;
+//     if (ev.PassTrigger(Mu_Trigger[DataEra.Data()]))
+//       return false;
+//   }
+//   else{
+//     if (!(ev.PassTrigger(Mu_Trigger[DataEra.Data()]) ||
+//           ev.PassTrigger(El_Trigger[DataEra.Data()])))
+//       return false;
+//   }
+//   if (!PassJetVetoMap(AllJetViews, AllMuonViews))
+//     return false;
+//   if (!PassMetFilter(AllJetViews, ev))
+//     return false;
+//   std::vector<size_t> loose_muon_indices = SelectMuonIndices(
+//       AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
+//   loose_muon_indices =
+//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Veto_Iso,
+//                         Muon_Veto_Pt, Muon_Veto_Eta);
+//   std::vector<size_t> tight_muon_indices =
+//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Tight_ID,
+//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+//   tight_muon_indices =
+//       SelectMuonIndices(AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
+//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+//   std::vector<size_t> loose_electron_indices = SelectElectronIndices(
+//       AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt, Electron_Veto_Eta);
+//   std::vector<size_t> tight_electron_indices = SelectElectronIndices(
+//       AllElectronViews, loose_electron_indices, Electron_Tight_ID,
+//       Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
+//   if (!(tight_muon_indices.size() == 1 && tight_electron_indices.size() == 1 &&
+//         loose_muon_indices.size() == 1 && loose_electron_indices.size() == 1))
+//     return false;
+//   if ((AllMuonViews[tight_muon_indices[0]].Charge() *
+//        AllElectronViews[tight_electron_indices[0]].Charge()) > 0)
+//     return false;
+//   Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
+//   Electrons = MaterializeElectrons(AllElectronViews, tight_electron_indices);
+
+//   MET = ev.GetMETVector(Event::MET_Type::PUPPI);
+//   std::sort(Jets.begin(), Jets.end(), PtComparing);
+
+//   TLorentzVector p4_nominal(0, 0, 0, 0);
+//   TLorentzVector p4_shifted(0, 0, 0, 0);
+//   for (const auto &jetView : AllJetViews) {
+//     TLorentzVector v;
+//     v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(), jetView.Mass());
+//     p4_nominal += v;
+//   }
+
+//   if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
+//       std::string::npos) {
+//     const bool doBreakdown = HasFlag("doBreakdown");
+//     const TString srcT = systHelper->getCurrentIterSysSource();
+//     if (doBreakdown) {
+//       if (srcT.EqualTo("total", TString::kIgnoreCase))
+//         return false;
+//       ApplyJetScaleVariation(AllJetViews, srcT);
+//     } else {
+//       if (!srcT.EqualTo("total", TString::kIgnoreCase))
+//         return false;
+//       ApplyJetScaleVariation(AllJetViews, "total");
+//     }
+
+//     if (systHelper->getCurrentIterVariation() == MyCorrection::variation::up) {
+//       for (const auto &jetView : AllJetViews) {
+//         TLorentzVector v;
+//         v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
+//                        jetView.JesMassUp());
+//         p4_shifted += v;
+//       }
+//     } else if (systHelper->getCurrentIterVariation() ==
+//                MyCorrection::variation::down) {
+//       for (const auto &jetView : AllJetViews) {
+//         TLorentzVector v;
+//         v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
+//                        jetView.JesMassDown());
+//         p4_shifted += v;
+//       }
+//     }
+//   } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
+//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
+//                           systHelper->getCurrentIterVariation(),
+//                           Event::MET_Syst::JER);
+//     p4_shifted = p4_nominal;
+//   } else if (systHelper->getCurrentIterSysTarget() == "UE") {
+//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
+//                           systHelper->getCurrentIterVariation(),
+//                           Event::MET_Syst::UE);
+//     p4_shifted = p4_nominal;
+//   } else {
+//     for (const auto &jetView : AllJetViews) {
+//       TLorentzVector v;
+//       v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(), jetView.Phi(),
+//                      jetView.SmearedMassNominal());
+//       p4_shifted += v;
+//     }
+//   }
+
+//   {
+//     TLorentzVector delta = p4_shifted - p4_nominal;
+//     MET.SetXYZM(MET.Px() - delta.Px(), MET.Py() - delta.Py(), 0., 0.);
+//   }
+//   if (MET.Pt() < 40.)
+//     return false;
+//   MyCorrection::variation jesVar = MyCorrection::variation::nom;
+//   MyCorrection::variation jerVar = MyCorrection::variation::nom;
+//   if (!IsDATA) {
+//     if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
+//         std::string::npos) {
+//       jesVar = systHelper->getCurrentIterVariation();
+//     } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
+//       jerVar = systHelper->getCurrentIterVariation();
+//     }
+//   }
+//   std::vector<size_t> jet_indices = SelectJetIndices(
+//       AllJetViews, Jet::JetID::TIGHT, 25., 2.4, jesVar, jerVar);
+//   jet_indices = JetsVetoLeptonInside(AllJetViews, jet_indices, AllElectronViews,
+//                                      tight_electron_indices, AllMuonViews,
+//                                      tight_muon_indices, 0.4);
+//   if (jet_indices.size() != 2)
+//     return false;
+//   Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
+//   std::sort(Jets.begin(), Jets.end(), PtComparing);
+//   return true;
+// }
+
+// bool CalibrationTree::PassDYLightBaselineSelection() {
+//   if (!(ev.PassTrigger(Mu_Trigger[DataEra.Data()])))
+//     return false;
+//   if (!PassJetVetoMap(AllJetViews, AllMuonViews))
+//     return false;
+//   if (!PassMetFilter(AllJetViews, ev))
+//     return false;
+//   std::vector<size_t> loose_muon_indices = SelectMuonIndices(
+//       AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
+//   loose_muon_indices =
+//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Veto_Iso,
+//                         Muon_Veto_Pt, Muon_Veto_Eta);
+//   std::vector<size_t> tight_muon_indices =
+//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Tight_ID,
+//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+//   tight_muon_indices =
+//       SelectMuonIndices(AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
+//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+//   std::vector<size_t> loose_electron_indices = SelectElectronIndices(
+//       AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt, Electron_Veto_Eta);
+//   std::vector<size_t> tight_electron_indices = SelectElectronIndices(
+//       AllElectronViews, loose_electron_indices, Electron_Tight_ID,
+//       Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
+//   if (!(tight_muon_indices.size() == 2 && tight_electron_indices.size() == 0 &&
+//         loose_muon_indices.size() == 2 && loose_electron_indices.size() == 0))
+//     return false;
+//   if ((AllMuonViews[tight_muon_indices[0]].Charge() *
+//        AllMuonViews[tight_muon_indices[1]].Charge()) > 0)
+//     return false;
+//   Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
+//   std::sort(Muons.begin(), Muons.end(), PtComparing);
+//   Particle ZCand = Muons[0] + Muons[1];
+//   if (ZCand.M() < 81. || ZCand.M() > 101.)
+//     return false;
+
+//   MET = ev.GetMETVector(Event::MET_Type::PUPPI);
+
+//   TLorentzVector p4_nominal(0, 0, 0, 0);
+//   TLorentzVector p4_shifted(0, 0, 0, 0);
+//   for (const auto &jetView : AllJetViews) {
+//     TLorentzVector v;
+//     v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(), jetView.Mass());
+//     p4_nominal += v;
+//   }
+
+//   if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
+//       std::string::npos) {
+//     const bool doBreakdown = HasFlag("doBreakdown");
+//     const TString srcT = systHelper->getCurrentIterSysSource();
+//     if (doBreakdown) {
+//       if (srcT.EqualTo("total", TString::kIgnoreCase))
+//         return false;
+//       ApplyJetScaleVariation(AllJetViews, srcT);
+//     } else {
+//       if (!srcT.EqualTo("total", TString::kIgnoreCase))
+//         return false;
+//       ApplyJetScaleVariation(AllJetViews, "total");
+//     }
+
+//     if (systHelper->getCurrentIterVariation() == MyCorrection::variation::up) {
+//       for (const auto &jetView : AllJetViews) {
+//         TLorentzVector v;
+//         v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
+//                        jetView.JesMassUp());
+//         p4_shifted += v;
+//       }
+//     } else if (systHelper->getCurrentIterVariation() ==
+//                MyCorrection::variation::down) {
+//       for (const auto &jetView : AllJetViews) {
+//         TLorentzVector v;
+//         v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
+//                        jetView.JesMassDown());
+//         p4_shifted += v;
+//       }
+//     }
+//   } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
+//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
+//                           systHelper->getCurrentIterVariation(),
+//                           Event::MET_Syst::JER);
+//     p4_shifted = p4_nominal;
+//   } else if (systHelper->getCurrentIterSysTarget() == "UE") {
+//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
+//                           systHelper->getCurrentIterVariation(),
+//                           Event::MET_Syst::UE);
+//     p4_shifted = p4_nominal;
+//   } else {
+//     for (const auto &jetView : AllJetViews) {
+//       TLorentzVector v;
+//       v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(), jetView.Phi(),
+//                      jetView.SmearedMassNominal());
+//       p4_shifted += v;
+//     }
+//   }
+
+//   {
+//     TLorentzVector delta = p4_shifted - p4_nominal;
+//     MET.SetXYZM(MET.Px() - delta.Px(), MET.Py() - delta.Py(), 0., 0.);
+//   }
+//   MyCorrection::variation jesVar = MyCorrection::variation::nom;
+//   MyCorrection::variation jerVar = MyCorrection::variation::nom;
+//   if (!IsDATA) {
+//     if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
+//         std::string::npos) {
+//       jesVar = systHelper->getCurrentIterVariation();
+//     } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
+//       jerVar = systHelper->getCurrentIterVariation();
+//     }
+//   }
+//   std::vector<size_t> jet_indices = SelectJetIndices(
+//       AllJetViews, Jet::JetID::TIGHT, 25., 2.4, jesVar, jerVar);
+//   jet_indices = JetsVetoLeptonInside(AllJetViews, jet_indices, AllElectronViews,
+//                                      tight_electron_indices, AllMuonViews,
+//                                      tight_muon_indices, 0.4);
+//   if (jet_indices.size() != 1)
+//     return false;
+//   Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
+//   std::sort(Jets.begin(), Jets.end(), PtComparing);
+//   if (ZCand.Pt() / Jets[0].Pt() < 0.75 || ZCand.Pt() / Jets[0].Pt() > 1.25)
+//     return false;
+//   if (ZCand.DeltaPhi(Jets[0]) < 2.f)
+//     return false;
+//   return true;
+// }
 
 bool CalibrationTree::PassDYLightBaselineSelection() {
   if (!(ev.PassTrigger(Mu_Trigger[DataEra.Data()])))
@@ -754,7 +1057,7 @@ bool CalibrationTree::PassDYLightBaselineSelection() {
   jet_indices = JetsVetoLeptonInside(AllJetViews, jet_indices, AllElectronViews,
                                      tight_electron_indices, AllMuonViews,
                                      tight_muon_indices, 0.4);
-  if (jet_indices.size() != 1)
+  if (jet_indices.size() != 2)
     return false;
   Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
   std::sort(Jets.begin(), Jets.end(), PtComparing);
@@ -764,6 +1067,8 @@ bool CalibrationTree::PassDYLightBaselineSelection() {
     return false;
   return true;
 }
+
+
 bool CalibrationTree::PassWCharmBaselineSelection() {
   // --- common preselection ---
   if (!PassJetVetoMap(AllJetViews, AllMuonViews))
@@ -1063,6 +1368,32 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
   const float pt_ratio = Jets[0].Pt() / WT.Pt();
   if (pt_ratio < 0.5f || pt_ratio > 2.0f)
     return false;
+
+  //aditional top veto
+
+  std::variant<float, std::pair<float, float>> neutrino_pz = SolveNeutrinoPz(primary_lepton, MET);
+  Particle top_candidate;
+  if (std::holds_alternative<float>(neutrino_pz)) {
+    float pz = std::get<float>(neutrino_pz);
+    TLorentzVector neutrino_p4;
+    neutrino_p4.SetPxPyPzE(MET.Px(), MET.Py(), pz,
+                           std::sqrt(MET.Pt() * MET.Pt() + pz * pz));
+    top_candidate = primary_lepton + neutrino_p4 + Jets[0];
+  } else {
+    auto pz_pair = std::get<std::pair<float, float>>(neutrino_pz);
+    TLorentzVector neutrino_p4_1;
+    neutrino_p4_1.SetPxPyPzE(MET.Px(), MET.Py(), pz_pair.first,
+                             std::sqrt(MET.Pt() * MET.Pt() + pz_pair.first * pz_pair.first));
+    Particle top_candidate_1 = primary_lepton + neutrino_p4_1 + Jets[0]; 
+    TLorentzVector neutrino_p4_2;
+    neutrino_p4_2.SetPxPyPzE(MET.Px(), MET.Py(), pz_pair.second,
+                             std::sqrt(MET.Pt() * MET.Pt() + pz_pair.second * pz_pair.second));
+    Particle top_candidate_2 = primary_lepton + neutrino_p4_2 + Jets[0]; 
+    top_candidate = std::abs(T_MASS - top_candidate_1.M()) < std::abs(T_MASS - top_candidate_2.M()) ? top_candidate_1 : top_candidate_2;
+  }
+
+  FillHist("h_top_candidate_mass_before_veto", top_candidate.M(), 1.f, 100, 0., 300.);
+
 
   return true;
 }

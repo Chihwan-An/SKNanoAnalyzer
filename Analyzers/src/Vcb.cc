@@ -804,7 +804,7 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
 
     name.assign(base);
     name.append("/Jet_ILRdim2_").append(idx);
-    FillHist(name, JetILRdim2Score(Jets[i]), weight, 50, -6.f, 6t.f);
+    FillHist(name, JetILRdim2Score(Jets[i]), weight, 50, -6.f, 6.f);
   }
 
   for (size_t i = 0; i < leptons.size(); i++) {

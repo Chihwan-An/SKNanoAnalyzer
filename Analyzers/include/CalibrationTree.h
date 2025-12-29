@@ -36,6 +36,7 @@ public:
   void initializeAnalyzer() override;
   void executeEvent() override;
   virtual void executeEventFromParameter();
+  std::variant<float, std::pair<float, float>> SolveNeutrinoPz(const Lepton &lepton, const Particle &met);
   bool PassBaseLineSelection();
   bool PassTTDilepBaselineSelection();
   bool PassWCharmBaselineSelection();

@@ -7,6 +7,7 @@
 
 #include "TString.h"
 #include "Lepton.h"
+#include "LeptonIDEnums.h"
 #include "MuonView.h"
 
 class AnalyzerCore;
@@ -57,6 +58,7 @@ public:
         SoftMva,
         MvaLowPt,
         MvaPrompt,
+        SoftMvaRun3,
         Count
     };
 
@@ -87,41 +89,8 @@ public:
 
     // Unsigned char IDs
     enum class WorkingPointID {NONE, HIGHPT, MINIISO, MULTIISO, MVAMU, PFISO, PUPPIISO, TKISO};
-    enum class WorkingPoint {NONE, VLOOSE, LOOSE, MEDIUM, TIGHT, VTIGHT, VVTIGHT};
-
-    enum class MuonID
-    {
-        NOCUT,
-        POG_TIGHT,
-        POG_MEDIUM,
-        POG_MEDIUM_PROMPT,
-        POG_LOOSE,
-        POG_SOFT,
-        POG_SOFT_MVA,
-        POG_TRIGGER_LOOSE,
-        POG_TRACKER_HIGH_PT,
-        POG_GLOBAL_HIGH_PT,
-        POG_MINISO_LOOSE,
-        POG_MINISO_MEDIUM,
-        POG_MINISO_TIGHT,
-        POG_MINISO_VTIGHT,
-        POG_MULTISO_LOOSE,
-        POG_MULTISO_MEDIUM,
-        POG_MVA_MU_MEDIUM,
-        POG_MVA_MU_TIGHT,
-        POG_PFISO_VLOOSE,
-        POG_PFISO_LOOSE,
-        POG_PFISO_MEDIUM,
-        POG_PFISO_TIGHT,
-        POG_PFISO_VTIGHT,
-        POG_PFISO_VVTIGHT,
-        POG_PUPPIISO_LOOSE,
-        POG_PUPPIISO_MEDIUM,
-        POG_PUPPIISO_TIGHT,
-        POG_TKISO_LOOSE,
-        POG_TKISO_TIGHT,
-        POG_PROMPTMVA_WP0p64
-    };
+    using WorkingPoint = LeptonID::MuonWorkingPoint;
+    using MuonID = LeptonID::MuonID;
 
     void SetWIDBit(WorkingPointID id, unsigned char value);
     inline WorkingPoint HighPtId() const { ensure(Property::HighPtId); return static_cast<WorkingPoint>(j_highPtId); }
@@ -153,12 +122,13 @@ public:
     float SIP3D() const { ensure(Property::Sip3d); return Lepton::SIP3D(); }
 
     // MVA ID scores
-    enum class MVAID {NONE, SOFTMVA, MVALOWPT, MVAPROMPT};
+    enum class MVAID {NONE, SOFTMVA, MVALOWPT, MVAPROMPT, SOFTMVARUN3};
 
     void SetMVAID(MVAID id, float score);
     inline float SoftMva() const { ensure(Property::SoftMva); return j_softMva; }
     inline float MvaLowPt() const { ensure(Property::MvaLowPt); return j_mvaLowPt; }
     inline float PromptMVA() const { ensure(Property::MvaPrompt); return j_mvaPrompt; }
+    inline float SoftMvaRun3() const { ensure(Property::SoftMvaRun3); return j_softMvaRun3; }
 
     void SetGenPartIdx(short genPartIdx) { j_genPartIdx = genPartIdx; markLoaded(Property::GenPartIdx); }
     inline short GenPartIdx() const { ensure(Property::GenPartIdx); return j_genPartIdx; }
@@ -202,7 +172,7 @@ private:
     bool j_isTracker, j_isStandalone, j_isGlobal;
     bool j_looseId, j_mediumId, j_mediumPromptId, j_tightId, j_softId, j_softMvaId, j_triggerIdLoose;
     unsigned char j_highPtId, j_miniIsoId, j_multiIsoId, j_mvaMuId, j_pfIsoId, j_puppiIsoId, j_tkIsoId;
-    float j_softMva, j_mvaLowPt, j_mvaPrompt;
+    float j_softMva, j_mvaLowPt, j_mvaPrompt, j_softMvaRun3;
     int j_nTrackerLayers;
     float j_miniAODPt, j_momentumScaleUp, j_momentumScaleDown;
     short j_genPartIdx;

@@ -6,6 +6,7 @@
 
 #include "TString.h"
 #include "Lepton.h"
+#include "LeptonIDEnums.h"
 
 class AnalyzerCore;
 
@@ -63,7 +64,7 @@ public:
     void DetachLazyPayload() const;
     bool HasLazyPayload() const { return static_cast<bool>(lazy_); }
 
-    enum class ETAREGION {IB, OB, GAP, EC};
+    using ETAREGION = LeptonID::ElectronEtaRegion;
     inline ETAREGION etaRegion() const {
         if (fabs(scEta()) < 0.8)        return ETAREGION::IB;
         else if (fabs(scEta()) < 1.444) return ETAREGION::OB;
@@ -71,22 +72,7 @@ public:
         else return ETAREGION::EC;
     }
 
-    enum class ElectronID {
-        NOCUT,
-        POG_VETO,
-        POG_LOOSE,
-        POG_MEDIUM,
-        POG_TIGHT,
-        POG_HEEP,
-        POG_MVAISO_WP80,
-        POG_MVAISO_WP90,
-        POG_MVAISO_WPL,
-        POG_MVANOISO_WP80,
-        POG_MVANOISO_WP90,
-        POG_MVANOISO_WPL,
-        POG_PROMPTMVA_TIGHT,
-        POG_PROMPTMVA_MEDIUM
-    };
+    using ElectronID = LeptonID::ElectronID;
 
     void SetConvVeto(bool convVeto) { j_convVeto = convVeto; markLoaded(Property::ConvVeto); }
     inline bool ConvVeto() const { ensure(Property::ConvVeto); return j_convVeto; }
@@ -181,7 +167,7 @@ public:
 
     // cut-based ID
     enum class CutBasedID {NONE, CUTBASED};
-    enum class WORKINGPOINT {NONE, VETO, LOOSE, MEDIUM, TIGHT};
+    using WORKINGPOINT = LeptonID::ElectronCutBasedWP;
     void SetCBIDBit(CutBasedID id, unsigned int value);
     inline WORKINGPOINT CutBased() const { ensure(Property::CutBased); return static_cast<WORKINGPOINT>(j_cutBased); }
 

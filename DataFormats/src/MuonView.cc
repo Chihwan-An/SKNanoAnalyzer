@@ -72,6 +72,14 @@ bool MuonView::PassID(MuonID id) const {
         return store->tkIsoId[idx] == 2;
     case MuonID::POG_PROMPTMVA_WP0p64:
         return MvaPrompt() > 0.64;
+    case MuonID::POG_SOFTMVA_RUN3_TIGHT:
+        return SoftMvaRun3() > 0.83;
+    case MuonID::POG_SOFTMVA_RUN3_MEDIUM:
+        return SoftMvaRun3() > 0.74;
+    case MuonID::POG_SOFTMVA_RUN3_LOOSE:
+        return SoftMvaRun3() > 0.63;
+    case MuonID::POG_SOFTMVA_RUN3_VLOOSE:
+        return SoftMvaRun3() > 0.47;
     default:
         break;
     }

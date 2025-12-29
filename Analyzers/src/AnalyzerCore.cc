@@ -593,6 +593,7 @@ MuonViewCollection AnalyzerCore::GetAllMuonViews() {
   storage->tkIsoId.bind(&Muon_tkIsoId);
   storage->nTrackerLayers.bind(&Muon_nTrackerLayers);
   storage->softMva.bind(&Muon_softMva);
+  storage->softMvaRun3.bind(&Muon_softMvaRun3);
   storage->mvaLowPt.bind(&Muon_mvaLowPt);
   storage->mvaPrompt.bind(&Muon_promptMVA);
   storage->genPartFlav.bind(&Muon_genPartFlav);
@@ -1884,6 +1885,9 @@ void AnalyzerCore::EnsureMuonProperty(Muon &muon,
   case Muon::Property::MvaPrompt:
     muon.SetMVAID(Muon::MVAID::MVAPROMPT, Muon_promptMVA[idx]);
     break;
+  case Muon::Property::SoftMvaRun3:
+    muon.SetMVAID(Muon::MVAID::SOFTMVARUN3, Muon_softMvaRun3[idx]);
+    break;
   default:
     throw std::runtime_error(
         "[AnalyzerCore::EnsureMuonProperty] Unsupported property");
@@ -2735,6 +2739,55 @@ AnalyzerCore::MaterializeTrigObjs(const TrigObjViewCollection &trigobjs) const {
     materialised.emplace_back(storage, idx);
   }
   return materialised;
+}
+
+RVec<TrigObj> AnalyzerCore::MaterializeTrigObjs(
+    const TrigObjViewCollection &trigobjs,
+    const std::vector<std::size_t> &indices) const {
+  RVec<TrigObj> materialised;
+  if (indices.empty() || trigobjs.size() == 0)
+    return materialised;
+
+  auto storage = trigobjs.storage();
+  if (!storage)
+    return materialised;
+
+  materialised.reserve(indices.size());
+  const std::size_t n = trigobjs.size();
+  for (const auto idx : indices) {
+    if (idx >= n)
+      continue;
+    materialised.emplace_back(storage, idx);
+  }
+  return materialised;
+}
+
+std::vector<std::size_t> AnalyzerCore::SelectTrigObjIndices(
+    const TrigObjViewCollection &trigobjs,
+    const std::vector<std::size_t> &seed_indices, const int id,
+    const float ptmin, const float fetamax) const {
+  std::vector<std::size_t> selected;
+  selected.reserve(seed_indices.size());
+  for (const auto idx : seed_indices) {
+    const auto &obj = trigobjs[idx];
+    if (obj.Id() != id)
+      continue;
+    if (!(obj.Pt() > ptmin))
+      continue;
+    if (!(std::abs(obj.Eta()) < fetamax))
+      continue;
+    selected.push_back(idx);
+  }
+  return selected;
+}
+
+std::vector<std::size_t> AnalyzerCore::SelectTrigObjIndices(
+    const TrigObjViewCollection &trigobjs, const int id, const float ptmin,
+    const float fetamax) const {
+  size_t n = trigobjs.size();
+  std::vector<std::size_t> seed_indices(n);
+  std::iota(seed_indices.begin(), seed_indices.end(), 0);
+  return SelectTrigObjIndices(trigobjs, seed_indices, id, ptmin, fetamax);
 }
 
 RVec<TrigObj> AnalyzerCore::GetAllTrigObjs() {

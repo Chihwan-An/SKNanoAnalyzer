@@ -110,7 +110,7 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   LUM_keys["2016postVFP"] = "Collisions16_UltraLegacy_goldenJSON";
   LUM_keys["2016preVFP"] = "Collisions16_UltraLegacy_goldenJSON";
 
-  EGM_keys["2024"] = "2023PromptD";
+  EGM_keys["2024"] = "2024Prompt";
   EGM_keys["2023BPix"] = "2023PromptD";
   EGM_keys["2023"] = "2023PromptC";
   EGM_keys["2022EE"] = "2022Re-recoE+PromptFG";

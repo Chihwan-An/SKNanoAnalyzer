@@ -165,7 +165,8 @@
         "lumi": 26671.609707229
     },
     "HLT_Ele32_WPTight_Gsf": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "activate": "True"
     },
     "HLT_Ele35_WPTight_Gsf": {
         "lumi": 26671.609707229
@@ -204,7 +205,8 @@
         "lumi": 26671.609707229
     },
     "HLT_IsoMu24": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "activate": "True"
     },
     "HLT_IsoMu24_eta2p1": {
         "lumi": 26671.609707229
@@ -327,16 +329,19 @@
         "lumi": 26671.609707229
     },
     "HLT_Mu50": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "activate": "True"
     },
     "HLT_Mu55": {
         "lumi": 26671.609707229
     },
     "HLT_CascadeMu100": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "activate": "True"
     },
     "HLT_HighPtTkMu100": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "activate": "True"
     },
     "HLT_DiPFJetAve40": {
         "lumi": 26671.609707229
@@ -852,7 +857,8 @@
         "lumi": 26671.609707229
     },
     "HLT_Photon200": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "activate": "True"
     },
     "HLT_Photon30EB_TightID_TightIso": {
         "lumi": 26671.609707229
@@ -1218,7 +1224,8 @@
         "lumi": 26671.609707229
     },
     "HLT_Ele115_CaloIdVT_GsfTrkIdT": {
-        "lumi": 26671.609707229
+        "lumi": 26671.609707229,
+        "activate": "True"
     },
     "HLT_Ele135_CaloIdVT_GsfTrkIdT": {
         "lumi": 26671.609707229

@@ -88,7 +88,7 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   loadCorrectionSet("electron TopHNT emu leg2 eff",
                     config.json_electron_TopHNT_emu_leg2_eff,
                     cset_electron_TopHNT_emu_leg2_eff, true);
-
+/*
   MLHelper_hDampUp =
       make_unique<MLHelper>(config.onnx_hDampUp, MLHelper::ModelType::ONNX);
   MLHelper_hDampDown =
@@ -99,7 +99,7 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
       make_unique<MLHelper>(config.onnx_rBnom, MLHelper::ModelType::ONNX);
   MLHelper_rBUp =
       make_unique<MLHelper>(config.onnx_rBUp, MLHelper::ModelType::ONNX);
-
+*/
   LUM_keys["2024"] = "Collisions24_BCDEFGHI_goldenJSON";
   LUM_keys["2023BPix"] = "Collisions2023_369803_370790_eraD_GoldenJson";
   LUM_keys["2023"] = "Collisions2023_366403_369802_eraBC_GoldenJson";
@@ -193,13 +193,13 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
   config.json_met = json_pog_path_str + "/JME";
   config.txt_roccor = external_roccor_str;
   config.golden_json = sknano_data_str;
-
+/*
   config.onnx_hDampDown = sknano_data_str;
   config.onnx_hDampUp = sknano_data_str;
   config.onnx_toppt_reweight = sknano_data_str;
   config.onnx_rBnom = sknano_data_str;
   config.onnx_rBUp = sknano_data_str;
-
+*/
   // config.json_muon_custom_TopHNT_idsf = sknano_data_str;
   // config.json_muon_custom_dblmu_leg1_eff = sknano_data_str;
   // config.json_muon_custom_dblmu_leg2_eff = sknano_data_str;
@@ -237,7 +237,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     config.txt_roccor += "/RoccoR2023BPix.txt";
     config.golden_json +=
         "/2024/LUM/Cert_Collisions2024_378981_386951_Golden.json";
-
+/*
     config.onnx_hDampDown += "/2024/ONNX/mymodel12_hdamp_down_13.6TeV.onnx";
     config.onnx_hDampUp += "/2024/ONNX/mymodel12_hdamp_up_13.6TeV.onnx";
     config.onnx_toppt_reweight +=
@@ -250,7 +250,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
             "TopPt reweight is for 13TeV! Please update the models for "
             "13.6TeV!\033[0m"
          << endl;
-
+*/
   } else {
     throw invalid_argument("[MyCorrection::GetEraConfig] Invalid era: " + era);
   }
@@ -1651,9 +1651,11 @@ float MyCorrection::GetTopPtReweight(
 
   inputDataMap["input"] = FloatArray(input_minnlo.data(),
                                      input_minnlo.data() + input_minnlo.size());
+  /*
   auto outputDataMap =
       MLHelper_TopPtReweight->Run_ONNX_Model(inputDataMap, inputShapeMap_toppt);
   return outputDataMap["activation_6"][1] / outputDataMap["activation_6"][0];
+  */
 }
 
 float MyCorrection::GethDampReweight(const TLorentzVector &FirstCopyTop,
@@ -1691,9 +1693,10 @@ float MyCorrection::GethDampReweight(const TLorentzVector &FirstCopyTop,
   MLHelper *this_model = (syst == variation::up) ? MLHelper_hDampUp.get()
                                                  : MLHelper_hDampDown.get();
 
-  auto outputDataMap =
+  /*auto outputDataMap =
       this_model->Run_ONNX_Model(inputDataMap, inputShapeMap_hdamp);
   return outputDataMap["activation_6"][0] / outputDataMap["activation_6"][1];
+  */
 }
 
 float MyCorrection::GetBFragReweight(
@@ -1723,9 +1726,9 @@ float MyCorrection::GetBFragReweight(
       {"input", IntArray{1, 2, 2}}};
 
   inputDataMap["input"] = input_bfrag;
-  auto outputDataMap =
+  /*auto outputDataMap =
       this_model->Run_ONNX_Model(inputDataMap, inputShapeMap_bfrag);
-  return outputDataMap["activation_6"][0] / outputDataMap["activation_6"][1];
+  return outputDataMap["activation_6"][0] / outputDataMap["activation_6"][1];*/
 }
 
 std::array<std::size_t, 6>

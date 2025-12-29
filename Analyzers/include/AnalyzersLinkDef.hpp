@@ -16,5 +16,8 @@
 #pragma link C++ class Vcb_SL+;
 #pragma link C++ class Vcb_DL+;
 #pragma link C++ class Vcb_FH+;
+#pragma link C++ class DY+;
+#pragma link C++ Reproduce20_002+;
+
 
 #endif

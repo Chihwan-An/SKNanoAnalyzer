@@ -2,17 +2,10 @@
     "name": "TTJJ_powheg",
     "isMC": 1,
     "PD": "TTto4Q_TuneCP5_13p6TeV_powheg-pythia8",
-<<<<<<< HEAD
     "xsec": 419.6938241160001,
     "sumsign": 470805932.0,
     "sumW": 164862119530.297,
     "nmc": 474653096.0,
-=======
-    "xsec": -1,
-    "sumsign": -1,
-    "sumW": -1,
-    "nmc": -1,
->>>>>>> ac0534c (sample list)
     "path": [
         "/gv0/DATA/SKNano/NanoAODv15/2024/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/crab_MC_2024_TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/251121_123928/0000/tree_1.root",
         "/gv0/DATA/SKNano/NanoAODv15/2024/TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/crab_MC_2024_TTto4Q_TuneCP5_13p6TeV_powheg-pythia8/251121_123928/0000/tree_2.root",

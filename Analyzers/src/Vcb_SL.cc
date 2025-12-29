@@ -377,17 +377,23 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
 
     if (bWP >= bWP_work)
       n_b_tagged_jets++;
-    if (cWP >= cWP_work)
-      n_c_tagged_jets++;
-    if (bWP >= 0 || cWP >= cWP_work)
-      n_hf_jets++;
     if (!IsDATA) {
-      if (std::abs(jet.partonFlavour()) == 5)
-        n_partonFlav_b_jets++;
-      if (std::abs(jet.partonFlavour()) == 4)
-        n_partonFlav_c_jets++;
+      if (std::abs(jet.hadronFlavour()) == 5)
+        n_hadronFlav_b_jets++;
+      if (std::abs(jet.hadronFlavour()) == 4)
+        n_hadronFlav_c_jets++;
     }
   }
+  if(n_b_tagged_jets == 1){
+    // in this case cWp should be tightened by one level
+    cWP_work = loose_cut ? 0 : 2;
+  }
+  for(const auto &jet : Jets){
+    const short cWP = GetPassedCTaggingWP(jet);
+    if(cWP >= cWP_work)
+      n_c_tagged_jets++;
+  }
+  n_hf_jets = n_b_tagged_jets + n_c_tagged_jets;
   FillCutFlow(7); // b/c tag counting done
 
   if ((n_b_tagged_jets < 1 || n_hf_jets < 3) && !remove_flavtagging_cut)
@@ -1258,10 +1264,10 @@ RVec<int> Vcb_SL::FindTTbarJetIndices() {
     map_pid_to_genIdxObj[pid].push_back({iG, relevant_gens[iG]});
   }
 
-  // PartonFlavour array for all GenJets
+  // hadronFlavour array for all GenJets
   RVec<int> genjet_flavours(AllGenJets.size());
   for (size_t i = 0; i < AllGenJets.size(); i++) {
-    int genJet_flavour = AllGenJets[i].partonFlavour();
+    int genJet_flavour = AllGenJets[i].hadronFlavour();
     genjet_flavours[i] = genJet_flavour;
   }
 
@@ -1276,7 +1282,7 @@ RVec<int> Vcb_SL::FindTTbarJetIndices() {
     int target_pid = kv.first;
     auto &idxGenPairs = kv.second; // each element is { iG, GenObject }
 
-    // Gather candidate GenJets that have the same partonFlavour == target_pid
+    // Gather candidate GenJets that have the same hadronFlavour == target_pid
     RVec<GenJet> candidateGenJets;
     RVec<int> candidateGJIndices;
     for (size_t j = 0; j < genjet_flavours.size(); j++) {

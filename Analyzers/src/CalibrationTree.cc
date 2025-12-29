@@ -402,8 +402,8 @@ void CalibrationTree::Clear() {
   n_b_tagged_jets = 0;
   n_c_tagged_jets = 0;
   n_hf_jets = 0;
-  n_partonFlav_b_jets = 0;
-  n_partonFlav_c_jets = 0;
+  n_hadronFlav_b_jets = 0;
+  n_hadronFlav_c_jets = 0;
   leptons.clear();
   Jets.clear();
   MET = Particle();
@@ -858,13 +858,15 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
     return false;
   }
 
+  lepton = primary_lepton; 
+
   // --- soft muon (non-iso) list ---
   std::vector<size_t> soft_muon_indices = SelectMuonIndices(
       AllMuonViews, Muon::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
 
   std::vector<size_t> soft_muon_indices_iso =
       SelectMuonIndices(AllMuonViews, soft_muon_indices,
-                        Muon::MuonID::POG_MEDIUM, 5.f, Muon_Tight_Eta);
+                        Muon::MuonID::POG_PFISO_TIGHT, 5.f, Muon_Tight_Eta);
 
   std::vector<size_t> soft_muon_indices_noniso;
   soft_muon_indices_noniso.reserve(soft_muon_indices.size());

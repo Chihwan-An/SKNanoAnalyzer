@@ -41,6 +41,8 @@ public:
     double pb = 0.0;
     double pc = 0.0;
     double pl = 1.0; // light/udsg
+    double ilr_dim1 = 0.0;
+    double ilr_dim2 = 0.0;
     bool ok = false;
   };
   uint32_t rle_bucket(uint64_t run, uint64_t lumi, uint64_t event,
@@ -195,6 +197,9 @@ public:
   float JetProbBScore(const Jet &jet) const;
   float JetProbCScore(const Jet &jet) const;
   float JetProbLScore(const Jet &jet) const;
+  float JetILRdim1Score(const Jet &jet) const;
+  float JetILRdim2Score(const Jet &jet) const;
+  
   Cat JetCategory(const Jet &jet) const;
   void UpdateAllJetTaggingCaches(const JetViewCollection &jets);
   Vcb();
@@ -226,8 +231,8 @@ public:
   short n_b_tagged_jets;
   short n_c_tagged_jets;
   short n_hf_jets;
-  short n_partonFlav_b_jets;
-  short n_partonFlav_c_jets;
+  short n_hadronFlav_b_jets;
+  short n_hadronFlav_c_jets;
   bool find_all_jets;
   bool find_all_genjets;
   int tt_decay_code;
@@ -244,6 +249,8 @@ public:
   mutable std::vector<float> jetProbBAll;
   mutable std::vector<float> jetProbCAll;
   mutable std::vector<float> jetProbLAll;
+  mutable std::vector<float> jetILRdim1All;
+  mutable std::vector<float> jetILRdim2All;
 
   struct TreeKinematicsBuffers {
     std::vector<float> Jet_Pt;
@@ -325,7 +332,7 @@ protected:
   std::pair<double, double> HFvLF_BvC_from_components(double probudg,
                                                       double SvUDG, double CvL,
                                                       double CvB, float pt,
-                                                      int partonFlavor) const;
+                                                      int hadronFlavor) const;
 
   // --- Vcb 컨텍스트에서 쓰도록 멤버로 (지금은 멤버 접근 안 해도 OK)
   std::pair<double, double> HFvLF_BvC_from_ParT(const Jet &j) const;
@@ -355,7 +362,7 @@ protected:
   // 네가 실제로 외부에서 쓰는 핵심 API(캐시 채우는 쪽에서 호출)
   Prob3 MappedProb3_from_components(double probudg, double SvUDG, double CvL,
                                     double CvB, float pt,
-                                    int partonFlavor) const;
+                                    int hadronFlavor) const;
 };
 
 #endif

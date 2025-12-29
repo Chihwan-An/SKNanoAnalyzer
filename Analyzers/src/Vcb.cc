@@ -182,16 +182,17 @@ std::pair<double, double> Vcb::hf_bvc_from_prob3(const Prob3 &p, double eps) {
   const double bvc = clip(p.pb / den, 0.0, 1.0);
   return {hf, bvc};
 }
+
+
 Vcb::Prob3 Vcb::MappedProb3_from_components(double probudg, double SvUDG,
                                             double CvL, double CvB, float pt,
-                                            int partonFlavor) const {
+                                            int hadronFalvor) const {
   constexpr double eps = 1e-12;
 
   Prob3 p = compute_prob3_from_branches(probudg, CvL, CvB, SvUDG, eps);
-  if (IsDATA || !UParT_OT_Central || !p.ok)
-    return p;
+    
 
-  int pf = int(std::abs(partonFlavor));
+  int pf = int(std::abs(hadronFalvor));
   if (pf != 4 && pf != 5)
     pf = 0;
 
@@ -290,8 +291,19 @@ Vcb::Prob3 Vcb::MappedProb3_from_components(double probudg, double SvUDG,
   auto mapped_vec = iilr({mapped_ilr1, mapped_ilr2});
 
   
+  if(IsDATA){
+    Prob3 unmapped_prob3 = sanitize_prob3(p.pb, p.pc, p.pl, eps);
+    unmapped_prob3.ilr_dim1 = ilr_vec[0];
+    unmapped_prob3.ilr_dim2 = ilr_vec[1];
+    return unmapped_prob3;
+  }
+  else{
+  Prob3 mapped_prob3 = sanitize_prob3(mapped_vec[0], mapped_vec[1], mapped_vec[2], eps);
+  mapped_prob3.ilr_dim1 = mapped_ilr1;
+  mapped_prob3.ilr_dim2 = mapped_ilr2;
+  return mapped_prob3;
+  }
 
-  return sanitize_prob3(mapped_vec[0], mapped_vec[1], mapped_vec[2], eps);
 }
 
 Vcb::Vcb() {}
@@ -309,7 +321,7 @@ int Vcb::bin_bvc(double y) {
 // std::pair<double,double>
 // Vcb::HFvLF_BvC_from_components(double probudg, double SvUDG, double CvL,
 // double CvB,
-//                                float pt, int partonFlavor) const {
+//                                float pt, int hadronFalvor) const {
 //   const double probs = (SvUDG > 0.0 && probudg > 0.0 && SvUDG < 1.0)
 //                            ? SvUDG * probudg / (1.0 - SvUDG)
 //                            : -1.0;
@@ -332,7 +344,7 @@ int Vcb::bin_bvc(double y) {
 //   if (IsDATA) return {HFvLF, BvC};
 //   if (!UParT_OT_Central) return {HFvLF, BvC};
 
-//   int pf = int(std::abs(partonFlavor));
+//   int pf = int(std::abs(hadronFalvor));
 //   if (pf != 4 && pf != 5) pf = 0; // light for non c/b jets
 
 //   auto [mapped_hfvlf, mapped_bvc] =
@@ -343,7 +355,7 @@ int Vcb::bin_bvc(double y) {
 //   }
 
 //   // 디버그 원하면 여기서 출력 (원래 storage에 있던 print 위치를 여기로 이동)
-//   // std::cout << "Jet pt: " << pt << ", partonFlavor: " << pf
+//   // std::cout << "Jet pt: " << pt << ", hadronFalvor: " << pf
 //   //            << ", original HFvLF: " << HFvLF << ", original BvC: " << BvC
 //   //            << " => mapped HFvLF: " << mapped_hfvlf << ", mapped BvC: "
 //   << mapped_bvc << std::endl;
@@ -354,7 +366,7 @@ int Vcb::bin_bvc(double y) {
 // Vcb.cc (클래스 멤버 함수로 추가 권장)
 std::pair<double, double>
 Vcb::HFvLF_BvC_from_components(double probudg, double SvUDG, double CvL,
-                               double CvB, float pt, int partonFlavor) const {
+                               double CvB, float pt, int hadronFalvor) const {
   // -----------------------------
   // (Legacy) HFvLF/BvC 계산 (그대로 유지)
   // -----------------------------
@@ -400,9 +412,9 @@ Vcb::HFvLF_BvC_from_components(double probudg, double SvUDG, double CvL,
 
   // -----------------------------
   // (MC) LUT 매핑: (problight, probc) -> mapped (problight, probc)
-  //  partonFlavor: 5->b, 4->c, else->light(0)
+  //  hadronFalvor: 5->b, 4->c, else->light(0)
   // -----------------------------
-  int pf = int(std::abs(partonFlavor));
+  int pf = int(std::abs(hadronFalvor));
   if (pf != 4 && pf != 5)
     pf = 0;
 
@@ -444,7 +456,7 @@ std::pair<double, double> Vcb::HFvLF_BvC_from_ParT(const Jet &j) const {
       j.GetTaggerResult(Tagger::ParT, Score::probUDG),
       j.GetTaggerResult(Tagger::ParT, Score::SvUDG),
       j.GetTaggerResult(Tagger::ParT, Score::CvL),
-      j.GetTaggerResult(Tagger::ParT, Score::CvB), j.Pt(), j.partonFlavour());
+      j.GetTaggerResult(Tagger::ParT, Score::CvB), j.Pt(), j.hadronFlavour());
 }
 
 std::pair<double, double> Vcb::HFvLF_BvC_from_storage(const JetSoA &store,
@@ -452,7 +464,7 @@ std::pair<double, double> Vcb::HFvLF_BvC_from_storage(const JetSoA &store,
   return HFvLF_BvC_from_components(
       store.uparTAK4UDG[idx], store.uparTAK4SvUDG[idx], store.uparTAK4CvL[idx],
       store.uparTAK4CvB[idx], float(store.pt[idx]),
-      int(store.partonFlavour[idx]));
+      int(store.hadronFlavour[idx]));
 }
 
 Vcb::Cat Vcb::classify_from_scores(double hf, double bvc) const {
@@ -497,7 +509,7 @@ void Vcb::initializeAnalyzer() {
   UParT_OT_Central = std::make_unique<OtJsonLutBank>(
       std::vector<float>{25, 35, 50, 70, 90, 120, 1e+8f});
   UParT_OT_Central->load_json(
-      "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/Run3_v15_Run2_v15/2024/LUT_200.json");
+      "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/Run3_v15_Run2_v15/2024/BTV/LUT_200_v2.json");
   if (channel == Channel::FH) {
     std::cout << "Initialize MyCorrection for FH" << std::endl;
     btagging_R_file = "Vcb_FH_btaggingR.json";
@@ -738,11 +750,11 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
   fill1d("n_jets", n_jets, weight, 12, 0.f, 12.f);
   fill1d("n_b_tagged_jets", n_b_tagged_jets, weight, 8, 0.f, 8.f);
   fill1d("n_c_tagged_jets", n_c_tagged_jets, weight, 8, 0.f, 8.f);
-  fill1d("n_partonFlav_b_jets", n_partonFlav_b_jets, weight, 6, 2.f, 8.f);
-  fill1d("n_partonFlav_c_jets", n_partonFlav_c_jets, weight, 8, 0.f, 8.f);
-  fill2d("real_b_vs_tagged_b", n_partonFlav_b_jets, n_b_tagged_jets, weight, 8,
+  fill1d("n_hadronFlav_b_jets", n_hadronFlav_b_jets, weight, 6, 2.f, 8.f);
+  fill1d("n_hadronFlav_c_jets", n_hadronFlav_c_jets, weight, 8, 0.f, 8.f);
+  fill2d("real_b_vs_tagged_b", n_hadronFlav_b_jets, n_b_tagged_jets, weight, 8,
          0.f, 8.f, 6, 2.f, 8.f);
-  fill2d("real_c_vs_tagged_c", n_partonFlav_c_jets, n_c_tagged_jets, weight, 8,
+  fill2d("real_c_vs_tagged_c", n_hadronFlav_c_jets, n_c_tagged_jets, weight, 8,
          0.f, 8.f, 6, 2.f, 8.f);
   fill1d("nPVsGood", ev.nPVsGood(), weight, 70, 0.f, 70.f);
 
@@ -761,22 +773,6 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
     name.assign(base);
     name.append("/Jet_Phi_").append(idx);
     FillHist(name, Jets[i].Phi(), weight, 50, -3.14, 3.14);
-
-    name.assign(base);
-    name.append("/Jet_BvsC_").append(idx);
-    FillHist(name, JetBScore(Jets[i]), weight, 50, 0.f, 1.f);
-
-    name.assign(base);
-    name.append("/Jet_CvsB_").append(idx);
-    FillHist(name, JetCvBScore(Jets[i]), weight, 50, 0.f, 1.f);
-
-    name.assign(base);
-    name.append("/Jet_CvsL_").append(idx);
-    FillHist(name, JetCvLScore(Jets[i]), weight, 50, 0.f, 1.f);
-
-    name.assign(base);
-    name.append("/Jet_QvsG_").append(idx);
-    FillHist(name, JetQvGScore(Jets[i]), weight, 50, 0.f, 1.f);
 
     name.assign(base);
     name.append("/Jet_Category_").append(idx);
@@ -801,6 +797,14 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
     name.assign(base);
     name.append("/Jet_newproblight_").append(idx);
     FillHist(name, JetProbLScore(Jets[i]), weight, 50, 0.f, 1.f);
+
+    name.assign(base);
+    name.append("/Jet_ILRdim1_").append(idx);
+    FillHist(name, JetILRdim1Score(Jets[i]), weight, 50, -6.f, 6.f);
+
+    name.assign(base);
+    name.append("/Jet_ILRdim2_").append(idx);
+    FillHist(name, JetILRdim2Score(Jets[i]), weight, 50, -6.f, 6.f);
   }
 
   for (size_t i = 0; i < leptons.size(); i++) {
@@ -851,6 +855,8 @@ void Vcb::ComputeParTScores(const JetViewCollection &jets,
     jetProbLAll.clear();
     jetHFvLFAll.clear();
     jetBvCAll.clear();
+    jetILRdim1All.clear();
+    jetILRdim2All.clear();
     return;
   }
 
@@ -865,6 +871,8 @@ void Vcb::ComputeParTScores(const JetViewCollection &jets,
   jetProbBAll.resize(n);
   jetProbCAll.resize(n);
   jetProbLAll.resize(n);
+  jetILRdim1All.resize(n);
+  jetILRdim2All.resize(n);
 
   // (선택) 기존 캐시 유지한다면 같이 채움
   jetHFvLFAll.resize(n);
@@ -875,11 +883,13 @@ void Vcb::ComputeParTScores(const JetViewCollection &jets,
     Prob3 p = MappedProb3_from_components(
         double(store.uparTAK4UDG[i]), double(store.uparTAK4SvUDG[i]),
         double(store.uparTAK4CvL[i]), double(store.uparTAK4CvB[i]),
-        float(store.pt[i]), int(store.partonFlavour[i]));
+        float(store.pt[i]), int(store.hadronFlavour[i]));
 
     jetProbBAll[i] = float(p.pb);
     jetProbCAll[i] = float(p.pc);
     jetProbLAll[i] = float(p.pl);
+    jetILRdim1All[i] = float(p.ilr_dim1);
+    jetILRdim2All[i] = float(p.ilr_dim2);
 
     // 2) mapped hf/bvc from mapped prob3
     auto [hf, bvc] = hf_bvc_from_prob3(p);
@@ -939,6 +949,22 @@ float Vcb::JetProbLScore(const Jet &jet) const {
       static_cast<std::size_t>(originalIdx) >= jetProbLAll.size())
     return -1.f;
   return jetProbLAll[static_cast<std::size_t>(originalIdx)];
+}
+
+float Vcb::JetILRdim1Score(const Jet &jet) const {
+  const int originalIdx = jet.OriginalIndex();
+  if (originalIdx < 0 ||
+      static_cast<std::size_t>(originalIdx) >= jetILRdim1All.size())
+    return -999.f;
+  return jetILRdim1All[static_cast<std::size_t>(originalIdx)];
+}
+
+float Vcb::JetILRdim2Score(const Jet &jet) const {
+  const int originalIdx = jet.OriginalIndex();
+  if (originalIdx < 0 ||
+      static_cast<std::size_t>(originalIdx) >= jetILRdim2All.size())
+    return -999.f;
+  return jetILRdim2All[static_cast<std::size_t>(originalIdx)];
 }
 
 short Vcb::GetPassedBTaggingWP(const Jet &jet) {
@@ -1315,8 +1341,8 @@ void Vcb::Clear() {
   n_b_tagged_jets = 0;
   n_c_tagged_jets = 0;
   n_hf_jets = 0;
-  n_partonFlav_b_jets = 0;
-  n_partonFlav_c_jets = 0;
+  n_hadronFlav_b_jets = 0;
+  n_hadronFlav_c_jets = 0;
   find_all_jets = false;
   leptons.clear();
   Jets.clear();

@@ -76,8 +76,8 @@ public:
   short n_b_tagged_jets;
   short n_c_tagged_jets;
   short n_hf_jets;
-  short n_partonFlav_b_jets;
-  short n_partonFlav_c_jets;
+  short n_hadronFlav_b_jets;
+  short n_hadronFlav_c_jets;
 
   bool skimTreeInitialized = false;
   std::vector<Long64_t> skim_passed_global_entries;

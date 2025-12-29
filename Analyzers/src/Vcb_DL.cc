@@ -145,9 +145,9 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
         if (!IsDATA)
         {
             if (abs(jet.partonFlavour()) == 5)
-                n_partonFlav_b_jets++;
+                n_hadronFlav_b_jets++;
             if (abs(jet.partonFlavour()) == 4)
-                n_partonFlav_c_jets++;
+                n_hadronFlav_c_jets++;
         }
     }
 

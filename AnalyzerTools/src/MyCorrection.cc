@@ -129,8 +129,8 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
                                                                // file is this
     JME_JES_GT["2024"] = "Summer24Prompt24_V2_MC_######_AK4PFPuppi";
   } else {
-    // JME_JER_GT["2024"] =
-    // "Summer23BPixPrompt23_RunD_JRV1_DATA_######_AK4PFPuppi"; // this is
+    JME_JER_GT["2024"] =
+    "Summer23BPixPrompt23_RunD_JRV1_DATA_######_AK4PFPuppi"; // this is
     // because real content of file is this
     JME_JES_GT["2024"] = "Summer24Prompt24_V2_DATA_######_AK4PFPuppi";
   }

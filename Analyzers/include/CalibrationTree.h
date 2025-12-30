@@ -1,4 +1,4 @@
-#ifndef CalibrationTree_h 
+#ifndef CalibrationTree_h
 #define CalibrationTree_h
 
 #include <array>
@@ -18,6 +18,13 @@
 #include "GenView.h"
 #include "MLHelper.h"
 #include "SystematicHelper.h"
+#include "TKinFitter.h"
+#include "TFitConstraintEp.h"
+#include "TFitConstraintM.h"
+#include "TFitConstraintMGaus.h"
+#include "TFitParticleEtEtaPhi.h"
+#include "TFitParticleMCCart.h"
+#include "TFitParticlePt.h"
 #include "TrigObjView.h"
 #include "VcbParameters.h"
 
@@ -29,14 +36,18 @@ using VariousArray = std::variant<FloatArray, IntArray, BoolArray>;
 
 class CalibrationTree : public AnalyzerCore {
 public:
-  enum class Channel { TTDilep, WCharm_Mu, WCharm_El, DYLight, TTSemilep};
- 
+  enum class Channel { TTDilep, WCharm_Mu, WCharm_El, DYLight, TTSemilep };
+
   void Clear();
   void SetChannel();
   void initializeAnalyzer() override;
   void executeEvent() override;
   virtual void executeEventFromParameter();
-  std::variant<float, std::pair<float, float>> SolveNeutrinoPz(const Lepton &lepton, const Particle &met);
+  std::variant<float, std::pair<float, float>>
+  SolveNeutrinoPz(const Lepton &lepton, const Particle &met);
+  std::tuple<int, double, TLorentzVector, TLorentzVector, TLorentzVector>
+  FitKinFitterLepTop(const Jet &bjet, Particle &neutrino,
+                                      Lepton &lepton);
   bool PassBaseLineSelection();
   bool PassTTDilepBaselineSelection();
   bool PassWCharmBaselineSelection();
@@ -79,6 +90,12 @@ public:
   short n_hf_jets;
   short n_hadronFlav_b_jets;
   short n_hadronFlav_c_jets;
+  // additional info
+  float log_chi2;
+  float mmuj0;
+  float melj0;
+  float mmuj1;
+  float melj1;
 
   bool skimTreeInitialized = false;
   std::vector<Long64_t> skim_passed_global_entries;
@@ -87,7 +104,6 @@ public:
   std::vector<float> jetBvCAll;
   float LeptonTriggerWeight(bool isEle, const MyCorrection::variation syst,
                             const TString &source);
-
 
   inline TString GetChannelString(Channel ch) {
     switch (ch) {

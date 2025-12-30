@@ -282,7 +282,7 @@ class SignalBackgroundCanvas():
         
         # Set CMS style
         CMS.SetEnergy(13.6)
-        CMS.SetLumi("7.9104 fb^{-1}")
+        CMS.SetLumi("17.794 fb^{-1}")
         CMS.SetExtraText("Preliminary")
         
         # Create canvas
@@ -434,7 +434,7 @@ class SignalBackgroundCanvas():
         latex.DrawLatex(0.20, 0.93, "Preliminary")
         
         latex.SetTextFont(42)
-        latex.DrawLatex(0.73, 0.93, "7.9104 fb^{-1} (13.6 TeV)")
+        latex.DrawLatex(0.73, 0.93, "17.794 fb^{-1} (13.6 TeV)")
         
         ROOT.SetOwnership(latex, False)
         self._objects_to_keep.append(latex)

@@ -115,6 +115,7 @@ public:
         float Fatjet_LSF = 0.75;
         float FatJet_MinPt = 200.;
         float FatJet_MaxEta = 2.4;
+        float FatJet_SDM = 50;
     }fatjet_set;
 
     struct Gens{

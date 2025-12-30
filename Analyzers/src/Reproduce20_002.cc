@@ -393,7 +393,7 @@ void Reproduce20_002::executeEventFromParameter() {
     
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet & fj = fatjets.at(i);
-        if ((fj.Pt() > fatjet_set.FatJet_MinPt) && (abs(fj.Eta())<fatjet_set.FatJet_MaxEta)) {
+        if ((fj.Pt() > fatjet_set.FatJet_MinPt) && (abs(fj.Eta())<fatjet_set.FatJet_MaxEta) && (fj.SDMass() > fatjet_set.FatJet_SDM) ) {
             FillHist(this_syst + "fatjet_cutflow", 1 , weight, 10, 0., 10.);
             //if (fj.PassID(fatjet_set.FatJet_ID[0])) {
                 

@@ -22,6 +22,5 @@
 #pragma link C++ class LRSM_TBChannel_notusingbjet+;
 #pragma link C++ class TTbar_test+;
 #pragma link C++ class DY+;
-#pragma link C++ class DY_backup +;
 #pragma link C++ class ttbar_hadronic+;
 #pragma link C++ class Reproduce20_002+;

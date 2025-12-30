@@ -24,21 +24,25 @@ SKNano.py -a ExampleRun -i '[YOUR_PREFIX]*' -e 2022 -n 10 --reduction 10 ...
     - [Installation](#installation)
       - [About LHAPDFs](#about-lhapdfs)
       - [About correctionlibs](#about-correctionlibs)
-      - [Singularity Support](#singularity-support)
       - [Check modules](#check-modules)
   - [How to Submit the job](#how-to-submit-the-job)
   - [Skimming mode](#skimming-mode)
   - [Setting the telegram bot](#setting-the-telegram-bot)
 
+
+
 ## Setting up the environment
 ### Preliminary Setup
+If you have no particular preference for an environment, we strongly recommend setting up this analyzer with the micromamba+singularity environment. Please refer [here](SettingEnv.md) for detailed instructions.
 #### Making config file
 Your configuration file should be named as `config/config.$USER`. You can copy the default configuration file and modify it.
 - [SYSTEM]: OS that you are using. `osx / redhat`
 - [PACKAGE]: Package manager that you are using. `conda / mamba / cvmfs(deprecated)`
 - [TOKEN\_TELEGRAMBOT]: Token for the telegram bot. refer to [Setting the telegram bot](#setting-the-telegram-bot)
 - [USER\_CHATID]: Your Chat ID that should be used for the telegram bot. refer to [Setting the telegram bot](#setting-the-telegram-bot)
-- [SINGULARITY\_IMAGE]: Singularity image that you want to use for the batch job. For default setup, you can use the image located at `/data9/Users/choij/Singularity/images/private-el9.sif`. If you don't want to use singularity, just leave it as empty. Refer to [Singularity Support](#singularity-support) for more information.
+- [SINGULARITY\_IMAGE]: Singularity image that you want to use for the batch job. For default setup, Refer to [Singularity Support](#singularity-support) for more information. You can make your own singularity image by following the instructions in this section.
+
+```bash
 
 #### Using conda
 Here is an example to setup the environment using conda.
@@ -134,7 +138,7 @@ Deprecated.
 ```bash
 ssh-keygen -t ed25519 -C "your cern email"
 ```
-2. Add the public key to the gitlab repository. Go to the [gitlab.cern.ch](https://gitlab.cern.ch) -> Preferences -> SSH Keys -> Add an SSH key
+Add the public key to the gitlab repository. Go to the [gitlab.cern.ch](https://gitlab.cern.ch) -> Preferences -> SSH Keys -> Add an SSH key
 
 ### Installation
 Recommend to fork the repository to your account.
@@ -175,16 +179,6 @@ conda activate nano
 conda install -c conda-forge correctionlib
 ```
 
-#### Singularity Support
-If you want to use Singularity image for the batch job, first compile the project within singularity image.
-```bash
-singularity exec $SINGULARITY_IMAGE bash -c "source setup.sh && ./scripts/build.sh"
-```
-`$SINGULARITY_IMAGE` variable will be automatically parsed from `config/config.$USER` file. Use SKNano.py to submit
-batch jobs:
-```bash
-SKNano.py -a ExampleRun -i DYJets -e 2022 -n 10 --reduction 10 --no_exec ...
-```
 
 #### Check modules
 Every module(or class) can be imported both in ROOT and python

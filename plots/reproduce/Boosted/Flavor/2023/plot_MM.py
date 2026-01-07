@@ -172,16 +172,10 @@ def apply_scale_factors(hist, hist_name, scale_factors):
     return scaled_hist
 
 BACKGROUND_COLORS = [
-    ROOT.TColor.GetColor("#5790fc"),  # Blue
-    ROOT.TColor.GetColor("#f89c20"),  # Orange  
-    ROOT.TColor.GetColor("#964a8b"),  # Purple
-    ROOT.TColor.GetColor("#CDDC39"),  # Lime
-    ROOT.TColor.GetColor("#009688"),  # Teal
-    ROOT.TColor.GetColor("#795548"),  # Brown
-    ROOT.TColor.GetColor("#00bfae"),  # Cyan
-    ROOT.TColor.GetColor("#9c9ca1"),  # Gray for "Others"
-    ROOT.TColor.GetColor("#f44336"),  # Red for "WJets"
-    ROOT.TColor.GetColor("#ff9800")   # Orange for "tzq,tHq"
+    ROOT.TColor.GetColor("#ffeb3b"), # DY
+    ROOT.TColor.GetColor("#f44336"),  # TTbar
+    ROOT.TColor.GetColor("#4caf50"), # nonprompt ( WJets)
+    ROOT.TColor.GetColor("#2196f3")  # Others
     
 ]
 
@@ -272,8 +266,8 @@ class SignalBackgroundCanvas():
         # Define background groups
         groups = {
             "TT+TW": [],
-            "DYJets": [],
             "WJets": [],
+            "DYJets": [],
             "Others": []
         }
         
@@ -312,8 +306,8 @@ class SignalBackgroundCanvas():
         group_colors = {
             "TT+TW": BACKGROUND_COLORS[1],
             "WJets": BACKGROUND_COLORS[2],
-            "DYJets": BACKGROUND_COLORS[3],
-            "Others": BACKGROUND_COLORS[0]  
+            "DYJets": BACKGROUND_COLORS[0],
+            "Others": BACKGROUND_COLORS[3]  
         }
         
         group_integrals = []

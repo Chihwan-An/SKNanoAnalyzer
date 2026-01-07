@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-data_directory = "/gv0/Users/achihwan/SKNanoOutput/DY/2024"
+data_directory = "/data9/Users/achihwan/SKNanoOutput/DY/2024"
 
 import ROOT
 import cmsstyle as CMS
@@ -92,7 +92,7 @@ class SignalBackgroundCanvas():
         
         # Group samples by category
         for name, hist in all_hists.items():
-            if name.startswith("DYJets"):
+            if name.startswith("DY"):
                 groups["DYJets"].append((name, hist))
             elif name.startswith("TTLJ"):
                 groups["TT"].append((name, hist))
@@ -282,7 +282,7 @@ class SignalBackgroundCanvas():
         
         # Set CMS style
         CMS.SetEnergy(13.6)
-        CMS.SetLumi("7.9104 fb^{-1}")
+        CMS.SetLumi("109.08 fb^{-1}")
         CMS.SetExtraText("Preliminary")
         
         # Create canvas
@@ -434,7 +434,7 @@ class SignalBackgroundCanvas():
         latex.DrawLatex(0.20, 0.93, "Preliminary")
         
         latex.SetTextFont(42)
-        latex.DrawLatex(0.73, 0.93, "7.9104 fb^{-1} (13.6 TeV)")
+        latex.DrawLatex(0.73, 0.93, "109.08 fb^{-1} (13.6 TeV)")
         
         ROOT.SetOwnership(latex, False)
         self._objects_to_keep.append(latex)
@@ -623,7 +623,7 @@ def rebin_histogram_custom(hist, bin_edges):
     ROOT.SetOwnership(new_hist, False)
     return new_hist
 
-def load_histogram(file_path, hist_name, systematic="POGTIGHT", silent=False):
+def load_histogram(file_path, hist_name, systematic="Central", silent=False):
     """Load histogram from ROOT file"""
     root_file = ROOT.TFile.Open(file_path)
     if not root_file or root_file.IsZombie():
@@ -654,7 +654,7 @@ def load_histogram(file_path, hist_name, systematic="POGTIGHT", silent=False):
     
     return hist_clone
 
-def combine_muon_data(data_dir, hist_name, systematic="POGTIGHT"):
+def combine_muon_data(data_dir, hist_name, systematic="Central"):
     """Load and combine Muon C, D and SingleMuon data histograms"""
     print("Loading data from Muon_C, Muon_D, and SingleMuon files")
     
@@ -697,7 +697,7 @@ def combine_muon_data(data_dir, hist_name, systematic="POGTIGHT"):
     
     return combined_hist
 
-def load_signal_histograms(data_dir, hist_name, systematic="POGTIGHT"):
+def load_signal_histograms(data_dir, hist_name, systematic="Central"):
     """Load signal histogram from DYJets file"""
     signal_hists = {}
     
@@ -717,7 +717,7 @@ def load_signal_histograms(data_dir, hist_name, systematic="POGTIGHT"):
     
     return signal_hists
 
-def load_background_histograms(data_dir, hist_name, systematic="POGTIGHT"):
+def load_background_histograms(data_dir, hist_name, systematic="Central"):
     """Load background histograms from all ROOT files except DYJets, TBChannel, and data files"""
     background_hists = {}
     
@@ -749,7 +749,7 @@ def load_background_histograms(data_dir, hist_name, systematic="POGTIGHT"):
     print(f"Total background samples loaded: {len(background_hists)}")
     return background_hists
 
-def plot_signal_background_comparison(data_dir, hist_name, config, output_name="signal_background_comparison", systematic="POGTIGHT"):
+def plot_signal_background_comparison(data_dir, hist_name, config, output_name="signal_background_comparison", systematic="Central"):
     """Create Signal+Background vs Data comparison plot"""
     
     print(f"Creating Signal+Background vs Data comparison for histogram: {hist_name}")

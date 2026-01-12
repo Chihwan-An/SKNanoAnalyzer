@@ -94,10 +94,12 @@ void Reproduce20_002::executeEventFromParameter() {
 
     Event ev = GetEvent();
     Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
+    float PU_Weight = myCorr->GetPUWeight(ev.nTrueInt(),MyCorrection::variation::nom,this_syst);
     float weight = 1.0;
     if(!IsDATA){
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("Full");
+        weight *= PU_Weight;
         // weight_norm_1invpb??
 
         // Z pt reweight
@@ -523,11 +525,12 @@ void Reproduce20_002::executeEventFromParameter() {
                             FillHist(this_syst + "/Boost_cutflow_DY", 5 , weight, 20,-10,10.);
                             FatJet HNFatJet = this_fatjet;
                             Particle Ncand;
+                            bool looselepton_infatjet = false;
                         // if loose lepton is inside of fatjet
                             if (this_fatjet.DeltaR( *LowMllLooseLepton)<0.8) {
                                 Ncand = this_fatjet;
                                 FillHist(this_syst + "has_looselepton_insidefatjet", 1 , weight, 5, 0., 5.);
-                                FillHist(this_syst +"/numofhnfatjet_DY", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+                                bool looselepton_infatjet = true;
                             }
                             else { // if loose lepton is outside of fatjet
                                 Ncand = HNFatJet + *LowMllLooseLepton;
@@ -547,17 +550,30 @@ void Reproduce20_002::executeEventFromParameter() {
                             if ( WRCand.M() > 800.0 )  {
                                 FillHist(this_syst + "/Boost_cutflow_DY", 6 , weight, 20,-10,10.);
                                 // DY CR
-                                
+                                FillHist(this_syst + "/DY_CR_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
                                 if (is_tmp_lead_el){ // ee 
                                         FillHist(this_syst + "/pt(ll)_boosted_DY_CR_EE", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                         FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR_EE", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                         FillHist(this_syst + "/m(lljj)_boosted_DY_CR_EE", WRCand.M(), weight, 8000, 0., 8000.);
+                                        if (looselepton_infatjet){
+                                            FillHist(this_syst + "/Boosted_DY_CR_EE_looselepton_infatjet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+                                        }
+                                        else{
+                                            FillHist(this_syst + "/Boosted_DY_CR_EE_looselepton_outsidefatjet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+                                        }
                                     }
                                     if (is_tmp_lead_mu){// mumu
                                         FillHist(this_syst + "/pt(ll)_boosted_DY_CR_MM", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                         FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR_MM", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                         FillHist(this_syst + "/m(lljj)_boosted_DY_CR_MM", WRCand.M(), weight, 8000, 0., 8000.);
+                                        if (looselepton_infatjet){
+                                            FillHist(this_syst + "/Boosted_DY_CR_MM_looselepton_infatjet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+                                        }
+                                        else{
+                                            FillHist(this_syst + "/Boosted_DY_CR_MM_looselepton_outsidefatjet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+                                        }
                                     }
+                                
                                 if (lowmllmass < 100){
                             // Boosted CR1    
                                     if (is_tmp_lead_el){ // ee 
@@ -730,8 +746,8 @@ void Reproduce20_002::executeEventFromParameter() {
                                         }
                                         // Boosted DY CR
                                     }
-                                
-                            
+                                }
+                            }
 
                     // tight fatjet 밖 한개 , loose lepton oppo flavor 안에
                         if (!hassflooselepton){
@@ -747,12 +763,14 @@ void Reproduce20_002::executeEventFromParameter() {
                                             FillHist(this_syst + "/pt(ll)_boosted_e_mujet_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                             FillHist(this_syst + "/leading_fatjet_pt_boosted_e_mujet_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                             FillHist(this_syst + "/m(lljj)_boosted_e_mujet_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/Boosted_Flavor_CR_e_mujet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
                                         }
                                         else if (is_tmp_lead_mu) {
                                             // Boosted Flavor CR
                                             FillHist(this_syst + "/pt(ll)_boosted_mu_ejets_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                             FillHist(this_syst + "/leading_fatjet_pt_boosted_mu_ejets_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                             FillHist(this_syst + "/m(lljj)_boosted_mu_ejets_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/Boosted_Flavor_CR_mu_ejets_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
                                         }
                                         // B    oosted Flavor CR
                                     }
@@ -781,8 +799,7 @@ void Reproduce20_002::executeEventFromParameter() {
     }// boost selected event end
     }
     }
-}
-}
+
     // double counting check?  # 1670
 
     // Higmass info # 1722 

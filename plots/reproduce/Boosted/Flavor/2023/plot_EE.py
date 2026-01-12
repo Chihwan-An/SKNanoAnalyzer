@@ -402,6 +402,7 @@ class SignalBackgroundCanvas():
         CMS.SetLumi("17.794 fb^{-1}")
         CMS.SetExtraText("Preliminary")
         
+        
         # Create canvas
         canvas_name = f"canvas_{id(self)}"
         self.canv = ROOT.TCanvas(canvas_name, canvas_name, 800, 800)
@@ -585,6 +586,8 @@ class SignalBackgroundCanvas():
         
         latex.SetTextFont(42)
         latex.DrawLatex(0.73, 0.93, "17.794 fb^{-1} (13.6 TeV)")
+        latex.DrawLatex(0.16, 0.85 ,"e + #mu-Jet")
+        latex.DrawLatex(0.16, 0.8 ,"Boosted flavor CR")
         
         ROOT.SetOwnership(latex, False)
         self._objects_to_keep.append(latex)

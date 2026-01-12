@@ -585,6 +585,8 @@ class SignalBackgroundCanvas():
         
         latex.SetTextFont(42)
         latex.DrawLatex(0.73, 0.93, "17.794 fb^{-1} (13.6 TeV)")
+        latex.DrawLatex(0.16, 0.85 ,"#mu + e-Jet")
+        latex.DrawLatex(0.16, 0.8 ,"Boosted flavor CR")
         
         ROOT.SetOwnership(latex, False)
         self._objects_to_keep.append(latex)

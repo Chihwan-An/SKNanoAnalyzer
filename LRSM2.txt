@@ -1,0 +1,10 @@
+TTLL*
+TTLJ*
+DYJets
+ST*
+EG*
+Mu*
+WJets
+ZZ*
+WZ*
+WW*

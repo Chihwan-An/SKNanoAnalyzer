@@ -198,6 +198,7 @@ void Reproduce20_002::executeEventFromParameter() {
             Loose_leps.push_back(&el);
         }
     }
+    cout << "나는 오래된 거리처럼 너를 사랑하고 별들을 벌들처럼 웅성거리고 여름에는 은색 드럼을 두드리는 것처럼 네 손바닥을 두드리는 비를 줄게 과거에게도 그랬듯 미래에게도 아첨하지 않을게" << endl;
     
     
     for (unsigned int i=0 ; i< my_muons.size(); i ++) {
@@ -297,10 +298,10 @@ void Reproduce20_002::executeEventFromParameter() {
             bool dRTwoLetpton = (LeadLep->DeltaR(*SubLeadLep) > 0.4);
             bool dRTwoJets = (selected_jets[0].DeltaR(selected_jets[1]) > 0.4);
             FillHist(this_syst + "/Jetnumber_before_resolved_selection1", selected_jets.size(), weight, 20,-10,10.);
-            if (selected_jets.size() >= 2 ) {
+            //if (selected_jets.size() >= 2 ) {
                 FillHist(this_syst + "/Jetnumber_before_resolved_selection2", selected_jets.size(), weight, 20,-10,10.);
                 FillHist(this_syst + "/CutFlow", 4.0, weight, 20,-10,10.); // 2 jets 
-                if ((dRLeadJetLepon)&&(dRSubLeadJetLepon)&&(dRTwoLetpton)&&(dRTwoJets)) { 
+                if ((selected_jets.size() >= 2 )&&(dRLeadJetLepon)&&(dRSubLeadJetLepon)&&(dRTwoLetpton)&&(dRTwoJets)) { 
                     FillHist(this_syst + "/Jetnumber_before_resolved_selection3", selected_jets.size(), weight, 20,-10,10.);
                     IsResolvedEvent = true;
                     FillHist(this_syst + "/CutFlow", 5.0, weight, 20,-10,10.); // 2 jets
@@ -309,7 +310,6 @@ void Reproduce20_002::executeEventFromParameter() {
                     
                     double dilepton_mass = ( *LeadLep + *SubLeadLep ).M();
                     double dilepton_pt = ( *LeadLep + *SubLeadLep ).Pt();
-
                     bool DiLepMassGT200 = ( dilepton_mass > 200.0 );
                     bool DiLepMassGT400 = ( dilepton_mass > 400.0 );
                     bool DiLepMassLT150 = ( dilepton_mass >= 60. ) && ( dilepton_mass < 150. );
@@ -317,19 +317,12 @@ void Reproduce20_002::executeEventFromParameter() {
                     bool DiLepMass60to100  = (dilepton_mass >= 60.) && (dilepton_mass < 100.);
                     bool DiLepMass100to150 = (dilepton_mass >= 100.) && (dilepton_mass < 150.);
                     bool DiLepMass200to400  = (dilepton_mass >= 200.) && (dilepton_mass < 400.);
-
                     double trigger_sf_SingleElectron = 1.0;
                     double trigger_sf_SingleMuon = 1.0;
-
-
-
-                    
                 // e , mu id , reco , ISO SF
                 
                 // Trigger SF
-
                 // DY reshape ?
-
                 // saving plots for each CR 
                 
                 // DY CR 60 < ll < 150 , lljj > 800 
@@ -339,7 +332,6 @@ void Reproduce20_002::executeEventFromParameter() {
                     FillHist(this_syst + "/DYCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
                     FillHist(this_syst + "/DYCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
                     FillHist(this_syst + "/DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
-
                     if (tmp_isEE) {
                         FillHist(this_syst + "/DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
                         FillHist(this_syst + "/DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
@@ -359,7 +351,6 @@ void Reproduce20_002::executeEventFromParameter() {
                         FillHist(this_syst + "/DYCR_Resolved_EM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                     }
                 }
-
             // DY CR1 ( 60 < mll < 100)
                 if ( DiLepMass60to100 && WRCand.M() > 800.0 ){
                     if (tmp_isEE)
@@ -377,7 +368,6 @@ void Reproduce20_002::executeEventFromParameter() {
                         FillHist(this_syst + "/DYCR1_Resolved_MM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                     }
                 }
-
             // DY CR2 ( 100 < mll < 150)
                 if ( DiLepMass100to150 && WRCand.M() > 800.0 ){
                     if (tmp_isEE)
@@ -432,7 +422,6 @@ void Reproduce20_002::executeEventFromParameter() {
                             FillHist(this_syst + "/SR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
                             FillHist(this_syst + "/SR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
                             FillHist(this_syst + "/SR_Resolved_EE_mlljj", WRCand.M(), weight, 8000, 0., 8000.);
-
                             // charge
                             if ( LeadLepCharge * SubLeadLepCharge > 0 ) {
                                 FillHist(this_syst + "/SR_Resolved_EE_ll_pt_SS", dilepton_pt, weight, 8000, 0., 8000.);
@@ -469,12 +458,10 @@ void Reproduce20_002::executeEventFromParameter() {
                 }
             }// # 1192 -> Resolved ends 
             }// dr < 0.4
-        } // 2jets 
+        //} // 2jets 
     }
     }
     
-
-
     
     if (!IsResolvedEvent){
         FillHist(this_syst + "/Boost_tightlepnum", n_Tight_leptons , weight, 10, 0., 10.);
@@ -510,7 +497,7 @@ void Reproduce20_002::executeEventFromParameter() {
                     if (Loose_SF_leps[i] == LeadLep) continue;
                     double dilep_mass = (*LeadLep + *Loose_SF_leps[i]).M();
                     if ((dilep_mass > 60) && (dilep_mass < 150 )) {
-                        n_Loose_leptons++;
+                        n_loose_sf_lep++;
                     }
                 }
                 FillHist(this_syst + "/Boost_SF_looselepton_num", n_loose_sf_lep , weight, 10, 0., 10.);
@@ -629,7 +616,6 @@ void Reproduce20_002::executeEventFromParameter() {
                     FatJet Ncand;
                     Particle WRCand;
                     FatJet HNFatJet;
-
                     int num_of_fatjet_lsf_dphi_cut = 0;
                     for (unsigned int i=0 ; i<fatjets_LSF.size(); i++) {
                         FatJet this_fatjet = fatjets_LSF.at(i);
@@ -638,7 +624,6 @@ void Reproduce20_002::executeEventFromParameter() {
                         }
                     }
                     FillHist(this_syst + "/num_of_fatjet_lsf_dphi_cut", num_of_fatjet_lsf_dphi_cut , weight, 10, 0., 10.);
-
                     for (unsigned int i=0 ; i<fatjets_LSF.size(); i++) {
                         FatJet this_fatjet = fatjets_LSF.at(i);
                         FillHist(this_syst + "/deltaPhi_LeadLep_Fatjet_FLV", abs( LeadLep->DeltaPhi(this_fatjet)) , weight, 100, 0., 3.5);
@@ -652,13 +637,11 @@ void Reproduce20_002::executeEventFromParameter() {
                         }
                     }
                     // 이거 만족하는것 중에 리딩 골라야 하는거 아닌가?
-
                     //if  lead lep delta phi cut > 2.0 with fatjet
                     if (hasawaymergedfatjet) {
                         FillHist(this_syst + "/Boost_cutflow_FLV", 5 , weight, 20,-10,10.);
                         bool hassflooselepton(false);
                         bool hasoflooselepton(false);
-
                         Lepton *SFLooseLepton;
                         Lepton *OFLooseLepton;
                         FillHist(this_syst +"/numofhnfatjet_FLV", HNFatJet.SDMass() , weight, 10000, 0., 10000.); 
@@ -684,7 +667,6 @@ void Reproduce20_002::executeEventFromParameter() {
                                 break;
                             }
                         }
-
                     //num OF loose lepton inside fatjet for high mll
                         int num_of_of_looselepton_infatjet = 0;
                         for (unsigned int m=0 ; m< Loose_OF_leps.size(); m ++) {
@@ -694,7 +676,9 @@ void Reproduce20_002::executeEventFromParameter() {
                                 num_of_of_looselepton_infatjet += 1;
                             }
                         }
-                        
+                        float of_sf_looselepton_both = num_of_of_looselepton_infatjet * num_of_sf_looselepton_infatjet;
+                        FillHist(this_syst + "/of_sf_looselepton_both", of_sf_looselepton_both , weight, 20, -10., 10.);
+
                         FillHist(this_syst + "/num_of_of_looselepton", num_of_of_looselepton_infatjet , weight, 10, 0., 10.);
                         for (unsigned int m=0 ; m< Loose_OF_leps.size(); m ++) {
                             if (LeadLep->DeltaR( *Loose_OF_leps[m])<0.01) continue;
@@ -716,10 +700,8 @@ void Reproduce20_002::executeEventFromParameter() {
                                 NExtraTightLepton++;
                             }
                         
-
                         bool hasnoextralep = (NExtraTightLepton == 0);
                         bool WRMassGT800 = ( WRCand.M() > 800.0 );
-
                         if (hasnoextralep ){
                             // tight fatjet 밖 한개 , loose lepton same flavor 안에 
                             FillHist(this_syst + "/Boost_cutflow_FLV", 6 , weight, 20, -10., 10.);
@@ -734,7 +716,6 @@ void Reproduce20_002::executeEventFromParameter() {
                         //Muon *looseMuon = (Muon *)SFLooseLepton;
                         //ForSF_muons.push_back( looseMuon );
                         //    }
-
                                     if ( (*LeadLep + *SFLooseLepton).M() >200.0 ) {
                                         //charge 
                                         float LeadLepCharge = LeadLep->Charge();

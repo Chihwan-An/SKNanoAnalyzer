@@ -24,3 +24,4 @@
 #pragma link C++ class DY+;
 #pragma link C++ class ttbar_hadronic+;
 #pragma link C++ class Reproduce20_002+;
+#pragma link C++ class Skim_20002+;

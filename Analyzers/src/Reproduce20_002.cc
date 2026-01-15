@@ -183,6 +183,16 @@ void Reproduce20_002::executeEventFromParameter() {
     RVec<Muon *> Loose_muons , Tight_muons;
     RVec<Lepton *> Tight_leps_el , Tight_leps_mu , Tight_leps;
     RVec<Lepton *> Loose_leps_el , Loose_leps_mu , Loose_leps;
+    
+    float el_tight_and_loose = 0.;
+    float el_tight_but_fail_loose = 0.;
+    float el_loose_but_fail_tight = 0.;
+    float el_loose_but_tight = 0.;
+    
+    float mu_tight_and_loose = 0.;
+    float mu_tight_but_fail_loose = 0.;
+    float mu_loose_but_fail_tight = 0.;
+    float mu_loose_but_tight = 0.;
 
     for (unsigned int i=0 ; i< my_electrons.size(); i ++) {
         Electron & el = my_electrons.at(i);
@@ -190,15 +200,25 @@ void Reproduce20_002::executeEventFromParameter() {
             Tight_electrons.push_back(&el);
             Tight_leps_el.push_back( &el);
             Tight_leps.push_back(&el);
+            if (el_set.isPassCustomLooseID(el)) {
+                el_tight_and_loose += 1.;
+            } else {
+                el_tight_but_fail_loose += 1.;
+            }
         }
         // Loose ID
         if (el_set.isPassCustomLooseID(el)){
             Loose_electrons.push_back(&el);
             Loose_leps_el.push_back(&el);
             Loose_leps.push_back(&el);
+            if (!el.PassID(el_set.Electron_Tight_ID[0])) {
+                el_loose_but_fail_tight += 1.;
+            } else {
+                el_loose_but_tight += 1.;
+            }
         }
+        // Tight 은 
     }
-    cout << "나는 오래된 거리처럼 너를 사랑하고 별들을 벌들처럼 웅성거리고 여름에는 은색 드럼을 두드리는 것처럼 네 손바닥을 두드리는 비를 줄게 과거에게도 그랬듯 미래에게도 아첨하지 않을게" << endl;
     
     
     for (unsigned int i=0 ; i< my_muons.size(); i ++) {
@@ -210,11 +230,21 @@ void Reproduce20_002::executeEventFromParameter() {
             Tight_muons.push_back(&mu);
             Tight_leps_mu.push_back( &mu);
             Tight_leps.push_back(&mu);
+            if (mu.PassID(mu_set.Muon_Loose_ID[0])) {
+                mu_tight_and_loose += 1.;
+            } else {
+                mu_tight_but_fail_loose += 1.;
+            }
         }
         if (mu.PassID(mu_set.Muon_Loose_ID[0])) {
             Loose_muons.push_back(&mu);
             Loose_leps_mu.push_back(&mu);
             Loose_leps.push_back(&mu);
+            if (!(mu.PassID(mu_set.Muon_Tight_ID[0]))&&( tkRelIso < 0.1) ) {
+                mu_loose_but_fail_tight += 1.;
+            } else {
+                mu_loose_but_tight += 1.;
+            }
         }
     }
     sort (Tight_leps.begin(), Tight_leps.end(), PtComparingPtr);
@@ -520,6 +550,7 @@ void Reproduce20_002::executeEventFromParameter() {
                 // Boosted CR selection with low mll ( DY CR)
                 if (has_lowmll){
                     FillHist(this_syst + "/Boost_cutflow_DY", 4 , weight, 20,-10,10.);
+                    float fatjet_DYBoost_num = 0;
                     for (unsigned int i=0 ; i< fatjets.size(); i++) {
                         FatJet this_fatjet = fatjets.at(i);
                         FillHist(this_syst + "/deltaPhi_LeadLep_Fatjet", abs( LeadLep->DeltaPhi(this_fatjet)) , weight, 100, 0., 3.5);
@@ -528,6 +559,7 @@ void Reproduce20_002::executeEventFromParameter() {
                             FatJet HNFatJet = this_fatjet;
                             Particle Ncand;
                             bool looselepton_infatjet = false;
+                            fatjet_DYBoost_num++;
                         // if loose lepton is inside of fatjet
                             if (this_fatjet.DeltaR( *LowMllLooseLepton)<0.8) {
                                 Ncand = this_fatjet;
@@ -606,6 +638,7 @@ void Reproduce20_002::executeEventFromParameter() {
                             break;
                         }// lead lep fat jet backto back end 
                     }
+                    FillHist(this_syst + "/fatjet_DYBoost_num", fatjet_DYBoost_num , weight, 10, 0., 10.);
                 } // has low mll end
             
             
@@ -673,10 +706,13 @@ void Reproduce20_002::executeEventFromParameter() {
                             if (LeadLep->DeltaR( *Loose_OF_leps[m])<0.01) continue;
                             if ( Loose_OF_leps.at(m)->Pt() < 53.0) continue;
                             if (HNFatJet.DeltaR(*Loose_OF_leps[m]) < 0.8) {
-                                num_of_of_looselepton_infatjet += 1;
+                                num_of_of_looselepton_infatjet -= 1;
                             }
                         }
                         float of_sf_looselepton_both = num_of_of_looselepton_infatjet * num_of_sf_looselepton_infatjet;
+                        if (of_sf_looselepton_both == 0){
+                            FillHist(this_syst + "/num_of_both_of_looselepton",num_of_of_looselepton_infatjet , weight, 10, 0., 10.);
+                        }
                         FillHist(this_syst + "/of_sf_looselepton_both", of_sf_looselepton_both , weight, 20, -10., 10.);
 
                         FillHist(this_syst + "/num_of_of_looselepton", num_of_of_looselepton_infatjet , weight, 10, 0., 10.);

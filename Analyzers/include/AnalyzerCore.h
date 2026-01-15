@@ -40,6 +40,7 @@
 #include "ElectronView.h"
 #include "Jet.h"
 #include "JetView.h"
+#include "FatJetView.h"
 #include "FatJet.h"
 #include "Tau.h"
 #include "Photon.h"
@@ -146,7 +147,10 @@ public:
     MuonViewCollection GetAllMuonViews();
     GenViewCollection GetAllGenViews();
     JetViewCollection GetAllJetViews();
+    FatJetViewCollection GetAllFatJetViews();
+
     void SmearJetViews(const JetViewCollection &jets, const float rho);
+    void SmearFatJetViews(const FatJetViewCollection &jets, const float rho);
     GenJetViewCollection GetAllGenJetViews();
     RVec<Muon> GetAllMuons();
     std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const std::vector<std::size_t> &seed_indices, const Muon::MuonID ID, const float ptmin, const float fetamax) const;
@@ -160,9 +164,12 @@ public:
     RVec<Electron> MaterializeElectrons(const ElectronViewCollection &electrons) const;
     RVec<Electron> MaterializeElectrons(const ElectronViewCollection &electrons, const std::vector<std::size_t> &indices) const;
     Jet MaterializeJet(const JetViewCollection &jets, std::size_t index, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
+    FatJet MaterializeFatJet(const FatJetViewCollection &jets, std::size_t index, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
     JetViewCollection CloneJetViews(const JetViewCollection &jets) const;
     RVec<Jet> MaterializeJets(const JetViewCollection &jets, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
     RVec<Jet> MaterializeJets(const JetViewCollection &jets, const std::vector<std::size_t> &indices, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
+    RVec<FatJet> MaterializeFatJets(const FatJetViewCollection &jets, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
+    RVec<FatJet> MaterializeFatJets(const FatJetViewCollection &jets, const std::vector<std::size_t> &indices, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
     RVec<GenJet> MaterializeGenJets(const GenJetViewCollection &genjets) const;
 
     RVec<Muon> SelectMuons(const MuonViewCollection &muons, const Muon::MuonID ID, const float ptmin, const float absetamax) const {
@@ -352,6 +359,10 @@ protected:
     void InitialiseJetSystematics(JetSoA &storage) const;
     void PopulateJetStorageWithoutCorrections(JetSoA &storage) const;
     void ApplyJetEnergyCorrections(JetSoA &storage, float rho);
+    std::shared_ptr<FatJetSoA> CreateFatJetSoA() const;
+    void InitialiseFatJetSystematics(FatJetSoA &storage) const;
+    void PopulateFatJetStorageWithoutCorrections(FatJetSoA &storage) const;
+    void ApplyFatJetEnergyCorrections(FatJetSoA &storage, float rho);
     std::vector<int> MatchJetsToGenJets(const JetViewCollection& jets,
     const GenJetViewCollection& genjets,
     float rho) const;

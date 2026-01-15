@@ -73,9 +73,16 @@ namespace JetTagging
         Xtauhtauh,
         Xtauhtaum,
         //globalParTwithMass
-        TopvsQCD,
+        TvsQCD,
         //WvsQCD,
         ZvsQCD,
+        //
+        LegacyQCD,
+        LegacyXbb,
+        LegacyXcc,
+        LegacyXqq,
+        LegacyMass,
+        //
         //particleNetWithMass
         H4qvsQCD,
         HbbvsQCD,
@@ -186,12 +193,15 @@ namespace JetTagging
     };
 
     constexpr std::size_t JetFlavTaggerScoreCount = static_cast<std::size_t>(JetFlavTaggerScoreType::probUDG) + 1;
-
+    constexpr std::size_t FatJetFlavTaggerScoreCount = static_cast<std::size_t>(FatJetTaggerScoreType::XttVsQCD) + 1;
     inline constexpr std::size_t JetFlavTaggerScoreIndex(JetFlavTaggerScoreType type)
     {
         return static_cast<std::size_t>(type);
     }
-    
+    inline constexpr std::size_t FatJetFlavTaggerScoreIndex(FatJetTaggerScoreType type)
+    {
+        return static_cast<std::size_t>(type);
+    }
     inline TString GetFatJetTaggerCorrectionLibStr(FatJetTagger tagger)
     {
         switch (tagger)
@@ -250,10 +260,20 @@ namespace JetTagging
             return "Xtauhtauh";
         case FatJetTaggerScoreType::Xtauhtaum:
             return "Xtauhtaum";
-        case FatJetTaggerScoreType::TopvsQCD:
-            return "TopvsQCD";
+        case FatJetTaggerScoreType::TvsQCD:
+            return "TvsQCD";
         case FatJetTaggerScoreType::ZvsQCD:
             return "ZvsQCD";
+        case FatJetTaggerScoreType::LegacyQCD:
+            return "LegacyQCD";
+        case FatJetTaggerScoreType::LegacyXbb:
+            return "LegacyXbb";
+        case FatJetTaggerScoreType::LegacyXcc:
+            return "LegacyXcc";
+        case FatJetTaggerScoreType::LegacyXqq:
+            return "LegacyXqq";
+        case FatJetTaggerScoreType::LegacyMass:
+            return "LegacyMass";
         case FatJetTaggerScoreType::H4qvsQCD:
             return "H4qvsQCD";
         case FatJetTaggerScoreType::HbbvsQCD:

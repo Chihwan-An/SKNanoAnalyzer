@@ -1,5 +1,6 @@
 #include "AnalyzerCore.h"
 #include "JetView.h"
+#include "FatJetView.h"
 #include "TObjArray.h"
 #include "TObjString.h"
 #include <Compression.h>
@@ -1162,6 +1163,7 @@ RVec<Tau> AnalyzerCore::SelectTaus(const RVec<Tau> &taus, const TString ID,
   return selected_taus;
 }
 
+// --------------- Jets ------------------
 std::shared_ptr<JetSoA> AnalyzerCore::CreateJetSoA() const {
   auto storage = std::make_shared<JetSoA>();
   storage->pt.bind(&Jet_pt);
@@ -2565,7 +2567,131 @@ bool AnalyzerCore::PassJetVetoMap(const RVec<Jet> &AllJets,
   }
   return true;
 }
+FatJet AnalyzerCore::MaterializeFatJet(const FatJetViewCollection &fatjets,
+                                 std::size_t index,
+                                 const MyCorrection::variation &jesVar,
+                                 const MyCorrection::variation &jerVar) const {
+  if (jesVar != MyCorrection::variation::nom &&
+      jerVar != MyCorrection::variation::nom) {
+    throw runtime_error(
+        "[AnalyzerCore::MaterializeJet] Both JES and JER variations are "
+        "non-nominal, not supported");
+  }
 
+  FatJet fatjet;
+  auto storage = fatjets.storage();
+  const std::size_t nStorage = storage->size();
+  const std::size_t nViews = fatjets.size();
+  if (index >= nStorage || index >= nViews)
+    throw runtime_error(
+        "[AnalyzerCore::MaterializeJet] Invalid storage or index");
+
+  const auto &fatjetView = fatjets[index];
+  if (!fatjetView.valid())
+    return fatjet;
+
+  fatjet = FatJet(storage, index);
+  const float rawPt = storage->pt[index] * (1.f - storage->rawFactor[index]);
+  const float rawMass =
+      storage->mass[index] * (1.f - storage->rawFactor[index]);
+  const float correctedPt =
+      !storage->correctedPt.empty() ? storage->correctedPt[index] : rawPt;
+  const float correctedMass =
+      !storage->correctedMass.empty() ? storage->correctedMass[index] : rawMass;
+  const float smearedPt = storage->smearedPtNominal[index];
+  const float smearedMass = storage->smearedMassNominal[index];
+
+  float selectedPt = smearedPt;
+  float selectedMass = smearedMass;
+  if (!IsDATA) {
+    if (jesVar == MyCorrection::variation::up) {
+      selectedPt = storage->jesPtUp[index];
+      selectedMass = storage->jesMassUp[index];
+    } else if (jesVar == MyCorrection::variation::down) {
+      selectedPt = storage->jesPtDown[index];
+      selectedMass = storage->jesMassDown[index];
+    } else if (jerVar == MyCorrection::variation::up) {
+      selectedPt = storage->smearedPtUp[index];
+      selectedMass = storage->smearedMassUp[index];
+    } else if (jerVar == MyCorrection::variation::down) {
+      selectedPt = storage->smearedPtDown[index];
+      selectedMass = storage->smearedMassDown[index];
+    }
+  }
+
+  fatjet.SetPtEtaPhiM(IsDATA ? correctedPt : selectedPt, fatjetView.Eta(),
+                   fatjetView.Phi(), IsDATA ? correctedMass : selectedMass);
+  fatjet.SetRawPt(rawPt);
+  fatjet.SetOriginalPt(fatjetView.Pt());
+  fatjet.SetArea(fatjetView.Area());
+  fatjet.SetOriginalIndex(static_cast<int>(index));
+  fatjet.SetEnergyFractions(fatjetView.ChHEF(), fatjetView.NeHEF(), fatjetView.NeEmEF(),
+                         fatjetView.ChEmEF(), fatjetView.MuEF());
+  if (!IsDATA) {
+    fatjet.SetJetFlavours(fatjetView.HadronFlavour());
+  }
+
+  fatjet.SetHadronMultiplicities(fatjetView.ChMultiplicity(),
+                              fatjetView.NeMultiplicity());
+  fatjet.SetMultiplicities(fatjetView.NConstituents());
+  if (!IsDATA) {
+    fatjet.SetMatchingIndices(fatjetView.Electronidx3Sj(), fatjetView.Muonidx3Sj(),
+                           fatjetView.Subjetidx1(), fatjetView.Subjetidx2(),
+                           fatjetView.Genjetak8Idx());
+  } else {
+    fatjet.SetMatchingIndices(fatjetView.Electronidx3Sj(), fatjetView.Muonidx3Sj(),
+                           fatjetView.Subjetidx1(), fatjetView.Subjetidx2());
+  }
+
+  RVec<float> corrs = {fatjetView.MassCorrGeneric(),
+                       fatjetView.MassCorrX2p(),
+                       fatjetView.MassCorr(),
+                       fatjetView.RawFactor()};
+
+  fatjet.SetCorrection(corrs);
+
+
+  FatJet unsmeared;
+  unsmeared.SetPtEtaPhiM(correctedPt, fatjetView.Eta(), fatjetView.Phi(),
+                         correctedMass);
+  unsmeared.SetArea(fatjetView.Area());
+  unsmeared.SetRawPt(rawPt);
+  unsmeared.SetOriginalPt(fatjetView.Pt());
+  fatjet.SetUnsmearedP4(unsmeared);
+
+  return fatjet;
+}
+
+FatJetViewCollection AnalyzerCore::GetAllFatJetViews() {
+  auto storage = CreateFatJetSoA();
+  InitialiseFatJetSystematics(*storage);
+
+  const std::size_t n = storage->size();
+  if (n == 0)
+    return FatJetViewCollection(std::move(storage));
+
+  if (!myCorr) {
+    PopulateFatJetStorageWithoutCorrections(*storage);
+    return FatJetViewCollection(std::move(storage));
+  }
+
+  const bool isMC = !IsDATA;
+  const float rho = Rho_fixedGridRhoFastjetAll;
+  ApplyFatJetEnergyCorrections(*storage, rho);
+
+  FatJetViewCollection fatjetViews = FatJetViewCollection(std::move(storage));
+  SmearFatJetViews(fatjetViews, rho);
+
+  return fatjetViews;
+}
+
+RVec<FatJet> AnalyzerCore::GetAllFatJets(){
+  FatJetViewCollection fatjetView = GetAllFatJetViews();
+  return MaterializeFatJets(fatjetView);
+}
+
+
+/*
 RVec<FatJet> AnalyzerCore::GetAllFatJets() {
 
   RVec<FatJet> FatJets;
@@ -2655,7 +2781,7 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets() {
 
   return FatJets;
 }
-
+*/
 RVec<GenJet> AnalyzerCore::GetAllGenJets() {
   GenJetViewCollection view = GetAllGenJetViews();
   return MaterializeGenJets(view);

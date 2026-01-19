@@ -14,6 +14,9 @@ public:
     void initializeAnalyzer();
     void executeEvent();
     void executeEventFromParameter();
+    TTree *newtree;
+    void WriteHist();
+
     bool RunSyst;
     bool RunWRCut;
     unique_ptr<SystematicHelper> systHelper;
@@ -86,7 +89,7 @@ public:
 
         std::string TriggerNameForSF_Muon ="Mu50";
         RVec<Muon::MuonID> Muon_Tight_ID = {Muon::MuonID::POG_GLOBAL_HIGH_PT};
-        RVec<Muon::MuonID> Muon_Loose_ID = {Muon::MuonID::POG_LOOSE};
+        RVec<Muon::MuonID> Muon_Loose_ID = {Muon::MuonID::POG_GLOBAL_HIGH_PT};
         float Muon_MinPt = 53.;
 
         RVec<std::string> Muon_Trigger;

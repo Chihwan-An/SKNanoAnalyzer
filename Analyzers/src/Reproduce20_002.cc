@@ -96,10 +96,16 @@ void Reproduce20_002::executeEventFromParameter() {
     Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
     float PU_Weight = myCorr->GetPUWeight(ev.nTrueInt(),MyCorrection::variation::nom,this_syst);
     float weight = 1.0;
+    float norm_weight = 1.0;
+    float ee_weight = 1.0;
+    float mm_weight = 1.0;
+    float em_weight = 1.0;
     if(!IsDATA){
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("Full");
         weight *= PU_Weight;
+        norm_weight *= MCweight();
+        norm_weight *= ev.GetTriggerLumi("Full");
         // weight_norm_1invpb??
 
         // Z pt reweight
@@ -120,6 +126,11 @@ void Reproduce20_002::executeEventFromParameter() {
     if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) return;
 
     FillHist(this_syst + "/CutFlow", 1.0, weight, 20,-10,10.); // Noise filter pass
+    
+    
+
+
+
 
     bool pass_trig_muon = ev.PassTrigger(mu_set.Muon_Trigger);
     bool pass_trig_elec = ev.PassTrigger(el_set.Ele_Trigger);
@@ -186,13 +197,9 @@ void Reproduce20_002::executeEventFromParameter() {
     
     float el_tight_and_loose = 0.;
     float el_tight_but_fail_loose = 0.;
-    float el_loose_but_fail_tight = 0.;
+    float el_loose_and_fail_tight = 0.;
     float el_loose_but_tight = 0.;
     
-    float mu_tight_and_loose = 0.;
-    float mu_tight_but_fail_loose = 0.;
-    float mu_loose_but_fail_tight = 0.;
-    float mu_loose_but_tight = 0.;
 
     for (unsigned int i=0 ; i< my_electrons.size(); i ++) {
         Electron & el = my_electrons.at(i);
@@ -203,7 +210,7 @@ void Reproduce20_002::executeEventFromParameter() {
             if (el_set.isPassCustomLooseID(el)) {
                 el_tight_and_loose += 1.;
             } else {
-                el_tight_but_fail_loose += 1.;
+                el_tight_but_fail_loose += 10.;
             }
         }
         // Loose ID
@@ -212,14 +219,13 @@ void Reproduce20_002::executeEventFromParameter() {
             Loose_leps_el.push_back(&el);
             Loose_leps.push_back(&el);
             if (!el.PassID(el_set.Electron_Tight_ID[0])) {
-                el_loose_but_fail_tight += 1.;
+                el_loose_and_fail_tight += 100.;
             } else {
-                el_loose_but_tight += 1.;
+                el_loose_but_tight += 1000.;
             }
         }
-        // Tight 은 
     }
-    
+    FillHist(this_syst + "/Electron_Tight_and_Loose_ID_Check", el_tight_and_loose + el_tight_but_fail_loose + el_loose_and_fail_tight + el_loose_but_tight , weight, 1111, 0., 1111.);
     
     for (unsigned int i=0 ; i< my_muons.size(); i ++) {
         Muon & mu = my_muons.at(i);
@@ -230,21 +236,11 @@ void Reproduce20_002::executeEventFromParameter() {
             Tight_muons.push_back(&mu);
             Tight_leps_mu.push_back( &mu);
             Tight_leps.push_back(&mu);
-            if (mu.PassID(mu_set.Muon_Loose_ID[0])) {
-                mu_tight_and_loose += 1.;
-            } else {
-                mu_tight_but_fail_loose += 1.;
-            }
         }
         if (mu.PassID(mu_set.Muon_Loose_ID[0])) {
             Loose_muons.push_back(&mu);
             Loose_leps_mu.push_back(&mu);
             Loose_leps.push_back(&mu);
-            if (!(mu.PassID(mu_set.Muon_Tight_ID[0]))&&( tkRelIso < 0.1) ) {
-                mu_loose_but_fail_tight += 1.;
-            } else {
-                mu_loose_but_tight += 1.;
-            }
         }
     }
     sort (Tight_leps.begin(), Tight_leps.end(), PtComparingPtr);
@@ -354,7 +350,43 @@ void Reproduce20_002::executeEventFromParameter() {
                 // Trigger SF
                 // DY reshape ?
                 // saving plots for each CR 
-                
+
+                if(!IsDATA){
+                        cout << "ok1" << endl;
+                        if(tmp_isEE){
+                            cout<<"ok2" << endl;
+                            float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(Tight_electrons[0]->Eta()), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi()))*(myCorr->GetElectronIDSF("Loose", fabs(Tight_electrons[1]->Eta()), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi()));
+                            cout<<"ok3" << endl;
+                            float ElRECOSF = (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi())) * myCorr->GetElectronRECOSF(Tight_electrons[1]->Eta(), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi());
+                            cout<<"ok4" << endl;
+                            float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(Tight_electrons[0]->Eta()), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi()));
+                            cout<<"ok5" << endl;
+                            float ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                    }
+                    if(tmp_isMM){
+                            cout<<"ok6" << endl;
+                            float MuonIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[1]));
+                            cout<<"ok7" << endl;
+                            float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0]) * myCorr->GetMuonRECOSF(*Tight_muons[1]));
+                            cout<<"ok8" << endl;
+                            float MuonTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));
+                            cout<<"ok9" << endl;
+                            float MuonISOSF = 
+                            float mm_weight = weight* MuonIDSF * MuonRECOSF * MuonTrigSF;
+                    }
+                    if(tmp_isEM){
+                            float EMIDSF = (myCorr->GetElectronIDSF("Loose", fabs(Tight_electrons[0]->Eta()), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi()))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
+                            float EMRECOSF = (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi())) * myCorr->GetMuonRECOSF(*Tight_muons[0]);
+                            float EMTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));
+                            float em_weight = weight*EMIDSF * EMRECOSF * EMTrigSF;
+                    }   
+                }
+                if(IsDATA){
+                    float ee_weight = weight;
+                    float mm_weight = weight;
+                    float em_weight = weight;
+                }
+
                 // DY CR 60 < ll < 150 , lljj > 800 
                 if ( DiLepMassLT150 && WRCand.M() > 800.0 ) {
                     FillHist(this_syst + "/CutFlow", 6.0, weight, 20,-10,10.); // DY CR pass
@@ -363,22 +395,55 @@ void Reproduce20_002::executeEventFromParameter() {
                     FillHist(this_syst + "/DYCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
                     FillHist(this_syst + "/DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                     if (tmp_isEE) {
-                        FillHist(this_syst + "/DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EE_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                        //PU&object weight 적용
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_pt", dilepton_pt, ee_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), ee_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), ee_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_mlljj", WRCand.M(), ee_weight, 800, 0., 8000.);
+                        //PU weight 적용
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EE_pt", dilepton_pt, weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EE_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                        //no pu weight
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EE_pt", dilepton_pt, norm_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EE_mlljj", WRCand.M(), norm_weight, 800, 0., 8000.);
                     }
                     else if (tmp_isMM) {
-                        FillHist(this_syst + "/DYCR_Resolved_MM_pt",dilepton_pt, weight, 100, 0., 1000.);
-                        FillHist(this_syst + "/DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_MM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                        //PU&object weight 적용
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_pt", dilepton_pt, mm_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), mm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), mm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_mlljj", WRCand.M(), mm_weight, 800, 0., 8000.);
+                        //PU weight 적용
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_MM_pt",dilepton_pt, weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_MM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_MM_pt",dilepton_pt, norm_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_MM_mlljj", WRCand.M(), norm_weight, 800, 0., 8000.);
                     }
                     else if (tmp_isEM) {
-                        FillHist(this_syst + "/DYCR_Resolved_EM_pt", dilepton_pt, weight, 100, 0., 1000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/DYCR_Resolved_EM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                        //PU&object weight 적용
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EM_pt", dilepton_pt, em_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EM_leading_jet_pt", selected_jets[0].Pt(), em_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EM_subleading_jet_pt", selected_jets[1].Pt(), em_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EM_mlljj", WRCand.M(), em_weight, 800, 0., 8000.);
+                        //PU weight 적용
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EM_pt", dilepton_pt, weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EM_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EM_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_DYCR_Resolved_EM_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EM_pt", dilepton_pt, norm_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EM_leading_jet_pt", selected_jets[0].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EM_subleading_jet_pt", selected_jets[1].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/No_PU_DYCR_Resolved_EM_mlljj", WRCand.M(), norm_weight, 800, 0., 8000.);
                     }
                 }
             // DY CR1 ( 60 < mll < 100)
@@ -419,11 +484,21 @@ void Reproduce20_002::executeEventFromParameter() {
                 if ( DiLepMassGT400 && WRCand.M() > 800.0 ){
                     if (tmp_isEM)
                     {
+                        FillHist(this_syst + "/Obj_PU_Corr_FlavorCR_Resolved_ll_pt", dilepton_pt, em_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_FlavorCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), em_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_FlavorCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), em_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/Obj_PU_Corr_FlavorCR_Resolved_mlljj", WRCand.M(), em_weight, 800, 0., 8000.);
+
                         FillHist(this_syst + "/CutFlow", 6.0 , weight, 20,-10,10.); // Flavor CR pass
-                        FillHist(this_syst + "/FlavorCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
-                        FillHist(this_syst + "/FlavorCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/FlavorCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
-                        FillHist(this_syst + "/FlavorCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+                        FillHist(this_syst + "/PU_Corr_FlavorCR_Resolved_ll_pt", dilepton_pt, weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/PU_Corr_FlavorCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_FlavorCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/PU_Corr_FlavorCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
+
+                        FillHist(this_syst + "/NO_PU_FlavorCR_Resolved_ll_pt", dilepton_pt, norm_weight, 100, 0., 1000.);
+                        FillHist(this_syst + "/NO_PU_FlavorCR_Resolved_leading_jet_pt", selected_jets[0].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/NO_PU_FlavorCR_Resolved_subleading_jet_pt", selected_jets[1].Pt(), norm_weight, 200, 0., 2000.);
+                        FillHist(this_syst + "/NO_PU_FlavorCR_Resolved_mlljj", WRCand.M(), norm_weight, 800, 0., 8000.);
                     }
                 }
                 // low mass CR 
@@ -448,41 +523,81 @@ void Reproduce20_002::executeEventFromParameter() {
                 if (DiLepMassGT400 && WRCand.M() > 800.0) {
                     if (!IsDATA){
                         if (tmp_isEE){
-                            FillHist(this_syst + "/SR_Resolved_EE_ll_pt", dilepton_pt, weight, 8000, 0., 8000.);
-                            FillHist(this_syst + "/SR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
-                            FillHist(this_syst + "/SR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
-                            FillHist(this_syst + "/SR_Resolved_EE_mlljj", WRCand.M(), weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_ll_pt", dilepton_pt, ee_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), ee_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), ee_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_mlljj", WRCand.M(), ee_weight, 8000, 0., 8000.);
+
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_ll_pt", dilepton_pt, weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_mlljj", WRCand.M(), weight, 8000, 0., 8000.);
+
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_EE_ll_pt", dilepton_pt, norm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), norm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), norm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_EE_mlljj", WRCand.M(), norm_weight, 8000, 0., 8000.);
                             // charge
                             if ( LeadLepCharge * SubLeadLepCharge > 0 ) {
-                                FillHist(this_syst + "/SR_Resolved_EE_ll_pt_SS", dilepton_pt, weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_EE_leading_jet_pt_SS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_EE_subleading_jet_pt_SS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_EE_mlljj_SS", WRCand.M(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_ll_pt_SS", dilepton_pt, ee_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_leading_jet_pt_SS", selected_jets[0].Pt(), ee_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_subleading_jet_pt_SS", selected_jets[1].Pt(), ee_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_mlljj_SS", WRCand.M(), ee_weight, 8000, 0., 8000.);
+
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_ll_pt_SS", dilepton_pt, weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_leading_jet_pt_SS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_subleading_jet_pt_SS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_mlljj_SS", WRCand.M(), weight, 8000, 0., 8000.);
                             }
                             else {
-                                FillHist(this_syst + "/SR_Resolved_EE_ll_pt_OS", dilepton_pt, weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_EE_leading_jet_pt_OS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_EE_subleading_jet_pt_OS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_EE_mlljj_OS", WRCand.M(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_ll_pt_OS", dilepton_pt, ee_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_leading_jet_pt_OS", selected_jets[0].Pt(), ee_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_subleading_jet_pt_OS", selected_jets[1].Pt(), ee_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_EE_mlljj_OS", WRCand.M(), ee_weight, 8000, 0., 8000.);
+
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_ll_pt_OS", dilepton_pt, weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_leading_jet_pt_OS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_subleading_jet_pt_OS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_EE_mlljj_OS", WRCand.M(), weight, 8000, 0., 8000.);
                             }
                         }
                         if (tmp_isMM){
-                            FillHist(this_syst + "/SR_Resolved_MM_ll_pt", dilepton_pt, weight, 8000, 0., 8000.);
-                            FillHist(this_syst + "/SR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
-                            FillHist(this_syst + "/SR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
-                            FillHist(this_syst + "/SR_Resolved_MM_mlljj", WRCand.M(), weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_ll_pt", dilepton_pt, mm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), mm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), mm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_mlljj", WRCand.M(), mm_weight, 8000, 0., 8000.);
+
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_ll_pt", dilepton_pt, weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_mlljj", WRCand.M(), weight, 8000, 0., 8000.);
+
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_MM_ll_pt", dilepton_pt, norm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), norm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), norm_weight, 8000, 0., 8000.);
+                            FillHist(this_syst + "/NO_PU_SR_Resolved_MM_mlljj", WRCand.M(), norm_weight, 8000, 0., 8000.);
                         // charge
                             if ( LeadLepCharge * SubLeadLepCharge > 0 ) {
-                                FillHist(this_syst + "/SR_Resolved_MM_ll_pt_SS", dilepton_pt, weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_MM_leading_jet_pt_SS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_MM_subleading_jet_pt_SS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_MM_mlljj_SS", WRCand.M(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_ll_pt_SS", dilepton_pt, mm_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_leading_jet_pt_SS", selected_jets[0].Pt(), mm_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_subleading_jet_pt_SS", selected_jets[1].Pt(), mm_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_mlljj_SS", WRCand.M(), mm_weight, 8000, 0., 8000.);
+
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_ll_pt_SS", dilepton_pt, weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_leading_jet_pt_SS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_subleading_jet_pt_SS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_mlljj_SS", WRCand.M(), weight, 8000, 0., 8000.);
                             }
                             else {
-                                FillHist(this_syst + "/SR_Resolved_MM_ll_pt_OS", dilepton_pt, weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_MM_leading_jet_pt_OS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_MM_subleading_jet_pt_OS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
-                                FillHist(this_syst + "/SR_Resolved_MM_mlljj_OS", WRCand.M(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_ll_pt_OS", dilepton_pt, mm_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_leading_jet_pt_OS", selected_jets[0].Pt(), mm_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_subleading_jet_pt_OS", selected_jets[1].Pt(), mm_weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/Obj_PU_Corr_SR_Resolved_MM_mlljj_OS", WRCand.M(), mm_weight, 8000, 0., 8000.);
+
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_ll_pt_OS", dilepton_pt, weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_leading_jet_pt_OS", selected_jets[0].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_subleading_jet_pt_OS", selected_jets[1].Pt(), weight, 8000, 0., 8000.);
+                                FillHist(this_syst + "/PU_Corr_SR_Resolved_MM_mlljj_OS", WRCand.M(), weight, 8000, 0., 8000.);
                         }
                     }
                 }
@@ -585,10 +700,39 @@ void Reproduce20_002::executeEventFromParameter() {
                                 FillHist(this_syst + "/Boost_cutflow_DY", 6 , weight, 20,-10,10.);
                                 // DY CR
                                 FillHist(this_syst + "/DY_CR_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+                                if (!IsDATA){
+                                    //SF
+                                    if(is_tmp_lead_el){
+                                        float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                        float ElRECOSF = (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi())) ;
+                                        float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                        float ee_weight = weight * ElIDSF * ElRECOSF * EleTrigSF;
+                                    }
+                                    if(is_tmp_lead_mu){
+                                        float MuIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
+                                        float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0])) ;
+                                        float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *Tight_muons[0]));
+                                        float mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF;
+                                    }
+                                }
+                                if (IsDATA){
+                                    float ee_weight = weight;
+                                    float mm_weight = weight;
+                                }
+
+
                                 if (is_tmp_lead_el){ // ee 
+                                        FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_DY_CR_EE", (*LeadLep + *LowMllLooseLepton).Pt(), ee_weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_DY_CR_EE", HNFatJet.Pt(), ee_weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/Obj_PU_m(lljj)_boosted_DY_CR_EE", WRCand.M(), ee_weight, 8000, 0., 8000.);
+
                                         FillHist(this_syst + "/pt(ll)_boosted_DY_CR_EE", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                         FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR_EE", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                         FillHist(this_syst + "/m(lljj)_boosted_DY_CR_EE", WRCand.M(), weight, 8000, 0., 8000.);
+
+                                        FillHist(this_syst + "/NO_PU_pt(ll)_boosted_DY_CR_EE", (*LeadLep + *LowMllLooseLepton).Pt(), norm_weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR_EE", HNFatJet.Pt(), norm_weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/m(lljj)_boosted_DY_CR_EE", WRCand.M(), norm_weight, 8000, 0., 8000.);
                                         if (looselepton_infatjet){
                                             FillHist(this_syst + "/Boosted_DY_CR_EE_looselepton_infatjet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
                                         }
@@ -597,9 +741,17 @@ void Reproduce20_002::executeEventFromParameter() {
                                         }
                                     }
                                     if (is_tmp_lead_mu){// mumu
+                                        FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_DY_CR_MM", (*LeadLep + *LowMllLooseLepton).Pt(), mm_weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_DY_CR_MM", HNFatJet.Pt(), mm_weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/Obj_PU_m(lljj)_boosted_DY_CR_MM", WRCand.M(), mm_weight, 8000, 0., 8000.);
+
                                         FillHist(this_syst + "/pt(ll)_boosted_DY_CR_MM", (*LeadLep + *LowMllLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                         FillHist(this_syst + "/leading_fatjet_pt_boosted_DY_CR_MM", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                         FillHist(this_syst + "/m(lljj)_boosted_DY_CR_MM", WRCand.M(), weight, 8000, 0., 8000.);
+
+                                        FillHist(this_syst + "/NO_PU_pt(ll)_boosted_DY_CR_MM", (*LeadLep + *LowMllLooseLepton).Pt(), norm_weight, 1000, 0., 1000.);
+                                        FillHist(this_syst + "/NO_PU_leading_fatjet_pt_boosted_DY_CR_MM", HNFatJet.Pt(), norm_weight, 2000, 0., 2000.);
+                                        FillHist(this_syst + "/NO_PU_m(lljj)_boosted_DY_CR_MM", WRCand.M(), norm_weight, 8000, 0., 8000.);
                                         if (looselepton_infatjet){
                                             FillHist(this_syst + "/Boosted_DY_CR_MM_looselepton_infatjet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
                                         }
@@ -760,36 +912,78 @@ void Reproduce20_002::executeEventFromParameter() {
                                         // Boosted DY SR
                                         if (WRMassGT800) {
                                             if(!IsDATA){
+                                                //SF
+                                                if(is_tmp_lead_el){
+                                                    float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                                    float ElRECOSF = (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi())) ;
+                                                    float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                                    float ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                                                }
+                                                if(is_tmp_lead_mu){
+
+                                                    float MuIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
+                                                    float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0])) ;
+                                                    RVec<Muon *> temp_second_muon;
+                                                    temp_second_muon.push_back( (Muon *)SFLooseLepton );
+                                                    float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *Tight_muons[0]))*(myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *temp_second_muon[0]));
+                                                    float mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF;
+                                                }
+
                                                 if (is_tmp_lead_el) {
-                                                    FillHist(this_syst + "/SR_boosted_Dilepton_Pt_ee", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
-                                                    FillHist(this_syst + "/SR_leading_fatjet_pt_boosted_ee", HNFatJet.Pt(), weight, 8000, 0., 8000.);
-                                                    FillHist(this_syst + "/SR_boosted_WRMass_ee", WRCand.M(), weight, 8000, 0., 8000.);
+                                                    //SF 
+                                                    FillHist(this_syst + "/Obj_PU_boosted_Dilepton_Pt_ee", (*LeadLep + *SFLooseLepton).Pt(), ee_weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_ee", HNFatJet.Pt(), ee_weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/Obj_PU_boosted_WRMass_ee", WRCand.M(), ee_weight, 8000, 0., 8000.);
+
+                                                    FillHist(this_syst + "/PU_SR_boosted_Dilepton_Pt_ee", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/PU_SR_leading_fatjet_pt_boosted_ee", HNFatJet.Pt(), weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/PU_SR_boosted_WRMass_ee", WRCand.M(), weight, 8000, 0., 8000.);
                                                     //charge 
                                                     if ( LeadLepCharge * SFLooseLeptonCharge > 0 ) {
-                                                        FillHist(this_syst + "/SR_boosted_Dilepton_Pt_ee_SS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_leading_fatjet_pt_boosted_ee_SS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_boosted_WRMass_ee_SS", WRCand.M(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_Dilepton_Pt_ee_SS", (*LeadLep + *SFLooseLepton).Pt(), ee_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_leading_fatjet_pt_boosted_ee_SS", HNFatJet.Pt(), ee_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_WRMass_ee_SS", WRCand.M(), ee_weight, 8000, 0., 8000.);
+
+                                                        FillHist(this_syst + "/PU_SR_boosted_Dilepton_Pt_ee_SS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_leading_fatjet_pt_boosted_ee_SS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_boosted_WRMass_ee_SS", WRCand.M(), weight, 8000, 0., 8000.);
                                                     }
                                                     else {
-                                                        FillHist(this_syst + "/SR_boosted_Dilepton_Pt_ee_OS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_leading_fatjet_pt_boosted_ee_OS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_boosted_WRMass_ee_OS", WRCand.M(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_Dilepton_Pt_ee_OS", (*LeadLep + *SFLooseLepton).Pt(), ee_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_leading_fatjet_pt_boosted_ee_OS", HNFatJet.Pt(), ee_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_WRMass_ee_OS", WRCand.M(), ee_weight, 8000, 0., 8000.);
+
+                                                        FillHist(this_syst + "/PU_SR_boosted_Dilepton_Pt_ee_OS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_leading_fatjet_pt_boosted_ee_OS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_boosted_WRMass_ee_OS", WRCand.M(), weight, 8000, 0., 8000.);
                                                     }
                                                 }
                                             else if (is_tmp_lead_mu) {
-                                                    FillHist(this_syst + "/SR_boosted_Dilepton_Pt_mumu", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
-                                                    FillHist(this_syst + "/SR_leading_fatjet_pt_boosted_mumu", HNFatJet.Pt(), weight, 8000, 0., 8000.);
-                                                    FillHist(this_syst + "/SR_boosted_WRMass_mumu", WRCand.M(), weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/Obj_PU_SR_boosted_Dilepton_Pt_mumu", (*LeadLep + *SFLooseLepton).Pt(), mm_weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/Obj_PU_SR_leading_fatjet_pt_boosted_mumu", HNFatJet.Pt(), mm_weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/Obj_PU_SR_boosted_WRMass_mumu", WRCand.M(), mm_weight, 8000, 0., 8000.);
+
+                                                    FillHist(this_syst + "/PU_SR_boosted_Dilepton_Pt_mumu", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/PU_SR_leading_fatjet_pt_boosted_mumu", HNFatJet.Pt(), weight, 8000, 0., 8000.);
+                                                    FillHist(this_syst + "/PU_SR_boosted_WRMass_mumu", WRCand.M(), weight, 8000, 0., 8000.);
                                                     //charge
                                                     if ( LeadLepCharge * SFLooseLeptonCharge > 0 ) {
-                                                        FillHist(this_syst + "/SR_boosted_Dilepton_Pt_mumu_SS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_leading_fatjet_pt_boosted_mumu_SS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_boosted_WRMass_mumu_SS", WRCand.M(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_Dilepton_Pt_mumu_SS", (*LeadLep + *SFLooseLepton).Pt(), mm_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_leading_fatjet_pt_boosted_mumu_SS", HNFatJet.Pt(), mm_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_WRMass_mumu_SS", WRCand.M(), mm_weight, 8000, 0., 8000.);
+
+                                                        FillHist(this_syst + "/PU_SR_boosted_Dilepton_Pt_mumu_SS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_leading_fatjet_pt_boosted_mumu_SS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_boosted_WRMass_mumu_SS", WRCand.M(), weight, 8000, 0., 8000.);
                                                     }
                                                     else {
-                                                        FillHist(this_syst + "/SR_boosted_Dilepton_Pt_mumu_OS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_leading_fatjet_pt_boosted_mumu_OS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
-                                                        FillHist(this_syst + "/SR_boosted_WRMass_mumu_OS", WRCand.M(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_Dilepton_Pt_mumu_OS", (*LeadLep + *SFLooseLepton).Pt(), mm_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_leading_fatjet_pt_boosted_mumu_OS", HNFatJet.Pt(), mm_weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/Obj_PU_SR_boosted_WRMass_mumu_OS", WRCand.M(), mm_weight, 8000, 0., 8000.);
+
+                                                        FillHist(this_syst + "/PU_SR_boosted_Dilepton_Pt_mumu_OS", (*LeadLep + *SFLooseLepton).Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_leading_fatjet_pt_boosted_mumu_OS", HNFatJet.Pt(), weight, 8000, 0., 8000.);
+                                                        FillHist(this_syst + "/PU_SR_boosted_WRMass_mumu_OS", WRCand.M(), weight, 8000, 0., 8000.);
                                                     }
                                                 }                                            
                                             }
@@ -822,19 +1016,57 @@ void Reproduce20_002::executeEventFromParameter() {
                                     FillHist(this_syst + "/Boost_cutflow_FLV", -7 , weight, 20, -10, 10.);
                                     if (WRMassGT800) {
                                         FillHist(this_syst + "/Boost_cutflow_FLV", -8 , weight, 20, -10, 10.);
+                                        if(!IsDATA){
+                                            if(is_tmp_lead_el){
+                                                    float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                                    float ElRECOSF = (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi())) ;
+                                                    float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                                    float ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                                                }
+                                                if(is_tmp_lead_mu){
+                                                    float MuIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
+                                                    float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0])) ;
+                                                    float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *Tight_muons[0]));
+                                                    float mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF; //only muon apply trigger SF to loose muon 
+                                                }
+                                        }
+                                        if(IsDATA){
+                                            float mm_weight = weight;
+                                            float ee_weight = weight;
+                                        }
                                         if (is_tmp_lead_el) {
+                                            FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_e_mujet_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(),  ee_weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_e_mujet_Flavor_CR", HNFatJet.Pt(), ee_weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/Obj_PU_m(lljj)_boosted_e_mujet_Flavor_CR", WRCand.M(), ee_weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_SDMass", HNFatJet.SDMass() , ee_weight, 10000, 0., 10000.);
                                             // Boosted Flavor CR
                                             FillHist(this_syst + "/pt(ll)_boosted_e_mujet_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                             FillHist(this_syst + "/leading_fatjet_pt_boosted_e_mujet_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                             FillHist(this_syst + "/m(lljj)_boosted_e_mujet_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                             FillHist(this_syst + "/Boosted_Flavor_CR_e_mujet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+
+                                            FillHist(this_syst + "/NO_PU_pt(ll)_boosted_e_mujet_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), norm_weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/NO_PU_leading_fatjet_pt_boosted_e_mujet_Flavor_CR", HNFatJet.Pt(), norm_weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/NO_PU_m(lljj)_boosted_e_mujet_Flavor_CR", WRCand.M(), norm_weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/NO_PU_Boosted_Flavor_CR_e_mujet_Fatjet_SDMass", HNFatJet.SDMass() , norm_weight, 10000, 0., 10000.);
                                         }
                                         else if (is_tmp_lead_mu) {
                                             // Boosted Flavor CR
+                                            FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_mu_ejets_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), mm_weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_mu_ejets_Flavor_CR", HNFatJet.Pt(), mm_weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/Obj_PU_m(lljj)_boosted_mu_ejets_Flavor_CR", WRCand.M(), mm_weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_SDMass", HNFatJet.SDMass() , mm_weight, 10000, 0., 10000.);
+
                                             FillHist(this_syst + "/pt(ll)_boosted_mu_ejets_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), weight, 1000, 0., 1000.);
                                             FillHist(this_syst + "/leading_fatjet_pt_boosted_mu_ejets_Flavor_CR", HNFatJet.Pt(), weight, 2000, 0., 2000.);
                                             FillHist(this_syst + "/m(lljj)_boosted_mu_ejets_Flavor_CR", WRCand.M(), weight, 8000, 0., 8000.);
                                             FillHist(this_syst + "/Boosted_Flavor_CR_mu_ejets_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
+
+                                            FillHist(this_syst + "/NO_PU_pt(ll)_boosted_mu_ejets_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(), norm_weight, 1000, 0., 1000.);
+                                            FillHist(this_syst + "/NO_PU_leading_fatjet_pt_boosted_mu_ejets_Flavor_CR", HNFatJet.Pt(), norm_weight, 2000, 0., 2000.);
+                                            FillHist(this_syst + "/NO_PU_m(lljj)_boosted_mu_ejets_Flavor_CR", WRCand.M(), norm_weight, 8000, 0., 8000.);
+                                            FillHist(this_syst + "/NO_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_SDMass", HNFatJet.SDMass() , norm_weight, 10000, 0., 10000.);
+
                                         }
                                         // B    oosted Flavor CR
                                     }
@@ -916,5 +1148,4 @@ RVec<Jet> Reproduce20_002::Clean_jet_with_tight_leptons(const RVec<Jet> & jets, 
     }
     return cleanedjets;
 }
-
 

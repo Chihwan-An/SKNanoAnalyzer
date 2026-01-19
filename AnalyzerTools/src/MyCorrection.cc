@@ -282,7 +282,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_met += "/2022_Summer22EE/met.json.gz";
         config.txt_roccor += "/RoccoR2022EE.txt";
     } else if (era == "2023") {
-        config.json_muon += "/2023_Summer23/muon_Z.json.gz";
+        config.json_muon += "/2023_Summer23/muon_HighPt.json.gz";
         config.json_muon_trig_eff += "/2023/MUO/muon_trig.json";
         config.json_puWeights += "/2023_Summer23/puWeights.json.gz";
         config.json_btagging += "/2023_Summer23/btagging.json.gz";

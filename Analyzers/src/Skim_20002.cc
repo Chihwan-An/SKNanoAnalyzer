@@ -1,11 +1,15 @@
 #include "Skim_20002.h"    
 
-Skim_20002::Skim_20002() {}
-Skim_20002::~Skim_20002() {}  
+Skim_20002::Skim_20002() {
+    newtree = NULL; 
+}
+
+Skim_20002::~Skim_20002() {}
 
 void Skim_20002::initializeAnalyzer() {
-    // if signal ..  # 26 
-    // kfactor  # 51
+    GetOutfile()->cd();
+    newtree = fChain->CloneTree(0);
+
     el_set.AllElectrons.clear();
     mu_set.AllMuons.clear();
     jet_set.AllJets.clear();
@@ -150,9 +154,16 @@ void Skim_20002::executeEventFromParameter() {
     RVec<Jet> selected_jets = SelectJets(jet_set.cleanedjet_with_tight_leptons, jet_set.Jet_ID[0] , jet_set.Jet_MinPt, jet_set.Jet_MaxEta);
     
     if (Tight_leps.size() < 1) return;
+    newtree->Fill();
 
 }
 
+void Skim_20002::WriteHist() {
+    //GetOutfile()->mkdir("Events");
+    GetOutfile()->cd();
+    newtree->Write();
+    //GetOutfile()->cd();   
+}
 
 bool Skim_20002::Electrons::isPassCustomLooseID(const Electron& el) const {
     if (!(el.hoe() < 0.5)) return false;

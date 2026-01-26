@@ -1,6 +1,7 @@
-Muon*
-Single*
-DY*MG*
-TT*
-ST*
-QCD*Mu*
+DYJets10to50
+WWW
+WWZ
+WZZ
+ZZZ
+TTW*
+TTZ*

@@ -62,12 +62,21 @@ public:
     float GetElectronRECOSF(const RVec<Electron> &electrons, const variation syst = variation::nom) const;
     float GetElectronIDSF(const TString &Electron_ID_SF_Key, const float abseta, const float pt, const float phi, const variation syst = variation::nom) const;
     float GetElectronIDSF(const TString &Electron_ID_SF_Key, const RVec<Electron> &electrons, const variation syst = variation::nom) const;
+    // Electron의 내부 변수(eta, pt, phi)를 풀어서 전달
+    inline float GetElectronsTriggerSF(const TString &Electron_Trigger_SF_Key, const Electron &electron, const variation syst = variation::nom, const TString &source = "") { 
+    return GetElectronIDSF(Electron_Trigger_SF_Key, fabs(electron.Eta()), electron.Pt(), electron.Phi(), syst); };
+    float GetElectronsTriggerSF(const TString &Electron_Trigger_SF_Key, const RVec<Electron*> &electrons, const variation syst = variation::nom) const;
+
     // photon
 
     // Trigger
     // Single lepton trigger from POG
     float GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key, const float abseta, const float pt, const bool isData, const variation syst = variation::nom) const;
     float GetMuonTriggerSF(const TString &Muon_Trigger_Eff_Key, const RVec<Muon> &muons, const variation syst = variation::nom) const;
+    float GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key, const RVec<Muon*> &muons, const variation syst = variation::nom) const;
+
+    float GetElectronsTriggerEff(const TString &Electron_Trigger_Eff_Key, const float abseta, const float pt, const bool isData, const variation syst = variation::nom) const;
+    float GetElectronsTriggerSF(const TString &Electron_Trigger_SF_Key, const RVec<Electron> &electrons, const variation syst = variation::nom) const;
     float GetElectronTriggerEff(const TString &Electron_ID_SF_Key, const float eta, const float pt, const float phi, const bool isDATA, const variation syst = variation::nom) const;
     inline float GetElectronTriggerDataEff(const TString &Electron_ID_SF_Key, const float eta, const float pt, const float phi, const variation syst = variation::nom) {
         return GetElectronTriggerEff(Electron_ID_SF_Key, eta, pt, phi, true, syst);
@@ -117,7 +126,9 @@ public:
     float GetJER(const float eta, const float pt, const float rho) const;
     float GetJERSF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     float GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
+    float GetFatJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
     float GetJESUncertainty(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    float GetFJESUncertainty(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     // jerc_fatjet
     
     // jetvetomap
@@ -195,6 +206,7 @@ private:
         string json_jerc_fatjet;
         string json_jetvetomap;
         string json_jmar;
+        string json_jetid;
         string json_met;
         string txt_roccor;
         
@@ -296,6 +308,7 @@ private:
     unique_ptr<CorrectionSet> cset_jerc_fatjet;
     unique_ptr<CorrectionSet> cset_jetvetomap;
     unique_ptr<CorrectionSet> cset_jmar;
+    unique_ptr<CorrectionSet> cset_jetid;
     unique_ptr<CorrectionSet> cset_met;
 
     // custom
@@ -314,6 +327,7 @@ private:
     unordered_map<string, string> EGM_keys;
     unordered_map<string, string> JME_JER_GT;
     unordered_map<string, string> JME_JES_GT;
+    unordered_map<string, string> JME_FJES_GT;
     unordered_map<string, string> JME_vetomap_keys;
     unordered_map<string, string> JME_PILEUP_keys;
     unordered_map<string, string> JME_MET_keys;

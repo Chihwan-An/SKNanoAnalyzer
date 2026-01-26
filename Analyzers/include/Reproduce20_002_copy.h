@@ -70,8 +70,16 @@ public:
         RVec<std::string> Ele_Trigger;
         float Ele_Trigger_Safe_Pt_Cut;
         
-        std::string Electron_IS_SF_Key = "HEEP";
-        std::string Electron_Trigger_SF_Key = "HEEP";
+        float Barrel_ID_SF_2023_C = 1.007;
+        float Barrel_ID_SF_2023_C_err = 0.004;
+        float Barrel_ID_SF_2023_D = 1.009;
+        float Barrel_ID_SF_2023_D_err = 0.005;
+
+        float Endcap_ID_SF_2023_C = 0.988;
+        float Endcap_ID_SF_2023_C_err = 0.005;
+        float Endcap_ID_SF_2023_D = 0.988;
+        float Endcap_ID_SF_2023_D_err = 0.004;
+
         std::string Electron_FR_ID = "HNWR";
         std::string Electron_FR_Key = "AwayJetPt40";
         std::string Electron_CF_ID = "HNWRTight";
@@ -114,6 +122,7 @@ public:
         RVec<Jet::JetID> JetIds;
         RVec<Jet>cleanedjet_with_tight_leptons;
         RVec<Jet>cleanedjet_with_loose_leptons;
+        RVec<Jet>JetVetoed;
     }jet_set;
 
     struct FatJets{

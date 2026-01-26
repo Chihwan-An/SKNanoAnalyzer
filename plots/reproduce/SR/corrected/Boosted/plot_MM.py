@@ -729,7 +729,7 @@ def load_background_histograms(data_dir, hist_name, systematic="Central", draw_t
             filename.startswith("EGamma_") or
             filename.startswith("MuonEG_") or
             filename.startswith("SingleMuon")or
-            filename.startswith("WJets.root")or
+            #filename.startswith("WJets.root")or
             filename.startswith("WZTo")or
             filename.startswith("ZZTo") or
             filename.startswith("DYG") or

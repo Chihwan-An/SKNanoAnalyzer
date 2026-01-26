@@ -11,38 +11,39 @@ void Reproduce20_002::initializeAnalyzer() {
     jet_set.AllJets.clear();
     fatjet_set.AllFatJets.clear();
     gen_set.gens.clear();
-
+    
     mu_set.Muon_Trigger.clear();
     mu_set.Muon_Trigger_Safe_Pt_Cut = 0.;
     el_set.Ele_Trigger.clear();
     el_set.Ele_Trigger_Safe_Pt_Cut = 0.;
     
+    
     if (DataEra == "2022")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 35.;  
     }
     if (DataEra == "2022EE")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
     if (DataEra == "2023")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
     if (DataEra == "2023BPix")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 35.; 
     }
 
@@ -66,58 +67,47 @@ void Reproduce20_002::executeEvent() {
     jet_set.AllJets = GetAllJets();
     fatjet_set.AllFatJets = GetAllFatJets();
     gen_set.gens = GetAllGens();
-    // no tune p muon 
-    
 
-    // DY pt reweight
-    if(MCSample.Contains("DY")){
-    // wtf ?
-    }
+    //std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
+    
     for (const auto &syst_dummy : *systHelper) {
         executeEventFromParameter();
     }
-    // Nvtx ( PU )
-
-
-    //Parameter -no function of parameter -> use struct 
-    
-
-    //Run syst  # 457
-
-
-
 
 }
 
 void Reproduce20_002::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
-
+    if (this_syst != "Central") return;
+    
     Event ev = GetEvent();
     Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
+    
+    //std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
+    
+    //weight_function_map["PU_Weight"] = [&](MyCorrection::variation var, TString source) {
+    //    return myCorr->GetPUWeight(ev.nTrueInt(), var);
+    //};
     float PU_Weight = myCorr->GetPUWeight(ev.nTrueInt(),MyCorrection::variation::nom,this_syst);
+    
+
+
     float weight = 1.0;
     float norm_weight = 1.0;
     float ee_weight = 1.0;
     float mm_weight = 1.0;
     float em_weight = 1.0;
+    float heep_ID_weight = 1.0;
+
     if(!IsDATA){
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("Full");
+        FillHist(this_syst + "/pilup_weight", PU_Weight , 1.0, 200, -10., 10.); 
+        FillHist(this_syst + "/event_weight_before_pileup", weight , 1.0, 200, -10., 10.);
         weight *= PU_Weight;
-        norm_weight *= MCweight();
-        norm_weight *= ev.GetTriggerLumi("Full");
-        // weight_norm_1invpb??
-
-        // Z pt reweight
-
-        // signal -> Kfactor 
+        FillHist(this_syst + "/event_weight_after_pileup", weight , 1.0, 200, -10., 10.);
+        
     }
-
-    //  No cut 
-
-    FillHist(this_syst + "/CutFlow", 0.0, weight, 20,-10,10.); // Initial event
-
-
     //Event selection 
     RVec<Electron> electrons = el_set.AllElectrons;
     RVec<Muon> muons = mu_set.AllMuons;
@@ -125,36 +115,16 @@ void Reproduce20_002::executeEventFromParameter() {
     RVec<FatJet> fatjets = fatjet_set.AllFatJets;
     if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) return;
 
-    FillHist(this_syst + "/CutFlow", 1.0, weight, 20,-10,10.); // Noise filter pass
-    
-    
-
-
-
-
     bool pass_trig_muon = ev.PassTrigger(mu_set.Muon_Trigger);
     bool pass_trig_elec = ev.PassTrigger(el_set.Ele_Trigger);
 
-    FillHist(this_syst + "/CutFlow", 2.0, weight, 20,-10,10.); // HLT pass
-
-    
-    
-
-
-
-
 
     std::string nom = "nom";
+    
     ///         Leptons       ///
-    /*
-    for (unsigned int i=0 ; i< muons.size(); i ++) 
-        {
-        Muon & mu = muons.at(i);
-        myCorr->GetMuonScaleSF(mu,nom,mu.Pt());
-    }    
-    */
-    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.4); //ID in 429
-    RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , mu_set.Muon_MinPt, 2.4); //ID in 446
+
+    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.4); 
+    RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , mu_set.Muon_MinPt, 2.4); 
     
     RVec<FatJet> fatjet_list ;
     RVec<FatJet> lsf ;
@@ -164,29 +134,21 @@ void Reproduce20_002::executeEventFromParameter() {
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet & fj = fatjets.at(i);
         if ((fj.Pt() > fatjet_set.FatJet_MinPt) && (abs(fj.Eta())<fatjet_set.FatJet_MaxEta) && (fj.SDMass() > fatjet_set.FatJet_SDM) ) {
-            FillHist(this_syst + "fatjet_cutflow", 1 , weight, 10, 0., 10.);
             if (fj.PassID(fatjet_set.FatJet_ID)) return;
-                
                 fatjet_list.push_back(fj);
-                FillHist(this_syst + "/Fatjet_num_preLSF", 1 , weight, 10, 0., 10.);
-                FillHist(this_syst + "/Fatjet_lsf_preLSF", fj.LSF3() , weight, 100, 0., 1.);
                 if (fj.LSF3() >fatjet_set.Fatjet_LSF) {
                     lsf.push_back(fj);
-                    FillHist(this_syst + "/Fatjet_num_LSF", 1 , weight, 10, 0., 10.);
-
-                //}
             }
         }
     }
+    
     fatjets = fatjet_list;
     RVec<FatJet> fatjets_LSF = lsf;
 
     sort (fatjets.begin(), fatjets.end(), PtComparing);
     sort (fatjets_LSF.begin(), fatjets_LSF.end(), PtComparing);
     
-    
 
-    //prompt only 구현 필요    
     sort (my_electrons.begin(), my_electrons.end(), PtComparing);
     sort (my_muons.begin(), my_muons.end(), PtComparing);
 
@@ -213,6 +175,7 @@ void Reproduce20_002::executeEventFromParameter() {
                 el_tight_but_fail_loose += 10.;
             }
         }
+
         // Loose ID
         if (el_set.isPassCustomLooseID(el)){
             Loose_electrons.push_back(&el);
@@ -225,6 +188,7 @@ void Reproduce20_002::executeEventFromParameter() {
             }
         }
     }
+    
     FillHist(this_syst + "/Electron_Tight_and_Loose_ID_Check", el_tight_and_loose + el_tight_but_fail_loose + el_loose_and_fail_tight + el_loose_but_tight , weight, 1111, 0., 1111.);
     
     for (unsigned int i=0 ; i< my_muons.size(); i ++) {
@@ -243,10 +207,12 @@ void Reproduce20_002::executeEventFromParameter() {
             Loose_leps.push_back(&mu);
         }
     }
+    
     sort (Tight_leps.begin(), Tight_leps.end(), PtComparingPtr);
 
     int n_Loose_leptons  = Loose_electrons.size() + Loose_muons.size();
     int n_Tight_leptons  = Tight_electrons.size() + Tight_muons.size();
+    
     FillHist(this_syst + "/N_Loose_Lepton", n_Loose_leptons , weight, 10, 0., 10.);
     FillHist(this_syst + "/N_Tight_Lepton", n_Tight_leptons , weight, 10, 0., 10.);
     FillHist(this_syst + "/Tightleps_pt_lead", Tight_leps.size() >0 ? Tight_leps[0]->Pt() : 0. , weight, 100, 0., 500.);
@@ -259,7 +225,24 @@ void Reproduce20_002::executeEventFromParameter() {
 
     // sepration lepton - jets 
     jet_set.cleanedjet_with_tight_leptons = Clean_jet_with_tight_leptons(jet_set.AllJets, Tight_leps);
-    
+
+
+    //jet veto 
+    //cout<<"inclusive jet"<<endl;
+    bool is_jet_veto = AnalyzerCore::PassVetoMap(jet_set.cleanedjet_with_tight_leptons, mu_set.AllMuons, "jetvetomap");
+    if (!(is_jet_veto) ) return;
+    //cout<<"jet vetoed"<<endl;
+    /*
+    bool pass_jet_veto = false;
+    for (unsigned int i=0 ; i< jet_set.cleanedjet_with_tight_leptons.size(); i ++) {
+        if (!(myCorr->IsJetVetoZone(jet_set.cleanedjet_with_tight_leptons[i].Eta(), jet_set.cleanedjet_with_tight_leptons[i].Phi(),"jetvetomap") )){
+            pass_jet_veto = true;
+            jet_set.JetVetoed.push_back(jet_set.cleanedjet_with_tight_leptons[i]);
+        }
+    }
+    */
+
+    //if ((jet_set.JetVetoed.size()) ==0 ) return; //prevent from using empty jet vector
 
     FillHist(this_syst + "/Non_Selected_Jetnum", jets.size(), 1.0, 20, 0., 20.);
     RVec<Jet> selected_jets = SelectJets(jet_set.cleanedjet_with_tight_leptons, jet_set.Jet_ID[0] , jet_set.Jet_MinPt, jet_set.Jet_MaxEta);
@@ -268,22 +251,6 @@ void Reproduce20_002::executeEventFromParameter() {
 
     ///         FatJets       ///
     
-
-    // # of bjets 
-    /*
-    int NBJets=0;
-    for(unsigned int i=0; i<jets.size(); i++){
-        if( mcCorr->IsBTagged_2a(JetTagging::Parameters(JetTagging::DeepCSV, JetTagging::Medium, JetTagging::incl, JetTagging::comb), jets.at(i), SystDir_BTag) ){
-        NBJets++;
-        }
-    */
-
-
-    // sum of pt 
-    double HT(0.);
-    for(const auto &jet: jet_set.AllJets){
-        HT += jet.Pt();
-    }
 
 
     // Requires 2 tight leptons , l1 > 60 
@@ -298,8 +265,47 @@ void Reproduce20_002::executeEventFromParameter() {
         if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
             this_trigger_pass = pass_trig_elec;
             tmp_isEE = true;
-            FillHist(this_syst + "/tightmuons", 1 , weight, 5, 0., 5.);
-        }
+            /*
+            weight_function_map["HEEP_Resolved_EE_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+
+            double eta1 = abs(Tight_electrons[0]->Eta());
+            double eta2 = abs(Tight_electrons[1]->Eta());
+            float EB_syst = 0.004; 
+            float EE_syst = 0.005;
+
+            auto get_single_electron_sf = [&](double eta, float base_sf) -> float {
+            bool isEB = (eta < 1.444);
+            bool isEE = (eta > 1.566 && eta < 2.5);
+
+            float current_syst = 0.0;
+        
+            if (isEB)      current_syst = EB_syst;
+            else if (isEE) current_syst = EE_syst;
+            else           return base_sf; // Gap 영역 등은 오차 적용 안 함 (혹은 1.0 반환)
+
+        
+            if (var == MyCorrection::variation::up) {
+                return base_sf + current_syst;
+            } else if (var == MyCorrection::variation::down) {
+                return base_sf - current_syst;
+            } else {
+                return base_sf; // Nominal
+            }
+        };
+
+        float sf1_base = 1.0;
+        if      (eta1 < 1.444)                       sf1_base = el_set.Barrel_ID_SF_2023_C;
+        else if (eta1 > 1.566 && eta1 < 2.5)         sf1_base = el_set.Endcap_ID_SF_2023_C;
+
+        float sf2_base = 1.0;
+        if      (eta2 < 1.444)                       sf2_base = el_set.Barrel_ID_SF_2023_C;
+        else if (eta2 > 1.566 && eta2 < 2.5)         sf2_base = el_set.Endcap_ID_SF_2023_C;
+
+        return get_single_electron_sf(eta1, sf1_base) * get_single_electron_sf(eta2, sf2_base);
+        };
+        */
+    }
+    
         else if ( (Tight_muons.size() == 2) && ( Tight_electrons.size() == 0 )) {
             this_trigger_pass = pass_trig_muon;
             tmp_isMM = true;
@@ -308,29 +314,66 @@ void Reproduce20_002::executeEventFromParameter() {
         else if ( (Tight_muons.size() == 1) && ( Tight_electrons.size() == 1 )) {
             this_trigger_pass = pass_trig_muon;
             tmp_isEM = true;
+            /*
+            weight_function_map["HEEP_Resolved_EM_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+
+            double eta1 = abs(Tight_electrons[0]->Eta());
+            
+            float EB_syst = 0.004; 
+            float EE_syst = 0.005;
+
+            auto get_single_electron_sf = [&](double eta, float base_sf) -> float {
+            bool isEB = (eta < 1.444);
+            bool isEE = (eta > 1.566 && eta < 2.5);
+
+            float current_syst = 0.0;
+        
+            if (isEB)      current_syst = EB_syst;
+            else if (isEE) current_syst = EE_syst;
+            else           return base_sf; // Gap 영역 등은 오차 적용 안 함 (혹은 1.0 반환)
+
+        
+            if (var == MyCorrection::variation::up) {
+                return base_sf + current_syst;
+            } else if (var == MyCorrection::variation::down) {
+                return base_sf - current_syst;
+            } else {
+                return base_sf; // Nominal
+            }
+        };
+        
+        float sf1_base = 1.0;
+        if      (eta1 < 1.444)                       sf1_base = el_set.Barrel_ID_SF_2023_C;
+        else if (eta1 > 1.566 && eta1 < 2.5)         sf1_base = el_set.Endcap_ID_SF_2023_C;
+
+        return get_single_electron_sf(eta1, sf1_base) ;
+        };
+        */
             FillHist(this_syst + "/tightmuons", 3 , weight, 5, 0., 5.);
         }
 
+        
+
         if (this_trigger_pass) {
+            
             // needs 2 jets 
             Lepton *LeadLep = Tight_leps[0];
             Lepton *SubLeadLep = Tight_leps[1];
             
             float LeadLepCharge = LeadLep->Charge();
             float SubLeadLepCharge = SubLeadLep->Charge();
-
-            bool dRLeadJetLepon = (selected_jets[0].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[0].DeltaR(*Tight_leps[1]) > 0.4);
-            bool dRSubLeadJetLepon = (selected_jets[1].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[1].DeltaR(*Tight_leps[1]) > 0.4);
-            bool dRTwoLetpton = (LeadLep->DeltaR(*SubLeadLep) > 0.4);
-            bool dRTwoJets = (selected_jets[0].DeltaR(selected_jets[1]) > 0.4);
+            bool dRLeadJetLepon(false), dRSubLeadJetLepon(false), dRTwoLetpton(false), dRTwoJets(false);
+            if (selected_jets.size() >= 2) {
+            dRLeadJetLepon = (selected_jets[0].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[0].DeltaR(*Tight_leps[1]) > 0.4);
+            dRSubLeadJetLepon = (selected_jets[1].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[1].DeltaR(*Tight_leps[1]) > 0.4);
+            dRTwoLetpton = (LeadLep->DeltaR(*SubLeadLep) > 0.4);
+            dRTwoJets = (selected_jets[0].DeltaR(selected_jets[1]) > 0.4);
+            }
             FillHist(this_syst + "/Jetnumber_before_resolved_selection1", selected_jets.size(), weight, 20,-10,10.);
-            //if (selected_jets.size() >= 2 ) {
                 FillHist(this_syst + "/Jetnumber_before_resolved_selection2", selected_jets.size(), weight, 20,-10,10.);
-                FillHist(this_syst + "/CutFlow", 4.0, weight, 20,-10,10.); // 2 jets 
                 if ((selected_jets.size() >= 2 )&&(dRLeadJetLepon)&&(dRSubLeadJetLepon)&&(dRTwoLetpton)&&(dRTwoJets)) { 
                     FillHist(this_syst + "/Jetnumber_before_resolved_selection3", selected_jets.size(), weight, 20,-10,10.);
                     IsResolvedEvent = true;
-                    FillHist(this_syst + "/CutFlow", 5.0, weight, 20,-10,10.); // 2 jets
                     // Mass calculation 
                     Particle WRCand = *LeadLep + *SubLeadLep + selected_jets[0] + selected_jets[1];
                     
@@ -345,46 +388,91 @@ void Reproduce20_002::executeEventFromParameter() {
                     bool DiLepMass200to400  = (dilepton_mass >= 200.) && (dilepton_mass < 400.);
                     double trigger_sf_SingleElectron = 1.0;
                     double trigger_sf_SingleMuon = 1.0;
-                // e , mu id , reco , ISO SF
+
+
+                    
                 
                 // Trigger SF
-                // DY reshape ?
-                // saving plots for each CR 
-
                 if(!IsDATA){
-                        cout << "ok1" << endl;
-                        if(tmp_isEE){
-                            cout<<"ok2" << endl;
-                            float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(Tight_electrons[0]->Eta()), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi()))*(myCorr->GetElectronIDSF("Loose", fabs(Tight_electrons[1]->Eta()), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi()));
-                            cout<<"ok3" << endl;
-                            float ElRECOSF = (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi())) * myCorr->GetElectronRECOSF(Tight_electrons[1]->Eta(), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi());
-                            cout<<"ok4" << endl;
-                            float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(Tight_electrons[0]->Eta()), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi()));
-                            cout<<"ok5" << endl;
-                            float ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                    if(tmp_isEE){
+                        
+                        float ElIDSF = heep_ID_weight;
+                        /*
+                        weight_function_map["Resolved_DY_EE_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                            return (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) * myCorr->GetElectronRECOSF(Tight_electrons[1]->Eta(), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi(),var);
+                        };
+                        weight_function_map["Resolved_DY_EE_Trigger_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                            return  myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons,var);
+                        };
+                        */
+
+                        float ElRECOSF = (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi())) * myCorr->GetElectronRECOSF(Tight_electrons[1]->Eta(), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi());
+                        float EleTrigSF = myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons);
+                        ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                        
+                        FillHist(this_syst + "/ee_trigger_sf", EleTrigSF , 1.0, 100, 0., 2.);
+                        FillHist(this_syst + "/ee_id_sf", ElIDSF , 1.0, 100, 0., 2.);
+                        FillHist(this_syst + "/ee_reco_sf", ElRECOSF , 1.0, 100, 0., 2.);
+                        FillHist(this_syst + "/ee_weight", ee_weight , 1.0, 100, -10., 10.);
                     }
                     if(tmp_isMM){
-                            cout<<"ok6" << endl;
-                            float MuonIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[1]));
-                            cout<<"ok7" << endl;
-                            float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0]) * myCorr->GetMuonRECOSF(*Tight_muons[1]));
-                            cout<<"ok8" << endl;
-                            float MuonTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));
-                            cout<<"ok9" << endl;
-                            float MuonISOSF = 
-                            float mm_weight = weight* MuonIDSF * MuonRECOSF * MuonTrigSF;
+                        
+                        //weight_function_map["Resolved_DY_MM_Id_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return  (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0], var))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[1], var));
+                        //};
+                        float MuonIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[1]));
+                        //weight_function_map["Resolved_DY_MM_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return (myCorr->GetMuonRECOSF(*Tight_muons[0], var) * myCorr->GetMuonRECOSF(*Tight_muons[1], var));
+                        //};
+                        float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0]) * myCorr->GetMuonRECOSF(*Tight_muons[1]));
+                        //weight_function_map["Resolved_DY_MM_Trigger_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0], var));
+                        //};
+                        float MuonTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));
+                        //weight_function_map["Resolved_DY_MM_Iso_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return  (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0], var))*(myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[1], var));
+                        //};   
+                        float MuonISOSF = (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0]))*(myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[1]));
+                        
+                        mm_weight = weight* MuonIDSF * MuonRECOSF * MuonTrigSF* MuonISOSF;
+                        //cout<<"PUweight"<<PU_Weight<<endl;
+                        //cout<<"mm_trig_sf"<<MuonTrigSF<<endl;
+                        //cout<<"mm_id_sf"<<MuonIDSF<<endl;
+                        //cout<<"mm_reco_sf"<<MuonRECOSF<<endl;
+                        //cout<<"mm_iso_sf"<<MuonISOSF<<endl;
+                        //cout<<"mmweight"<<mm_weight<<endl;
+                        
+                        FillHist(this_syst + "/mm_trigger_sf", MuonTrigSF , 1.0, 100, 0., 2.);
+                        FillHist(this_syst + "/mm_id_sf", MuonIDSF , 1.0, 100, 0., 2.);
+                        FillHist(this_syst + "/mm_reco_sf", MuonRECOSF , 1.0, 100, 0., 2.);
+                        FillHist(this_syst + "/mm_weight", mm_weight , 1.0, 100, -10., 10.);
+                        FillHist(this_syst + "/mm_iso_sf", MuonISOSF , 1.0, 100, 0., 2.);
                     }
                     if(tmp_isEM){
-                            float EMIDSF = (myCorr->GetElectronIDSF("Loose", fabs(Tight_electrons[0]->Eta()), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi()))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
-                            float EMRECOSF = (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi())) * myCorr->GetMuonRECOSF(*Tight_muons[0]);
-                            float EMTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));
-                            float em_weight = weight*EMIDSF * EMRECOSF * EMTrigSF;
+                        //weight_function_map["Resolved_DY_EM_Id_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return   heep_ID_weight * (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0], var));
+                        //};
+                        //weight_function_map["Resolved_DY_EM_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return    (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) * myCorr->GetMuonRECOSF(*Tight_muons[0], var);
+                        //};
+                        //weight_function_map["Resolved_DY_EM_Trigger_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return   (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0], var));
+                        //};
+                        //weight_function_map["Resolved_DY_EM_Iso_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                        //    return   (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0], var));
+                        //};
+
+                        float EMIDSF = heep_ID_weight * (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
+                        float EMRECOSF = (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi())) * myCorr->GetMuonRECOSF(*Tight_muons[0]);
+                        float EMTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));
+                        float EMISOSF = (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0]));
+                        em_weight = weight*EMIDSF * EMRECOSF * EMTrigSF * EMISOSF;
                     }   
                 }
                 if(IsDATA){
-                    float ee_weight = weight;
-                    float mm_weight = weight;
-                    float em_weight = weight;
+                    ee_weight = 1;
+                    mm_weight = 1;
+                    em_weight = 1;
                 }
 
                 // DY CR 60 < ll < 150 , lljj > 800 
@@ -396,6 +484,7 @@ void Reproduce20_002::executeEventFromParameter() {
                     FillHist(this_syst + "/DYCR_Resolved_mlljj", WRCand.M(), weight, 800, 0., 8000.);
                     if (tmp_isEE) {
                         //PU&object weight 적용
+                        
                         FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_pt", dilepton_pt, ee_weight, 100, 0., 1000.);
                         FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_leading_jet_pt", selected_jets[0].Pt(), ee_weight, 200, 0., 2000.);
                         FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_subleading_jet_pt", selected_jets[1].Pt(), ee_weight, 200, 0., 2000.);
@@ -413,6 +502,7 @@ void Reproduce20_002::executeEventFromParameter() {
                     }
                     else if (tmp_isMM) {
                         //PU&object weight 적용
+                        
                         FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_pt", dilepton_pt, mm_weight, 100, 0., 1000.);
                         FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_leading_jet_pt", selected_jets[0].Pt(), mm_weight, 200, 0., 2000.);
                         FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_subleading_jet_pt", selected_jets[1].Pt(), mm_weight, 200, 0., 2000.);
@@ -621,6 +711,12 @@ void Reproduce20_002::executeEventFromParameter() {
             if ( LeadLep->IsElectron() ) {
                 is_tmp_lead_el = true;
                 this_trigger_pass_boost = pass_trig_elec;
+
+
+                if (abs(LeadLep->Eta()) < 1.444) {
+                    heep_ID_weight = el_set.Barrel_ID_SF_2023_C;}
+                else if (abs(LeadLep->Eta()) > 1.566 && abs(LeadLep->Eta()) < 2.5) {
+                    heep_ID_weight = el_set.Endcap_ID_SF_2023_C;}
             }
             else if ( LeadLep->IsMuon()){
                 is_tmp_lead_mu = true;
@@ -646,7 +742,8 @@ void Reproduce20_002::executeEventFromParameter() {
                     }
                 }
                 FillHist(this_syst + "/Boost_SF_looselepton_num", n_loose_sf_lep , weight, 10, 0., 10.);
-
+                RVec<Muon> temp_muons ;
+                temp_muons.clear();
                 for (unsigned int i=0 ; i< Loose_SF_leps.size(); i ++) {
                     if (Loose_SF_leps[i] == LeadLep) continue;
                     double dilep_mass = (*LeadLep + *Loose_SF_leps[i]).M();
@@ -658,10 +755,14 @@ void Reproduce20_002::executeEventFromParameter() {
                         LowMllLooseLepton = Loose_SF_leps[i];
                         if (is_tmp_lead_mu){
                             Muon * looseMuon = (Muon *)LowMllLooseLepton;
+                            temp_muons.push_back(*looseMuon);
                         }
                         break;
                     }
                 }
+                ee_weight =1;
+                mm_weight =1;
+                em_weight =1;
                 // Boosted CR selection with low mll ( DY CR)
                 if (has_lowmll){
                     FillHist(this_syst + "/Boost_cutflow_DY", 4 , weight, 20,-10,10.);
@@ -679,7 +780,7 @@ void Reproduce20_002::executeEventFromParameter() {
                             if (this_fatjet.DeltaR( *LowMllLooseLepton)<0.8) {
                                 Ncand = this_fatjet;
                                 FillHist(this_syst + "/has_looselepton_insidefatjet", 1 , weight, 5, 0., 5.);
-                                bool looselepton_infatjet = true;
+                                looselepton_infatjet = true;
                             }
                             else { // if loose lepton is outside of fatjet
                                 Ncand = HNFatJet + *LowMllLooseLepton;
@@ -703,24 +804,49 @@ void Reproduce20_002::executeEventFromParameter() {
                                 if (!IsDATA){
                                     //SF
                                     if(is_tmp_lead_el){
-                                        float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                            //weight_function_map["Boosted_DY_EE_Reco_weight"] = [&](MyCorrection::variation var, TString source) {
+                                            //return (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
+                                            //weight_function_map["Boosted_DY_EE_Trig_weight"] = [&](MyCorrection::variation var, TString source) {
+                                            //return myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons,var) ;};
+                                        float ElIDSF = heep_ID_weight;
                                         float ElRECOSF = (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi())) ;
-                                        float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
-                                        float ee_weight = weight * ElIDSF * ElRECOSF * EleTrigSF;
+                                        float EleTrigSF = myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons);
+                                        ee_weight = weight * ElIDSF * ElRECOSF ;
+                                        FillHist(this_syst + "/ELIDSF", ElIDSF , weight, 100, 0., 2.);
+                                        FillHist(this_syst + "/ELRECOSF", ElRECOSF , weight, 100, 0., 2.);
+                                        FillHist(this_syst + "/EleTrigSF", EleTrigSF , weight, 100, 0., 2.);
+                                        FillHist(this_syst + "/ee_weight", ee_weight , 1.0, 100, -10., 10.);
                                     }
                                     if(is_tmp_lead_mu){
+                                        //weight_function_map["Boosted_DY_MM_Id_weight"] = [&](MyCorrection::variation var, TString source) {
+                                        //    return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
+                                        //weight_function_map["Boosted_DY_MM_Reco_weight"] = [&](MyCorrection::variation var, TString source) {
+                                        //    return (myCorr->GetMuonRECOSF(*Tight_muons[0],var)) ;};
+                                        //weight_function_map["Boosted_DY_MM_Trig_weight"] = [&](MyCorrection::variation var, TString source) {
+                                        //    return (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0],var));};
+                                        //    weight_function_map["Boosted_DY_MM_Iso_weight"] = [&](MyCorrection::variation var, TString source) {
+                                        //    return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
                                         float MuIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
                                         float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0])) ;
-                                        float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *Tight_muons[0]));
-                                        float mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF;
+                                        RVec<Muon*> trig_muons;
+                                        trig_muons.push_back(Tight_muons[0]);
+                                        if (LowMllLooseLepton) {
+                                            trig_muons.push_back( (Muon*)LowMllLooseLepton );
+                                        }
+                                        float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", trig_muons));
+                                        float MuonISOSF = (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0]));
+                                        mm_weight = weight * MuIDSF * MuonRECOSF * MuTrigSF * MuonISOSF;
+                                        FillHist(this_syst + "/MuIDSF", MuIDSF , weight, 100, 0., 2.);
+                                        FillHist(this_syst + "/MuonRECOSF", MuonRECOSF , weight, 100, 0., 2.);
+                                        FillHist(this_syst + "/MuTrigSF", MuTrigSF , weight, 100, 0., 2.);
+                                        FillHist(this_syst + "/mm_weight", mm_weight , 1.0, 100, -10., 10.);
+                                        FillHist(this_syst + "/MuonISOSF", MuonISOSF , weight, 100, 0., 2.);
                                     }
                                 }
                                 if (IsDATA){
-                                    float ee_weight = weight;
-                                    float mm_weight = weight;
+                                    ee_weight = 1;
+                                    mm_weight = 1;
                                 }
-
-
                                 if (is_tmp_lead_el){ // ee 
                                         FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_DY_CR_EE", (*LeadLep + *LowMllLooseLepton).Pt(), ee_weight, 1000, 0., 1000.);
                                         FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_DY_CR_EE", HNFatJet.Pt(), ee_weight, 2000, 0., 2000.);
@@ -914,19 +1040,36 @@ void Reproduce20_002::executeEventFromParameter() {
                                             if(!IsDATA){
                                                 //SF
                                                 if(is_tmp_lead_el){
-                                                    float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
+                                                    float ElIDSF = heep_ID_weight;
+                                                    //weight_function_map["Boosted_SR_EMu_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
+                                                    //weight_function_map["Boosted_SR_EMu_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons,var);};
+                                                    
                                                     float ElRECOSF = (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi())) ;
-                                                    float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
-                                                    float ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                                                    float EleTrigSF = myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons);
+                                                    ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                                                    
                                                 }
                                                 if(is_tmp_lead_mu){
-
+                                                    //weight_function_map["Boosted_SR_MuE_Id_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
+                                                    //weight_function_map["Boosted_SR_MuE_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    //weight_function_map["Boosted_SR_MuE_Trig_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));};
+                                                    //weight_function_map["Boosted_SR_MuE_Iso_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
+                                                    
                                                     float MuIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
                                                     float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0])) ;
-                                                    RVec<Muon *> temp_second_muon;
-                                                    temp_second_muon.push_back( (Muon *)SFLooseLepton );
-                                                    float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *Tight_muons[0]))*(myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *temp_second_muon[0]));
-                                                    float mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF;
+                                                    RVec<Muon*> trig_muons;
+                                                    trig_muons.push_back(Tight_muons[0]);
+                                                    trig_muons.push_back((Muon*)SFLooseLepton);
+                                                    float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",trig_muons));
+                                                    float MuonISOSF = (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0]));
+                                                    mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF*MuonISOSF;
+                                                    
                                                 }
 
                                                 if (is_tmp_lead_el) {
@@ -1018,21 +1161,37 @@ void Reproduce20_002::executeEventFromParameter() {
                                         FillHist(this_syst + "/Boost_cutflow_FLV", -8 , weight, 20, -10, 10.);
                                         if(!IsDATA){
                                             if(is_tmp_lead_el){
-                                                    float ElIDSF = (myCorr->GetElectronIDSF("Loose", fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
-                                                    float ElRECOSF = (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi())) ;
-                                                    float EleTrigSF = (myCorr->GetElectronTriggerSF("HLT_SF_Ele30_LooseID",fabs(LeadLep->Eta()), LeadLep->Pt(), LeadLep->Phi()));
-                                                    float ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                                                        float ElIDSF = heep_ID_weight;
+                                                        //weight_function_map["Boosted_Flav_EMu_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                        //return (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
+                                                        //weight_function_map["Boosted_Flav_EMu_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                        //return myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons,var);};
+                                                        float ElRECOSF = (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi())) ;
+                                                        float EleTrigSF = myCorr->GetElectronsTriggerSF("HLT_SF_Ele30_TightID", Tight_electrons);
+                                                        ee_weight = weight*ElIDSF * ElRECOSF * EleTrigSF;
+                                                        cout << ElIDSF <<"ELIDSF"<<ElRECOSF<<"ElRECOSF"<<EleTrigSF<<"EleTrigSF"<<endl;
+                                                        cout<<ee_weight<<"ee_weight"<<endl;
                                                 }
                                                 if(is_tmp_lead_mu){
+                                                    //weight_function_map["Boosted_Flav_MuE_Id_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //  return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
+                                                    //weight_function_map["Boosted_Flav_MuE_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    //weight_function_map["Boosted_Flav_MuE_Trig_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));};
+                                                    //weight_function_map["Boosted_Flav_MuE_Iso_Weight"] = [&](MyCorrection::variation var, TString source)  {
+                                                    //return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
                                                     float MuIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]));
                                                     float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0])) ;
-                                                    float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", *Tight_muons[0]));
-                                                    float mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF; //only muon apply trigger SF to loose muon 
+                                                    float MuTrigSF = (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0]));
+                                                    mm_weight = weight*MuIDSF * MuonRECOSF * MuTrigSF; //only muon apply trigger SF to loose muon 
+                                                    cout<<MuIDSF <<"MuIDSF"<<MuonRECOSF<<"MuonRECOSF"<<MuTrigSF<<"MuTrigSF"<<endl;
+                                                    cout<<mm_weight<<"mm_weight"<<endl;
                                                 }
                                         }
                                         if(IsDATA){
-                                            float mm_weight = weight;
-                                            float ee_weight = weight;
+                                            mm_weight = 1;
+                                            ee_weight = 1;
                                         }
                                         if (is_tmp_lead_el) {
                                             FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_e_mujet_Flavor_CR", (*LeadLep + *OFLooseLepton).Pt(),  ee_weight, 1000, 0., 1000.);
@@ -1093,6 +1252,22 @@ void Reproduce20_002::executeEventFromParameter() {
         }
         } // boost lead lep pt cut end
     }// boost selected event end
+    //systHelper->assignWeightFunctionMap(weight_function_map);
+    /*
+    if(!IsDATA) {
+        auto weight_map = systHelper->calculateWeight(); 
+        for (const auto& [syst_name, sf_val] : weight_map) {
+            // syst_name: "Central", "PU_Weight_Up" 등
+            // sf_val: 해당 케이스의 SF 값 (예: 0.99)
+            float final_weight = base_weight * sf_val;
+            // 히스토그램 채우기
+            
+            FillHist(this_syst + "/ZCand_Mass_" + syst_name, ZCand.M(), final_weight, 50, 70., 110.);
+        }
+    } else { //DATA
+        FillHist(this_syst + "/ZCand_Mass_" + this_syst, ZCand.M(), 1.0, 50, 70., 110.);
+    }
+    */
 }
 
     // double counting check?  # 1670

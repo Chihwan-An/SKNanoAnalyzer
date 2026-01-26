@@ -208,5 +208,61 @@
         "suffix": "20002",
         "PD": "DYJets",
         "isMC": 1
+    },
+    "Skim_20002_Muon0": {
+        "suffix": "20002",
+        "PD": "Muon0",
+        "isMC": 0,
+        "periods": [
+            "C",
+            "C_v1",
+            "C_v2",
+            "C_v3",
+            "C_v4"
+        ]
+    },
+    "Skim_20002_EGamma0": {
+        "suffix": "20002",
+        "PD": "EGamma0",
+        "isMC": 0,
+        "periods": [
+            "C_v1",
+            "C_v2",
+            "C_v3",
+            "C_v4"
+        ]
+    },
+    "Skim_20002_EGamma1": {
+        "suffix": "20002",
+        "PD": "EGamma1",
+        "isMC": 0,
+        "periods": [
+            "C_v1",
+            "C_v2",
+            "C_v3",
+            "C_v4"
+        ]
+    },
+    "Skim_20002_Muon1": {
+        "suffix": "20002",
+        "PD": "Muon1",
+        "isMC": 0,
+        "periods": [
+            "C_v4",
+            "C_v3",
+            "C_v2",
+            "C_v1"
+        ]
+    },
+    "Skim_20002_MuonEG": {
+        "suffix": "20002",
+        "PD": "MuonEG",
+        "isMC": 0,
+        "periods": [
+            "C_v4",
+            "C_v3",
+            "C_v2",
+            "C_v1"
+        ]
     }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-data_directory = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002_copy/2023/"
+data_directory = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002/2023/"
 
 import ROOT
 import cmsstyle as CMS
@@ -879,7 +879,6 @@ def load_background_histograms(data_dir, hist_name, systematic="Central", draw_t
             filename.startswith("EGamma_") or
             filename.startswith("MuonEG_") or
             filename.startswith("SingleMuon")or
-            filename.startswith("WJets.root")or
             filename.startswith("WZTo")or
             filename.startswith("ZZTo") or
             #filename.startswith("ZZTo") or

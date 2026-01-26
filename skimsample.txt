@@ -1,0 +1,11 @@
+Skim_20002_DYJets
+Skim_20002_DYJets10to50
+Skim_20002_ST_tW*
+Skim_20002_TTLL*
+Skim_20002_WJets*
+Skim_20002_WW_*
+Skim_20002_WZ_*
+Skim_20002_ZZ_*
+Skim_20002_EG*
+Skim_20002_Muon0
+Skim_20002_Muon1

@@ -1,0 +1,38 @@
+systematics:
+
+  - syst: "Pileup"
+    target: "PU_Weight"
+    evtLoopAgain: false
+
+  - syst: "ElectronID"
+    target: "E_Id_Weight"
+    evtLoopAgain: false
+  
+  - syst: "ElectronReco"
+    target: "E_Reco_Weight"
+    evtLoopAgain: false
+
+  - syst: "ElectronTrig"
+    target: "E_Trig_Weight"
+    evtLoopAgain: false
+
+  - syst: "MuonID"
+    target: "M_Id_Weight"
+    evtLoopAgain: false
+
+  - syst: "MuonReco"
+    target: "M_Reco_Weight"
+    evtLoopAgain: false
+  
+  - syst: "MuonTrig"
+    target: "M_Trig_Weight"
+    evtLoopAgain: false
+  
+  - syst: "MuonIso"
+    target: "M_Iso_Weight"
+    evtLoopAgain: false
+
+
+
+
+  

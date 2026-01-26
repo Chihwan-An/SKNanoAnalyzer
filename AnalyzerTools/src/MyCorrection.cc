@@ -33,6 +33,7 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
     // Optional files
     loadRoccoR(config.txt_roccor, true);
     loadCorrectionSet("jmar", config.json_jmar, cset_jmar, true);
+    loadCorrectionSet("jet id", config.json_jetid, cset_jetid, true);
     loadCorrectionSet("muon trig eff", config.json_muon_trig_eff, cset_muon_trig_eff, true);
     loadCorrectionSet("electron hlt", config.json_electron_hlt, cset_electron_hlt, true);
     loadCorrectionSet("met", config.json_met, cset_met, true);
@@ -92,6 +93,11 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
         JME_JES_GT["2017"] = "Summer19UL17_Run"+period+"_V5_DATA_######_AK4PFchs";
         JME_JES_GT["2016postVFP"] = "Summer19UL16_RunFGH_V7_DATA_######_AK4PFchs";
         JME_JES_GT["2016preVFP"] = "Summer19UL16APV_Run"+period+"_V7_DATA_######_AK4PFchs";
+
+        JME_FJES_GT["2023BPix"] = "Summer23BPixPrompt23_V3_DATA_######_AK8PFPuppi";
+        JME_FJES_GT["2023"] = "Summer23Prompt23_V2_DATA_######_AK8PFPuppi";
+        JME_FJES_GT["2022EE"] = "Summer22EE_22Sep2023_Run"+period+"_V2_DATA_######_AK8PFPuppi";
+        JME_FJES_GT["2022"] = "Summer22_22Sep2023_RunCD_V2_DATA_######_AK8PFPuppi";
     } else { // MC
         JME_JES_GT["2023BPix"] = "Summer23BPixPrompt23_V3_MC_######_AK4PFPuppi";
         JME_JES_GT["2023"] = "Summer23Prompt23_V2_MC_######_AK4PFPuppi";
@@ -101,6 +107,11 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
         JME_JES_GT["2017"] = "Summer19UL17_V5_MC_######_AK4PFchs";
         JME_JES_GT["2016postVFP"] = "Summer19UL16_V7_MC_######_AK4PFchs";
         JME_JES_GT["2016preVFP"] = "Summer19UL16APV_V7_MC_######_AK4PFchs"; 
+
+        JME_FJES_GT["2023BPix"] = "Summer23BPixPrompt23_V3_MC_######_AK8PFPuppi";
+        JME_FJES_GT["2023"] = "Summer23Prompt23_V2_MC_######_AK8PFPuppi";
+        JME_FJES_GT["2022EE"] = "Summer22EE_22Sep2023_V2_MC_######_AK8PFPuppi";
+        JME_FJES_GT["2022"] = "Summer22_22Sep2023_V2_MC_######_AK8PFPuppi";
     }
     
     // Jet VetpMap
@@ -140,7 +151,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
 
 
     config.json_muon = json_pog_path_str + "/POG/MUO";
-    config.json_muon_trig_eff = sknano_data_str;
+    config.json_muon_trig_eff = config.json_muon;
     config.json_puWeights = json_pog_path_str + "/POG/LUM";
     config.json_btagging = json_pog_path_str + "/POG/BTV";
     config.json_ctagging = json_pog_path_str + "/POG/BTV";
@@ -158,6 +169,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
     config.json_jmar = json_pog_path_str + "/POG/JME";
     config.json_met = json_pog_path_str + "/POG/JME";
     config.txt_roccor = external_roccor_str;
+    config.json_jetid = json_pog_path_str + "/POG/JME";
 
     config.json_muon_TopHNT_idsf = sknano_data_str + "/" + DataEra.Data() + "/MUO/efficiency_TopHNT.json";
     config.json_muon_TopHNT_dblmu_leg1_eff = sknano_data_str + "/" + DataEra.Data() + "/MUO/efficiency_Mu17Leg1.json";
@@ -283,7 +295,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.txt_roccor += "/RoccoR2022EE.txt";
     } else if (era == "2023") {
         config.json_muon += "/2023_Summer23/muon_HighPt.json.gz";
-        config.json_muon_trig_eff += "/2023/MUO/muon_trig.json";
+        config.json_muon_trig_eff += "/2023_Summer23/muon_HighPt.json.gz";
         config.json_puWeights += "/2023_Summer23/puWeights.json.gz";
         config.json_btagging += "/2023_Summer23/btagging.json.gz";
         config.json_ctagging += "/2023_Summer23/ctagging.json.gz";
@@ -300,6 +312,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_jetvetomap += "/2023_Summer23/jetvetomaps.json.gz";
         config.json_met += "/2023_Summer23/met.json.gz";
         config.txt_roccor += "/RoccoR2023.txt";
+        config.json_jetid += "/2023_Summer23/jet_id.json.gz";
     } else if (era == "2023BPix") {
         config.json_muon += "/2023_Summer23BPix/muon_Z.json.gz";
         config.json_muon_trig_eff += "/2023BPix/MUO/muon_trig.json";
@@ -364,7 +377,7 @@ float MyCorrection::GetMuonScaleSF(const Muon &muon, const variation syst, const
 }
 
 float MyCorrection::GetMuonRECOSF(const Muon &muon, const variation syst) const {
-    // No correction for Run3, see https://muon-wiki.docs.cern.ch/guidelines/corrections/#__tabbed_5_2
+    // No correction for Run3, see https://muon-wiki.docs.cern.ch/guidines/corrections/#__tabbed_5_2
     if (Run == 3) return 1.;
 
     // For RECO efficiency, used 40-60 GeV muons due to the large background in Z-peak.
@@ -395,6 +408,9 @@ float MyCorrection::GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon,
         }
     } else {
         auto cset = cset_muon->at(string(Muon_ID_SF_Key));
+        if ((muon.Pt() > 50)&&(muon.OriginalPt() < 50)) {
+            return safeEvaluate(cset, "GetMuonIDSF", {fabs(muon.Eta()), muon.Pt(), getSystString_MUO(syst)});
+        }
         return safeEvaluate(cset, "GetMuonIDSF", {fabs(muon.Eta()), muon.OriginalPt(), getSystString_MUO(syst)});
     }
 }
@@ -571,6 +587,58 @@ float MyCorrection::GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key, const R
         eff_data *= 1. - GetMuonTriggerEff(Muon_Trigger_SF_Key, fabs(muon.Eta()), muon.Pt(), true, syst);
         eff_mc *= 1. - GetMuonTriggerEff(Muon_Trigger_SF_Key, fabs(muon.Eta()), muon.Pt(), false, syst);
     }
+    weight = (1. - eff_data) / (1. - eff_mc);
+    return weight;
+}
+// MyCorrection.cc 수정
+
+float MyCorrection::GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key, const RVec<Muon*> &muons, const variation syst) const {
+    float weight = 1.;
+    auto cset = cset_muon_trig_eff->at(string(Muon_Trigger_SF_Key)); // JSON 키 가져오기
+
+    for (const auto &muon : muons) {
+        // POG 표준 SF 가져오기 (인자 순서: eta, pt, syst)
+        // 주의: JSON 파일마다 eta, pt 순서가 다를 수 있으니 확인 필요!
+        // 보통은: abs(eta), pt, syst 순서입니다.
+        float sf = safeEvaluate(cset, "GetTriggerSF", {fabs(muon->Eta()), muon->Pt(), getSystString_MUO(syst)});
+        
+        weight *= sf;
+    }
+    return weight;
+}
+float MyCorrection::GetElectronsTriggerEff(const TString &Electron_Trigger_Eff_Key, const float abseta, const float pt, const bool isData, const variation syst) const {
+    auto cset = cset_electron_hlt->at(string(Electron_Trigger_Eff_Key));
+    if (isData)
+        return safeEvaluate(cset, "GetTriggerEff", {"data", getSystString_EGM(syst), fabs(abseta), pt});
+    else
+        return safeEvaluate(cset, "GetTriggerEff", {"mc", getSystString_EGM(syst), fabs(abseta), pt});
+}
+
+float MyCorrection::GetElectronsTriggerSF(const TString &Electron_Trigger_SF_Key, const RVec<Electron> &electrons, const variation syst) const {
+    float eff_data = 1.;
+    float eff_mc = 1.;
+    float weight = 1.;
+    for (const auto &electron : electrons) {
+        eff_data *= 1. - GetElectronTriggerEff(Electron_Trigger_SF_Key, fabs(electron.Eta()), electron.Pt(), electron.Phi(), true, syst);
+        eff_mc *= 1. - GetElectronTriggerEff(Electron_Trigger_SF_Key, fabs(electron.Eta()), electron.Pt(), electron.Phi(), false, syst);
+    }
+    weight = (1. - eff_data) / (1. - eff_mc);
+    return weight;
+}
+float MyCorrection::GetElectronsTriggerSF(const TString &Electron_Trigger_SF_Key, const RVec<Electron*> &electrons, const variation syst) const {
+    float eff_data = 1.;
+    float eff_mc = 1.;
+    float weight = 1.;
+
+    for (const auto &electron : electrons) {
+        // [중요] 포인터이므로 'electron->' 화살표 연산자 사용
+        eff_data *= 1. - GetElectronTriggerEff(Electron_Trigger_SF_Key, fabs(electron->Eta()), electron->Pt(), electron->Phi(), true, syst);
+        eff_mc *= 1. - GetElectronTriggerEff(Electron_Trigger_SF_Key, fabs(electron->Eta()), electron->Pt(), electron->Phi(), false, syst);
+    }
+    
+    // 분모가 0이 되는 것을 방지하기 위한 안전장치 (선택 사항)
+    if (eff_mc == 1.) return 1.; 
+
     weight = (1. - eff_data) / (1. - eff_mc);
     return weight;
 }
@@ -1129,7 +1197,28 @@ float MyCorrection::GetPileupJetIDSF(const RVec<Jet> &jets, const unordered_map<
     }
     return weight;
 }
+/*
+float MyCorrection::GetJetIDSF(const RVec<Jet> &jets, const unordered_map<int, int> &matched_idx, const TString &wp, const variation syst) {
+    // Should pass jets after PUID, no mistag rate correction
+    if (Run == 3) return 1.;
 
+    float weight = 1.;
+    auto cset = cset_jmar->at(JME_PILEUP_keys.at(GetEra().Data()));
+    string wp_str;
+    if (wp == "tight") wp_str = "T";
+    else if (wp == "medium") wp_str = "M";
+    else if (wp == "loose") wp_str = "L";
+    else throw std::invalid_argument("[MCCorrection::GetPileupJetIDSF] Invalid WP");
+
+    for (int i = 0; i < jets.size(); i++) {
+        if (jets.at(i).Pt() > 50.) continue;
+        if (matched_idx.find(i) == matched_idx.end() || matched_idx.at(i) < 0) continue; // not matched
+        float this_eff = safeEvaluate(cset, "GetJetVetoMapEff", {jets.at(i).Eta(), jets.at(i).Pt(), getSystString_JME(syst), wp_str});
+        weight *= this_eff;
+    }
+    return weight;
+}
+*/
 // JERC
 float MyCorrection::GetJER(const float eta, const float pt, const float rho) const {
     correction::Correction::Ref cset = nullptr;
@@ -1192,6 +1281,44 @@ float MyCorrection::GetJESUncertainty(const float eta, const float pt, const var
     this_factor += (int_syst * safeEvaluate(cset, "GetJESUncertainty", {eta, pt}));
     return this_factor;
 }
+
+float MyCorrection::GetFatJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const {
+    correction::CompoundCorrection::Ref cset = nullptr;
+    string cset_string = JME_FJES_GT.at(GetEra().Data());
+    cset_string.replace(cset_string.find("######"), 6, "L1L2L3Res");
+    cset = cset_jerc->compound().at(cset_string);
+    vector<correction::Variable::Type> args;
+    float JESSF = 1.;
+    if (GetEra() == "2023BPix" || GetEra() == "2024") {
+        args = {area, eta, pt, rho, phi};
+        if (IsDATA) args = {area, eta, pt, rho, phi, static_cast<float>(runNumber)};
+    } else if (GetEra() == "2023") {
+        args = {area, eta, pt, rho};
+        if (IsDATA) args = {area, eta, pt, rho, static_cast<float>(runNumber)};
+    } else {
+        args = {area, eta, pt, rho};
+    }
+    return safeEvaluate(cset, "GetFatJERSF", args);
+}
+
+float MyCorrection::GetFJESUncertainty(const float eta, const float pt, const variation syst, const TString &source) const {
+    int int_syst = 0;
+    if (syst == variation::up)
+        int_syst = 1;
+    else if (syst == variation::down)
+        int_syst = -1;
+    else
+        int_syst = 0;
+
+    correction::Correction::Ref cset = nullptr;
+    string cset_string = JME_FJES_GT.at(GetEra().Data());
+    cset_string.replace(cset_string.find("######"), 6, source);
+    cset = cset_jerc->at(cset_string);
+    float this_factor = 1.;
+    this_factor += (int_syst * safeEvaluate(cset, "GetFJESUncertainty", {eta, pt}));
+    return this_factor;
+}
+
 
 bool MyCorrection::IsJetVetoZone(const float eta, const float phi, TString mapCategory) const
 {

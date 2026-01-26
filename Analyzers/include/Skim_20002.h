@@ -21,45 +21,7 @@ public:
     bool RunWRCut;
     unique_ptr<SystematicHelper> systHelper;
     
-    
-    struct flags{
-        bool RunFake;
-        bool RunCF ;
-        bool RunSyst ;
-        bool PromptLeptononly ;
-        bool ApplyDYPtReweight ;
-        bool ApplyDYReshape ;
-        bool RunXsecSyst ;
-        bool Signal ;
-        bool CalculateAverageKFactor ;
-        bool SignalElectronOnly ;
-        bool SignalMuonOnly ;
-        bool UseJetPtRwg ;
-        bool UseDYCR1Reshape ;
-    } flag;
 
-    struct parameters{
-        std::map<std::string ,float> Zpt;
-
-        parameters(){
-            Zpt["ZPTReweight"] = 1.0;
-            Zpt["ZPTReweight_Up"] = 1.0;
-            Zpt["ZPTReweight_Down"] = 1.0;
-            Zpt["ZPTReweight_QCDScaleUp"] = 1.0;
-            Zpt["ZPTReweight_QCDScaleDown"] = 1.0;
-            Zpt["ZPTReweight_QCDPDFErrorUp"] = 1.0;
-            Zpt["ZPTReweight_QCDPDFErrorDown"] = 1.0;
-            Zpt["ZPTReweight_QCDPDFAlphaSUp"] = 1.0;
-            Zpt["ZPTReweight_QCDPDFAlphaSDown"] = 1.0;
-            Zpt["ZPtEWCorr"] = 1.0;
-            Zpt["ZPtEWCorr_E1Up"] = 1.0;
-            Zpt["ZPtEWCorr_E1Down"] = 1.0;
-            Zpt["ZPtEWCorr_E2Up"] = 1.0;
-            Zpt["ZPtEWCorr_E2Down"] = 1.0;
-            Zpt["ZPtEWCorr_E3Up"] = 1.0;
-            Zpt["ZPtEWCorr_E3Down"] = 1.0;
-        }
-    } param;
     
     struct Electrons {
         RVec<Electron> AllElectrons;

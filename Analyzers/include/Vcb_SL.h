@@ -41,7 +41,7 @@ public:
     RVec<int> FindTTbarJetIndices() override;
     tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> FitKinFitter(const RVec<Jet> &jets, const RVec<unsigned int> &permutation, Particle &neutrino, Lepton &lepton);
     void FillTrainingTree() override;
-    void FillTemplateTrainingTree() override;
+    void FillTemplateTrainingTree(const std::unordered_map<std::string, float> &weight_map) override;
     void FillTreeAtThisPoint(  std::string_view treePrefix, float MCNormalizationWeight,
     const std::unordered_map<std::string, float> &weight_map) override;
     void virtual CreateTrainingTree() override;
@@ -90,6 +90,8 @@ public:
     std::vector<float> Jet_Pt;
     std::vector<float> Jet_Eta;
     std::vector<float> Jet_Phi;
+    std::vector<float> Jet_ILR_Dim_1;
+    std::vector<float> Jet_ILR_Dim_2;
 
     std::vector<int> edge_index_jet_jet0;
     std::vector<int> edge_index_jet_jet1;

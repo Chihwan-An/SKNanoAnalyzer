@@ -291,7 +291,7 @@ Vcb::Prob3 Vcb::MappedProb3_from_components(double probudg, double SvUDG,
   auto mapped_vec = iilr({mapped_ilr1, mapped_ilr2});
 
   
-  if(IsDATA){
+  if(IsDATA || HasFlag("Unmapped")){
     Prob3 unmapped_prob3 = sanitize_prob3(p.pb, p.pc, p.pl, eps);
     unmapped_prob3.ilr_dim1 = ilr_vec[0];
     unmapped_prob3.ilr_dim2 = ilr_vec[1];
@@ -496,6 +496,7 @@ void Vcb::initializeAnalyzer() {
   rle_bucket_compute_checksum();
   SetChannel();
   string SKNANO_HOME = std::getenv("SKNANO_HOME");
+  string TABNET_TRAINING_DIR = "/data6/Users/yeonjoon/VcbMVAStudy/TabNet_template/TabNET_model/2024_QuadJet";
   if (!IsDATA) {
     TString json_path = SKNANO_HOME + "/ModellingPatch/" + MCSample.Data() +
                         "_" + DataEra.Data() + "_summary.json";
@@ -509,7 +510,7 @@ void Vcb::initializeAnalyzer() {
   UParT_OT_Central = std::make_unique<OtJsonLutBank>(
       std::vector<float>{25, 35, 50, 70, 90, 120, 1e+8f});
   UParT_OT_Central->load_json(
-      "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/Run3_v15_Run2_v15/2024/BTV/LUT_200_v2.json");
+      "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/Run3_v15_Run2_v15/2024/BTV/LUT_200_v3.json");
   if (channel == Channel::FH) {
     std::cout << "Initialize MyCorrection for FH" << std::endl;
     btagging_R_file = "Vcb_FH_btaggingR.json";
@@ -549,7 +550,7 @@ void Vcb::initializeAnalyzer() {
     }
     for (int i = 0; i < 4; ++i) {
       myMLHelper_TabNet_folds.push_back(std::make_unique<MLHelper>(
-          SKNANO_HOME + "/data/tabnet_fold" + std::to_string(i) + ".onnx",
+          TABNET_TRAINING_DIR+ "/onnx/tabnet_fold" + std::to_string(i) + ".onnx",
           MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
     }
   } else if (channel == Channel::MM || channel == Channel::ME ||
@@ -1029,7 +1030,8 @@ void Vcb::executeEvent() {
       InferONNX();
       if (systHelper->getCurrentIterSysTarget().find("Central") !=
           std::string::npos) {
-        FillTemplateTrainingTree();
+        const auto weight_map = systHelper->calculateWeight(false);
+        FillTemplateTrainingTree(weight_map );
         return;
       }
     }
@@ -1118,11 +1120,11 @@ void Vcb::SetSystematicLambda(bool remove_flavtagging_sf) {
         switch (syst) {
         case MyCorrection::variation::up:
           return GetScaleVariation(MyCorrection::variation::up,
-                                   MyCorrection::variation::nom) /
+                                   MyCorrection::variation::nom) *
                  modelling_patches[subproc_name].patch_ScaleVariation[4];
         case MyCorrection::variation::down:
           return GetScaleVariation(MyCorrection::variation::down,
-                                   MyCorrection::variation::nom) /
+                                   MyCorrection::variation::nom) *
                  modelling_patches[subproc_name].patch_ScaleVariation[3];
         default:
           return 1.f;
@@ -1136,11 +1138,11 @@ void Vcb::SetSystematicLambda(bool remove_flavtagging_sf) {
         switch (syst) {
         case MyCorrection::variation::up:
           return GetScaleVariation(MyCorrection::variation::nom,
-                                   MyCorrection::variation::up) /
+                                   MyCorrection::variation::up) *
                  modelling_patches[subproc_name].patch_ScaleVariation[6];
         case MyCorrection::variation::down:
           return GetScaleVariation(MyCorrection::variation::nom,
-                                   MyCorrection::variation::down) /
+                                   MyCorrection::variation::down) *
                  modelling_patches[subproc_name].patch_ScaleVariation[1];
         default:
           return 1.f;
@@ -1376,8 +1378,8 @@ void Vcb::executeEventFromParameter() {
     sample_postfix += GetTTHFPostFix(); // TTbb/TTcc/… 후미
   }
   if (output_type == OUTPUT_TYPE::HISTOGRAMS) {
-    // InferONNX();
-    // InferTabNet();
+     InferONNX();
+     InferTabNet();
   }
 
   // -------------------------
@@ -1386,8 +1388,8 @@ void Vcb::executeEventFromParameter() {
   if (IsDATA) {
     if (output_type == OUTPUT_TYPE::HISTOGRAMS) {
       FillHistogramsAtThisPoint(base_path + "Central/data_obs", 1.f);
-      // FillONNXRecoInfo(base_path + "Central/data_obs", 1.f);
-      // FillTabNetInfo(base_path + "Central/data_obs", 1.f);
+       FillONNXRecoInfo(base_path + "Central/data_obs", 1.f);
+       FillTabNetInfo(base_path + "Central/data_obs", 1.f);
     } else {
       const std::unordered_map<std::string, float> data_weights = {
           {"Central", 1.f}};
@@ -1423,10 +1425,10 @@ void Vcb::executeEventFromParameter() {
       const float w = kv.second;
       FillHistogramsAtThisPoint(base_path + syst + "/" + sample_postfix,
                                 w * normalization);
-      // FillONNXRecoInfo(base_path + syst + "/" + sample_postfix,
-      // w * normalization);
-      // FillTabNetInfo(base_path + syst + "/" + sample_postfix,
-      // w * normalization);
+       FillONNXRecoInfo(base_path + syst + "/" + sample_postfix,
+       w * normalization);
+       FillTabNetInfo(base_path + syst + "/" + sample_postfix,
+       w * normalization);
     }
   }
 }
@@ -1444,7 +1446,7 @@ void Vcb::CreateTrainingTree() {}
 void Vcb::CreateTemplateTrainingTree() {}
 
 void Vcb::FillTrainingTree() {}
-void Vcb::FillTemplateTrainingTree() {}
+void Vcb::FillTemplateTrainingTree(const std::unordered_map<std::string, float> &weight_map) {}
 
 RVec<int> Vcb::FindTTbarJetIndices() {
   RVec<int> iamnothing;
@@ -1500,54 +1502,28 @@ void Vcb::WriteHist() {
                       skim_passed_global_entries.end()),
           skim_passed_global_entries.end());
 
-      // 2) BranchManager가 쥐고 있던 주소 정리 (너 프레임워크에 맞게)
-      //    예: BranchBase::ResetAllBranchAddresses(); 같은 함수 있으면 호출
-      // BranchBase::ResetAllBranchAddresses(); // TODO: 네 쪽 이름 맞춰서
-
-      // 3) 모든 브랜치 활성화 + ROOT가 버퍼 관리
+      // 2) 모든 브랜치 활성화 + ROOT가 버퍼 관리
       fChain->SetBranchStatus("*", 1);
       fChain->ResetBranchAddresses();
 
-      // 4) 첫 트리에 대해 캐시/프리페치 설정
-      if (TTree *firstTree = fChain->GetTree()) {
-        configureTreeCache(firstTree); // SKNanoLoader 멤버
+      // 3) TEntryList를 이용한 CopyTree (ROOT 내부 최적화 활용)
+      TEntryList elist("skim_list", "Selected entries");
+      for (Long64_t entry : skim_passed_global_entries) {
+        elist.Enter(entry, fChain);
+      }
+      fChain->SetEntryList(&elist);
+
+      if (TTree *curTree = fChain->GetTree()) {
+        configureTreeCache(curTree);
       }
 
-      // 5) 구조만 복사한 빈 트리 생성 (fast 모드)
-      std::unique_ptr<TTree> skimTree(fChain->CloneTree(0, "fast"));
+      TTree *skimTree = fChain->CopyTree("");
       if (skimTree) {
         skimTree->SetName("Events");
-
-        Long64_t prevTreeNumber = -1;
-
-        // 6) 선택된 글로벌 엔트리들만 순회
-        for (Long64_t g : skim_passed_global_entries) {
-          // 체인의 해당 글로벌 엔트리로 이동 (트리/파일 자동 전환)
-          Long64_t local = fChain->LoadTree(g);
-          if (local < 0)
-            continue;
-
-          TTree *tree = fChain->GetTree();
-          if (!tree)
-            continue;
-
-          // 트리가 바뀔 때마다 캐시 재설정
-          if (tree->GetTreeNumber() != prevTreeNumber) {
-            configureTreeCache(tree);
-            prevTreeNumber = tree->GetTreeNumber();
-          }
-
-          // 실제 데이터 로드
-          if (tree->GetEntry(local) <= 0)
-            continue;
-
-          // CopyTree가 하던 일을 우리가 직접 Fill
-          skimTree->Fill();
-        }
-
-        treemap["Events"] = skimTree.release();
+        treemap["Events"] = skimTree;
       }
 
+      fChain->SetEntryList(0);
       skim_passed_global_entries.clear();
     }
   }

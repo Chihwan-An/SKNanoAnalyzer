@@ -1,4 +1,5 @@
 #include "Vcb_SL.h"
+#include "Jet.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -8,7 +9,7 @@
 
 Vcb_SL::Vcb_SL() {
   constexpr int max_jet = 8;
-  constexpr int mom_feat_dim = 17;
+  constexpr int mom_feat_dim = 7;
 
   // Persist shapes (batch dimension fixed to 1 for now)
   onnx_input_shape["Momenta_data"] = {1, max_jet, mom_feat_dim};
@@ -35,9 +36,9 @@ Vcb_SL::Vcb_SL() {
   std::get<BoolArray>(onnx_input_data["Lepton_mask"]).reserve(1);
 
   // TabNet buffers
-  tabnet_input_shape["input"] = {1, 15};
+  tabnet_input_shape["input"] = {1, 17};
   tabnet_input_data["input"] = FloatArray{};
-  std::get<FloatArray>(tabnet_input_data["input"]).reserve(15);
+  std::get<FloatArray>(tabnet_input_data["input"]).reserve(17);
   tabnet_class_scores.reserve(7);
   tabnet_weighted_scores.reserve(7);
 }
@@ -62,6 +63,8 @@ void Vcb_SL::CreateTrainingTree() {
   GetTree("Training_Tree")->Branch("Jet_Category", &Jet_Category);
   GetTree("Training_Tree")->Branch("Jet_B_WP", &Jet_B_WP);
   GetTree("Training_Tree")->Branch("Jet_C_WP", &Jet_C_WP);
+  GetTree("Training_Tree")->Branch("Jet_ILR_Dim_1", &Jet_ILR_Dim_1);
+  GetTree("Training_Tree")->Branch("Jet_ILR_Dim_2", &Jet_ILR_Dim_2);
   GetTree("Training_Tree")->Branch("Jet_isTTbarJet", &Jet_isTTbarJet);
   GetTree("Training_Tree")->Branch("Jet_ttbarJet_idx", &Jet_ttbarJet_idx);
   GetTree("Training_Tree")->Branch("Jet_Pt", &Jet_Pt);
@@ -235,36 +238,140 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
   Muons_Veto_indices =
       SelectMuonIndices(AllMuonViews, Muons_Veto_indices, Muon_Veto_Iso,
                         Muon_Veto_Pt, Muon_Veto_Eta);
-  std::vector<std::size_t> Muons_indices =
-      SelectMuonIndices(AllMuonViews, Muons_Veto_indices, Muon_Tight_ID,
-                        Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+  std::vector<std::size_t> Muons_indices;
+  if (HasFlag("Skim")) {
+    Muons_indices.clear();
+  } else {
+    Muons_indices =
+        SelectMuonIndices(AllMuonViews, Muons_Veto_indices, Muon_Tight_ID,
+                          Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+  }
+
   Muons_indices =
       SelectMuonIndices(AllMuonViews, Muons_indices, Muon_Tight_Iso,
                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
 
   std::vector<std::size_t> Electron_Veto_indices = SelectElectronIndices(
       AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt, Electron_Veto_Eta);
-  std::vector<std::size_t> Electrons_indices = SelectElectronIndices(
-      AllElectronViews, Electron_Veto_indices, Electron_Tight_ID,
-      Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
+
+  std::vector<std::size_t> Electrons_indices;
+  if (HasFlag("Skim")) {
+    Electrons_indices.clear();
+  } else {
+    Electrons_indices = SelectElectronIndices(
+        AllElectronViews, Electron_Veto_indices, Electron_Tight_ID,
+        Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
+  }
+
+  if (HasFlag("Skim")) {
+    auto select_tight_muons = [&](Muon::MuonID id, bool require_iso) {
+      std::vector<std::size_t> indices = SelectMuonIndices(
+          AllMuonViews, id, Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+      if (require_iso) {
+        indices =
+            SelectMuonIndices(AllMuonViews, indices, Muon_Tight_Iso,
+                              Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+      }
+      return indices;
+    };
+
+    auto select_tight_electrons = [&](Electron::ElectronID id) {
+      return SelectElectronIndices(AllElectronViews, id,
+                                   Electron_Tight_Pt[DataEra.Data()],
+                                   Electron_Tight_Eta);
+    };
+
+    auto count_extra_loose = [](const std::vector<std::size_t> &loose,
+                                const std::vector<std::size_t> &tight) {
+      std::size_t count = 0;
+      for (const auto idx : loose) {
+        if (std::find(tight.begin(), tight.end(), idx) == tight.end())
+          ++count;
+      }
+      return count;
+    };
+
+    const std::vector<std::size_t> mu_tight_pog =
+        select_tight_muons(Muon::MuonID::POG_TIGHT, true);
+    const std::vector<std::size_t> mu_tight_prompt =
+        select_tight_muons(Muon::MuonID::POG_PROMPTMVA_WP0p64, false);
+    const std::vector<std::size_t> el_tight_wp80 =
+        select_tight_electrons(Electron::ElectronID::POG_MVAISO_WP80);
+    const std::vector<std::size_t> el_tight_prompt =
+        select_tight_electrons(Electron::ElectronID::POG_PROMPTMVA_MEDIUM);
+
+    auto pass_mu_case = [&](const std::vector<std::size_t> &mu_tight,
+                            const std::vector<std::size_t> &el_tight) {
+      if (mu_tight.size() != 1)
+        return false;
+      if (!el_tight.empty())
+        return false;
+      if (!Electron_Veto_indices.empty())
+        return false;
+      if (count_extra_loose(Muons_Veto_indices, mu_tight) != 0)
+        return false;
+      return true;
+    };
+
+    auto pass_el_case = [&](const std::vector<std::size_t> &mu_tight,
+                            const std::vector<std::size_t> &el_tight) {
+      if (el_tight.size() != 1)
+        return false;
+      if (!mu_tight.empty())
+        return false;
+      if (!Muons_Veto_indices.empty())
+        return false;
+      if (count_extra_loose(Electron_Veto_indices, el_tight) != 0)
+        return false;
+      return true;
+    };
+
+    if (channel == Channel::Mu) {
+      if (pass_mu_case(mu_tight_pog, el_tight_wp80)) {
+        Muons_indices = mu_tight_pog;
+        Electrons_indices = el_tight_wp80;
+      } else if (pass_mu_case(mu_tight_prompt, el_tight_prompt)) {
+        Muons_indices = mu_tight_prompt;
+        Electrons_indices = el_tight_prompt;
+      } else {
+        return false;
+      }
+    } else if (channel == Channel::El) {
+      if (pass_el_case(mu_tight_pog, el_tight_wp80)) {
+        Muons_indices = mu_tight_pog;
+        Electrons_indices = el_tight_wp80;
+      } else if (pass_el_case(mu_tight_prompt, el_tight_prompt)) {
+        Muons_indices = mu_tight_prompt;
+        Electrons_indices = el_tight_prompt;
+      } else {
+        return false;
+      }
+    }
+  }
 
   if (channel == Channel::El) {
-    if (!(Electrons_indices.size() == 1 && Muons_Veto_indices.size() == 0 &&
-          Muons_indices.size() == 0 && Electron_Veto_indices.size() == 1))
-      return false;
+    if (!HasFlag("Skim")) {
+      if (!(Electrons_indices.size() == 1 && Muons_Veto_indices.size() == 0 &&
+            Muons_indices.size() == 0 && Electron_Veto_indices.size() == 1))
+        return false;
+    }
     Muons = MaterializeMuons(AllMuonViews, Muons_indices);
     Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
     lepton = Electrons[0];
     leptons.push_back(lepton);
   }
   if (channel == Channel::Mu) {
-    if (!(Muons_indices.size() == 1 && Electron_Veto_indices.size() == 0 &&
-          Electrons_indices.size() == 0 && Muons_Veto_indices.size() == 1))
-      return false;
+    if (!HasFlag("Skim")) {
+      if (!(Muons_indices.size() == 1 && Electron_Veto_indices.size() == 0 &&
+            Electrons_indices.size() == 0 && Muons_Veto_indices.size() == 1))
+        return false;
+    }
     Muons = MaterializeMuons(AllMuonViews, Muons_indices);
-    //additional muon prompt mva cut
-    if (!Muons[0].PassID(Muon::MuonID::POG_PROMPTMVA_WP0p64)) {
-      return false;
+    if (!HasFlag("Skim")) {
+      // additional muon prompt mva cut
+      if (!Muons[0].PassID(Muon::MuonID::POG_PROMPTMVA_WP0p64)) {
+        return false;
+      }
     }
     Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
     lepton = Muons[0];
@@ -317,7 +424,7 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
                           systHelper->getCurrentIterVariation(),
                           Event::MET_Syst::JER);
-    p4_shifted = p4_nominal; 
+    p4_shifted = p4_nominal;
   } else if (systHelper->getCurrentIterSysTarget() == "UE") {
     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
                           systHelper->getCurrentIterVariation(),
@@ -358,8 +465,14 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
                                     Electrons_indices, AllMuonViews,
                                     Muons_indices, Jet_Veto_DR);
 
-  if (jetIndices.size() < 4)
-    return false;
+  if (HasFlag("QuadJet")) {
+    if (jetIndices.size() < 4)
+      return false;
+  } else {
+    if (jetIndices.size() < 3)
+      return false;
+  }
+
   Jets = MaterializeJets(AllJetViews, jetIndices, jesVar, jerVar);
   std::sort(Jets.begin(), Jets.end(), PtComparing);
 
@@ -384,17 +497,17 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
         n_hadronFlav_c_jets++;
     }
   }
-  if(n_b_tagged_jets == 1){
-    // in this case cWp should be tightened by one level
-    cWP_work = loose_cut ? 0 : 2;
-  }
-  for(const auto &jet : Jets){
+  // if (n_b_tagged_jets == 1) {
+  //   // in this case cWp should be tightened by one level
+  //   cWP_work = loose_cut ? 0 : 3;
+  // }
+  for (const auto &jet : Jets) {
     const short cWP = GetPassedCTaggingWP(jet);
-    if(cWP >= cWP_work)
+    if (cWP >= cWP_work)
       n_c_tagged_jets++;
   }
   n_hf_jets = n_b_tagged_jets + n_c_tagged_jets;
-  FillCutFlow(7); // b/c tag counting done
+  FillCutFlow(7); // b/c tag c ounting done
 
   if ((n_b_tagged_jets < 1 || n_hf_jets < 3) && !remove_flavtagging_cut)
     return false;
@@ -527,6 +640,8 @@ void Vcb_SL::FillTrainingTree() {
   Jet_Category.clear();
   Jet_B_WP.clear();
   Jet_C_WP.clear();
+  Jet_ILR_Dim_1.clear();
+  Jet_ILR_Dim_2.clear();
   Jet_isTTbarJet.clear();
   Jet_ttbarJet_idx.clear();
   Jet_Pt.clear();
@@ -597,6 +712,8 @@ void Vcb_SL::FillTrainingTree() {
     Jet_Category.push_back(static_cast<int>(JetCategory(Jets[i])));
     Jet_B_WP.push_back(GetPassedBTaggingWP(Jets[i]));
     Jet_C_WP.push_back(GetPassedCTaggingWP(Jets[i]));
+    Jet_ILR_Dim_1.push_back(JetILRdim1Score(Jets[i]));
+    Jet_ILR_Dim_2.push_back(JetILRdim2Score(Jets[i]));
     Jet_Pt.push_back(Jets[i].Pt());
     Jet_Eta.push_back(Jets[i].Eta());
     Jet_Phi.push_back(Jets[i].Phi());
@@ -727,6 +844,8 @@ void Vcb_SL::FillTreeAtThisPoint(
     tree->Branch("Jet_Phi", &buffers.Jet_Phi);
     tree->Branch("Jet_Mass", &buffers.Jet_Mass);
     tree->Branch("Jet_Category", &buffers.Jet_Category);
+    tree->Branch("Jet_ILR_Dim_1", &buffers.Jet_ILR_Dim_1);
+    tree->Branch("Jet_ILR_Dim_2", &buffers.Jet_ILR_Dim_2);
     tree->Branch("Lepton_Pt", &buffers.Lepton_Pt);
     tree->Branch("Lepton_Eta", &buffers.Lepton_Eta);
     tree->Branch("Lepton_Phi", &buffers.Lepton_Phi);
@@ -773,12 +892,16 @@ void Vcb_SL::FillTreeAtThisPoint(
   buffers.Jet_Phi.clear();
   buffers.Jet_Mass.clear();
   buffers.Jet_Category.clear();
+  buffers.Jet_ILR_Dim_1.clear();
+  buffers.Jet_ILR_Dim_2.clear();
   for (const auto &jet : Jets) {
     buffers.Jet_Pt.push_back(jet.Pt());
     buffers.Jet_Eta.push_back(jet.Eta());
     buffers.Jet_Phi.push_back(jet.Phi());
     buffers.Jet_Mass.push_back(jet.M());
     buffers.Jet_Category.push_back(static_cast<int>(JetCategory(jet)));
+    buffers.Jet_ILR_Dim_1.push_back(JetILRdim1Score(jet));
+    buffers.Jet_ILR_Dim_2.push_back(JetILRdim2Score(jet));
   }
 
   buffers.Lepton_Pt.clear();
@@ -866,8 +989,8 @@ void Vcb_SL::FillTreeAtThisPoint(
 
       const float x_e_top =
           2 * FirstCopyTopBHad * LastCopyTop / LastCopyTop.M2();
-      const float x_e_antitop = 2 * FirstCopyAntiTopBHad *
-                                LastCopyAntiTop / LastCopyAntiTop.M2();
+      const float x_e_antitop =
+          2 * FirstCopyAntiTopBHad * LastCopyAntiTop / LastCopyAntiTop.M2();
       const float w_top = LastCopyWPlus.M2() / LastCopyTop.M2();
       const float w_antitop = LastCopyWMinus.M2() / LastCopyAntiTop.M2();
       const float clip_value = 1.2f;
@@ -876,7 +999,6 @@ void Vcb_SL::FillTreeAtThisPoint(
           std::min(x_e_antitop / (1 - w_antitop), clip_value);
       xb = x_b_top;
       xb_anti = x_b_antitop;
-
 
       weight_bfrag = myCorr->GetBFragReweight(
           LastCopyTop, LastCopyAntiTop, LastCopyWPlus, LastCopyWMinus,
@@ -908,12 +1030,16 @@ void Vcb_SL::FillTreeAtThisPoint(
   FillTrees(tree_name);
 }
 
-void Vcb_SL::FillTemplateTrainingTree() {
+void Vcb_SL::FillTemplateTrainingTree(
+    const std::unordered_map<std::string, float> &weight_map) {
+  for (const auto &kv : weight_map) {
+    SetBranch("Template_Training_Tree", "weight_" + kv.first, kv.second);
+  }
   ttbar_jet_indices = FindTTbarJetIndices();
   Particle hw = Jets[assignment[2]] + Jets[assignment[3]];
   SetBranch("Template_Training_Tree", "m_had_w", hw.M());
-  auto fill_category_bits = [](int cat, float &N0, float &L0, float(&C)[5],
-                               float(&B)[5]) {
+  auto fill_category_bits = [](int cat, float &N0, float &L0, float (&C)[5],
+                               float (&B)[5]) {
     N0 = L0 = 0.f;
     for (int i = 0; i < 5; ++i) {
       C[i] = 0.f;
@@ -956,6 +1082,14 @@ void Vcb_SL::FillTemplateTrainingTree() {
     SetBranch("Template_Training_Tree", "B" + std::to_string(i) + "_w_d",
               B_W2[i]);
   }
+  SetBranch("Template_Training_Tree", "ilr_dim1_w_u",
+            JetILRdim1Score(Jets[assignment[2]]));
+  SetBranch("Template_Training_Tree", "ilr_dim2_w_u",
+            JetILRdim2Score(Jets[assignment[2]]));
+  SetBranch("Template_Training_Tree", "ilr_dim1_w_d",
+            JetILRdim1Score(Jets[assignment[3]]));
+  SetBranch("Template_Training_Tree", "ilr_dim2_w_d",
+            JetILRdim2Score(Jets[assignment[3]]));
   SetBranch("Template_Training_Tree", "pt_w_u", Jets[assignment[2]].Pt());
   SetBranch("Template_Training_Tree", "pt_w_d", Jets[assignment[3]].Pt());
   SetBranch("Template_Training_Tree", "eta_w_u", Jets[assignment[2]].Eta());
@@ -984,29 +1118,7 @@ void Vcb_SL::FillTemplateTrainingTree() {
     chk_reco_correct = 1;
   }
   SetBranch("Template_Training_Tree", "chk_reco_correct", chk_reco_correct);
-
-  float weight_c_tag = 1.0;
-  float weight_el_id =
-      myCorr->GetElectronIDSF(El_ID_SF_Key[DataEra.Data()], Electrons);
-  float weight_mu_id = myCorr->GetMuonIDSF(Mu_ID_SF_Key[DataEra.Data()], Muons);
-  float weight_pileup = myCorr->GetPUWeight(ev.nTrueInt());
-  float weight_mu_iso =
-      myCorr->GetMuonISOSF(Mu_Iso_SF_Key[DataEra.Data()], Muons);
-  float weight_el_reco = myCorr->GetElectronRECOSF(Electrons);
-  float weight_prefire = 1.0;
-  float weight_sl_trig = 1.0;
-  float weight_top_pt = 1.0;
-
-  SetBranch("Template_Training_Tree", "weight_c_tag", weight_c_tag);
-  SetBranch("Template_Training_Tree", "weight_el_id", weight_el_id);
-  SetBranch("Template_Training_Tree", "weight_mu_id", weight_mu_id);
-  SetBranch("Template_Training_Tree", "weight_pileup", weight_pileup);
   SetBranch("Template_Training_Tree", "weight_mc", MCNormalization());
-  SetBranch("Template_Training_Tree", "weight_mu_iso", weight_mu_iso);
-  SetBranch("Template_Training_Tree", "weight_el_reco", weight_el_reco);
-  SetBranch("Template_Training_Tree", "weight_prefire", weight_prefire);
-  SetBranch("Template_Training_Tree", "weight_sl_trig", weight_sl_trig);
-  SetBranch("Template_Training_Tree", "weight_top_pt", weight_top_pt);
 
   FillTrees();
 }
@@ -1264,10 +1376,10 @@ RVec<int> Vcb_SL::FindTTbarJetIndices() {
     map_pid_to_genIdxObj[pid].push_back({iG, relevant_gens[iG]});
   }
 
-  // hadronFlavour array for all GenJets
+  // partonFlavour array for all GenJets
   RVec<int> genjet_flavours(AllGenJets.size());
   for (size_t i = 0; i < AllGenJets.size(); i++) {
-    int genJet_flavour = AllGenJets[i].hadronFlavour();
+    int genJet_flavour = AllGenJets[i].partonFlavour();
     genjet_flavours[i] = genJet_flavour;
   }
 
@@ -1282,7 +1394,7 @@ RVec<int> Vcb_SL::FindTTbarJetIndices() {
     int target_pid = kv.first;
     auto &idxGenPairs = kv.second; // each element is { iG, GenObject }
 
-    // Gather candidate GenJets that have the same hadronFlavour == target_pid
+    // Gather candidate GenJets that have the same partonFlavour == target_pid
     RVec<GenJet> candidateGenJets;
     RVec<int> candidateGJIndices;
     for (size_t j = 0; j < genjet_flavours.size(); j++) {
@@ -1643,17 +1755,18 @@ void Vcb_SL::InferONNX() {
   // ------------------------
   // 1. 준비: 시퀀셜(Jet) 파트
   // ------------------------
-  constexpr int max_jet = 8; // 모델이 보는 최대 jet 개수
-  constexpr int mom_feat_dim =
-      17; // pt, eta, sinφ, cosφ, m, N0, L0, C0..C4, B0..B4
+  constexpr int max_jet_reco = 8;    // RECO model jet count
+  constexpr int max_jet_classif = 9; // temporary: CLASSIF model expects 9 jets
+  constexpr int mom_feat_dim = 7;    // pt, eta, sinφ, cosφ, m, ilrdim1, ilrdim2
+                                     // //N0, L0, C0..C4, B0..B4
 
   auto &Momenta_data = std::get<FloatArray>(onnx_input_data["Momenta_data"]);
   auto &Momenta_mask = std::get<BoolArray>(onnx_input_data["Momenta_mask"]);
   Momenta_data.clear();
   Momenta_mask.clear();
 
-  auto fill_category_bits = [](int cat, float &N0, float &L0, float(&C)[5],
-                               float(&B)[5]) {
+  auto fill_category_bits = [](int cat, float &N0, float &L0, float (&C)[5],
+                               float (&B)[5]) {
     N0 = L0 = 0.f;
     for (int i = 0; i < 5; ++i) {
       C[i] = 0.f;
@@ -1673,7 +1786,7 @@ void Vcb_SL::InferONNX() {
     }
   };
 
-  for (int i = 0; i < max_jet; ++i) {
+  for (int i = 0; i < max_jet_reco; ++i) {
     if (i < static_cast<int>(Jets.size())) {
       const auto &j = Jets[i];
 
@@ -1681,7 +1794,8 @@ void Vcb_SL::InferONNX() {
       const float eta = j.Eta();
       const float phi = j.Phi();
       const float mass = j.M();
-
+      const float ilrdim1 = JetILRdim1Score(j);
+      const float ilrdim2 = JetILRdim2Score(j);
       float N0, L0;
       float C[5], B[5];
       int jetCat = static_cast<int>(JetCategory(j)); // 너 예제에 있던 그 함수
@@ -1693,12 +1807,14 @@ void Vcb_SL::InferONNX() {
       Momenta_data.push_back(static_cast<float>(TMath::Sin(phi)));
       Momenta_data.push_back(static_cast<float>(TMath::Cos(phi)));
       Momenta_data.push_back(mass);
-      Momenta_data.push_back(N0);
-      Momenta_data.push_back(L0);
-      for (int k = 0; k < 5; ++k)
-        Momenta_data.push_back(C[k]);
-      for (int k = 0; k < 5; ++k)
-        Momenta_data.push_back(B[k]);
+      Momenta_data.push_back(ilrdim1);
+      Momenta_data.push_back(ilrdim2);
+      // Momenta_data.push_back(N0);
+      // Momenta_data.push_back(L0);
+      // for (int k = 0; k < 5; ++k)
+      //   Momenta_data.push_back(C[k]);
+      // for (int k = 0; k < 5; ++k)
+      //   Momenta_data.push_back(B[k]);
 
       Momenta_mask.push_back(1);
     } else {
@@ -1745,14 +1861,35 @@ void Vcb_SL::InferONNX() {
   // ------------------------
   // 5. 추론 호출
   // ------------------------
-  const auto &input_shape = onnx_input_shape;
+  const auto &input_shape_reco = onnx_input_shape;
+  auto input_shape_classif = onnx_input_shape;
+  auto input_data_classif = onnx_input_data;
+  if (max_jet_classif != max_jet_reco) {
+    input_shape_classif["Momenta_data"] = {1, max_jet_classif, mom_feat_dim};
+    input_shape_classif["Momenta_mask"] = {1, max_jet_classif};
+    auto &classif_mom =
+        std::get<FloatArray>(input_data_classif["Momenta_data"]);
+    auto &classif_mask =
+        std::get<BoolArray>(input_data_classif["Momenta_mask"]);
+    if (classif_mask.size() > static_cast<size_t>(max_jet_classif)) {
+      classif_mask.resize(max_jet_classif);
+      classif_mom.resize(static_cast<size_t>(max_jet_classif) * mom_feat_dim);
+    } else {
+      while (classif_mask.size() < static_cast<size_t>(max_jet_classif)) {
+        for (int k = 0; k < mom_feat_dim; ++k)
+          classif_mom.push_back(0.f);
+        classif_mask.push_back(0);
+      }
+    }
+  }
+
   std::unordered_map<std::string, FloatArray> output_data_classif =
-      myMLHelper_CLASSIF_folds[current_fold]->Run_ONNX_Model(onnx_input_data,
-                                                             input_shape);
+      myMLHelper_CLASSIF_folds[current_fold]->Run_ONNX_Model(
+          input_data_classif, input_shape_classif);
 
   std::unordered_map<std::string, FloatArray> output_data_reco =
       myMLHelper_RECO_folds[current_fold]->Run_ONNX_Model(onnx_input_data,
-                                                          input_shape);
+                                                          input_shape_reco);
   // ------------------------
   // 6. (옵션) 분류 점수 있으면 사용
   // ------------------------
@@ -1811,12 +1948,12 @@ void Vcb_SL::InferONNX() {
 
   detection_score_logp = hw45log_detection_logits[0];
 
-  const int J = (int)std::min<size_t>(max_jet, Jets.size());
+  const int J = (int)std::min<size_t>(max_jet_reco, Jets.size());
 
   // shapes (배치차원 포함)
-  std::vector<int> hw45_shape = {1, max_jet, max_jet};
-  std::vector<int> ht_shape = {1, max_jet, max_jet, max_jet};
-  std::vector<int> lt_shape = {1, max_jet};
+  std::vector<int> hw45_shape = {1, max_jet_reco, max_jet_reco};
+  std::vector<int> ht_shape = {1, max_jet_reco, max_jet_reco, max_jet_reco};
+  std::vector<int> lt_shape = {1, max_jet_reco};
 
   int w1_assignment = -1, w2_assignment = -1, hb_assignment = -1,
       lb_assignment = -1;
@@ -1864,8 +2001,9 @@ void Vcb_SL::InferONNX() {
   //   for (int a = 0; a < J; ++a) {
   //     if (a == w1 || a == w2)
   //       continue;
-  //     size_t flat = (size_t)(0 * max_jet * max_jet * max_jet +
-  //                            a * max_jet * max_jet + w1 * max_jet + w2);
+  //     size_t flat = (size_t)(0 * max_jet_reco * max_jet_reco * max_jet_reco +
+  //                            a * max_jet_reco * max_jet_reco +
+  //                            w1 * max_jet_reco + w2);
   //     float s = htlog_logits.at(flat);
   //     if (s > best) {
   //       best = s;
@@ -1917,12 +2055,12 @@ void Vcb_SL::InferONNX() {
 
 void Vcb_SL::InferTabNet() {
   static const std::array<float, 7> class_weight_vec = {1.0,
-                                                        1.4111744165420532,
-                                                        0.3698510229587555,
-                                                        0.2933323383331299,
-                                                        0.23698416352272034,
-                                                        6.4362874031066895,
-                                                        3.2500813007354736};
+                                                        1.3220714330673218,
+                                                        0.6278531551361084,
+                                                        0.519160270690918,
+                                                        0.17914541065692902,
+                                                        5.709803581237793,
+                                                        3.0536484718322754};
 
   //                                                "varlist": [
   //   "m_had_w",
@@ -1944,7 +2082,7 @@ void Vcb_SL::InferTabNet() {
 
   auto &input_vector = std::get<FloatArray>(tabnet_input_data["input"]);
   input_vector.clear();
-  input_vector.reserve(15);
+  input_vector.reserve(17);
   auto winsorize = [](float val, float lower, float upper) {
     return std::clamp(val, lower, upper);
   };
@@ -1963,9 +2101,17 @@ void Vcb_SL::InferTabNet() {
   // eta_w_d
   input_vector.push_back(Jets[assignment[3]].Eta());
   // Cat_w_u
-  input_vector.push_back(static_cast<float>(JetCategory(Jets[assignment[2]])));
+  // input_vector.push_back(static_cast<float>(JetCategory(Jets[assignment[2]])));
   // Cat_w_d
-  input_vector.push_back(static_cast<float>(JetCategory(Jets[assignment[3]])));
+  // input_vector.push_back(static_cast<float>(JetCategory(Jets[assignment[3]])));
+  // ilrdim1_w_u
+  input_vector.push_back(JetILRdim1Score(Jets[assignment[2]]));
+  // ilrdim1_w_d
+  input_vector.push_back(JetILRdim1Score(Jets[assignment[3]]));
+  // ilrdim2_w_u
+  input_vector.push_back(JetILRdim2Score(Jets[assignment[2]]));
+  // ilrdim2_w_d
+  input_vector.push_back(JetILRdim2Score(Jets[assignment[3]]));
   // logp_class_0 ~ logp_class_5
   for (size_t i = 0; i < class_score_logp.size(); ++i) {
     input_vector.push_back(class_score_logp[i]);
@@ -2019,7 +2165,7 @@ void Vcb_SL::InferTabNet() {
 
 bool Vcb_SL::FillTabNetInfo(const TString &histPrefix, float weight) {
   FillHist(histPrefix + "/" + "Template_MVA_Score", final_template_score,
-           weight, 100, 0., 1.);
+           weight, 200, 0., 1.);
   return true;
 }
 

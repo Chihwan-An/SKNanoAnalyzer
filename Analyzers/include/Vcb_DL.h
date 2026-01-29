@@ -7,6 +7,7 @@ class Vcb_DL : public Vcb
 {
 public:
     bool PassBaseLineSelection(bool remove_flavtagging_cut = false, bool loose_cut = false) override;
+    void FillHistogramsAtThisPoint(std::string_view histPrefix, float weight = 1.f) override;
     inline bool CheckChannel() override
     {
         if (channel != Channel::MM && channel != Channel::EE && channel != Channel::ME) return false;

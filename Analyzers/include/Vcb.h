@@ -121,7 +121,7 @@ public:
   void virtual CreateTemplateTrainingTree();
   RVec<int> virtual FindTTbarJetIndices();
   void virtual FillTrainingTree();
-  void virtual FillTemplateTrainingTree();
+  void virtual FillTemplateTrainingTree(const std::unordered_map<std::string, float> &weight_map);
   float virtual MCNormalization() = 0;
   void virtual InferONNX();
   void virtual InferTabNet();
@@ -258,6 +258,8 @@ public:
     std::vector<float> Jet_Phi;
     std::vector<float> Jet_Mass;
     std::vector<int> Jet_Category;
+    std::vector<float> Jet_ILR_Dim_1;
+    std::vector<float> Jet_ILR_Dim_2;
     std::vector<float> Lepton_Pt;
     std::vector<float> Lepton_Eta;
     std::vector<float> Lepton_Phi;

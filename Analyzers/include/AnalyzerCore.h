@@ -43,6 +43,8 @@
 #include "FatJet.h"
 #include "Tau.h"
 #include "Photon.h"
+#include "SV.h"
+#include "SVView.h"
 #include "GenJet.h"
 #include "GenJetView.h"
 #include "GenDressedLepton.h"
@@ -107,7 +109,7 @@ public:
     virtual void initializeAnalyzer() {};
     virtual void executeEvent() {};
 
-    inline bool HasFlag(const TString &flag) { return std::find(Userflags.begin(), Userflags.end(), flag) != Userflags.end(); }
+    inline bool HasFlag(const TString &flag) const { return std::find(Userflags.begin(), Userflags.end(), flag) != Userflags.end(); }
 
     inline static bool PtComparing(const Particle& p1, const Particle& p2) { return p1.Pt() > p2.Pt();}
     inline static bool PtComparingPtr(const Particle* p1, const Particle* p2) { return p1->Pt() > p2->Pt();}
@@ -184,6 +186,8 @@ public:
     RVec<GenDressedLepton> GetAllGenDressedLeptons();
     RVec<GenIsolatedPhoton> GetAllGenIsolatedPhotons();
     RVec<GenVisTau> GetAllGenVisTaus();
+    SVViewCollection GetAllSVViews();
+    RVec<SV> GetAllSVs();
     static void MuonEnsureThunk(void *ctx, Muon &muon, Muon::Property property);
     static void ElectronEnsureThunk(void *ctx, Electron &electron, Electron::Property property);
     static void JetEnsureThunk(void *ctx, Jet &jet, Jet::Property property);

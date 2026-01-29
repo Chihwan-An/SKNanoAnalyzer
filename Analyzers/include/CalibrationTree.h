@@ -18,13 +18,13 @@
 #include "GenView.h"
 #include "MLHelper.h"
 #include "SystematicHelper.h"
-#include "TKinFitter.h"
 #include "TFitConstraintEp.h"
 #include "TFitConstraintM.h"
 #include "TFitConstraintMGaus.h"
 #include "TFitParticleEtEtaPhi.h"
 #include "TFitParticleMCCart.h"
 #include "TFitParticlePt.h"
+#include "TKinFitter.h"
 #include "TrigObjView.h"
 #include "VcbParameters.h"
 
@@ -38,16 +38,43 @@ class CalibrationTree : public AnalyzerCore {
 public:
   enum class Channel { TTDilep, WCharm_Mu, WCharm_El, DYLight, TTSemilep };
 
+  struct KinFitterResult {
+    int status;
+    double chi2_whad;
+    double chi2_wlep;
+    double chi2_thad;
+    double chi2_tlep;
+    void clear() {
+      status = -999; // 또는 -1 등 네가 쓰고 싶은 초기값
+      chi2_whad = -999.0;
+      chi2_wlep = -999.0;
+      chi2_thad = -999.0;
+      chi2_tlep = -999.0;
+    }
+  };
+
   void Clear();
   void SetChannel();
   void initializeAnalyzer() override;
   void executeEvent() override;
+  void SkimTree();
+  void WriteHist() override;
   virtual void executeEventFromParameter();
   std::variant<float, std::pair<float, float>>
   SolveNeutrinoPz(const Lepton &lepton, const Particle &met);
   std::tuple<int, double, TLorentzVector, TLorentzVector, TLorentzVector>
-  FitKinFitterLepTop(const Jet &bjet, Particle &neutrino,
-                                      Lepton &lepton);
+  FitKinFitterLepTop(const Jet &bjet, Particle &neutrino, Lepton &lepton);
+  KinFitterResult FitKinFitterTTSemilep(const Jet &had_t_b, const Jet &lep_t_b,
+                                        const Jet &had_w_1, const Jet &had_w_2,
+                                        Particle &neutrino,
+                                        Lepton &lepton);
+  float Calc_Each_Chi2(TAbsFitParticle *ptr);
+  float Calc_Each_Chi2(TAbsFitConstraint *constraint, float mass, float width);
+  KinFitterResult Chi2Prefit(const Jet &had_t_b, const Jet &lep_t_b,
+                                        const Jet &had_w_1, const Jet &had_w_2,
+                                        const Particle &neutrino,
+                                        const Lepton &lepton);
+
   bool PassBaseLineSelection();
   bool PassTTDilepBaselineSelection();
   bool PassWCharmBaselineSelection();
@@ -70,6 +97,7 @@ public:
   MuonViewCollection AllMuonViews;
   ElectronViewCollection AllElectronViews;
   JetViewCollection AllJetViews;
+  SVViewCollection AllSVViews;
   GenViewCollection AllGenViews;
   TrigObjViewCollection AllTrigObjViews;
   // Selected Objects
@@ -96,6 +124,55 @@ public:
   float melj0;
   float mmuj1;
   float melj1;
+  float wcharm_soft_mu_pt;
+  float wcharm_dimuon_mass;
+  float wcharm_jet_muEF;
+  float wcharm_jet_neEmEF;
+  float wcharm_jet_muEF_plus_neEmEF;
+  float wcharm_mt;
+  float wcharm_w_pt;
+  float wcharm_dphi_met_jet;
+  float wcharm_dphi_lep_jet;
+  float wcharm_dphi_w_jet;
+  float wcharm_pt_ratio;
+  float wcharm_dphi_trkmet_met;
+  int wcharm_jet0_nsv;
+  int wcharm_sv0_idx;
+  int wcharm_sv1_idx;
+  float wcharm_sv0_pt;
+  float wcharm_sv0_eta;
+  float wcharm_sv0_phi;
+  float wcharm_sv0_mass;
+  float wcharm_sv0_charge;
+  float wcharm_sv0_chi2;
+  float wcharm_sv0_ndof;
+  float wcharm_sv0_ntracks;
+  float wcharm_sv0_dlen;
+  float wcharm_sv0_dlenSig;
+  float wcharm_sv0_dxy;
+  float wcharm_sv0_dxySig;
+  float wcharm_sv0_pAngle;
+  float wcharm_sv0_x;
+  float wcharm_sv0_y;
+  float wcharm_sv0_z;
+  float wcharm_sv1_pt;
+  float wcharm_sv1_eta;
+  float wcharm_sv1_phi;
+  float wcharm_sv1_mass;
+  float wcharm_sv1_charge;
+  float wcharm_sv1_chi2;
+  float wcharm_sv1_ndof;
+  float wcharm_sv1_ntracks;
+  float wcharm_sv1_dlen;
+  float wcharm_sv1_dlenSig;
+  float wcharm_sv1_dxy;
+  float wcharm_sv1_dxySig;
+  float wcharm_sv1_pAngle;
+  float wcharm_sv1_x;
+  float wcharm_sv1_y;
+  float wcharm_sv1_z;
+  // kinematic fitter result
+  KinFitterResult best_KF_result;
 
   bool skimTreeInitialized = false;
   std::vector<Long64_t> skim_passed_global_entries;

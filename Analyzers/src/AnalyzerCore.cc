@@ -560,6 +560,27 @@ GenJetViewCollection AnalyzerCore::GetAllGenJetViews() {
   return GenJetViewCollection(std::move(storage));
 }
 
+SVViewCollection AnalyzerCore::GetAllSVViews() {
+  auto storage = std::make_shared<SVSoA>();
+  storage->pt.bind(&SV_pt);
+  storage->eta.bind(&SV_eta);
+  storage->phi.bind(&SV_phi);
+  storage->mass.bind(&SV_mass);
+  storage->charge.bind(&SV_charge);
+  storage->chi2.bind(&SV_chi2);
+  storage->dlen.bind(&SV_dlen);
+  storage->dlenSig.bind(&SV_dlenSig);
+  storage->dxy.bind(&SV_dxy);
+  storage->dxySig.bind(&SV_dxySig);
+  storage->ndof.bind(&SV_ndof);
+  storage->ntracks.bind(&SV_ntracks);
+  storage->pAngle.bind(&SV_pAngle);
+  storage->x.bind(&SV_x);
+  storage->y.bind(&SV_y);
+  storage->z.bind(&SV_z);
+  return SVViewCollection(std::move(storage));
+}
+
 MuonViewCollection AnalyzerCore::GetAllMuonViews() {
   auto storage = std::make_shared<MuonSoA>();
   storage->pt.bind(&Muon_pt);
@@ -1140,6 +1161,28 @@ RVec<Tau> AnalyzerCore::GetAllTaus() {
   }
 
   return taus;
+}
+
+RVec<SV> AnalyzerCore::GetAllSVs() {
+  RVec<SV> svs;
+
+  for (int i = 0; i < nSV; i++) {
+    SV sv;
+    sv.SetPtEtaPhiM(SV_pt[i], SV_eta[i], SV_phi[i], SV_mass[i]);
+    sv.SetCharge(SV_charge[i]);
+    sv.SetChi2(SV_chi2[i]);
+    sv.SetDlen(SV_dlen[i]);
+    sv.SetDlenSig(SV_dlenSig[i]);
+    sv.SetDxy(SV_dxy[i]);
+    sv.SetDxySig(SV_dxySig[i]);
+    sv.SetNdof(SV_ndof[i]);
+    sv.SetNTracks(SV_ntracks[i]);
+    sv.SetPAngle(SV_pAngle[i]);
+    sv.SetPosition(SV_x[i], SV_y[i], SV_z[i]);
+    svs.push_back(sv);
+  }
+
+  return svs;
 }
 
 RVec<Tau> AnalyzerCore::SelectTaus(const RVec<Tau> &taus, const TString ID,

@@ -18,6 +18,7 @@
 #include "GenView.h"
 #include "MLHelper.h"
 #include "OtJsonLutBank.h"
+#include "UParTScoreUtils.h"
 #include "SystematicHelper.h"
 #include "TFitConstraintEp.h"
 #include "TFitConstraintM.h"
@@ -37,14 +38,7 @@ using VariousArray = std::variant<FloatArray, IntArray, BoolArray>;
 
 class Vcb : public AnalyzerCore {
 public:
-  struct Prob3 {
-    double pb = 0.0;
-    double pc = 0.0;
-    double pl = 1.0; // light/udsg
-    double ilr_dim1 = 0.0;
-    double ilr_dim2 = 0.0;
-    bool ok = false;
-  };
+  using Prob3 = UParTScore::Prob3;
   uint32_t rle_bucket(uint64_t run, uint64_t lumi, uint64_t event,
                       uint32_t nbuckets);
 

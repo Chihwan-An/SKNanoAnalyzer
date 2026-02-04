@@ -380,81 +380,11 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
   FillCutFlow(4); // lepton passed
 
   // 5) MET + jet p4 shift
-  MET = ev.GetMETVector(Event::MET_Type::PUPPI);
-
-  TLorentzVector p4_nominal(0, 0, 0, 0);
-  TLorentzVector p4_shifted(0, 0, 0, 0);
-  for (const auto &jetView : AllJetViews) {
-    TLorentzVector v;
-    v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(), jetView.Mass());
-    p4_nominal += v;
-  }
-
-  if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
-      std::string::npos) {
-    const bool doBreakdown = HasFlag("doBreakdown");
-    const TString srcT = systHelper->getCurrentIterSysSource();
-    if (doBreakdown) {
-      if (srcT.EqualTo("total", TString::kIgnoreCase))
-        return false;
-      ApplyJetScaleVariation(AllJetViews, srcT);
-    } else {
-      if (!srcT.EqualTo("total", TString::kIgnoreCase))
-        return false;
-      ApplyJetScaleVariation(AllJetViews, "total");
-    }
-
-    if (systHelper->getCurrentIterVariation() == MyCorrection::variation::up) {
-      for (const auto &jetView : AllJetViews) {
-        TLorentzVector v;
-        v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
-                       jetView.JesMassUp());
-        p4_shifted += v;
-      }
-    } else if (systHelper->getCurrentIterVariation() ==
-               MyCorrection::variation::down) {
-      for (const auto &jetView : AllJetViews) {
-        TLorentzVector v;
-        v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
-                       jetView.JesMassDown());
-        p4_shifted += v;
-      }
-    }
-  } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
-    MET = ev.GetMETVector(Event::MET_Type::PUPPI,
-                          systHelper->getCurrentIterVariation(),
-                          Event::MET_Syst::JER);
-    p4_shifted = p4_nominal;
-  } else if (systHelper->getCurrentIterSysTarget() == "UE") {
-    MET = ev.GetMETVector(Event::MET_Type::PUPPI,
-                          systHelper->getCurrentIterVariation(),
-                          Event::MET_Syst::UE);
-    p4_shifted = p4_nominal;
-  } else {
-    for (const auto &jetView : AllJetViews) {
-      TLorentzVector v;
-      v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(), jetView.Phi(),
-                     jetView.SmearedMassNominal());
-      p4_shifted += v;
-    }
-  }
-
-  {
-    TLorentzVector delta = p4_shifted - p4_nominal;
-    MET.SetXYZM(MET.Px() - delta.Px(), MET.Py() - delta.Py(), 0., 0.);
-  }
-  FillCutFlow(5); // MET/JES/JER propagation done
-
   MyCorrection::variation jesVar = MyCorrection::variation::nom;
   MyCorrection::variation jerVar = MyCorrection::variation::nom;
-  if (!IsDATA) {
-    if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
-        std::string::npos) {
-      jesVar = systHelper->getCurrentIterVariation();
-    } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
-      jerVar = systHelper->getCurrentIterVariation();
-    }
-  }
+  if (!PropagateJetSystToMET(AllJetViews, *systHelper, ev, MET, jesVar, jerVar))
+    return false;
+  FillCutFlow(5); // MET/JES/JER propagation done
 
   // 6) jets
   float Jet_Pt_Cut = loose_cut ? SL_Jet_Pt_cut - 5.f : SL_Jet_Pt_cut;

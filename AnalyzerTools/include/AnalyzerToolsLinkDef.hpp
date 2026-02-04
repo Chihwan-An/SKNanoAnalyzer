@@ -13,5 +13,7 @@
 #pragma link C++ class NonpromptParameter+;
 #pragma link C++ class SystematicHelper+;
 #pragma link C++ class OtJsonLutBank+;
+#pragma link C++ class UParTScore::Mapper+;
+#pragma link C++ class UParTScore::Prob3+;
 
 #endif

@@ -75,9 +75,12 @@ def isMCandGetPeriod(sample):
             return False, sample_parts[-1]
     return True, None
 
-def getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName):
+def getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName, userflags=None):
     isMC, period = isMCandGetPeriod(sample)
-    suffix = f"Temp_Skim_{AnalyzerName.replace('Skim_','')}_{sample if isMC else sample.replace(f'_{period}','')}"
+    userflags = userflags or []
+    suffix_tag = f"_{'_'.join(userflags)}" if len(userflags) > 0 else ""
+    skim_suffix = f"{AnalyzerName.replace('Skim_','')}{suffix_tag}"
+    suffix = f"Temp_Skim_{skim_suffix}_{sample if isMC else sample.replace(f'_{period}','')}"
     if Run[era] == 2:
         out_base = os.path.join(SKNANO_RUN2_NANOAODPATH ,era,'MC' if isMC else 'DATA','Skim',os.environ['USER'],suffix,'' if isMC else f'Period{period}', 'tree.root') if SKIMMING_MODE else 'output/hists.root'
     elif Run[era] == 3:
@@ -161,6 +164,20 @@ def getUserFlagsList(Userflags):
     UserflagsList = [x for x in UserflagsList if x != ""]
     return UserflagsList
 
+def getExcludeRegexList(exclude_samples):
+    if not exclude_samples:
+        return []
+    exclude_list = [x for x in exclude_samples.split(",") if x != ""]
+    regex_list = []
+    for pattern in exclude_list:
+        pattern = pattern.replace('*','.*')
+        try:
+            regex_list.append(re.compile(pattern))
+        except re.error as exc:
+            print('\033[91m'+f"ERROR: invalid exclude regex '{pattern}': {exc}"+'\033[0m')
+            exit()
+    return regex_list
+
 def getTimeStamp():
     ## TimeStamp
 
@@ -183,6 +200,8 @@ def setParser():
     parser.add_argument('-r', dest='Run', default="None",help="Run2, Run3. can be comma separated. override era option")
     parser.add_argument('-p', dest='Period', default="All",help="Data period (e.g. A, B, C, etc.) for data samples. Default: All")
     parser.add_argument('--userflags', dest='Userflags', default="")
+    parser.add_argument('--exclude', dest='ExcludeSample', default="",
+    help="Exclude samples by regex (comma-separated, supports * wildcard)")
     parser.add_argument('--nmax', dest='NMax', default=500, type=int, help="maximum running jobs")
     parser.add_argument('--reduction', dest='Reduction', default=1, type=float)
     parser.add_argument('--python', action="store_true", default=False,
@@ -249,7 +268,7 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
         
     os.makedirs(working_dir)
     if SKIMMING_MODE:
-        out_base, suffix = getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName)
+        out_base, suffix = getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName, userflags)
         if not os.path.exists(os.path.dirname(out_base)):
             os.makedirs(os.path.dirname(out_base))
     else:
@@ -455,15 +474,19 @@ def makeHaddJobs(working_dir,argparser,sample):
 
 def makeSkimPostProcsJobs(working_dir,sample, argparser,era):
     AnalyzerName = argparser.Analyzer
+    userflags = getUserFlagsList(argparser.Userflags)
+    skim_suffix = AnalyzerName.replace('Skim_','')
+    if len(userflags) > 0:
+        skim_suffix += f"_{'_'.join(userflags)}"
     isMC, period = isMCandGetPeriod(sample)
-    out_base, suffix = getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName) 
+    out_base, suffix = getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName, userflags) 
     out_base = os.path.dirname(out_base)
     if isMC:
         with open(os.path.join(working_dir,"postproc.sh"),'w') as f:
             f.writelines("#!/bin/bash\n")
             f.writelines(f"mv {out_base} {os.path.join(os.path.dirname(out_base),out_base.split('/')[-1].replace('Temp_',''))}\n")
             f.writelines(f"cd $SKNANO_PYTHON\n")
-            f.writelines(f"python3 sampleManager.py --era {era} --makeSkimTreeInfo --skimTreeFolder {os.path.dirname(out_base)} --skimTreeSuffix {AnalyzerName.replace('Skim_','')} --skimTreeOrigPD {sample}\n")
+            f.writelines(f"python3 sampleManager.py --era {era} --makeSkimTreeInfo --skimTreeFolder {os.path.dirname(out_base)} --skimTreeSuffix {skim_suffix} --skimTreeOrigPD {sample}\n")
     else:
         target_dir = os.path.join(os.path.dirname(os.path.dirname(out_base)),os.path.dirname(out_base).split("/")[-1].replace('Temp_',''))
         if not os.path.exists(target_dir):
@@ -472,7 +495,7 @@ def makeSkimPostProcsJobs(working_dir,sample, argparser,era):
             f.writelines("#!/bin/bash\n")
             f.writelines(f"mv {out_base} {target_dir}\n")
             f.writelines(f"cd $SKNANO_PYTHON\n")
-            f.writelines(f"python3 sampleManager.py --era {era} --makeSkimTreeInfo --skimTreeFolder {os.path.dirname(target_dir)} --skimTreeSuffix {AnalyzerName.replace('Skim_','')} --skimTreeOrigPD {sample}\n")
+            f.writelines(f"python3 sampleManager.py --era {era} --makeSkimTreeInfo --skimTreeFolder {os.path.dirname(target_dir)} --skimTreeSuffix {skim_suffix} --skimTreeOrigPD {sample}\n")
             f.writelines(f"""if [ -z "$(ls -A {os.path.dirname(out_base)})" ]; then\n""")
             f.writelines(f"\trmdir {os.path.dirname(out_base)}\n") 
             f.writelines(f"fi")
@@ -631,6 +654,7 @@ if __name__ == '__main__':
     timestamp, string_JobStartTime = getTimeStamp()
     _, abs_MasterDirectoryName= getMasterDirectoryName(timestamp, args.Analyzer, userflags)
     InputSamplelist = getInputSampleList(args.InputSample)
+    exclude_regexes = getExcludeRegexList(args.ExcludeSample)
     
     dag_list = []
     hadd_layers = []
@@ -639,6 +663,11 @@ if __name__ == '__main__':
     for era in eras:
         print(f"Working on {era}")
         InputSamplelist_era = makeSampleList(InputSamplelist, era)
+        if exclude_regexes:
+            InputSamplelist_era = [
+                sample for sample in InputSamplelist_era
+                if not any(regex.search(sample) for regex in exclude_regexes)
+            ]
         for isample, sample in enumerate(InputSamplelist_era):
             working_dir, totalNumberofJobs = jobProducer(era, sample, args, abs_MasterDirectoryName, userflags, isample, len(InputSamplelist_era))
             if totalNumberofJobs == None:

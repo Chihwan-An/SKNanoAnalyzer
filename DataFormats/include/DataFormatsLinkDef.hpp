@@ -16,6 +16,7 @@
 #pragma link C++ class Electron+;
 #pragma link C++ class Tau+;
 #pragma link C++ class Photon+;
+#pragma link C++ class SV+;
 #pragma link C++ class Jet+;
 #pragma link C++ class FatJet+;
 #pragma link C++ class JetTaggingParameter+;

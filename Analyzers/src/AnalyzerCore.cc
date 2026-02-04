@@ -1,5 +1,6 @@
 #include "AnalyzerCore.h"
 #include "JetView.h"
+#include "SystematicHelper.h"
 #include "TObjArray.h"
 #include "TObjString.h"
 #include <Compression.h>
@@ -1540,6 +1541,87 @@ void AnalyzerCore::ApplyJetScaleVariation(JetViewCollection &jets,
     storage.jesMassUp[i] = storage.smearedMassNominal[i] * (1.f + unc);
     storage.jesMassDown[i] = storage.smearedMassNominal[i] * (1.f - unc);
   }
+}
+
+bool AnalyzerCore::PropagateJetSystToMET(
+    JetViewCollection &jets, SystematicHelper &systHelper, const Event &event,
+    Particle &met, MyCorrection::variation &jesVar,
+    MyCorrection::variation &jerVar) const {
+  met = event.GetMETVector(Event::MET_Type::PUPPI);
+
+  TLorentzVector p4_nominal(0, 0, 0, 0);
+  TLorentzVector p4_shifted(0, 0, 0, 0);
+  for (const auto &jetView : jets) {
+    TLorentzVector v;
+    v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(), jetView.Mass());
+    p4_nominal += v;
+  }
+
+  const std::string sysTarget = systHelper.getCurrentIterSysTarget();
+  if (sysTarget.find("Jet_En") != std::string::npos) {
+    const bool doBreakdown = HasFlag("doBreakdown");
+    const TString srcT = systHelper.getCurrentIterSysSource();
+    if (doBreakdown) {
+      if (srcT.EqualTo("total", TString::kIgnoreCase))
+        return false;
+      ApplyJetScaleVariation(jets, srcT);
+    } else {
+      if (!srcT.EqualTo("total", TString::kIgnoreCase))
+        return false;
+      ApplyJetScaleVariation(jets, "total");
+    }
+
+    if (systHelper.getCurrentIterVariation() == MyCorrection::variation::up) {
+      for (const auto &jetView : jets) {
+        TLorentzVector v;
+        v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
+                       jetView.JesMassUp());
+        p4_shifted += v;
+      }
+    } else if (systHelper.getCurrentIterVariation() ==
+               MyCorrection::variation::down) {
+      for (const auto &jetView : jets) {
+        TLorentzVector v;
+        v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
+                       jetView.JesMassDown());
+        p4_shifted += v;
+      }
+    }
+  } else if (sysTarget == "Jet_Res") {
+    met = event.GetMETVector(Event::MET_Type::PUPPI,
+                             systHelper.getCurrentIterVariation(),
+                             Event::MET_Syst::JER);
+    p4_shifted = p4_nominal;
+  } else if (sysTarget == "UE") {
+    met = event.GetMETVector(Event::MET_Type::PUPPI,
+                             systHelper.getCurrentIterVariation(),
+                             Event::MET_Syst::UE);
+    p4_shifted = p4_nominal;
+  } else {
+    for (const auto &jetView : jets) {
+      TLorentzVector v;
+      v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(), jetView.Phi(),
+                     jetView.SmearedMassNominal());
+      p4_shifted += v;
+    }
+  }
+
+  {
+    TLorentzVector delta = p4_shifted - p4_nominal;
+    met.SetXYZM(met.Px() - delta.Px(), met.Py() - delta.Py(), 0., 0.);
+  }
+
+  jesVar = MyCorrection::variation::nom;
+  jerVar = MyCorrection::variation::nom;
+  if (!IsDATA) {
+    if (sysTarget.find("Jet_En") != std::string::npos) {
+      jesVar = systHelper.getCurrentIterVariation();
+    } else if (sysTarget == "Jet_Res") {
+      jerVar = systHelper.getCurrentIterVariation();
+    }
+  }
+
+  return true;
 }
 
 void AnalyzerCore::ApplyJetSmearVariation(JetViewCollection &jets,

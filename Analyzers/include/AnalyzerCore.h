@@ -85,6 +85,8 @@ struct TransparentStringEq {
     }
 }; 
 
+class SystematicHelper;
+
 class IDContainer {
 public:
     IDContainer() {}
@@ -275,6 +277,7 @@ public:
     RVec<Jet> ScaleJets(const JetViewCollection &jets, const std::vector<std::size_t> &indices, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
     void ApplyJetScaleVariation(JetViewCollection &jets, const TString &source = "total") const;
     void ApplyJetSmearVariation(JetViewCollection &jets, const RVec<GenJet> &genjets, const TString &source = "total") const;
+    bool PropagateJetSystToMET(JetViewCollection &jets, SystematicHelper &systHelper, const Event &event, Particle &met, MyCorrection::variation &jesVar, MyCorrection::variation &jerVar) const;
     
     // Histogram Handlers
     TFile* GetOutfile() { return outfile; }

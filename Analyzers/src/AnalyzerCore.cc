@@ -269,7 +269,71 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
     }
     return smeared_jets;
 }
+/*
+RVec<Jet> AnalyzerCore::SmearFatJets(const RVec<Jet> &jets, const RVec<GenJetAK8> &genjets, const TString &syst, const TString &source){
+    if (syst == "nominal") return jets;
+    else if (syst == "up") return SmearFatJets(jets, genjets, MyCorrection::variation::up, source);
+    else if (syst == "down") return SmearFatJets(jets, genjets, MyCorrection::variation::down, source);
+    else throw runtime_error("[AnalyzerCore::SmearJets] Invalid syst value");
+}
+*/
+/*
+RVec<FatJet> AnalyzerCore::SmearFatJets(const RVec<FatJet> &jets, const RVec<GenJetAK8> &genjets, const MyCorrection::variation &syst, const TString &source) {
+    unordered_map<int, int> matched_idx = GenJetMatching(jets, genjets, fixedGridRhoFastjetAll);
+    RVec<FatJet> smeared_fatjets;
+    gRandom->SetSeed(int(MET_pt*1e6));
+    const float MIN_JET_ENERGY=1e-2;
+    for(size_t i = 0; i < jets.size(); i++){
+        FatJet this_jet = jets.at(i);
 
+        // backward smearing for systematic variation
+        if (this_jet.GetUnsmearedP4().E() < 0) {
+            // never smeared yet
+            this_jet.SetUnsmearedP4(this_jet);
+        } else {
+            // already smeared
+            const float backward_factor = this_jet.GetUnsmearedP4().Pt() / this_jet.Pt();
+            this_jet *= backward_factor;
+        }
+
+        // Following the procedures in https://github.com/choij1589/SKFlatMaker/blob/master/SKFlatMaker/src/SKFlatMaker.cc#L3378-L3419
+        float this_corr = 1.;
+        const float this_jer = myCorr->GetFJER(this_jet.Eta(), this_jet.Pt(), fixedGridRhoFastjetAll);
+        const float this_sf = myCorr->GetFJERSF(this_jet.Eta(), this_jet.Pt(), syst, source);
+        if (matched_idx[i] > 0 && matched_idx[i] < genjets.size()) {
+            // found matched jet
+            const float matched_genjet_pt = genjets[matched_idx[i]].Pt();
+            this_corr += (this_sf-1.) * (1.-matched_genjet_pt/this_jet.Pt());
+        } else {
+            this_corr += (gRandom->Gaus(0., this_jer))*sqrt(max(this_sf*this_sf-1., 0.));
+        }
+        // To avoid flipping direction (this_corr < 0)
+        const float min_corr = MIN_JET_ENERGY/this_jet.E();
+        this_corr = max(this_corr, min_corr);
+        
+        /*
+        if(matched_idx[i] < 0) {
+            // if the jet is not matched to any genjet, do stochastic smearing
+            if(this_sf < 1.) {
+                this_corr = MIN_JET_ENERGY / this_jet.E();
+            } else{
+                this_corr += (gRandom->Gaus(0, this_jer)) * sqrt(max(this_sf * this_sf - 1., 0.0));
+                float new_corr = MIN_JET_ENERGY / this_jet.E();
+                this_corr = max(this_corr, new_corr);
+            }
+        } else {
+            float this_genjet_pt = genjets[matched_idx[i]].Pt();
+            this_corr += (this_sf - 1.) * (1. - this_genjet_pt / this_jet.Pt());
+            float new_corr = MIN_JET_ENERGY / this_jet.E();
+            this_corr = max(this_corr, new_corr);
+        }
+        
+        this_jet *= this_corr;
+        smeared_fatjets.push_back(this_jet);
+    }
+    return smeared_fatjets;
+}
+*/
 RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const TString &syst, const TString &source){
     if (syst == "nominal") return jets;
     else if (syst == "up") return SmearJets(jets, genjets, MyCorrection::variation::up, source);
@@ -493,6 +557,12 @@ Event AnalyzerCore::GetEvent() {
     return ev;
 }
 
+Event AnalyzerCore::GetEvent_Skim() {
+    Event ev;
+    ev.SetTrigger(TriggerMap);
+    return ev;
+}
+
 RVec<Muon> AnalyzerCore::GetAllMuons() {
     RVec<Muon> muons;
     RVec<Gen> truth;
@@ -628,7 +698,7 @@ RVec<Muon> AnalyzerCore::SelectMuons(const RVec<Muon> &muons, const Muon::MuonID
 {
     RVec<Muon> selected_muons;
 
-    for (const auto &muon : muons)
+    for (const auto &muon : muons) 
     {
         if (!(muon.Pt() > ptmin))
             continue;
@@ -1229,7 +1299,11 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets() {
             fatjet.SetJetID(static_cast<unsigned char>(FatJet_jetId_RunII[i]));
             if(!IsDATA) fatjet.SetGenMatchIDs(static_cast<short>(FatJet_genJetAK8Idx_RunII[i]), static_cast<short>(FatJet_subJetIdx1_RunII[i]), static_cast<short>(FatJet_subJetIdx2_RunII[i]));
         }
-
+        //const float rawPt = FatJet_pt[i] * (1.-FatJet_rawFactor[i]);
+        //const float rawMass = FatJet_mass[i] * (1.-FatJet_rawFactor[i]);
+        //const float JESSF = myCorr->GetFJESSF(FatJet_area[i], FatJet_eta[i], rawPt, FatJet_phi[i], fixedGridRhoFastjetAll, RunNumber);
+        //const float correctedPt = rawPt * JESSF;
+        //const float correctedmMass = rawMass * JESSF;
         fatjet.SetPtEtaPhiM(FatJet_pt[i], FatJet_eta[i], FatJet_phi[i], FatJet_mass[i]);
         fatjet.SetArea(FatJet_area[i]);
         fatjet.SetSDMass(FatJet_msoftdrop[i]);
@@ -1242,7 +1316,6 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets() {
 
         FatJets.push_back(fatjet);
     }
-
     return FatJets;
 }
 
@@ -1265,6 +1338,8 @@ RVec<GenJet> AnalyzerCore::GetAllGenJets() {
 
     return GenJets;
 }
+
+
 
 RVec<GenDressedLepton> AnalyzerCore::GetAllGenDressedLeptons() {
     RVec<GenDressedLepton> GenDressedLeptons;

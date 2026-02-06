@@ -107,6 +107,7 @@ void Jet::SetJetID(unsigned char IDBit, int Run) {
   // Please refer https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/117 or https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetID13p6TeV#Recommendations_for_the_13_6_AN1
   // We are moving to NanoAODv13 for Run3, need different implementation
   else { // Run == 3
+    /*
     j_tightJetID = false;
     if (abs(Eta()) <= 2.6) 
       j_tightJetID = (neHEF() < 0.99) && (neEmEF() < 0.9) && (chMultiplicity()+neMultiplicity() > 1) && (chHEF() > 0.01) && (chMultiplicity() > 0);
@@ -122,19 +123,20 @@ void Jet::SetJetID(unsigned char IDBit, int Run) {
       j_tightLepVetoJetID = j_tightJetID && (muEF() < 0.8) && (chEmEF() < 0.8);
     else 
       j_tightLepVetoJetID = j_tightJetID;
-
-    /* This is for NanoAODv12
-    if (abs(eta) <= 2.7) Jet_passJetIdTight = b & (1 << 1);
-    else if (abs(eta) > 2.7 && abs(eta) <= 3.0) Jet_passJetIdTight = (b & (1 << 1)) && (Jet_neHEF < 0.99);
-    else if (abs(eta) > 3.0) Jet_passJetIdTight = (b & (1 << 1)) && (Jet_neEmEF < 0.4);      
-    
-    bool Jet_passJetIdTightLepVeto = false;      
-    if (abs(eta) <= 2.7) Jet_passJetIdTightLepVeto = Jet_passJetIdTight && (Jet_muEF < 0.8) && (Jet_chEmEF < 0.8);      
-    else Jet_passJetIdTightLepVeto = Jet_passJetIdTight;      
-    j_looseJetId = (b & 1);      
-    j_tightJetID = Jet_passJetIdTight;      
-    j_tightLepVetoJetID = Jet_passJetIdTightLepVeto;      
     */
+    //This is for NanoAODv12
+    
+    if (abs(Eta()) <= 2.7) j_tightJetID = IDBit & (1 << 1);
+    else if (abs(Eta()) > 2.7 && abs(Eta()) <= 3.0) j_tightJetID = (IDBit & (1 << 1)) && (neHEF() < 0.99);
+    else if (abs(Eta()) > 3.0) j_tightJetID = (IDBit & (1 << 1)) && (neEmEF() < 0.4);      
+    
+    bool j_tightLepVetoJetID = false;      
+    if (abs(Eta()) <= 2.7) j_tightLepVetoJetID = j_tightJetID && (muEF() < 0.8) && (chEmEF() < 0.8);      
+    else j_tightLepVetoJetID = j_tightJetID;      
+    j_looseJetId = (IDBit & 1);      
+    j_tightJetID = j_tightJetID;      
+    j_tightLepVetoJetID = j_tightLepVetoJetID;      
+    
   }
 }
 

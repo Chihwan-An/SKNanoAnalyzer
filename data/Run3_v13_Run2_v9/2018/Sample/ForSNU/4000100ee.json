@@ -1,0 +1,24 @@
+{
+    "name": "4000100ee",
+    "isMC": 1,
+    "PD": "4000100ee",
+    "xsec": 6077.22,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/1B71881C-BB08-6546-8C32-1AB3513E5D92.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/20BB2EDA-BCEA-ED43-8242-068A5982D88F.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/25379553-3795-F149-87D5-285F147F5D0E.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/2D9E725B-00AE-3D44-BD01-21B6D1D8D3D3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/3D0AB355-91BD-1C48-AFEB-4AACB9C58DD3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/4006286F-0F9C-4C44-8C60-8BF075D609C4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/687AE152-AB3F-1242-A142-AA85B2DC2F0E.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/6D446EEB-9D60-1649-91F9-5C04591A65BA.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/A33E0EB4-C5AC-A349-B71B-CB61ACA6C600.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/B2923D91-7A89-E84F-BB9A-52BCF3E7114C.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/CA96622F-3607-3F40-A326-577733168F46.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/DC09B8A1-C4D8-9940-9502-59611A51A570.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100ee/EFECB177-48F4-1043-A28E-DDC58BE28F94.root"
+    ]
+}

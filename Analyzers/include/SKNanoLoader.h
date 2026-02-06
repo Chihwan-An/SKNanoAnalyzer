@@ -234,6 +234,7 @@ public:
     RVec<Float_t> Muon_pfRelIso04_all;
     RVec<Float_t> Muon_phi;
     RVec<Float_t> Muon_pt;
+    //RVec<Float_t> Muon_tunepRelPt;
     RVec<UChar_t> Muon_puppiIsoId;
     RVec<Float_t> Muon_sip3d;
     RVec<Bool_t> Muon_softId;
@@ -482,6 +483,7 @@ public:
     RVec<Float_t> FatJet_tau2;
     RVec<Float_t> FatJet_tau3;
     RVec<Float_t> FatJet_tau4;
+    RVec<Float_t> FatJet_rawFactor;
     // Run3
     RVec<Short_t> FatJet_genJetAK8Idx;
     RVec<UChar_t> FatJet_jetId;

@@ -64,8 +64,8 @@ void Skim_20002::executeEvent() {
 
 void Skim_20002::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
-
-    Event ev = GetEvent();
+    if (this_syst != "Central") return;
+    Event ev = GetEvent_Skim();
 
     bool pass_trig_muon = ev.PassTrigger(mu_set.Muon_Trigger);
     bool pass_trig_elec = ev.PassTrigger(el_set.Ele_Trigger);

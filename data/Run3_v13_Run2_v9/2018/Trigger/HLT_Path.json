@@ -400,15 +400,18 @@
     },
     "HLT_Mu50": {
         "lumi": 59827.879502925
+        ,"active": true
     },
     "HLT_Mu55": {
         "lumi": 59827.879502925
     },
     "HLT_OldMu100": {
         "lumi": 59827.879502925
+        ,"active": true
     },
     "HLT_TkMu100": {
         "lumi": 59827.879502925
+        ,"active": true
     },
     "HLT_DiPFJetAve40": {
         "lumi": 59827.879502925
@@ -1000,6 +1003,7 @@
     },
     "HLT_Photon200": {
         "lumi": 59827.879502925
+        ,"active": true
     },
     "HLT_Photon100EB_TightID_TightIso": {
         "lumi": 59827.879502925
@@ -1406,6 +1410,7 @@
     },
     "HLT_Ele115_CaloIdVT_GsfTrkIdT": {
         "lumi": 59827.879502925
+        ,"active": true
     },
     "HLT_Ele135_CaloIdVT_GsfTrkIdT": {
         "lumi": 59827.879502925

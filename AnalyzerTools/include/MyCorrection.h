@@ -126,9 +126,14 @@ public:
     float GetJER(const float eta, const float pt, const float rho) const;
     float GetJERSF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     float GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
-    float GetFatJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
     float GetJESUncertainty(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    
+    float GetFJER(const float eta, const float pt, const float rho) const;
+    float GetFJERSF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    float GetFJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
     float GetFJESUncertainty(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    
+    
     // jerc_fatjet
     
     // jetvetomap
@@ -327,6 +332,7 @@ private:
     unordered_map<string, string> EGM_keys;
     unordered_map<string, string> JME_JER_GT;
     unordered_map<string, string> JME_JES_GT;
+    unordered_map<string, string> JME_FJER_GT;
     unordered_map<string, string> JME_FJES_GT;
     unordered_map<string, string> JME_vetomap_keys;
     unordered_map<string, string> JME_PILEUP_keys;

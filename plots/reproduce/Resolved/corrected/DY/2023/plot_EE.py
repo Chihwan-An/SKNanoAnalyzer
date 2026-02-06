@@ -881,6 +881,7 @@ def load_background_histograms(data_dir, hist_name, systematic="Central", draw_t
             filename.startswith("SingleMuon") or
             filename.startswith("DYJets_MG") or
             filename.startswith("DYG") or
+            filename.startswith("Skim") or
             filename.startswith("DYJets10to50_MG") ):
             #filename.startswith("ZZTo") or
             #filename.startswith("WZTo") or

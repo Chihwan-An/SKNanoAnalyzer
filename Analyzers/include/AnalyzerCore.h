@@ -90,6 +90,7 @@ public:
 
     // Get objects
     Event GetEvent();
+    Event GetEvent_Skim();
     RVec<Muon> GetAllMuons();
     RVec<Muon> GetMuons(const TString ID, const float ptmin, const float fetamax);
     RVec<Electron> GetAllElectrons();
@@ -156,6 +157,9 @@ public:
     RVec<Jet> ScaleJets(const RVec<Jet> &jets, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
     RVec<Jet> ScaleJets(const RVec<Jet> &jets, const TString &syst, const TString &source="total");
     
+    //RVec<FatJet> SmearFatJets(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjetsak8, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
+    //RVec<FatJet> SmearFatJets(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjetsak8, const TString &syst, const TString &source="total");
+
     // Type-I MET correction with correlated object variations
     Particle ApplyTypeICorrection(const Particle& MET,
                                   const RVec<Jet>& jets,

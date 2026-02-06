@@ -1,0 +1,13 @@
+{
+    "name": "40002100mm",
+    "isMC": 1,
+    "PD": "40002100mm",
+    "xsec": 6077.22,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/40002100mm/77EC5A69-4615-9942-8F4A-60A72E10EBE8.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/40002100mm/A2EB8F9E-CC02-7E42-BE1B-EE9EBA9D1B69.root"
+    ]
+}

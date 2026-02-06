@@ -1,13 +1,112 @@
 {
-    "Skim_20002_WJets_MG": {
+    "Skim_20002_TTZ_NoFullyHad": {
         "suffix": "20002",
-        "PD": "WJets_MG",
+        "PD": "TTZ_NoFullyHad",
+        "isMC": 1
+    },
+    "Skim_20002_TTZ_M4to50": {
+        "suffix": "20002",
+        "PD": "TTZ_M4to50",
+        "isMC": 1
+    },
+    "Skim_20002_TTZ_M50": {
+        "suffix": "20002",
+        "PD": "TTZ_M50",
+        "isMC": 1
+    },
+    "Skim_20002_TTWToLNu": {
+        "suffix": "20002",
+        "PD": "TTWToLNu",
+        "isMC": 1
+    },
+    "Skim_20002_ZZZ": {
+        "suffix": "20002",
+        "PD": "ZZZ",
+        "isMC": 1
+    },
+    "Skim_20002_WZZ": {
+        "suffix": "20002",
+        "PD": "WZZ",
+        "isMC": 1
+    },
+    "Skim_20002_WWZ": {
+        "suffix": "20002",
+        "PD": "WWZ",
+        "isMC": 1
+    },
+    "Skim_20002_WWW": {
+        "suffix": "20002",
+        "PD": "WWW",
+        "isMC": 1
+    },
+    "Skim_20002_DYJets10to50": {
+        "suffix": "20002",
+        "PD": "DYJets10to50",
+        "isMC": 1
+    },
+    "Skim_20002_WW_pythia": {
+        "suffix": "20002",
+        "PD": "WW_pythia",
+        "isMC": 1
+    },
+    "Skim_20002_WZ_pythia": {
+        "suffix": "20002",
+        "PD": "WZ_pythia",
+        "isMC": 1
+    },
+    "Skim_20002_ZZ_pythia": {
+        "suffix": "20002",
+        "PD": "ZZ_pythia",
         "isMC": 1
     },
     "Skim_20002_WJets": {
         "suffix": "20002",
         "PD": "WJets",
         "isMC": 1
+    },
+    "Skim_20002_Muon1": {
+        "suffix": "20002",
+        "PD": "Muon1",
+        "isMC": 0,
+        "periods": [
+            "C_v4",
+            "C_v3",
+            "C_v2",
+            "C_v1"
+        ]
+    },
+    "Skim_20002_Muon0": {
+        "suffix": "20002",
+        "PD": "Muon0",
+        "isMC": 0,
+        "periods": [
+            "C_v4",
+            "C_v3",
+            "C_v2",
+            "C_v1"
+        ]
+    },
+    "Skim_20002_EGamma1": {
+        "suffix": "20002",
+        "PD": "EGamma1",
+        "isMC": 0,
+        "periods": [
+            "C_v4",
+            "C_v3",
+            "C_v2",
+            "C_v1"
+        ]
+    },
+    "Skim_20002_EGamma0": {
+        "suffix": "20002",
+        "PD": "EGamma0",
+        "isMC": 0,
+        "periods": [
+            "C_v4",
+            "C_v3",
+            "C_v2",
+            "C_v1"
+        ]
     },
     "Skim_20002_ST_tch_antitop": {
         "suffix": "20002",
@@ -49,94 +148,9 @@
         "PD": "ST_sch_top_Lep",
         "isMC": 1
     },
-    "Skim_20002_ZZZ": {
+    "Skim_20002_DYJets": {
         "suffix": "20002",
-        "PD": "ZZZ",
-        "isMC": 1
-    },
-    "Skim_20002_ZZTo4L_powheg": {
-        "suffix": "20002",
-        "PD": "ZZTo4L_powheg",
-        "isMC": 1
-    },
-    "Skim_20002_ZZ_pythia": {
-        "suffix": "20002",
-        "PD": "ZZ_pythia",
-        "isMC": 1
-    },
-    "Skim_20002_WZZ": {
-        "suffix": "20002",
-        "PD": "WZZ",
-        "isMC": 1
-    },
-    "Skim_20002_WZTo3LNu_powheg": {
-        "suffix": "20002",
-        "PD": "WZTo3LNu_powheg",
-        "isMC": 1
-    },
-    "Skim_20002_WZ_pythia": {
-        "suffix": "20002",
-        "PD": "WZ_pythia",
-        "isMC": 1
-    },
-    "Skim_20002_WWZ": {
-        "suffix": "20002",
-        "PD": "WWZ",
-        "isMC": 1
-    },
-    "Skim_20002_WWW": {
-        "suffix": "20002",
-        "PD": "WWW",
-        "isMC": 1
-    },
-    "Skim_20002_WW_pythia": {
-        "suffix": "20002",
-        "PD": "WW_pythia",
-        "isMC": 1
-    },
-    "Skim_20002_TTHToNonbb": {
-        "suffix": "20002",
-        "PD": "TTHToNonbb",
-        "isMC": 1
-    },
-    "Skim_20002_TTG_PTG200toInf": {
-        "suffix": "20002",
-        "PD": "TTG_PTG200toInf",
-        "isMC": 1
-    },
-    "Skim_20002_TTG_PTG100to200": {
-        "suffix": "20002",
-        "PD": "TTG_PTG100to200",
-        "isMC": 1
-    },
-    "Skim_20002_TTG_PTG10to100": {
-        "suffix": "20002",
-        "PD": "TTG_PTG10to100",
-        "isMC": 1
-    },
-    "Skim_20002_TTTT": {
-        "suffix": "20002",
-        "PD": "TTTT",
-        "isMC": 1
-    },
-    "Skim_20002_TTZ_NoFullyHad": {
-        "suffix": "20002",
-        "PD": "TTZ_NoFullyHad",
-        "isMC": 1
-    },
-    "Skim_20002_TTZ_M4to50": {
-        "suffix": "20002",
-        "PD": "TTZ_M4to50",
-        "isMC": 1
-    },
-    "Skim_20002_TTZ_M50": {
-        "suffix": "20002",
-        "PD": "TTZ_M50",
-        "isMC": 1
-    },
-    "Skim_20002_TTWToLNu": {
-        "suffix": "20002",
-        "PD": "TTWToLNu",
+        "PD": "DYJets",
         "isMC": 1
     },
     "Skim_20002_TTLJ_powheg": {
@@ -148,121 +162,5 @@
         "suffix": "20002",
         "PD": "TTLL_powheg",
         "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL50_PTG600toInf": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL50_PTG600toInf",
-        "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL50_PTG400to600": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL50_PTG400to600",
-        "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL50_PTG200to400": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL50_PTG200to400",
-        "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL50_PTG100to200": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL50_PTG100to200",
-        "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL50_PTG10to100": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL50_PTG10to100",
-        "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL4to50_PTG200toInf": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL4to50_PTG200toInf",
-        "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL4to50_PTG100to200": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL4to50_PTG100to200",
-        "isMC": 1
-    },
-    "Skim_20002_DYGTo2LG_MLL4to50_PTG10to100": {
-        "suffix": "20002",
-        "PD": "DYGTo2LG_MLL4to50_PTG10to100",
-        "isMC": 1
-    },
-    "Skim_20002_DYJets10to50_MG": {
-        "suffix": "20002",
-        "PD": "DYJets10to50_MG",
-        "isMC": 1
-    },
-    "Skim_20002_DYJets10to50": {
-        "suffix": "20002",
-        "PD": "DYJets10to50",
-        "isMC": 1
-    },
-    "Skim_20002_DYJets_MG": {
-        "suffix": "20002",
-        "PD": "DYJets_MG",
-        "isMC": 1
-    },
-    "Skim_20002_DYJets": {
-        "suffix": "20002",
-        "PD": "DYJets",
-        "isMC": 1
-    },
-    "Skim_20002_Muon0": {
-        "suffix": "20002",
-        "PD": "Muon0",
-        "isMC": 0,
-        "periods": [
-            "C",
-            "C_v1",
-            "C_v2",
-            "C_v3",
-            "C_v4"
-        ]
-    },
-    "Skim_20002_EGamma0": {
-        "suffix": "20002",
-        "PD": "EGamma0",
-        "isMC": 0,
-        "periods": [
-            "C_v1",
-            "C_v2",
-            "C_v3",
-            "C_v4"
-        ]
-    },
-    "Skim_20002_EGamma1": {
-        "suffix": "20002",
-        "PD": "EGamma1",
-        "isMC": 0,
-        "periods": [
-            "C_v1",
-            "C_v2",
-            "C_v3",
-            "C_v4"
-        ]
-    },
-    "Skim_20002_Muon1": {
-        "suffix": "20002",
-        "PD": "Muon1",
-        "isMC": 0,
-        "periods": [
-            "C_v4",
-            "C_v3",
-            "C_v2",
-            "C_v1"
-        ]
-    },
-    "Skim_20002_MuonEG": {
-        "suffix": "20002",
-        "PD": "MuonEG",
-        "isMC": 0,
-        "periods": [
-            "C_v4",
-            "C_v3",
-            "C_v2",
-            "C_v1"
-        ]
     }
 }

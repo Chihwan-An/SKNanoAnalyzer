@@ -39,6 +39,12 @@ public:
         Tight        = 1 << 1,
         TightLepVeto = 1 << 2
     };
+    inline void SetRawPt(float pt) { jet_rawPt = pt; };
+    inline void SetOriginalPt(float pt) { jet_originalPt = pt; };
+    float GetRawPt() const { return jet_rawPt; };
+    float GetOriginalPt() const { return jet_originalPt; };
+
+
     inline bool PassSelector( unsigned int s ) const { return (j_jetId & s)==s; }
     inline bool PassLoose() const { return PassSelector(Loose); }
     inline bool PassTight() const { return PassSelector(Tight); }
@@ -88,6 +94,9 @@ public:
     double GetTaggerResult(JetTagging::FatJetTaggingtype tg , JetTagging::FatjetTaggingObject obj) const;
 
 private:
+    float j_rawFactor;
+    float jet_rawPt;
+    float jet_originalPt;
     bool j_looseJetId;
     bool j_tightJetID;
     bool j_tightLepVetoJetID;

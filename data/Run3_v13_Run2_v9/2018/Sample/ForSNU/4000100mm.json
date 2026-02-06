@@ -1,0 +1,29 @@
+{
+    "name": "4000100mm",
+    "isMC": 1,
+    "PD": "4000100mm",
+    "xsec": 6077.22,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/02030FD9-1382-E240-80CE-ED57CACF8921.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/095DE37F-F11D-184D-88F6-DA56302C074B.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/13284E9A-2E09-E947-8B9B-256157C91AD0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/1378F294-185E-DD40-9386-AFCA4549629D.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/16EE4B4B-208C-5045-A756-10D2B1773179.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/21C40FB0-7D42-EF4B-B76E-3BE5905B5292.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/37E36213-27CD-554F-9C43-D2CA9A6399FD.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/3E025CAA-AEC0-BA43-AB13-C8ACED2E8CB6.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/4C5F8489-C409-D643-90D5-89F8AAB7786B.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/862AA5A6-453C-F149-9F52-C25E739168A4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/8AC7EF58-499E-3146-A856-DA1D9F2735EF.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/A42BEA21-0B62-2D48-9319-1656739915D5.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/A5AB4EE9-D29C-E141-A035-01978EB93933.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/B5C065DB-A0EB-8645-900C-C0CDA36D3EA3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/BF6046BE-4A23-DF4D-82EE-7C89AF3ABEAA.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/D70C70FB-431C-DC40-A570-7B21A32621D5.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/DC141A95-0C1D-F447-8BA4-94E52ADD9C2A.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1/2018/4000100mm/F98799B6-FDC8-0140-80C4-E42A1BFE733C.root"
+    ]
+}

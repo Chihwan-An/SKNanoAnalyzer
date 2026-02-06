@@ -47,6 +47,7 @@ FatJet::FatJet() : Particle() {
     j_tau2 = -999.;
     j_tau3 = -999.;
     j_tau4 = -999.;
+    j_rawFactor = -999.;
 
 }
 

@@ -1243,7 +1243,29 @@ float MyCorrection::GetJERSF(const float eta, const float pt, const variation sy
     }
     return 1.;
 }
+float MyCorrection::GetFJER(const float eta, const float pt, const float rho) const {
+    correction::Correction::Ref cset = nullptr;
+    string cset_string = JME_FJER_GT.at(GetEra().Data());
+    cset_string.replace(cset_string.find("######"), 6, "PtResolution");
+    cset = cset_jerc_fatjet->at(cset_string);
+    return safeEvaluate(cset, "GetFJER", {eta, pt, rho});
+}
 
+float MyCorrection::GetFJERSF(const float eta, const float pt, const variation syst, const TString &source) const {
+    correction::Correction::Ref cset = nullptr;
+    string cset_string = JME_FJER_GT.at(GetEra().Data());
+    cset_string.replace(cset_string.find("######"), 6, "ScaleFactor");
+    cset = cset_jerc_fatjet->at(cset_string);
+    if (Run == 3)
+    {
+        return safeEvaluate(cset, "GetFJERSF", {eta, pt, getSystString_JME(syst)});
+    }
+    else if (Run == 2)
+    {
+        return safeEvaluate(cset, "GetFJERSF", {eta, getSystString_JME(syst)});
+    }
+    return 1.;
+}
 //JESC
 float MyCorrection::GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const {
     correction::CompoundCorrection::Ref cset = nullptr;
@@ -1282,11 +1304,11 @@ float MyCorrection::GetJESUncertainty(const float eta, const float pt, const var
     return this_factor;
 }
 
-float MyCorrection::GetFatJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const {
+float MyCorrection::GetFJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const {
     correction::CompoundCorrection::Ref cset = nullptr;
     string cset_string = JME_FJES_GT.at(GetEra().Data());
     cset_string.replace(cset_string.find("######"), 6, "L1L2L3Res");
-    cset = cset_jerc->compound().at(cset_string);
+    cset = cset_jerc_fatjet->compound().at(cset_string);
     vector<correction::Variable::Type> args;
     float JESSF = 1.;
     if (GetEra() == "2023BPix" || GetEra() == "2024") {
@@ -1298,7 +1320,7 @@ float MyCorrection::GetFatJESSF(const float area, const float eta, const float p
     } else {
         args = {area, eta, pt, rho};
     }
-    return safeEvaluate(cset, "GetFatJERSF", args);
+    return safeEvaluate(cset, "GetFJERSF", args);
 }
 
 float MyCorrection::GetFJESUncertainty(const float eta, const float pt, const variation syst, const TString &source) const {

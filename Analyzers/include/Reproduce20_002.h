@@ -116,7 +116,7 @@ public:
     struct Jets{
         RVec<Jet> AllJets;
         //TString Jet_ID ="TIGHTLEPVETO";
-        RVec<Jet::JetID> Jet_ID = {Jet::JetID::TIGHTLEPVETO};
+        RVec<Jet::JetID> Jet_ID = {Jet::JetID::NOCUT};
         float Jet_MinPt = 40.;
         float Jet_MaxEta = 2.4;
         RVec<Jet::JetID> JetIds;

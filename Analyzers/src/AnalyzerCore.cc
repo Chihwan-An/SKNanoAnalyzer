@@ -1,6 +1,5 @@
 #include "AnalyzerCore.h"
 #include "JetView.h"
-#include "SystematicHelper.h"
 #include "TObjArray.h"
 #include "TObjString.h"
 #include <Compression.h>
@@ -1543,84 +1542,70 @@ void AnalyzerCore::ApplyJetScaleVariation(JetViewCollection &jets,
   }
 }
 
+bool AnalyzerCore::PrepareJetJESVariations(JetViewCollection &jets,
+                                           const TString &source,
+                                           bool doBreakdown) const {
+  const bool isTotal =
+      source.IsNull() || source.EqualTo("total", TString::kIgnoreCase);
+  if (doBreakdown) {
+    if (isTotal)
+      return false;
+    ApplyJetScaleVariation(jets, source);
+    return true;
+  }
+  if (!isTotal)
+    return false;
+  ApplyJetScaleVariation(jets, "total");
+  return true;
+}
+
 bool AnalyzerCore::PropagateJetSystToMET(
-    JetViewCollection &jets, SystematicHelper &systHelper, const Event &event,
-    Particle &met, MyCorrection::variation &jesVar,
-    MyCorrection::variation &jerVar) const {
-  met = event.GetMETVector(Event::MET_Type::PUPPI);
+    const JetViewCollection &jets, Particle &met,
+    const MyCorrection::variation &jesVar,
+    const MyCorrection::variation &jerVar) const {
+  const bool jesIsNom = (jesVar == MyCorrection::variation::nom);
+  const bool jerIsNom = (jerVar == MyCorrection::variation::nom);
+  if (!jesIsNom && !jerIsNom) {
+    throw std::runtime_error(
+        "[AnalyzerCore::PropagateJetSystToMET] Both JES and JER are "
+        "non-nominal, not supported");
+  }
 
   TLorentzVector p4_nominal(0, 0, 0, 0);
   TLorentzVector p4_shifted(0, 0, 0, 0);
   for (const auto &jetView : jets) {
-    TLorentzVector v;
-    v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(), jetView.Mass());
-    p4_nominal += v;
-  }
+    TLorentzVector v_nom;
+    v_nom.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(),
+                       jetView.Mass());
+    p4_nominal += v_nom;
 
-  const std::string sysTarget = systHelper.getCurrentIterSysTarget();
-  if (sysTarget.find("Jet_En") != std::string::npos) {
-    const bool doBreakdown = HasFlag("doBreakdown");
-    const TString srcT = systHelper.getCurrentIterSysSource();
-    if (doBreakdown) {
-      if (srcT.EqualTo("total", TString::kIgnoreCase))
-        return false;
-      ApplyJetScaleVariation(jets, srcT);
-    } else {
-      if (!srcT.EqualTo("total", TString::kIgnoreCase))
-        return false;
-      ApplyJetScaleVariation(jets, "total");
-    }
-
-    if (systHelper.getCurrentIterVariation() == MyCorrection::variation::up) {
-      for (const auto &jetView : jets) {
-        TLorentzVector v;
-        v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
-                       jetView.JesMassUp());
-        p4_shifted += v;
+    float pt = jetView.SmearedPtNominal();
+    float mass = jetView.SmearedMassNominal();
+    if (!jesIsNom) {
+      if (jesVar == MyCorrection::variation::up) {
+        pt = jetView.JesPtUp();
+        mass = jetView.JesMassUp();
+      } else if (jesVar == MyCorrection::variation::down) {
+        pt = jetView.JesPtDown();
+        mass = jetView.JesMassDown();
       }
-    } else if (systHelper.getCurrentIterVariation() ==
-               MyCorrection::variation::down) {
-      for (const auto &jetView : jets) {
-        TLorentzVector v;
-        v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
-                       jetView.JesMassDown());
-        p4_shifted += v;
+    } else if (!jerIsNom) {
+      if (jerVar == MyCorrection::variation::up) {
+        pt = jetView.SmearedPtUp();
+        mass = jetView.SmearedMassUp();
+      } else if (jerVar == MyCorrection::variation::down) {
+        pt = jetView.SmearedPtDown();
+        mass = jetView.SmearedMassDown();
       }
     }
-  } else if (sysTarget == "Jet_Res") {
-    met = event.GetMETVector(Event::MET_Type::PUPPI,
-                             systHelper.getCurrentIterVariation(),
-                             Event::MET_Syst::JER);
-    p4_shifted = p4_nominal;
-  } else if (sysTarget == "UE") {
-    met = event.GetMETVector(Event::MET_Type::PUPPI,
-                             systHelper.getCurrentIterVariation(),
-                             Event::MET_Syst::UE);
-    p4_shifted = p4_nominal;
-  } else {
-    for (const auto &jetView : jets) {
-      TLorentzVector v;
-      v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(), jetView.Phi(),
-                     jetView.SmearedMassNominal());
-      p4_shifted += v;
-    }
+
+    TLorentzVector v_shift;
+    v_shift.SetPtEtaPhiM(pt, jetView.Eta(), jetView.Phi(), mass);
+    p4_shifted += v_shift;
   }
 
-  {
-    TLorentzVector delta = p4_shifted - p4_nominal;
-    met.SetXYZM(met.Px() - delta.Px(), met.Py() - delta.Py(), 0., 0.);
-  }
-
-  jesVar = MyCorrection::variation::nom;
-  jerVar = MyCorrection::variation::nom;
-  if (!IsDATA) {
-    if (sysTarget.find("Jet_En") != std::string::npos) {
-      jesVar = systHelper.getCurrentIterVariation();
-    } else if (sysTarget == "Jet_Res") {
-      jerVar = systHelper.getCurrentIterVariation();
-    }
-  }
-
+  TLorentzVector delta = p4_shifted - p4_nominal;
+  met.SetXYZM(met.Px() - delta.Px(), met.Py() - delta.Py(), 0., 0.);
   return true;
 }
 
@@ -2578,7 +2563,8 @@ bool AnalyzerCore::PassJetVetoMap(const Jet &jet,
                                   const MuonViewCollection &AllMuons,
                                   const TString mapCategory) {
   if (!(Run == 2))
-    return true;
+    throw std::runtime_error(
+        "[AnalyzerCore::PassJetVetoMap] vetoeing jet only supported in Run 2");
 
   if (jet.chEmEF() + jet.neEmEF() > 0.9)
     return true;
@@ -2602,26 +2588,22 @@ bool AnalyzerCore::PassJetVetoMap(const Jet &jet,
 }
 
 bool AnalyzerCore::PassJetVetoMap(const JetViewCollection &AllJets,
-                                  const MuonViewCollection &AllMuons,
                                   const TString mapCategory) {
+  // https://cms-jerc.web.cern.ch/Recommendations/#jet-veto-maps
   if (!(Run == 3))
-    return true;
+    throw std::runtime_error(
+        "[AnalyzerCore::PassJetVetoMap] vetoeing event only supported in Run 3");
   std::vector<size_t> this_jet_indices =
-      SelectJetIndices(AllJets, Jet::JetID::TIGHT, 15., 5.0);
-  ElectronViewCollection empty_electron_views;
-  std::vector<size_t> empty_electron_indices;
-  std::vector<size_t> all_muon_indices(AllMuons.size());
-  std::iota(all_muon_indices.begin(), all_muon_indices.end(), 0);
-
-  this_jet_indices = JetsVetoLeptonInside(
-      AllJets, this_jet_indices, empty_electron_views, empty_electron_indices,
-      AllMuons, all_muon_indices, 0.2);
+      SelectJetIndices(AllJets, Jet::JetID::TIGHTLEPVETO, 15., 5.0);
+  
   for (const auto idx : this_jet_indices) {
     if (idx >= AllJets.size())
       throw std::runtime_error(
           "[AnalyzerCore::PassJetVetoMap] Jet index out of range");
 
     const auto &jet = AllJets[idx]; // JetView
+    if (jet.ChEmEF() + jet.NeEmEF() > 0.9)
+      continue;
     if (myCorr->IsJetVetoZone(jet.Eta(), jet.Phi(), mapCategory)) {
       return false;
     }
@@ -2629,67 +2611,6 @@ bool AnalyzerCore::PassJetVetoMap(const JetViewCollection &AllJets,
   return true;
 }
 
-bool AnalyzerCore::PassJetVetoMap(const RVec<Jet> &AllJets,
-                                  const MuonViewCollection &AllMuons,
-                                  const TString mapCategory) {
-  if (!(Run == 3))
-    return true;
-  RVec<Jet> this_jet = SelectJets(AllJets, Jet::JetID::TIGHT, 15., 5.0);
-  this_jet = SelectJets(this_jet, Jet::JetID::PUID_LOOSE, 15., 5.0);
-  ElectronViewCollection empty_electrons;
-  this_jet = JetsVetoLeptonInside(this_jet, empty_electrons, AllMuons, 0.2);
-  for (const auto &jet : this_jet) {
-    if (myCorr->IsJetVetoZone(jet.Eta(), jet.Phi(), mapCategory))
-      return false;
-  }
-  return true;
-}
-
-bool AnalyzerCore::PassJetVetoMap(const Jet &jet, const RVec<Muon> &AllMuons,
-                                  const TString mapCategory) {
-  if (!(Run == 2))
-    return true;
-  // Only apply to the jets with em energy fraction less than 0.9
-  if (jet.chEmEF() + jet.neEmEF() > 0.9)
-    return true;
-
-  // Selections should be looser than Analysis jet selections
-  bool pass_loose_selection = jet.Pt() > 15.;
-  pass_loose_selection =
-      pass_loose_selection && myCorr->PassJetID(jet, Jet::JetID::TIGHT);
-  pass_loose_selection =
-      pass_loose_selection &&
-      (jet.Pt() > 50. || myCorr->PassJetID(jet, Jet::JetID::PUID_LOOSE));
-  for (const auto &muon : AllMuons) {
-    pass_loose_selection = pass_loose_selection && (jet.DeltaR(muon) > 0.2);
-  }
-  bool pass_veto_map =
-      pass_loose_selection &&
-      (!myCorr->IsJetVetoZone(jet.Eta(), jet.Phi(), mapCategory));
-  return pass_veto_map;
-}
-
-// For Run3, reject events if any jet is within the veto map
-bool AnalyzerCore::PassJetVetoMap(const RVec<Jet> &AllJets,
-                                  const RVec<Muon> &AllMuons,
-                                  const TString mapCategory) {
-  if (!(Run == 3))
-    return true;
-  RVec<Jet> selected_jets;
-  RVec<Electron> empty_electrons;
-
-  RVec<Jet> this_jet = SelectJets(AllJets, Jet::JetID::TIGHT, 15., 5.0);
-  this_jet = JetsVetoLeptonInside(this_jet, empty_electrons, AllMuons, 0.2);
-  for (const auto &jet : this_jet) {
-    if (jet.chEmEF() + jet.neEmEF() < 0.9)
-      selected_jets.push_back(jet);
-  }
-  for (const auto &jet : selected_jets) {
-    if (myCorr->IsJetVetoZone(jet.Eta(), jet.Phi(), mapCategory))
-      return false;
-  }
-  return true;
-}
 
 RVec<FatJet> AnalyzerCore::GetAllFatJets() {
 

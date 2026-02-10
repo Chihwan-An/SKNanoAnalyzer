@@ -85,8 +85,6 @@ struct TransparentStringEq {
     }
 }; 
 
-class SystematicHelper;
-
 class IDContainer {
 public:
     IDContainer() {}
@@ -275,19 +273,19 @@ public:
     RVec<Jet> ScaleJets(const RVec<Jet> &jets, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
     RVec<Jet> SmearJets(const JetViewCollection &jets, const std::vector<std::size_t> &indices, const RVec<GenJet> &genjets, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
     RVec<Jet> ScaleJets(const JetViewCollection &jets, const std::vector<std::size_t> &indices, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
+    bool PrepareJetJESVariations(JetViewCollection &jets, const TString &source, bool doBreakdown) const;
     void ApplyJetScaleVariation(JetViewCollection &jets, const TString &source = "total") const;
     void ApplyJetSmearVariation(JetViewCollection &jets, const RVec<GenJet> &genjets, const TString &source = "total") const;
-    bool PropagateJetSystToMET(JetViewCollection &jets, SystematicHelper &systHelper, const Event &event, Particle &met, MyCorrection::variation &jesVar, MyCorrection::variation &jerVar) const;
+    bool PropagateJetSystToMET(const JetViewCollection &jets, Particle &met,
+                               const MyCorrection::variation &jesVar = MyCorrection::variation::nom,
+                               const MyCorrection::variation &jerVar = MyCorrection::variation::nom) const;
     
     // Histogram Handlers
     TFile* GetOutfile() { return outfile; }
     inline void SetOutfilePath(const TString &outpath) { outfile = new TFile(outpath, "RECREATE"); }
     TH1D* GetHist1D(const string &histname);
     bool PassJetVetoMap(const Jet &jet, const MuonViewCollection &AllMuons, const TString mapCategory="jetvetomap");
-    bool PassJetVetoMap(const Jet &jet, const RVec<Muon> &AllMuons, const TString mapCategory="jetvetomap");
-    bool PassJetVetoMap(const JetViewCollection &AllJets, const MuonViewCollection &AllMuons, const TString mapCategory="jetvetomap");
-    bool PassJetVetoMap(const RVec<Jet> &AllJets, const MuonViewCollection &AllMuons, const TString mapCategory="jetvetomap");
-    bool PassJetVetoMap(const RVec<Jet> &AllJets, const RVec<Muon> &AllMuons, const TString mapCategory="jetvetomap");
+    bool PassJetVetoMap(const JetViewCollection &AllJets, const TString mapCategory="jetvetomap");
     inline void FillCutFlow(const int &val,const int &maxCutN=10){
         static int storedMaxCutN = maxCutN;
         FillHist("CutFlow", val, 1., storedMaxCutN, 0, storedMaxCutN);

@@ -1,0 +1,10 @@
+Bin,Cut,Events,% of Total,Reduction (%),Survival (%)
+1,Total,67000,100.0,0.0,100.0
+2,Met filter,67000,100.0,0.0,100.0
+3,"2 tight lep, pt,eta,id,iso",55425,82.7,17.3,82.7
+4,Trigger pass,55022,82.1,0.7,99.3
+5,"Jet >=2 , pt ,eta",0,0.0,100.0,0.0
+6,4 object separation,0,0.0,0.0,0.0
+7,m(ll) > 200,0,0.0,0.0,0.0
+8,WR mass 800,0,0.0,0.0,0.0
+9,m(ll) > 400,0,0.0,0.0,0.0

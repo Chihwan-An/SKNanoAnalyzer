@@ -20,7 +20,7 @@ BACKGROUND_GROUPS = {
 SAMPLE_MAP = {
     "DYJets": "DYJets",
     "TTLL": "TT",
-    "TTLJ": "TT",
+    "TTLJ": "Nonprompt",
     "ST": "TT",      
     "WJets": "Nonprompt",
     "ST_tch": "Nonprompt",
@@ -179,9 +179,10 @@ def run_plot():
     X_MIN = max(X_MIN_REQ, h_xmin)
     X_MAX = min(X_MAX_REQ, h_xmax)
 
-    # Stack 생성
+    # Stack 생성 (Custom order for SR: TT on top, reversed for stacking)
+    STACK_ORDER = ["Others", "Nonprompt", "DYJets", "TT"]
     valid_groups = [(g, group_hists[g].Integral()) for g in BACKGROUND_GROUPS if group_hists[g]]
-    sorted_for_stack = sorted(valid_groups, key=lambda x: x[1])
+    sorted_for_stack = [(g, val) for g in STACK_ORDER for (grp, val) in valid_groups if grp == g]
     stack = ROOT.THStack("stack", "")
     for g_key, yield_val in sorted_for_stack:
         h = group_hists[g_key]
@@ -227,19 +228,40 @@ def run_plot():
     g_ratio_stat = ROOT.TGraphAsymmErrors(n_bins) 
     _KEEPER.extend([g_syst, g_ratio_band, g_ratio_stat])
 
+    csv_rows = []
     for i in range(1, n_bins + 1):
         x, y, w = h_total_mc.GetBinCenter(i), h_total_mc.GetBinContent(i), h_total_mc.GetBinWidth(i)/2.0
         stat = h_total_mc.GetBinError(i)
         syst_up, syst_dn = math.sqrt(sum_sq_up[i]), math.sqrt(sum_sq_dn[i])
         err_up, err_dn = math.sqrt(stat**2 + sum_sq_up[i]), math.sqrt(stat**2 + sum_sq_dn[i])
-        
+        data_val = h_data.GetBinContent(i) if h_data else 0.0
+
         g_syst.SetPoint(i-1, x, y); g_syst.SetPointError(i-1, w, w, err_dn, err_up)
         if y > 0:
             g_ratio_band.SetPoint(i-1, x, 1.0); g_ratio_band.SetPointError(i-1, w, w, err_dn/y, err_up/y)
             g_ratio_stat.SetPoint(i-1, x, 1.0); g_ratio_stat.SetPointError(i-1, w, w, stat/y, stat/y)
+            p_stat = (stat/y)*100
+            p_syst_up = (syst_up/y)*100
+            p_syst_dn = (syst_dn/y)*100
+            p_total_up = (err_up/y)*100
+            p_total_dn = (err_dn/y)*100
             range_str = f"[{h_total_mc.GetBinLowEdge(i):.0f}, {h_total_mc.GetBinLowEdge(i+1):.0f}]"
-            print(f"{i:<4} | {range_str:<18} | {y:10.1f} | {(stat/y)*100:7.1f}% | {(syst_up/y)*100:8.1f}% | {(err_up/y)*100:8.1f}%")
+            print(f"{i:<4} | {range_str:<18} | {y:10.1f} | {p_stat:7.1f}% | {p_syst_up:8.1f}% | {p_total_up:8.1f}%")
+            csv_rows.append([i, h_total_mc.GetBinLowEdge(i), h_total_mc.GetBinLowEdge(i+1),
+                             y, data_val,
+                             group_hists["DYJets"].GetBinContent(i) if group_hists["DYJets"] else 0,
+                             group_hists["TT"].GetBinContent(i) if group_hists["TT"] else 0,
+                             group_hists["Nonprompt"].GetBinContent(i) if group_hists["Nonprompt"] else 0,
+                             group_hists["Others"].GetBinContent(i) if group_hists["Others"] else 0,
+                             p_stat, p_syst_up, p_syst_dn, p_total_up, p_total_dn])
     print("="*145 + "\n")
+
+    tsv_file = f"{PLOT_OUT_NAME}.tsv"
+    with open(tsv_file, "w") as tsvf:
+        tsvf.write("Bin\tBinLow\tBinHigh\tMC_Total\tData\tDYJets\tTT\tNonprompt\tOthers\tStat_pct\tSystUp_pct\tSystDn_pct\tTotalUp_pct\tTotalDn_pct\n")
+        for row in csv_rows:
+            tsvf.write("\t".join(f"{v:.4f}" if isinstance(v, float) else str(v) for v in row) + "\n")
+    print(f">> TSV saved as {tsv_file}")
 
     # 5. 그리기
     c = ROOT.TCanvas("c", "c", 800, 900)

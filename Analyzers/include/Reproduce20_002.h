@@ -116,7 +116,7 @@ public:
     struct Jets{
         RVec<Jet> AllJets;
         //TString Jet_ID ="TIGHTLEPVETO";
-        RVec<Jet::JetID> Jet_ID = {Jet::JetID::NOCUT};
+        RVec<Jet::JetID> Jet_ID = {Jet::JetID::TIGHTLEPVETO};
         float Jet_MinPt = 40.;
         float Jet_MaxEta = 2.4;
         RVec<Jet::JetID> JetIds;
@@ -139,6 +139,10 @@ public:
     }gen_set;
 
     RVec<Jet> Clean_jet_with_tight_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & tight_leps) ;
+    RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;
+    RVec<Jet> Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) ;    
+    RVec<FatJet> Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) ;
+    RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
     float dR_Separation = 0.4;
     float FatJet_dR_Separation = 0.8;
 

@@ -32,6 +32,14 @@ systematics:
     target: "M_Iso_Weight"
     evtLoopAgain: false
 
+  - syst: "JER"
+    target: "JER_Variation"
+    evtLoopAgain: true
+
+  - syst: "JES"
+    target: "JES_Variation"
+    evtLoopAgain: true
+
 
 
 

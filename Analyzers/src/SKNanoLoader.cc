@@ -206,7 +206,7 @@ void SKNanoLoader::SetMaxLeafSize(){
     Muon_pfRelIso04_all.resize(kMaxMuon);
     Muon_phi.resize(kMaxMuon);
     Muon_pt.resize(kMaxMuon);
-    //Muon_tunepRelPt.resize(kMaxMuon);
+    Muon_tunepRelPt.resize(kMaxMuon);
     Muon_puppiIsoId.resize(kMaxMuon);
     Muon_sip3d.resize(kMaxMuon);
     Muon_softId.resize(kMaxMuon);
@@ -824,7 +824,7 @@ void SKNanoLoader::Init() {
     SafeSetBranchAddress("Muon_pfRelIso04_all", Muon_pfRelIso04_all.data());
     SafeSetBranchAddress("Muon_phi", Muon_phi.data());
     SafeSetBranchAddress("Muon_pt", Muon_pt.data());
-    //SafeSetBranchAddress("Muon_tunepRelPt", Muon_tunepRelPt.data());
+    SafeSetBranchAddress("Muon_tunepRelPt", Muon_tunepRelPt.data());
     SafeSetBranchAddress("Muon_sip3d", Muon_sip3d.data());
     SafeSetBranchAddress("Muon_softId", Muon_softId.data());
     SafeSetBranchAddress("Muon_softMva", Muon_softMva.data());

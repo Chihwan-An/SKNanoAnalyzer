@@ -136,28 +136,6 @@ void Reproduce20_002::executeEventFromParameter() {
     RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.4); 
     RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , mu_set.Muon_MinPt, 2.4); 
     
-    RVec<FatJet> fatjet_list ;
-    RVec<FatJet> lsf ;
-
-    FillHist(this_syst + "/Fatjet_num_total", fatjets.size() , weight, 10, 0., 10.);
-    
-    for (unsigned int i=0 ; i< fatjets.size(); i ++) {
-        FatJet & fj = fatjets.at(i);
-        if ((fj.Pt() > fatjet_set.FatJet_MinPt) && (abs(fj.Eta())<fatjet_set.FatJet_MaxEta) && (fj.SDMass() > fatjet_set.FatJet_SDM) ) {
-            if (fj.PassID(fatjet_set.FatJet_ID)) return;
-                fatjet_list.push_back(fj);
-                if (fj.LSF3() >fatjet_set.Fatjet_LSF) {
-                    lsf.push_back(fj);
-            }
-        }
-    }
-    
-    fatjets = fatjet_list;
-    RVec<FatJet> fatjets_LSF = lsf;
-
-    sort (fatjets.begin(), fatjets.end(), PtComparing);
-    sort (fatjets_LSF.begin(), fatjets_LSF.end(), PtComparing);
-    
 
     sort (my_electrons.begin(), my_electrons.end(), PtComparing);
     sort (my_muons.begin(), my_muons.end(), PtComparing);
@@ -234,12 +212,38 @@ void Reproduce20_002::executeEventFromParameter() {
 
 
     // sepration lepton - jets 
-    jet_set.cleanedjet_with_tight_leptons = Clean_jet_with_tight_leptons(jet_set.AllJets, Tight_leps);
+    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, Tight_leps);    
+    jets = Clean_jet_with_loose_leptons(jets, Loose_leps); 
+    
+    RVec<FatJet> fatjet_list ;
+    RVec<FatJet> lsf ;
 
+    FillHist(this_syst + "/Fatjet_num_total", fatjets.size() , weight, 10, 0., 10.);
+    //cout<<"fatjet loop start"<<endl;
+    for (unsigned int i=0 ; i< fatjets.size(); i ++) {
+        FatJet & fj = fatjets.at(i);
+        if ((fj.Pt() > fatjet_set.FatJet_MinPt) && (abs(fj.Eta())<fatjet_set.FatJet_MaxEta) && (fj.SDMass() > fatjet_set.FatJet_SDM) ) {
+            //cout << "Fatjet cut pass"<<endl;
+            if (fj.PassID(fatjet_set.FatJet_ID)) {
+                //cout<<"Fatjet ID pass"<<endl;
+                fatjet_list.push_back(fj);
+                if (fj.LSF3() >fatjet_set.Fatjet_LSF) {
+                    lsf.push_back(fj);
+                }
+            }
+        }
+    }
+
+    RVec<FatJet> fatjets_LSF = lsf;
+    sort (fatjets.begin(), fatjets.end(), PtComparing);
+    sort (fatjets_LSF.begin(), fatjets_LSF.end(), PtComparing);
+    
+    FillHist(this_syst + "/Fatjet_num_aftercut", fatjets.size() , weight, 10, 0., 10.);
+    FillHist(this_syst + "/Fatjet_LSF_num_aftercut", fatjets_LSF.size() , weight, 10, 0., 10.);
 
     //jet veto 
     //cout<<"inclusive jet"<<endl;
-    bool is_jet_veto = AnalyzerCore::PassVetoMap(jet_set.cleanedjet_with_tight_leptons, mu_set.AllMuons, "jetvetomap");
+    bool is_jet_veto = AnalyzerCore::PassVetoMap(jets, mu_set.AllMuons, "jetvetomap");
     if (!(is_jet_veto) ) return;
     //cout<<"jet vetoed"<<endl;
     /*
@@ -1224,3 +1228,80 @@ RVec<Jet> Reproduce20_002::Clean_jet_with_tight_leptons(const RVec<Jet> & jets, 
     return cleanedjets;
 }
 
+
+RVec<Jet> Reproduce20_002::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
+    RVec<Jet> cleanedjets;
+    for (unsigned int i=0 ; i< jets.size(); i ++) {
+        Jet jet = jets.at(i);
+        bool isDRtoLepton(false);
+        for (unsigned int j=0 ; j< loose_leps.size(); j ++) {
+            Lepton * lep = loose_leps.at(j);
+            if ( jet.DeltaR(*lep) < 0.4 ) {
+                isDRtoLepton = true;
+                break;
+            }
+        }
+        if (!isDRtoLepton) {
+            cleanedjets.push_back(jet);
+        }
+    }
+    return cleanedjets;
+}
+
+RVec<Jet> Reproduce20_002::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) {
+    RVec<Jet> cleanedjets;
+    for (unsigned int i=0 ; i< jets.size(); i ++) {
+        Jet jet = jets.at(i);
+        bool isDRtoFatJet(false);
+        for (unsigned int j=0 ; j< fatjets.size(); j ++) {
+            FatJet fatjet = fatjets.at(j);
+            if ( fatjet.DeltaR(jet) < 0.8 ) {
+                isDRtoFatJet = true;
+                break;
+            }
+        }
+        if (!isDRtoFatJet) {
+            cleanedjets.push_back(jet);
+        }
+    }
+    return cleanedjets;
+}
+
+RVec<FatJet> Reproduce20_002::Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) {
+    RVec<FatJet> cleanedfatjets;
+    for (unsigned int i=0 ; i< fatjets.size(); i ++) {
+        FatJet fatjet = fatjets.at(i);
+        bool isDRtoJet(false);
+        for (unsigned int j=0 ; j< jets.size(); j ++) {
+            Jet jet = jets.at(j);
+            if ( fatjet.DeltaR(jet) < 0.8 ) {
+                isDRtoJet = true;
+                break;
+            }
+        }
+        if (!isDRtoJet) {
+            cleanedfatjets.push_back(fatjet);
+        }
+    }
+    return cleanedfatjets;
+}
+
+
+RVec<FatJet> Reproduce20_002::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {
+    RVec<FatJet> cleanedfatjets;
+    for (unsigned int i=0 ; i< fatjets.size(); i ++) {
+        FatJet fatjet = fatjets.at(i);
+        bool isDRtoLepton(false);
+        for (unsigned int j=0 ; j< tight_leps.size(); j ++) {
+            Lepton * lep = tight_leps.at(j);
+            if ( fatjet.DeltaR(*lep) < 0.4 ) {
+                isDRtoLepton = true;
+                break;
+            }
+        }
+        if (!isDRtoLepton) {
+            cleanedfatjets.push_back(fatjet);
+        }
+    }
+    return cleanedfatjets;
+}

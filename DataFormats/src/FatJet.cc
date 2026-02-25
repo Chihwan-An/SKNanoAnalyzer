@@ -67,7 +67,6 @@ bool FatJet::PassID(TString ID) const {
 
 }
 
-
 double FatJet::GetTaggerResult(JetTagging::FatJetTaggingtype tg, JetTagging::FatjetTaggingObject obj) const {
     
     if (tg == JetTagging::FatJetTaggingtype::DeepDoubleX) {

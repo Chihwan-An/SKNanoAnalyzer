@@ -13,10 +13,12 @@ public:
 
     inline void SetJetID(unsigned char b)
     {
-        // bit 0 is loose, bit 1 is tight, bit 2 is tightLepVeto
-        j_looseJetId = (b & 1);
-        j_tightJetID = (b & 2);
-        j_tightLepVetoJetID = (b & 4);
+    j_jetId = b; // 이 줄이 반드시 필요합니다.
+    
+    // 만약 bool 변수들도 유지하고 싶다면 (권장하지 않음, 하나로 통일하는게 좋음)
+    j_looseJetId        = (b & Loose);
+    j_tightJetID        = (b & Tight);
+    j_tightLepVetoJetID = (b & TightLepVeto);
     };
     void SetArea(float area) { j_area = area; };
     inline float Area() const { return j_area; };

@@ -34,6 +34,8 @@ Electron::Electron() {
     j_mvaNoIso = -999.;
     j_mvaTTH = -999.;
     // others
+    j_vidNestedWPBitmapHEEP = 0;
+    j_vidNestedWPBitmap = 0;
     j_r9 = -999.;
     j_rho = -999.;
     j_genPartFlav = 0;

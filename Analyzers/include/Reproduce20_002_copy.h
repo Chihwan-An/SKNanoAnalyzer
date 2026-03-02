@@ -87,6 +87,9 @@ public:
         bool Electron_UseMini = false;
         bool Electron_UsePtCone = false;
         bool isPassCustomLooseID(const Electron& el) const;
+        bool isPassCustomTightID(const Electron& el , const Reproduce20_002_copy::Electrons& eset) const;
+        // Loose ID without isolation (matches Python vidNestedWPBitmap with id_level=2, ignoring isolation)
+        bool isPassLooseNoIso(const Electron& el) const;
     }el_set;
 
     struct Muons {

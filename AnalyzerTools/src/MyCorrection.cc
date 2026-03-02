@@ -256,8 +256,8 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_met += "/2018_UL/met.json.gz";
         config.txt_roccor += "/RoccoR2018UL.txt";
     } else if (era == "2022") {
-        config.json_muon += "/2022_Summer22/muon_Z.json.gz";
-        config.json_muon_trig_eff += "/2022/MUO/muon_trig.json";
+        config.json_muon += "/2022_Summer22/muon_HighPt.json.gz";
+        config.json_muon_trig_eff += "/2022_Summer22/muon_HighPt.json.gz";
         config.json_puWeights += "/2022_Summer22/puWeights.json.gz";
         config.json_btagging += "/2022_Summer22/btagging.json.gz";
         config.json_ctagging += "/2022_Summer22/ctagging.json.gz";
@@ -275,8 +275,8 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_met += "/2022_Summer22/met.json.gz";
         config.txt_roccor += "/RoccoR2022.txt";
     } else if (era == "2022EE") {
-        config.json_muon += "/2022_Summer22EE/muon_Z.json.gz";
-        config.json_muon_trig_eff += "/2022EE/MUO/muon_trig.json";
+        config.json_muon += "/2022_Summer22EE/muon_HighPt.json.gz";
+        config.json_muon_trig_eff += "/2022_Summer22EE/muon_HighPt.json.gz";
         config.json_puWeights += "/2022_Summer22EE/puWeights.json.gz";
         config.json_btagging += "/2022_Summer22EE/btagging.json.gz";
         config.json_ctagging += "/2022_Summer22EE/ctagging.json.gz";
@@ -314,8 +314,8 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.txt_roccor += "/RoccoR2023.txt";
         config.json_jetid += "/2023_Summer23/jet_id.json.gz";
     } else if (era == "2023BPix") {
-        config.json_muon += "/2023_Summer23BPix/muon_Z.json.gz";
-        config.json_muon_trig_eff += "/2023BPix/MUO/muon_trig.json";
+        config.json_muon += "/2023_Summer23BPix/muon_HighPt.json.gz";
+        config.json_muon_trig_eff += "/2023_Summer23BPix/muon_HighPt.json.gz";
         config.json_puWeights += "/2023_Summer23BPix/puWeights.json.gz";
         config.json_btagging += "/2023_Summer23BPix/btagging.json.gz";
         config.json_ctagging += "/2023_Summer23BPix/ctagging.json.gz";

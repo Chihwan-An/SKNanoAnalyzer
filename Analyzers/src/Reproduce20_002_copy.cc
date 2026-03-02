@@ -21,7 +21,7 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_OldMu100", "HLT_TkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger = {"HLT_Ele35_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 38.;  
     }
 
@@ -29,10 +29,10 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        //el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        //el_set.Ele_Trigger_Safe_Pt_Cut = 35.;  
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 117.;  
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
     }
     if (DataEra == "2022EE")
     {
@@ -40,15 +40,15 @@ void Reproduce20_002_copy::initializeAnalyzer() {
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         //el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         //el_set.Ele_Trigger_Safe_Pt_Cut = 35.;  
-        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 117.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
     }
     if (DataEra == "2023")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 35.;  
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;   
         //el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         //el_set.Ele_Trigger_Safe_Pt_Cut = 117.; 
     }
@@ -56,10 +56,10 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        //el_set.Ele_Trigger = {"HLT_Ele32_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        //el_set.Ele_Trigger_Safe_Pt_Cut = 35.;  
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 117.; 
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.; 
     }
 
     myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
@@ -160,82 +160,333 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     
     //Event values
 
+
     //Resolved 
     float Resolve_DYCREEpt = 0.;
+    float Resolve_DYCRMMmass = 0.;
+    float Resolve_DYCRMMeta = 0.;
+    float Resolve_DYCRMMphi = 0.;
     float Resolve_DYCREEleadjetpt = 0.;
+    float Resolve_DYCREEleadjeteta = 0.;
+    float Resolve_DYCREEleadjetphi = 0.;
     float Resolve_DYCREEsubleadjetpt = 0.;
+    float Resolve_DYCREEsubleadjeteta = 0.;
+    float Resolve_DYCREEsubleadjetphi = 0.;
+    float Resolve_DYCREEj1j2mass = 0.;
+    float Resolve_DYCREEj1j2pt = 0.;
+    float Resolve_DYCREEj1j2eta = 0.;
+    float Resolve_DYCREEj1j2phi = 0.;
+    float Resolve_DYCREEl1j1j2mass = 0.;
+    float Resolve_DYCREEl1j1j2pt = 0.;
+    float Resolve_DYCREEl1j1j2eta = 0.;
+    float Resolve_DYCREEl1j1j2phi = 0.;
+    float Resolve_DYCREEl2j1j2mass = 0.;
+    float Resolve_DYCREEl2j1j2pt = 0.;
+    float Resolve_DYCREEl2j1j2eta = 0.;
+    float Resolve_DYCREEl2j1j2phi = 0.;
     float Resolve_DYCREEmlljj = 0.;
+    float Resolve_DYCREEmlljjpt = 0.;
+    float Resolve_DYCREEmlljjeta = 0.;
+    float Resolve_DYCREEmlljjphi = 0.;
     float Resolve_DYCREEleadleppt = 0.;
+    float Resolve_DYCREEleadlepeta = 0.;
+    float Resolve_DYCREEleadlepphi = 0.;
     float Resolve_DYCREEsubleadleppt = 0.;
+    float Resolve_DYCREEsubleadlepeta = 0.;
+    float Resolve_DYCREEsubleadlepphi = 0.;
+    float Resolve_DYCREEjetnum = 0.;
+    float Resolve_DYCREEpunum = 0.;
 
     float Resolve_DYCRMMpt = 0.;
+    float Resolve_DYCRMMmass = 0.;
+    float Resolve_DYCRMMeta = 0.;
+    float Resolve_DYCRMMphi = 0.;
     float Resolve_DYCRMMleadjetpt = 0.;
+    float Resolve_DYCRMMleadjeteta = 0.;
+    float Resolve_DYCRMMleadjetphi = 0.;
     float Resolve_DYCRMMsubleadjetpt = 0.;
+    float Resolve_DYCRMMsubleadjeteta = 0.;
+    float Resolve_DYCRMMsubleadjetphi = 0.;
+    float Resolve_DYCRMMj1j2mass = 0.;
+    float Resolve_DYCRMMj1j2pt = 0.;
+    float Resolve_DYCRMMj1j2eta = 0.;
+    float Resolve_DYCRMMj1j2phi = 0.;
+    float Resolve_DYCRMMl1j1j2mass = 0.;
+    float Resolve_DYCRMMl1j1j2pt = 0.;
+    float Resolve_DYCRMMl1j1j2eta = 0.;
+    float Resolve_DYCRMMl1j1j2phi = 0.;
+    float Resolve_DYCRMMl2j1j2mass = 0.;
+    float Resolve_DYCRMMl2j1j2pt = 0.;
+    float Resolve_DYCRMMl2j1j2eta = 0.;
+    float Resolve_DYCRMMl2j1j2phi = 0.;
     float Resolve_DYCRMMmlljj = 0.;
+    float Resolve_DYCRMMmlljjpt = 0.;
+    float Resolve_DYCRMMmlljjeta = 0.;
+    float Resolve_DYCRMMmlljjphi = 0.;
     float Resolve_DYCRMMleadleppt = 0.;
+    float Resolve_DYCRMMleadlepeta = 0.;
+    float Resolve_DYCRMMleadlepphi = 0.;
     float Resolve_DYCRMMsubleadleppt = 0.;
-    
+    float Resolve_DYCRMMsubleadlepeta = 0.;
+    float Resolve_DYCRMMsubleadlepphi = 0.;
+    float Resolve_DYCRMMjetnum = 0.;
+    float Resolve_DYCRMMpunum = 0.;
 
     float Resolve_FlavCRpt = 0.;
+    float Resolve_FlavCRmass = 0.;
+    float Resolve_FlavCReta = 0.;
+    float Resolve_FlavCRphi = 0.;
     float Resolve_FlavCRleadjetpt = 0.;
+    float Resolve_FlavCRleadjeteta = 0.;
+    float Resolve_FlavCRleadjetphi = 0.;
     float Resolve_FlavCRsubleadjetpt = 0.;
+    float Resolve_FlavCRsubleadjeteta = 0.;
+    float Resolve_FlavCRsubleadjetphi = 0.;
+    float Resolve_FlavCRj1j2mass = 0.;
+    float Resolve_FlavCRj1j2pt = 0.;
+    float Resolve_FlavCRj1j2eta = 0.;
+    float Resolve_FlavCRj1j2phi = 0.;
+    float Resolve_FlavCRl1j1j2mass = 0.;
+    float Resolve_FlavCRl1j1j2pt = 0.;
+    float Resolve_FlavCRl1j1j2eta = 0.;
+    float Resolve_FlavCRl1j1j2phi = 0.;
+    float Resolve_FlavCRl2j1j2mass = 0.;
+    float Resolve_FlavCRl2j1j2pt = 0.;
+    float Resolve_FlavCRl2j1j2eta = 0.;
+    float Resolve_FlavCRl2j1j2phi = 0.;
     float Resolve_FlavCRmlljj = 0.;
+    float Resolve_FlavCRmlljjpt = 0.;
+    float Resolve_FlavCRmlljjeta = 0.;
+    float Resolve_FlavCRmlljjphi = 0.;
     float Resolve_FlavCRleadleppt = 0.;
+    float Resolve_FlavCRleadlepeta = 0.;
+    float Resolve_FlavCRleadlepphi = 0.;
     float Resolve_FlavCRsubleadleppt = 0.;
+    float Resolve_FlavCRsubleadlepeta = 0.;
+    float Resolve_FlavCRsubleadlepphi = 0.;
+    float Resolve_FlavCRjetnum = 0.;
+    float Resolve_FlavCRpunum = 0.;
 
     float Resolve_SREEpt = 0.;
+    float Resolve_SREEmass = 0.;
+    float Resolve_SREEeta = 0.;
+    float Resolve_SREEphi = 0.;
     float Resolve_SREEleadjetpt = 0.;
+    float Resolve_SREEleadjeteta = 0.;
+    float Resolve_SREEleadjetphi = 0.;
     float Resolve_SREEsubleadjetpt = 0.;
+    float Resolve_SREEsubleadjeteta = 0.;
+    float Resolve_SREEsubleadjetphi = 0.;
+    float Resolve_SREEj1j2mass = 0.;
+    float Resolve_SREEj1j2pt = 0.;
+    float Resolve_SREEj1j2eta = 0.;
+    float Resolve_SREEj1j2phi = 0.;
+    float Resolve_SREEl1j1j2mass = 0.;
+    float Resolve_SREEl1j1j2pt = 0.;
+    float Resolve_SREEl1j1j2eta = 0.;
+    float Resolve_SREEl1j1j2phi = 0.;
+    float Resolve_SREEl2j1j2mass = 0.;
+    float Resolve_SREEl2j1j2pt = 0.;
+    float Resolve_SREEl2j1j2eta = 0.;
+    float Resolve_SREEl2j1j2phi = 0.;
     float Resolve_SREEmlljj = 0.;
+    float Resolve_SREEmlljjpt = 0.;
+    float Resolve_SREEmlljjeta = 0.;
+    float Resolve_SREEmlljjphi = 0.;
     float Resolve_SREEleadleppt = 0.;
+    float Resolve_SREEleadlepeta = 0.;
+    float Resolve_SREEleadlepphi = 0.;
     float Resolve_SREEsubleadleppt = 0.;
+    float Resolve_SREEsubleadlepeta = 0.;
+    float Resolve_SREEsubleadlepphi = 0.;
+    float Resolve_DYSREEjetnum = 0.;
+    float Resolve_DYSREEpunum = 0.;
 
     float Resolve_SRMMpt = 0.;
+    float Resolve_SRMMmass = 0.;
+    float Resolve_SRMMeta = 0.;
+    float Resolve_SRMMphi = 0.;
     float Resolve_SRMMleadjetpt = 0.;
+    float Resolve_SRMMleadjeteta = 0.;
+    float Resolve_SRMMleadjetphi = 0.;
     float Resolve_SRMMsubleadjetpt = 0.;
+    float Resolve_SRMMsubleadjeteta = 0.;
+    float Resolve_SRMMsubleadjetphi = 0.;
+    float Resolve_SRMMj1j2mass = 0.;
+    float Resolve_SRMMj1j2pt = 0.;
+    float Resolve_SRMMj1j2eta = 0.;
+    float Resolve_SRMMj1j2phi = 0.;
+    float Resolve_SRMMl1j1j2mass = 0.;
+    float Resolve_SRMMl1j1j2pt = 0.;
+    float Resolve_SRMMl1j1j2eta = 0.;
+    float Resolve_SRMMl1j1j2phi = 0.;
+    float Resolve_SRMMl2j1j2mass = 0.;
+    float Resolve_SRMMl2j1j2pt = 0.;
+    float Resolve_SRMMl2j1j2eta = 0.;
+    float Resolve_SRMMl2j1j2phi = 0.;
     float Resolve_SRMMmlljj = 0.;
+    float Resolve_SRMMmlljjpt = 0.;
+    float Resolve_SRMMmlljjeta = 0.;
+    float Resolve_SRMMmlljjphi = 0.;
     float Resolve_SRMMleadleppt = 0.;
+    float Resolve_SRMMleadlepeta = 0.;
+    float Resolve_SRMMleadlepphi = 0.;
     float Resolve_SRMMsubleadleppt = 0.;
+    float Resolve_SRMMsubleadlepeta = 0.;
+    float Resolve_SRMMsubleadlepphi = 0.;
+    float Resolve_DYSRMMjetnum = 0.;
+    float Resolve_DYSRMMpunum = 0.;
 
 
     float Boost_DYCREEpt = 0.;
+    float Boost_DYCREEmass = 0.;
+    float Boost_DYCREEeta = 0.;
+    float Boost_DYCREEphi = 0.;
     float Boost_DYCREEfatjetpt = 0.;
+    float Boost_DYCREEfatjeteta = 0.;
+    float Boost_DYCREEfatjetphi = 0.;
+    float Boost_DYCREEfatjetSDM = 0.;
     float Boost_DYCREEmlljj = 0.;
+    float Boost_DYCREEmll = 0.;
+    float Boost_DYCREEWRpt = 0.;
+    float Boost_DYCREEWReta = 0.;
+    float Boost_DYCREEWRphi = 0.;
     float Boost_DYCREEleadleppt = 0.;
+    float Boost_DYCREEleadlepeta = 0.;
+    float Boost_DYCREEleadlepphi = 0.;
     float Boost_DYCREEsubleadleppt = 0.;
+    float Boost_DYCREEsubleadlepeta = 0.;
+    float Boost_DYCREEsubleadlepphi = 0.;
+    float Boost_DYCREEfatjet_lsf3 = 0.;
+    float Boost_DYCREEdeltaR_leadlep_fatjet = 0.;
+    float Boost_DYCREEdphi_leadlep_fatjet = 0.;
+    float Boost_DYCREEpileup_num = 0.;
+    float Boost_DYCREEjet_num = 0.;
 
     float Boost_DYCRMMpt = 0.;
+    float Boost_DYCRMMmass = 0.;
+    float Boost_DYCRMMeta = 0.;
+    float Boost_DYCRMMphi = 0.;
     float Boost_DYCRMMfatjetpt = 0.;
+    float Boost_DYCRMMfatjeteta = 0.;
+    float Boost_DYCRMMfatjetphi = 0.;
+    float Boost_DYCRMMfatjetSDM = 0.;
     float Boost_DYCRMMmlljj = 0.;
+    float Boost_DYCRMMmll = 0.;
+    float Boost_DYCRMMWRpt = 0.;
+    float Boost_DYCRMMWReta = 0.;
+    float Boost_DYCRMMWRphi = 0.;
     float Boost_DYCRMMleadleppt = 0.;
+    float Boost_DYCRMMleadlepeta = 0.;
+    float Boost_DYCRMMleadlepphi = 0.;
     float Boost_DYCRMMsubleadleppt = 0.;
+    float Boost_DYCRMMsubleadlepeta = 0.;
+    float Boost_DYCRMMsubleadlepphi = 0.;
+    float Boost_DYCRMMfatjet_lsf3 = 0.;
+    float Boost_DYCRMMdeltaR_leadlep_fatjet = 0.;
+    float Boost_DYCRMMdphi_leadlep_fatjet = 0.;
+    float Boost_DYCRMMpileup_num = 0.;
+    float Boost_DYCRMMjet_num = 0.;
 
     float Boost_SREEpt = 0.;
+    float Boost_SREEmass = 0.;
+    float Boost_SREEeta = 0.;
+    float Boost_SREEphi = 0.;
     float Boost_SREEfatjetpt = 0.;
+    float Boost_SREEfatjeteta = 0.;
+    float Boost_SREEfatjetphi = 0.;
+    float Boost_SREEfatjetSDM = 0.;
     float Boost_SREEmlljj = 0.;
+    float Boost_SREEmll = 0.;
+    float Boost_SREEWRpt = 0.;
+    float Boost_SREEWReta = 0.;
+    float Boost_SREEWRphi = 0.;
     float Boost_SREEleadleppt = 0.;
+    float Boost_SREEleadlepeta = 0.;
+    float Boost_SREEleadlepphi = 0.;
     float Boost_SREEsubleadleppt = 0.;
-    
+    float Boost_SREEsubleadlepeta = 0.;
+    float Boost_SREEsubleadlepphi = 0.;
+    float Boost_SREEfatjet_lsf3 = 0.;
+    float Boost_SREEdeltaR_leadlep_fatjet = 0.;
+    float Boost_SREEdphi_leadlep_fatjet = 0.;
+    float Boost_SREEpileup_num = 0.;
+    float Boost_SREEjet_num = 0.;
+
     float Boost_SRMMpt = 0.;
+    float Boost_SRMMmass = 0.;
+    float Boost_SRMMeta = 0.;
+    float Boost_SRMMphi = 0.;
     float Boost_SRMMfatjetpt = 0.;
+    float Boost_SRMMfatjeteta = 0.;
+    float Boost_SRMMfatjetphi = 0.;
+    float Boost_SRMMfatjetSDM = 0.;
     float Boost_SRMMmlljj = 0.;
+    float Boost_SRMMmll = 0.;
+    float Boost_SRMMWRpt = 0.;
+    float Boost_SRMMWReta = 0.;
+    float Boost_SRMMWRphi = 0.;
     float Boost_SRMMleadleppt = 0.;
+    float Boost_SRMMleadlepeta = 0.;
+    float Boost_SRMMleadlepphi = 0.;
     float Boost_SRMMsubleadleppt = 0.;
+    float Boost_SRMMsubleadlepeta = 0.;
+    float Boost_SRMMsubleadlepphi = 0.;
+    float Boost_SRMMfatjet_lsf3 = 0.;
+    float Boost_SRMMdeltaR_leadlep_fatjet = 0.;
+    float Boost_SRMMdphi_leadlep_fatjet = 0.;
+    float Boost_SRMMpileup_num = 0.;
+    float Boost_SRMMjet_num = 0.;
 
     float Boost_FlavEMJpt = 0.;
-    float Boost_FlavEMJleadfatjetpt = 0.;
-    float Boost_FlavEMJmlljj = 0.;
+    float Boost_FlavEMJmass = 0.;
+    float Boost_FlavEMJeta = 0.;
+    float Boost_FlavEMJphi = 0.;
+    float Boost_FlavEMJfatjetpt = 0.;
+    float Boost_FlavEMJfatjeteta = 0.;
+    float Boost_FlavEMJfatjetphi = 0.;
     float Boost_FlavEMJSDM = 0.;
+    float Boost_FlavEMJmlljj = 0.;
+    float Boost_FlavEMJmll = 0.;
+    float Boost_FlavEMJWRpt = 0.;
+    float Boost_FlavEMJWReta = 0.;
+    float Boost_FlavEMJWRphi = 0.;
     float Boost_FlavEMJleadleppt = 0.;
+    float Boost_FlavEMJleadlepeta = 0.;
+    float Boost_FlavEMJleadlepphi = 0.;
     float Boost_FlavEMJsubleadleppt = 0.;
+    float Boost_FlavEMJsubleadlepeta = 0.;
+    float Boost_FlavEMJsubleadlepphi = 0.;
+    float Boost_FlavEMJfatjet_lsf3 = 0.;
+    float Boost_FlavEMJdeltaR_leadlep_fatjet = 0.;
+    float Boost_FlavEMJdphi_leadlep_fatjet = 0.;
+    float Boost_FlavEMJpileup_num = 0.;
+    float Boost_FlavEMJjet_num = 0.;
 
     float Boost_FlavMEJpt = 0.;
-    float Boost_FlavMEJleadfatjetpt = 0.;
-    float Boost_FlavMEJmlljj = 0.;
+    float Boost_FlavMEJmass = 0.;
+    float Boost_FlavMEJeta = 0.;
+    float Boost_FlavMEJphi = 0.;
+    float Boost_FlavMEJfatjetpt = 0.;
+    float Boost_FlavMEJfatjeteta = 0.;
+    float Boost_FlavMEJfatjetphi = 0.;
     float Boost_FlavMEJSDM = 0.;
+    float Boost_FlavMEJmlljj = 0.;
+    float Boost_FlavMEJmll = 0.;
+    float Boost_FlavMEJWRpt = 0.;
+    float Boost_FlavMEJWReta = 0.;
+    float Boost_FlavMEJWRphi = 0.;
     float Boost_FlavMEJleadleppt = 0.;
+    float Boost_FlavMEJleadlepeta = 0.;
+    float Boost_FlavMEJleadlepphi = 0.;
     float Boost_FlavMEJsubleadleppt = 0.;
-
+    float Boost_FlavMEJsubleadlepeta = 0.;
+    float Boost_FlavMEJsubleadlepphi = 0.;
+    float Boost_FlavMEJfatjet_lsf3 = 0.;
+    float Boost_FlavMEJdeltaR_leadlep_fatjet = 0.;
+    float Boost_FlavMEJdphi_leadlep_fatjet = 0.;
+    float Boost_FlavMEJpileup_num = 0.;
+    float Boost_FlavMEJjet_num = 0.;
 
 
     
@@ -310,6 +561,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
 
     for (unsigned int i=0 ; i< my_electrons.size(); i ++) {
         Electron & el = my_electrons.at(i);
+        //if (el_set.isPassCustomTightID(el, el_set)) {
         if (el.PassID(el_set.Electron_Tight_ID[0])) {
             Tight_electrons.push_back(&el);
             Tight_leps_el.push_back( &el);
@@ -321,13 +573,18 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             }
         }
 
-        // Loose ID
-        if (el_set.isPassCustomLooseID(el)){
-        //if (el.PassID(el_set.Electron_Loose_ID[0])) {
+        // Loose ID: Match Python selectLooseElectrons logic
+        // Pass if: (Loose WP without isolation) OR (HEEP)
+        bool passLooseNoIso = el_set.isPassLooseNoIso(el);
+        bool passHEEP = el.PassID(Electron::ElectronID::POG_HEEP);
+
+        if (passLooseNoIso || passHEEP) {
+        //if (el_set.isPassCustomLooseID(el)){  // OLD
+        //if (el.PassID(el_set.Electron_Loose_ID[0])) {  // OLD
             Loose_electrons.push_back(&el);
             Loose_leps_el.push_back(&el);
             Loose_leps.push_back(&el);
-            if (!el.PassID(el_set.Electron_Tight_ID[0])) {
+            if (!el_set.isPassCustomTightID(el, el_set)) {
                 el_loose_and_fail_tight += 100.;
             } else {
                 el_loose_but_tight += 1000.;
@@ -366,8 +623,9 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     FillHist(this_syst + "/Jet_num_total_before_clean_looselep", jets.size() , weight, 10, 0., 10.);
     FillHist(this_syst + "/Fatjet_num_total_before_clean_tightlep", fatjets.size() , weight, 10, 0., 10.);
     // Leptons cleaned with fatjet(tight lepton) and jets(loose lepton)
-    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, Tight_leps);    
-    jets = Clean_jet_with_loose_leptons(jets, Loose_leps); 
+    // HNWRAnalyzer does NOT clean fatjets with tight leptons → removed to match
+    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, Tight_leps);
+    jets = Clean_jet_with_loose_leptons(jets, Loose_leps);
     FillHist(this_syst + "/Jet_num_total_after_clean_looselep", jets.size() , weight, 10, 0., 10.);
     FillHist(this_syst + "/Fatjet_num_total_after_clean_tightlep", fatjets.size() , weight, 10, 0., 10.);
 
@@ -1175,8 +1433,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                         FillHist(this_syst + "/Boost_cutflow_FLV", 5 , weight, 20,-10,10.);
                         bool hassflooselepton(false);
                         bool hasoflooselepton(false);
-                        Lepton *SFLooseLepton;
-                        Lepton *OFLooseLepton;
+                        Lepton *SFLooseLepton = nullptr;
+                        Lepton *OFLooseLepton = nullptr;
                         FillHist(this_syst +"/numofhnfatjet_FLV", HNFatJet.SDMass() , weight, 10000, 0., 10000.); 
                     //num SF loose lepton inside fatjet for high mll
                         
@@ -1382,10 +1640,10 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     //charge
                                                     if ( LeadLepCharge * SFLooseLeptonCharge > 0 ) {
                                                         is_Boosted_SR_MM_SS = true;
-                                                        
+
                                                     }
                                                     else {
-                                                        is_Boosted_SR_MM_SS = true;
+                                                        is_Boosted_SR_MM_OS = true;
                                                         
                                                     }
                                                 }                                            
@@ -1544,6 +1802,24 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             Boost_FlavEMJSDM = HNFatJet.SDMass();
                                             Boost_FlavEMJleadleppt = LeadLep->Pt();
                                             Boost_FlavEMJsubleadleppt = OFLooseLepton->Pt();
+                                            //eta 
+                                            Boost_FlavEMJleadlepeta = LeadLep->Eta();
+                                            Boost_FlavEMJsubleadlepeta = OFLooseLepton->Eta();
+                                            Boost_FlavEMJfatjeteta = HNFatJet.Eta();
+                                            Boost_FlavEMJfatjetphi = HNFatJet.Phi();
+
+                                            Boost_FlavEMJdeltaR_leadlep_fatjet = LeadLep->DeltaR(HNFatJet);
+
+
+                                            // lsf
+                                            Boost_FlavEMJleadlep_lsf = HNFatJet.LSF3();
+                                            
+                                            //mll
+                                            Boost_FlavEMJmll = (*LeadLep + *OFLooseLepton).M();
+                                            // fatjet pt 
+                                            Boost_FlavEMJfatjetpt = HNFatJet.Pt();
+                                            // wr pt 
+                                            Boost_FlavEMJWRpt = WRCand.Pt();
                                         }
                                         else if (is_tmp_lead_mu) {
                                             // Boosted Flavor CR
@@ -1556,6 +1832,23 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             Boost_FlavMEJleadleppt = LeadLep->Pt();
                                             Boost_FlavMEJsubleadleppt = OFLooseLepton->Pt();
                                             
+                                            Boost_FlavMEJleadlepeta = LeadLep->Eta();
+                                            Boost_FlavMEJsubleadlepeta = OFLooseLepton->Eta();
+                                            Boost_FlavMEJfatjeteta = HNFatJet.Eta();
+                                            Boost_FlavMEJfatjetphi = HNFatJet.Phi();
+
+                                            Boost_FlavMEJdeltaR_leadlep_fatjet = LeadLep->DeltaR(HNFatJet);
+
+
+                                            // lsf
+                                            Boost_FlavMEJleadlep_lsf = HNFatJet.LSF3();
+                                            
+                                            //mll
+                                            Boost_FlavMEJmll = (*LeadLep + *OFLooseLepton).M();
+                                            // fatjet pt 
+                                            Boost_FlavMEJfatjetpt = HNFatJet.Pt();
+                                            // wr pt 
+                                            Boost_FlavMEJWRpt = WRCand.Pt();
                                             
 
                                         }
@@ -1737,6 +2030,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_SDMass", Boost_FlavEMJSDM , final_weight, 10000, 0., 10000.);
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_e_mujet_LeadingLepPt", Boost_FlavEMJleadleppt , final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_e_mujet_SubLeadingLepPt", Boost_FlavEMJsubleadleppt , final_weight, 2000, 0., 2000.);
+
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_e_mujet_LeadingLepEta", Boost_FlavEMJleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_e_mujet_SubLeadingLepEta", Boost_FlavEMJsubleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_Eta", Boost_FlavEMJfatjeteta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_Phi", Boost_FlavEMJfatjetphi , final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR e_mujet_DeltaR_LeadLep_Fatjet", Boost_FlavEMJdeltaR_leadlep_fatjet , final_weight, 100, 0., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR e_mujet_LeadLep_LSF", Boost_FlavEMJleadlep_lsf , final_weight, 100, 0., 1.);    
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR e_mujet_mll", Boost_FlavEMJmll , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR e_mujet_Fatjet_pt", Boost_FlavEMJfatjetpt , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR e_mujet_WRpt", Boost_FlavEMJWRpt , final_weight, 1000, 0., 1000.);
             }
             if(is_Boosted_Flav_MEJ) {
                 cout<<"ok33"<<endl;
@@ -1746,6 +2049,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_SDMass", Boost_FlavMEJSDM , final_weight, 10000, 0., 10000.);
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadingLepPt", Boost_FlavMEJleadleppt , final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SubLeadingLepPt", Boost_FlavMEJsubleadleppt , final_weight, 2000, 0., 2000.);
+
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadingLepEta", Boost_FlavMEJleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SubLeadingLepEta", Boost_FlavMEJsubleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_Eta", Boost_FlavMEJfatjeteta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_Phi", Boost_FlavMEJfatjetphi , final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR mu_ejets_DeltaR_LeadLep_Fatjet", Boost_FlavMEJdeltaR_leadlep_fatjet , final_weight, 100, 0., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR mu_ejets_LeadLep_LSF", Boost_FlavMEJleadlep_lsf , final_weight, 100, 0., 1.);    
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR mu_ejets_mll", Boost_FlavMEJmll , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR mu_ejets_Fatjet_pt", Boost_FlavMEJfatjetpt , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR mu_ejets_WRpt", Boost_FlavMEJWRpt , final_weight, 1000, 0., 1000.);
             }
             // syst_name: "Central", "PU_Weight_Up" 등
             // sf_val: 해당 케이스의 SF 값 (예: 0.99)
@@ -1884,6 +2197,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_SDMass", Boost_FlavEMJSDM , 1, 10000, 0., 10000.);
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_LeadingLepPt", Boost_FlavEMJleadleppt , 1, 2000, 0., 2000.);
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_SubLeadingLepPt", Boost_FlavEMJsubleadleppt , 1, 2000, 0., 2000.);
+
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_LeadingLepEta", Boost_FlavEMJleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_SubLeadingLepEta", Boost_FlavEMJsubleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_Eta", Boost_FlavEMJfatjeteta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_Phi", Boost_FlavEMJfatjetphi , 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_DeltaR_LeadLep_Fatjet", Boost_FlavEMJdeltaR_leadlep_fatjet , 1, 100, 0., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_LeadLep_LSF", Boost_FlavEMJleadlep_lsf , 1, 100, 0., 1.);    
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_mll", Boost_FlavEMJmll , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_pt", Boost_FlavEMJfatjetpt , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_e_mujet_WRpt", Boost_FlavEMJWRpt , 1, 1000, 0., 1000.);
             }
             if(is_Boosted_Flav_MEJ) {
                 FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_mu_ejets_Flavor_CR", Boost_FlavMEJpt, 1, 1000, 0., 1000.);
@@ -1892,6 +2215,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_SDMass", Boost_FlavMEJSDM , 1, 10000, 0., 10000.);
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadingLepPt", Boost_FlavMEJleadleppt , 1, 2000, 0., 2000.);
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SubLeadingLepPt", Boost_FlavMEJsubleadleppt , 1, 2000, 0., 2000.);
+
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadingLepEta", Boost_FlavMEJleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SubLeadingLepEta", Boost_FlavMEJsubleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_Eta", Boost_FlavMEJfatjeteta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_Phi", Boost_FlavMEJfatjetphi , 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_DeltaR_LeadLep_Fatjet", Boost_FlavMEJdeltaR_leadlep_fatjet , 1, 100, 0., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadLep_LSF", Boost_FlavMEJleadlep_lsf , 1, 100, 0., 1.);    
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_mll", Boost_FlavMEJmll , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_pt", Boost_FlavMEJfatjetpt , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_WRpt", Boost_FlavMEJWRpt , 1, 1000, 0., 1000.);
             }
             // syst_name: "Central", "PU_Weight_Up" 등
     }
@@ -1908,33 +2241,83 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     // end ## 1984
     
 
+bool Reproduce20_002_copy::Electrons::isPassCustomTightID(const Electron& el, const Reproduce20_002_copy::Electrons& eset) const {
+    if (fabs(el.scEta()) < 1.566) {
+        return el.PassID(eset.Electron_Tight_ID[0]);
+    }
+    int heepbit = el.VidNestedWPBitmapHEEP();
+    if ( !((heepbit & 3775) == 3775) ) return false;
+    float scE =  (el.scEtOverPt()+1) * el.Pt();
+    double cutValue_HoverE = ( -0.4 + 0.4 * fabs(el.scEta()) ) * el.rho() / scE + 0.05;
+    if(! (el.hoe()<cutValue_HoverE) ) return false;
+
+    //==== new EM+Had_depth1 cut
+    //double cutValue_emhaddep1 = UncorrPt() > 50. ? 2.5 + 0.03 * (UncorrPt()-50.) +                        0.28 * Rho() : 2.5 +                        0.28 * Rho(); // original cut
+    double cutValue_emhaddep1 = el.Pt() > 50. ? 2.5 + 0.03 * (el.Pt()-50.) + (0.15 + 0.07*fabs(el.scEta())) * el.rho() : 2.5 + (0.15 + 0.07*fabs(el.scEta())) * el.rho();
+    if(! ( el.dr03EcalRecHitSumEt() + el.dr03HcalDepth1TowerSumEt() < cutValue_emhaddep1 ) ) return false;
+    return true;
+}
 
 bool Reproduce20_002_copy::Electrons::isPassCustomLooseID(const Electron& el) const {
-    if (!(el.hoe() < 0.5)) return false;
+    //if (!(el.hoe() < 0.5)) return false;
 
     if (fabs(el.scEta()) <= 1.479){
-        //float hoecut ;
-        //hoecut = 0.05 + 1.28/el.E() + 0.0422*        
-        //if(!(el.hoe() < 0.05 + 1.16/el.E() + 0.0324*el.rho()/el.E())) return false;
+    
+        if(!(el.hoe() < 0.05 + 1.16/el.E() + 0.0324*el.rho()/el.E())) return false;
         if (!(el.sieie() < 0.0112)) return false;
-        if (!(fabs(el.deltaEtaInSC()) < 0.00377)) return false;
-        if (!(fabs(el.deltaPhiInSeed()) < 0.0884)) return false;
+        if (!(fabs(el.deltaEtaInSeed()) < 0.00377)) return false;
+        if (!(fabs(el.deltaPhiInSC()) < 0.0884)) return false;
         if (!(fabs(el.eInvMinusPInv()) < 0.193)) return false;
         if (!(el.LostHits() <= 1)) return false;
         if (!(el.ConvVeto())) return false;
         return true;
     }
     else {
-        //if(!(el.hoe() < 0.0441 + 2.54/el.E() + 0.183*el.rho()/el.E())) return false;
+        if(!(el.hoe() < 0.0441 + 2.54/el.E() + 0.183*el.rho()/el.E())) return false;
         if (!(el.sieie() < 0.0425)) return false;
-        if (!(fabs(el.deltaEtaInSC()) < 0.00674)) return false;
-        if (!(fabs(el.deltaPhiInSeed()) < 0.169)) return false;
+        if (!(fabs(el.deltaEtaInSeed()) < 0.00674)) return false;
+        if (!(fabs(el.deltaPhiInSC()) < 0.169)) return false;
         if (!(fabs(el.eInvMinusPInv()) < 0.111)) return false;
         if (!(el.LostHits() <= 1)) return false;
         if (!(el.ConvVeto())) return false;
         return true;
     }
     return true ;
+}
+
+bool Reproduce20_002_copy::Electrons::isPassLooseNoIso(const Electron& el) const {
+    // Matches Python selectLooseElectrons logic:
+    // Evaluate vidNestedWPBitmap with id_level=2 (Loose WP), ignoring isolation (cut index 7)
+    //
+    // vidNestedWPBitmap contains 10 cuts, each encoded in 3 bits:
+    //   0: MinPtCut
+    //   1: GsfEleSCEtaMultiRangeCut
+    //   2: GsfEleDEtaInSeedCut
+    //   3: GsfEleDPhiInCut
+    //   4: GsfEleFull5x5SigmaIEtaIEtaCut
+    //   5: GsfEleHadronicOverEMEnergyScaledCut
+    //   6: GsfEleEInverseMinusPInverseCut
+    //   7: GsfEleRelPFIsoScaledCut (ISOLATION - ignored)
+    //   8: GsfEleConversionVetoCut
+    //   9: GsfEleMissingHitsCut
+    //
+    // Each 3-bit value: 0=fail, 1=Veto, 2=Loose, 3=Medium, 4=Tight
+
+    int bitmap = el.VidNestedWPBitmap();
+
+    const int n_cuts = 10;
+    const int bits_per_cut = 3;
+    const int ignore_cut = 7;      // Isolation cut index
+    const int id_level = 2;        // Loose working point
+    const int mask = (1 << bits_per_cut) - 1;  // 0b111 = 7
+
+    for (int cut_nr = 0; cut_nr < n_cuts; cut_nr++) {
+        if (cut_nr == ignore_cut) continue;  // Skip isolation
+
+        int value = (bitmap >> (cut_nr * bits_per_cut)) & mask;
+        if (value < id_level) return false;
+    }
+    return true;
 }
 
 RVec<FatJet> Reproduce20_002_copy::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {

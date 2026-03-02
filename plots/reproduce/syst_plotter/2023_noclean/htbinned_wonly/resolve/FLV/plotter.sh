@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+python MM.py --xmin 0 --xmax 2000 --hist "Obj_PU_Corr_Flav_CR_Resolved_EM_ll_pt" --output "Obj_PU_Corr_Flav_CR_Resolved_EM_leading_jet_pt" --xlabel "p_{T} of jet (GeV)"  --rmin 0.7 --rmax 1.3 --ymax 1e4 --ymin 1 --rebin 50 
+python MM.py --xmin 0 --xmax 1000 --rebin 50 --hist "Obj_PU_Corr_Flav_CR_Resolved_EM_leading_jet_pt" --output "Obj_PU_Corr_Flav_CR_Resolved_EM_ll_pt" --xlabel 'p_{T}^{ll}(GeV)'  --rmin 0.7 --rmax 1.3 --ymax 1e6 --ymin 1
+python MM.py --xmin 0 --xmax 500 --hist "Obj_PU_Corr_Flav_CR_Resolved_EM_subleading_jet_pt" --output "Obj_PU_Corr_Flav_CR_Resolved_EM_subleading_jet_pt" --xlabel "p_{T} of the subleading jet (GeV)" --rmin 0.7 --rmax 1.3 --ymax 1e4 --ymin 1 --bins "0,40,60,80,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,420,440,460,480,500" 
+python MM.py --xmin 800 --xmax 8000  --hist "Obj_PU_Corr_Flav_CR_Resolved_EM_mlljj" --output "Obj_PU_Corr_Flav_CR_Resolved_EM_mlljj" --xlabel "mlljj"  --rmin 0 --rmax 2.5 --bins '800,1000,1200,1400,1600,2000,2400,2800,3200,8000' --ymax 3e3  --ymin 1 

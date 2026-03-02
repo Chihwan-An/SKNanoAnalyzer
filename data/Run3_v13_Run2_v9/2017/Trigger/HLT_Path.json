@@ -1236,7 +1236,8 @@
         "lumi": 41477.877400009
     },
     "HLT_Ele300_CaloIdVT_GsfTrkIdT": {
-        "lumi": 41477.877400009
+        "lumi": 41477.877400009,
+        "active": true
     },
     "HLT_PFHT300PT30_QuadPFJet_75_60_45_40": {
         "lumi": 41477.877400009

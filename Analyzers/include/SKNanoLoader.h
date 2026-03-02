@@ -300,6 +300,8 @@ public:
     RVec<Float_t> Electron_sieie;
     RVec<Float_t> Electron_sip3d;
     RVec<UChar_t> Electron_genPartFlav;
+    RVec<Int_t>  Electron_vidNestedWPBitmapHEEP;
+    RVec<Int_t>  Electron_vidNestedWPBitmap;
     //Run3
     RVec<UChar_t> Electron_cutBased;
     RVec<Short_t> Electron_fsrPhotonIdx;

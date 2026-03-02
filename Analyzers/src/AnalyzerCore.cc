@@ -749,6 +749,8 @@ RVec<Electron> AnalyzerCore::GetAllElectrons(){
         electron.SetBIDBit(Electron::BooleanID::CUTBASEDHEEP, Electron_cutBased_HEEP[i]);
         electron.SetMVA(Electron::MVATYPE::MVATTH, Electron_mvaTTH[i]);
         electron.SetGenPartFlav(Electron_genPartFlav[i]);
+        electron.SetVidNestedWPBitmapHEEP(Electron_vidNestedWPBitmapHEEP[i]);
+        electron.SetVidNestedWPBitmap(Electron_vidNestedWPBitmap[i]);
 
         if (Run == 2) {
             electron.SetEnergyResUnc(Electron_dEsigmaUp[i], Electron_dEsigmaDown[i]);

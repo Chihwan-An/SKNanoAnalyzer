@@ -3,6 +3,7 @@ TTLJ*
 DYJets
 ST*
 EG*
+Muon
 Muon0*
 Muon1*
 WJets
@@ -17,5 +18,6 @@ ZZZ
 TTW*
 TTZ*
 Single*
+WHT*
 
 

@@ -111,6 +111,16 @@ public:
     void SetEnergyErr(float energyErr) { j_energyErr = energyErr; }
     inline float energyErr() const { return j_energyErr; }
 
+    void SetVidNestedWPBitmapHEEP(unsigned int bitmap) { j_vidNestedWPBitmapHEEP = bitmap; }
+    inline unsigned int VidNestedWPBitmapHEEP() const { return j_vidNestedWPBitmapHEEP; }
+
+    // Standard cut-based vidNestedWPBitmap (3 bits per cut, 10 cuts)
+    void SetVidNestedWPBitmap(unsigned int bitmap) { j_vidNestedWPBitmap = bitmap; }
+    inline unsigned int VidNestedWPBitmap() const { return j_vidNestedWPBitmap; }
+
+    void scEtOverPt(float scEtOverPt) { j_scEtOverPt = scEtOverPt; }
+    inline float scEtOverPt() const { return j_scEtOverPt; }
+
     void SetEnergyResUnc(float dEsigmaUp, float dEsigmaDown) {
         j_dEsigmaUp = dEsigmaUp;
         j_dEsigmaDown = dEsigmaDown;
@@ -180,6 +190,9 @@ private:
     short j_genPartIdx;
     unsigned char j_genPartFlav;
     short j_jetIdx;
+    unsigned int j_vidNestedWPBitmapHEEP;
+    unsigned int j_vidNestedWPBitmap;
+    float j_scEtOverPt;
     ClassDef(Electron, 1);
 };
 

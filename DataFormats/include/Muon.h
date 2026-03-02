@@ -115,7 +115,6 @@ public:
     inline float bsConstrainedPt() const { return j_bsConstrainedPt; }
     void SetBsConstrainedPtErr(float ptErr) { j_bsConstrainedPtErr = ptErr; }
     inline float bsConstrainedPtErr() const { return j_bsConstrainedPtErr; }
-
     // ID helper functions
     bool PassID(const MuonID ID) const;
     bool PassID(const TString ID) const;

@@ -1,2 +1,9 @@
-python EE.py --hist "Obj_PU_boosted_Flavor_CR_e_mujet_pvgood" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 5 --rmin 0 --rmax 2.5
-python MM.py --hist "Obj_PU_boosted_Flavor_CR_mu_ejet_pvgood" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 5 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_DeltaR_LeadLep_Fatjet" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_deltaR_leadlep_fatjet --xmin 0 --xmax 5 --xlabel "#DeltaR(lead lep, fat jet)" --rebin 5 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_LeadLep_LSF" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_leadlep_lsf --xmin 0 --xmax 1 --xlabel "Lead Lep LSF" --rebin 5 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_pt" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_fatjet_pt --xmin 0 --xmax 1000 --xlabel "Fat Jet p_{T} (GeV)" --rebin 50 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_WRpt" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_WR_pt --xmin 0 --xmax 1000 --xlabel "WR p_{T} (GeV)" --rebin 50 --rmin 0 --rmax 2.5
+
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_DeltaR_LeadLep_Fatjet" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_deltaR_leadlep_fatjet --xmin 0 --xmax 5 --xlabel "#DeltaR(lead lep, fat jet)" --rebin 5 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadLep_LSF" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_leadlep_lsf --xmin 0 --xmax 1 --xlabel "Lead Lep LSF" --rebin 5 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_pt" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_fatjet_pt --xmin 0 --xmax 1000 --xlabel "Fat Jet p_{T} (GeV)" --rebin 50 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_WRpt" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_WR_pt --xmin 0 --xmax 1000 --xlabel "WR p_{T} (GeV)" --rebin 50 --rmin 0 --rmax 2.5

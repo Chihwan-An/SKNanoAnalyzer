@@ -10,11 +10,11 @@ python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_LeadingLepEta" --ymin 1e-1
 python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_SubLeadingLepEta" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_subleading_lep_eta --xmin -2.5 --xmax 2.5 --xlabel "Subleading Lepton #eta" --rebin 5 --rmin 0 --rmax 2.5
 python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_Eta" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_fatjet_eta --xmin -2.5 --xmax 2.5 --xlabel "Fat Jet #eta" --rebin 5 --rmin 0 --rmax 2.5
 python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_Phi" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_fatjet_phi --xmin -3.14 --xmax 3.14 --xlabel "Fat Jet #phi" --rebin 5 --rmin 0 --rmax 2.5
-python EE.py --hist "Obj_PU_Boosted_Flavor_CR e_mujet_DeltaR_LeadLep_Fatjet" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_deltaR_leadlep_fatjet --xmin 0 --xmax 5 --xlabel "#DeltaR(lead lep, fat jet)" --rebin 5 --rmin 0 --rmax 2.5
-python EE.py --hist "Obj_PU_Boosted_Flavor_CR e_mujet_LeadLep_LSF" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_leadlep_lsf --xmin 0 --xmax 1 --xlabel "Lead Lep LSF" --rebin 5 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_DeltaR_LeadLep_Fatjet" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_deltaR_leadlep_fatjet --xmin 0 --xmax 5 --xlabel "#DeltaR(lead lep, fat jet)" --rebin 5 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_LeadLep_LSF" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_leadlep_lsf --xmin 0 --xmax 1 --xlabel "Lead Lep LSF" --rebin 5 --rmin 0 --rmax 2.5
 #python EE.py --hist "Obj_PU_Boosted_Flavor_CR e_mujet_mll" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_mll --xmin 0 --xmax 1000 --xlabel "m(ll) (GeV)" --rebin 5 --rmin 0 --rmax 2.5
-python EE.py --hist "Obj_PU_Boosted_Flavor_CR e_mujet_Fatjet_pt" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_fatjet_pt --xmin 0 --xmax 1000 --xlabel "Fat Jet p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
-python EE.py --hist "Obj_PU_Boosted_Flavor_CR e_mujet_WRpt" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_WR_pt --xmin 0 --xmax 1000 --xlabel "WR p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_Fatjet_pt" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_fatjet_pt --xmin 0 --xmax 1000 --xlabel "Fat Jet p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
+python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_WRpt" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_WR_pt --xmin 0 --xmax 1000 --xlabel "WR p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
 python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_mass" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_dilepton_mass --xmin 0 --xmax 2000 --xlabel "m(ll) (GeV)" --rebin 5 --rmin 0 --rmax 2.5
 python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_eta" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_dilepton_eta --xmin -5 --xmax 5 --xlabel "Dilepton #eta" --rebin 5 --rmin 0 --rmax 2.5
 python EE.py --hist "Obj_PU_Boosted_Flavor_CR_e_mujet_phi" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_dilepton_phi --xmin -3.14 --xmax 3.14 --xlabel "Dilepton #phi" --rebin 5 --rmin 0 --rmax 2.5
@@ -38,11 +38,11 @@ python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadingLepEta" --ymin 1e-
 python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_SubLeadingLepEta" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_subleading_lep_eta --xmin -2.5 --xmax 2.5 --xlabel "Subleading Lepton #eta" --rebin 5 --rmin 0 --rmax 2.5
 python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_Eta" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_fatjet_eta --xmin -2.5 --xmax 2.5 --xlabel "Fat Jet #eta" --rebin 5 --rmin 0 --rmax 2.5
 python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_Phi" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_fatjet_phi --xmin -3.14 --xmax 3.14 --xlabel "Fat Jet #phi" --rebin 5 --rmin 0 --rmax 2.5
-python MM.py --hist "Obj_PU_Boosted_Flavor_CR mu_ejets_DeltaR_LeadLep_Fatjet" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_deltaR_leadlep_fatjet --xmin 0 --xmax 5 --xlabel "#DeltaR(lead lep, fat jet)" --rebin 5 --rmin 0 --rmax 2.5
-python MM.py --hist "Obj_PU_Boosted_Flavor_CR mu_ejets_LeadLep_LSF" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_leadlep_lsf --xmin 0 --xmax 1 --xlabel "Lead Lep LSF" --rebin 5 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_DeltaR_LeadLep_Fatjet" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_deltaR_leadlep_fatjet --xmin 0 --xmax 5 --xlabel "#DeltaR(lead lep, fat jet)" --rebin 5 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_LeadLep_LSF" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_leadlep_lsf --xmin 0 --xmax 1 --xlabel "Lead Lep LSF" --rebin 5 --rmin 0 --rmax 2.5
 #python MM.py --hist "Obj_PU_Boosted_Flavor_CR mu_ejets_mll" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_mll --xmin 0 --xmax 1000 --xlabel "m(ll) (GeV)" --rebin 5 --rmin 0 --rmax 2.5
-python MM.py --hist "Obj_PU_Boosted_Flavor_CR mu_ejets_Fatjet_pt" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_fatjet_pt --xmin 0 --xmax 1000 --xlabel "Fat Jet p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
-python MM.py --hist "Obj_PU_Boosted_Flavor_CR mu_ejets_WRpt" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_WR_pt --xmin 0 --xmax 1000 --xlabel "WR p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_Fatjet_pt" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_fatjet_pt --xmin 0 --xmax 1000 --xlabel "Fat Jet p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_WRpt" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_WR_pt --xmin 0 --xmax 1000 --xlabel "WR p_{T} (GeV)" --rebin 5 --rmin 0 --rmax 2.5
 python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_mass" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_dilepton_mass --xmin 0 --xmax 2000 --xlabel "m(ll) (GeV)" --rebin 5 --rmin 0 --rmax 2.5
 python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_eta" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_dilepton_eta --xmin -5 --xmax 5 --xlabel "Dilepton #eta" --rebin 5 --rmin 0 --rmax 2.5
 python MM.py --hist "Obj_PU_Boosted_Flavor_CR_mu_ejets_phi" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_dilepton_phi --xmin -3.14 --xmax 3.14 --xlabel "Dilepton #phi" --rebin 5 --rmin 0 --rmax 2.5

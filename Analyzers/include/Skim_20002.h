@@ -5,6 +5,7 @@
 #include "SystematicHelper.h"
 #include "Muon.h"
 #include "Electron.h"
+#include "TTree.h"
 
 class Skim_20002 : public AnalyzerCore {
 public:
@@ -14,14 +15,51 @@ public:
     void initializeAnalyzer();
     void executeEvent();
     void executeEventFromParameter();
-    TTree *newtree;
     void WriteHist();
-
+    TTree *newtree;
     bool RunSyst;
     bool RunWRCut;
     unique_ptr<SystematicHelper> systHelper;
     
+    
+    struct flags{
+        bool RunFake;
+        bool RunCF ;
+        bool RunSyst ;
+        bool PromptLeptononly ;
+        bool ApplyDYPtReweight ;
+        bool ApplyDYReshape ;
+        bool RunXsecSyst ;
+        bool Signal ;
+        bool CalculateAverageKFactor ;
+        bool SignalElectronOnly ;
+        bool SignalMuonOnly ;
+        bool UseJetPtRwg ;
+        bool UseDYCR1Reshape ;
+    } flag;
 
+    struct parameters{
+        std::map<std::string ,float> Zpt;
+
+        parameters(){
+            Zpt["ZPTReweight"] = 1.0;
+            Zpt["ZPTReweight_Up"] = 1.0;
+            Zpt["ZPTReweight_Down"] = 1.0;
+            Zpt["ZPTReweight_QCDScaleUp"] = 1.0;
+            Zpt["ZPTReweight_QCDScaleDown"] = 1.0;
+            Zpt["ZPTReweight_QCDPDFErrorUp"] = 1.0;
+            Zpt["ZPTReweight_QCDPDFErrorDown"] = 1.0;
+            Zpt["ZPTReweight_QCDPDFAlphaSUp"] = 1.0;
+            Zpt["ZPTReweight_QCDPDFAlphaSDown"] = 1.0;
+            Zpt["ZPtEWCorr"] = 1.0;
+            Zpt["ZPtEWCorr_E1Up"] = 1.0;
+            Zpt["ZPtEWCorr_E1Down"] = 1.0;
+            Zpt["ZPtEWCorr_E2Up"] = 1.0;
+            Zpt["ZPtEWCorr_E2Down"] = 1.0;
+            Zpt["ZPtEWCorr_E3Up"] = 1.0;
+            Zpt["ZPtEWCorr_E3Down"] = 1.0;
+        }
+    } param;
     
     struct Electrons {
         RVec<Electron> AllElectrons;
@@ -35,8 +73,16 @@ public:
         RVec<std::string> Ele_Trigger;
         float Ele_Trigger_Safe_Pt_Cut;
         
-        std::string Electron_IS_SF_Key = "HEEP";
-        std::string Electron_Trigger_SF_Key = "HEEP";
+        float Barrel_ID_SF_2023_C = 1.007;
+        float Barrel_ID_SF_2023_C_err = 0.004;
+        float Barrel_ID_SF_2023_D = 1.009;
+        float Barrel_ID_SF_2023_D_err = 0.005;
+
+        float Endcap_ID_SF_2023_C = 0.988;
+        float Endcap_ID_SF_2023_C_err = 0.005;
+        float Endcap_ID_SF_2023_D = 0.988;
+        float Endcap_ID_SF_2023_D_err = 0.004;
+
         std::string Electron_FR_ID = "HNWR";
         std::string Electron_FR_Key = "AwayJetPt40";
         std::string Electron_CF_ID = "HNWRTight";
@@ -44,6 +90,9 @@ public:
         bool Electron_UseMini = false;
         bool Electron_UsePtCone = false;
         bool isPassCustomLooseID(const Electron& el) const;
+        bool isPassCustomTightID(const Electron& el , const Skim_20002::Electrons& eset) const;
+        // Loose ID without isolation (matches Python vidNestedWPBitmap with id_level=2, ignoring isolation)
+        bool isPassLooseNoIso(const Electron& el) const;
     }el_set;
 
     struct Muons {
@@ -51,7 +100,7 @@ public:
 
         std::string TriggerNameForSF_Muon ="Mu50";
         RVec<Muon::MuonID> Muon_Tight_ID = {Muon::MuonID::POG_GLOBAL_HIGH_PT};
-        RVec<Muon::MuonID> Muon_Loose_ID = {Muon::MuonID::POG_GLOBAL_HIGH_PT};
+        RVec<Muon::MuonID> Muon_Loose_ID = {Muon::MuonID::POG_GLOBAL_HIGH_PT}; //Loose and tight only differ in isolation
         float Muon_MinPt = 53.;
 
         RVec<std::string> Muon_Trigger;
@@ -79,6 +128,7 @@ public:
         RVec<Jet::JetID> JetIds;
         RVec<Jet>cleanedjet_with_tight_leptons;
         RVec<Jet>cleanedjet_with_loose_leptons;
+        RVec<Jet>JetVetoed;
     }jet_set;
 
     struct FatJets{
@@ -94,7 +144,17 @@ public:
         RVec<Gen> gens;
     }gen_set;
 
-    RVec<Jet> Clean_jet_with_tight_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & tight_leps) ;
+    RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
+    RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;
+    RVec<Muon *> Clean_Fatjet_with_tight_muons(const RVec<FatJet> & fatjets, const RVec<Muon *> & tight_mus) ;
+    RVec<Muon *> Clean_jet_with_loose_muons(const RVec<Jet> & jets, const RVec<Muon *> & loose_mus) ;
+    RVec<Electron *> Clean_Fatjet_with_tight_electrons(const RVec<FatJet> & fatjets, const RVec<Electron *> & tight_els) ;
+    RVec<Electron *> Clean_jet_with_loose_electrons(const RVec<Jet> & jets, const RVec<Electron *> & loose_els) ; 
+    
+    RVec<Jet> Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) ;
+    RVec<FatJet> Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) ;
+    
+
     float dR_Separation = 0.4;
     float FatJet_dR_Separation = 0.8;
 

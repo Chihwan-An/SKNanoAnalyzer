@@ -1,0 +1,2 @@
+python EE.py --hist "Obj_PU_boosted_Flavor_CR_e_mujet_pvgood" --ymin 1e-1 --ymax 1e5 --output BoostFLVEMJ_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 5 --rmin 0 --rmax 2.5
+python MM.py --hist "Obj_PU_boosted_Flavor_CR_mu_ejet_pvgood" --ymin 1e-1 --ymax 1e5 --output BoostFLVMEJ_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 5 --rmin 0 --rmax 2.5

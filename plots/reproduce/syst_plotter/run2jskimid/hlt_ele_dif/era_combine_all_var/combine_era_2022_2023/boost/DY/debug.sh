@@ -1,0 +1,2 @@
+python EE.py --hist "Obj_PU_pvgood_boosted_DY_CR_EE" --ymin 3 --ymax 1e6 --output BoostDYEE_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 2 --rmin 0.7 --rmax 1.3
+python MM.py --hist "Obj_PU_pvgood_boosted_DY_CR_MM" --ymin 3 --ymax 1e6 --output BoostDYMM_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 2 --rmin 0.7 --rmax 1.3

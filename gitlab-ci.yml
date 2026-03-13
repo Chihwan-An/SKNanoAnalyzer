@@ -1,0 +1,42 @@
+stages:
+  - deploy
+
+deploy-plots:
+  stage: deploy
+  image: python:3.11-slim
+
+  # Only run when pushing to main (or master)
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"'
+
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq openssh-client rsync
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    # LXPLUS_SSH_KEY is a CI/CD variable (type: File) containing your private key
+    - echo "$LXPLUS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H lxplus.cern.ch >> ~/.ssh/known_hosts
+
+  script:
+    # 1. Generate manifest from plots/ folder
+    - python3 scripts/generate_manifest.py plots/ > manifest.json
+    - echo "Generated manifest with $(python3 -c 'import json; d=json.load(open(\"manifest.json\")); print(d[\"count\"])') files"
+
+    # 2. Copy plots/ directory to EOS (rsync = only changed files)
+    - |
+      rsync -avz --delete \
+        -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+        plots/ \
+        achihwan@lxplus.cern.ch:/eos/user/a/achihwan/www/plots/
+
+    # 3. Copy manifest.json to EOS
+    - |
+      scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
+        manifest.json \
+        achihwan@lxplus.cern.ch:/eos/user/a/achihwan/www/manifest.json
+
+    - echo "Deploy complete."
+~
+~
+~
+~

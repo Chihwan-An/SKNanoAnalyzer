@@ -61,4 +61,21 @@ sync_from_upstream:
         -d "text=CI/CD 실패: $CI_PROJECT_NAME - $CI_COMMIT_REF_NAME"
     fi
 
-# test
+deploy-plots:
+    stage: deploy
+    image: python:3.11-slim
+    rules:
+      - if: '$CI_COMMIT_BRANCH == "main"'
+    before_script:
+      - apt-get update -qq && apt-get install -y -qq openssh-client rsync
+      - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+      - echo "$LXPLUS_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+      - chmod 600 ~/.ssh/id_ed25519
+      - ssh-keyscan -H lxplus.cern.ch >> ~/.ssh/known_hosts
+    script:
+      - python3 scripts/generate_manifest.py plots/ > manifest.json
+      - rsync -avz --delete
+          -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no"
+          plots/ achihwan@lxplus.cern.ch:/eos/user/a/achihwan/www/plots/
+      - scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no
+          manifest.json achihwan@lxplus.cern.ch:/eos/user/a/achihwan/www/manifest.json

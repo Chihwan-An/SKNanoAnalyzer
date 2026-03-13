@@ -7,7 +7,7 @@ import argparse
 import ctypes
 
 # --- 1. 기본 설정 (인자가 없을 경우 사용됨) ---
-DEFAULT_DATA_PATH = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002_copy/2017/"
+DEFAULT_DATA_PATH = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002_copy/2023/"
 DEFAULT_HIST_NAME = "Obj_PU_Corr_DYCR_Resolved_EE_pt"
 
 # 샘플 그룹 및 매핑 설정
@@ -23,13 +23,13 @@ SAMPLE_MAP = {
     "TTLL": "TT",
     "TTLJ": "Nonprompt",
     "ST": "TT",      
-    "WHT": "Nonprompt",
+    "WJet": "Nonprompt",
     "ST_tch": "Nonprompt",
     "ST_sch": "Nonprompt"
 }
 
-DATA_FILES = [ "SingleElectron"]
-EXCLUDE_SAMPLES = ["DYJets_MG", "Skim", "Muon","DYHT","WJets"] 
+DATA_FILES = [ "EGamma"]
+EXCLUDE_SAMPLES = ["Skim", "Muon"] 
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco", "MuonID", "MuonReco", "MuonTrig", "MuonIso","JER","JES"]
 
 # 메모리 누수 방지용
@@ -323,7 +323,7 @@ def run_plot():
     latex = ROOT.TLatex(); latex.SetNDC()
     latex.SetTextFont(61); latex.SetTextSize(0.045); latex.DrawLatex(0.12, 0.93, "CMS")
     latex.SetTextFont(52); latex.SetTextSize(0.035); latex.DrawLatex(0.21, 0.93, "Preliminary")
-    latex.SetTextFont(42); latex.SetTextSize(0.030); latex.SetTextAlign(31); latex.DrawLatex(0.95, 0.93, "41.53 fb^{-1} (13 TeV)")
+    latex.SetTextFont(42); latex.SetTextSize(0.030); latex.SetTextAlign(31); latex.DrawLatex(0.95, 0.93, "17.96 fb^{-1} (13.6 TeV)")
     latex.SetTextAlign(11); latex.SetTextFont(62); latex.SetTextSize(0.045); latex.DrawLatex(0.18, 0.82, "ee")
     latex.SetTextFont(42); latex.SetTextSize(0.040); latex.DrawLatex(0.18, 0.77, "Signal Region" if IS_BLIND else "Resolved DY CR")
     p1.RedrawAxis()

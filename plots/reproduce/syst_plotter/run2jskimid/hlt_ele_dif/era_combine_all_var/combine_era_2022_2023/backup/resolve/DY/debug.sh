@@ -1,0 +1,2 @@
+python puEE.py --hist "Obj_PU_Corr_DYCR_Resolved_EE_punum" --ymin 3 --ymax 1e6 --output ResolveDYEE_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 2 --rmin 0.7 --rmax 1.3
+python puMM.py --hist "Obj_PU_Corr_DYCR_Resolved_MM_punum" --ymin 3 --ymax 1e6 --output ResolveDYMM_punum --xmin 0 --xmax 80 --xlabel "Number of Pileup Vertices" --rebin 2 --rmin 0.7 --rmax 1.3

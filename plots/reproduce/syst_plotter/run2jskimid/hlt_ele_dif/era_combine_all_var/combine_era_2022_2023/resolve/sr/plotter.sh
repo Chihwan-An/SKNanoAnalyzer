@@ -3,7 +3,7 @@
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_ll_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_dilepton_pt --xmin 0 --xmax 1000 --xlabel "Dilepton p_{T} (GeV)" --rebin 50 --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_leading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_leading_jet_pt --xmin 0 --xmax 2000 --xlabel "Leading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_subleading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_subleading_jet_pt --xmin 0 --xmax 2000 --xlabel "Subleading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.7 --rmax 1.3
-python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
+python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_mlljj --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_leading_lep_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_leading_lep_pt --xmin 0 --xmax 1000 --xlabel "Leading Lepton p_{T} (GeV)" --bins "0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000" --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_subleading_lep_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_subleading_lep_pt --xmin 0 --xmax 1000 --xlabel "Subleading Lepton p_{T} (GeV)" --bins "0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000" --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_mass" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_dilepton_mass --xmin 0 --xmax 2000 --xlabel "m(ll) (GeV)" --rebin 5 --rmin 0.7 --rmax 1.3
@@ -39,19 +39,19 @@ python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_pvgood" --ymin 1e-1 --ymax 1e5 -
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_SS_ll_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_SS_dilepton_pt --xmin 0 --xmax 1000 --xlabel "Dilepton p_{T} (GeV)" --rebin 50 --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_SS_leading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_SS_leading_jet_pt --xmin 0 --xmax 8000 --xlabel "Leading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000,4000,8000" --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_SS_subleading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_SS_subleading_jet_pt --xmin 0 --xmax 2000 --xlabel "Subleading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.7 --rmax 1.3
-python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_SS_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_SS_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
+python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_SS_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_SS_mlljj --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
 
 # Resolved SR - EE OS
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_OS_ll_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_OS_dilepton_pt --xmin 0 --xmax 1000 --xlabel "Dilepton p_{T} (GeV)" --rebin 50 --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_OS_leading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_OS_leading_jet_pt --xmin 0 --xmax 8000 --xlabel "Leading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000,4000,8000" --rmin 0.7 --rmax 1.3
 python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_OS_subleading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_OS_subleading_jet_pt --xmin 0 --xmax 2000 --xlabel "Subleading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.7 --rmax 1.3
-python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_OS_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_OS_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
+python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_OS_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSREE_OS_mlljj --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
 
 # Resolved SR - MM (sign inclusive)
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_ll_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_dilepton_pt --xmin 0 --xmax 1000 --xlabel "Dilepton p_{T} (GeV)" --rebin 50 --rmin 0.7 --rmax 1.3
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_leading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_leading_jet_pt --xmin 0 --xmax 2000 --xlabel "Leading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.7 --rmax 1.3
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_subleading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_subleading_jet_pt --xmin 0 --xmax 2000 --xlabel "Subleading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.7 --rmax 1.3
-python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
+python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_mlljj --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_leading_lep_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_leading_lep_pt --xmin 0 --xmax 1000 --xlabel "Leading Lepton p_{T} (GeV)" --bins "0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000" --rmin 0.7 --rmax 1.3
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_subleading_lep_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_subleading_lep_pt --xmin 0 --xmax 1000 --xlabel "Subleading Lepton p_{T} (GeV)" --bins "0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000" --rmin 0.7 --rmax 1.3
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_mass" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_dilepton_mass --xmin 0 --xmax 2000 --xlabel "m(ll) (GeV)" --rebin 5 --rmin 0.7 --rmax 1.3
@@ -87,7 +87,7 @@ python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_pvgood" --ymin 1e-1 --ymax 1e5 -
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_SS_ll_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_SS_dilepton_pt --xmin 0 --xmax 1000 --xlabel "Dilepton p_{T} (GeV)" --rebin 50 --rmin 0.7 --rmax 1.3
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_SS_leading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_SS_leading_jet_pt --xmin 0 --xmax 8000 --xlabel "Leading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000,4000,8000" --rmin 0.7 --rmax 1.3
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_SS_subleading_jet_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_SS_subleading_jet_pt --xmin 0 --xmax 2000 --xlabel "Subleading Jet p_{T} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.7 --rmax 1.3
-python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_SS_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_SS_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
+python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_SS_mlljj" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_SS_mlljj --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
 
 # Resolved SR - MM OS
 python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_OS_ll_pt" --ymin 1e-1 --ymax 1e5 --output ResolveSRMM_OS_dilepton_pt --xmin 0 --xmax 1000 --xlabel "Dilepton p_{T} (GeV)" --rebin 50 --rmin 0.7 --rmax 1.3

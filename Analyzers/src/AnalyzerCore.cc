@@ -575,18 +575,26 @@ RVec<Muon> AnalyzerCore::GetAllMuons() {
         muon.SetNTrackerLayers(Muon_nTrackerLayers[i]);
         float roccor = 1.;
         float roccor_err = 0.;
-        if (IsDATA) {
+        float tunep = Muon_tunepRelPt[i];
+        float muon_tunept = Muon_pt[i] * tunep ;
+        /*
+        if (Muon_pt[i] < 200) {
+            if (IsDATA) {
             roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom);
             roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up) - roccor;
-        } else {
-            Gen matched_gen = GetGenMatchedMuon(muon, truth);
-            float matched_pt = matched_gen.Pt();
-            roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom, matched_pt);
-            roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up, matched_pt) - roccor;
+            } else {
+                Gen matched_gen = GetGenMatchedMuon(muon, truth);
+                float matched_pt = matched_gen.Pt();
+                roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom, matched_pt);
+                roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up, matched_pt) - roccor;
+            }
+            muon.SetMomentumScaleUpDown(muon.Pt()*(roccor+roccor_err), muon.Pt()*(roccor-roccor_err)); 
+            muon.SetPtEtaPhiM(muon.Pt()*roccor, muon.Eta(), muon.Phi(), muon.M());
         }
+        */
+        muon.SetPtEtaPhiM(muon_tunept, muon.Eta(), muon.Phi(), muon.M());
+        
         muon.SetOriginalPt(muon.Pt());
-        muon.SetMomentumScaleUpDown(muon.Pt()*(roccor+roccor_err), muon.Pt()*(roccor-roccor_err)); 
-        muon.SetPtEtaPhiM(muon.Pt()*roccor, muon.Eta(), muon.Phi(), muon.M());
         muon.SetTkRelIso(Muon_tkRelIso[i]);
         muon.SetPfRelIso03(Muon_pfRelIso03_all[i]);
         muon.SetPfRelIso04(Muon_pfRelIso04_all[i]);

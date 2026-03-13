@@ -1,0 +1,20 @@
+{
+    "name": "DYMLL50to120HT400to800",
+    "isMC": 1,
+    "PD": "DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+    "xsec": 6.742,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": 0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/20f0a245-8e66-45d8-8ca0-42242d507228.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/224c633c-d525-46b5-927c-53ba0501e855.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/23e0dbbb-36c0-464c-873c-611d2e9c32b8.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/40dc0f42-e7d9-4c02-b67b-55b7397a5bdf.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/746745a8-03e9-4e0d-9f4b-e197c20897c1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/8b10d67d-001c-46b3-9765-ca3171390455.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/8efd2fcb-7980-4cdf-9832-ce38d79ace24.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/9e2851db-4de9-4597-9d06-559b96c204a0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v2-v4/2810000/bed45242-be5a-40fe-a858-df9311b68d40.root"
+    ]
+}

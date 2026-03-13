@@ -21,16 +21,16 @@ elif args.era == "2018":
     BASEPATH = "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1"
 elif args.era == "2022":
     YEAR = "2022"
-    BASEPATH = os.environ["SKNANO_RUN3_NANOAODPATH"]
+    BASEPATH = "/gv0/Users/achihwan/SKNano/Run3NanoAODv12"
 elif args.era == "2022EE":
     YEAR = "2022"
-    BASEPATH = os.environ["SKNANO_RUN3_NANOAODPATH"]
+    BASEPATH = "/gv0/Users/achihwan/SKNano/Run3NanoAODv12"
 elif args.era == "2023":
     YEAR = "2023"
-    BASEPATH = "/gv0/Users/achihwan/SKNano/Run3NanoAODv13p1"
+    BASEPATH = "/gv0/Users/achihwan/SKNano/Run3NanoAODv12"
 elif args.era == "2023BPix":
     YEAR = "2023"
-    BASEPATH = os.environ["SKNANO_RUN3_NANOAODPATH"]
+    BASEPATH = "/gv0/Users/achihwan/SKNano/Run3NanoAODv12"
 else:
     raise ValueError(f"Unknown era: {args.era}")
 

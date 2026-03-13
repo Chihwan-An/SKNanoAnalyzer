@@ -1,0 +1,20 @@
+{
+    "name": "WR2000N1100EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.09102,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/456ff811-80f8-44f1-8906-e1039a7f8258.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/4a0c6dd7-bed3-4e97-9108-163c8c41d019.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/69eaeb3b-afe4-474e-8b40-7b232eedd86e.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/6b6346ba-4151-4ee1-88cb-c8f2379bb846.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/8220e37d-8fb2-4196-bfd8-626de9111e3b.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/82f5e322-e385-42e0-9eb9-9023322ec4a2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/a96c0646-d26e-4fe1-9a9c-5acf6f80619c.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/ed80ea6d-bcea-4420-9dcc-cef9876d2cc8.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/2810000/f7f9547a-7f64-4202-a4a4-432061d9af09.root"
+    ]
+}

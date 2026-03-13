@@ -1,0 +1,12 @@
+{
+    "name": "WR4000N100MM",
+    "isMC": 1,
+    "PD": "WRtoNMutoMuMuJJ_MWR4000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.002389,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR4000_N100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_postBPix_v6-v2/2810000/141d84ab-cc81-46d6-b156-ca2f6367e7d4.root"
+    ]
+}

@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Recursively scan the plots/ directory and output manifest.json to stdout.
-Usage: python3 generate_manifest.py [plots_dir]
-"""
 import os
 import json
 import sys
@@ -14,7 +10,6 @@ SKIP_NAMES = {'all.sh', 'clean.sh', 'plot.sh', 'plotall.sh', 'organize_files.py'
 def scan(base_path):
     files = []
     for root, dirs, filenames in os.walk(base_path):
-        # skip hidden dirs (e.g. .git)
         dirs[:] = sorted(d for d in dirs if not d.startswith('.'))
         for name in sorted(filenames):
             if name in SKIP_NAMES:
@@ -35,7 +30,6 @@ def main():
     if not os.path.isdir(plots_dir):
         print(f"Error: directory '{plots_dir}' not found", file=sys.stderr)
         sys.exit(1)
-
     files = scan(plots_dir)
     manifest = {
         "generated": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -46,5 +40,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-~
-~
+EOF   

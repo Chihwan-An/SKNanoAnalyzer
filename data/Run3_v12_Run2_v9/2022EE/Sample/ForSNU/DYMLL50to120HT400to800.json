@@ -3,9 +3,9 @@
     "isMC": 1,
     "PD": "DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8",
     "xsec": 6.742,
-    "sumsign": -1,
-    "sumW": -1,
-    "nmc": -1,
+    "sumsign": 3522511.0,
+    "sumW": 252182352.10051727,
+    "nmc": 3522511.0,
     "path": [
         "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2022_realistic_postEE_v6-v3/2560000/031aab1a-ad12-48db-b2ef-752ccc7dc43a.root",
         "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/130X_mcRun3_2022_realistic_postEE_v6-v3/2560000/05cfcc11-3db0-47c0-8733-a3a6b4b085be.root",

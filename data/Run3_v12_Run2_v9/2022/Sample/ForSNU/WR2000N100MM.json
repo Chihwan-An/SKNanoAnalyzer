@@ -3,9 +3,9 @@
     "isMC": 1,
     "PD": "WRtoNMutoMuMuJJ_MWR2000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
     "xsec": 0.1668,
-    "sumsign": -1,
-    "sumW": -1,
-    "nmc": -1,
+    "sumsign": 70000.0,
+    "sumW": 70000.0,
+    "nmc": 70000.0,
     "path": [
         "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNMutoMuMuJJ_MWR2000_N100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2022_realistic_v5-v2/2810000/036f780d-c7a6-4162-86f2-1da64a855d31.root",
         "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNMutoMuMuJJ_MWR2000_N100_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2022_realistic_v5-v2/120000/09060445-505e-4425-a84a-ffc962c38c26.root",

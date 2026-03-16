@@ -1,0 +1,13 @@
+cd /data6/Users/achihwan/SKNanoAnalyzer-v13/plots/reproduce/Boosted/DY/2023/
+source plotter.sh
+cd /data6/Users/achihwan/SKNanoAnalyzer-v13/plots/reproduce/Boosted/Flavor/2023/
+source plotter.sh
+cd /data6/Users/achihwan/SKNanoAnalyzer-v13/plots/reproduce/Resolved/DY/2023/
+source plotter.sh
+cd /data6/Users/achihwan/SKNanoAnalyzer-v13/plots/reproduce/Resolved/TTbar/2023/
+source plotter.sh
+cd /data6/Users/achihwan/SKNanoAnalyzer-v13/plots/reproduce/SR/Boosted/
+source plotter.sh
+cd /data6/Users/achihwan/SKNanoAnalyzer-v13/plots/reproduce/SR/Resolved/
+source plotter.sh
+cd /data6/Users/achihwan/SKNanoAnalyzer-v13/plots/reproduce/

@@ -1,2 +1,0 @@
-python EE.py --hist "Obj_PU_Corr_SR_Resolved_EE_mlljj" --ymin 1e-1 --ymax 5e3 --output ResolveSREE_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3
-python MM.py --hist "Obj_PU_Corr_SR_Resolved_MM_mlljj" --ymin 1e-1 --ymax 5e3 --output ResolveSRMM_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0.7 --rmax 1.3

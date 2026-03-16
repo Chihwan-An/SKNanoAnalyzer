@@ -1,2 +1,0 @@
-python EE.py --hist "Obj_PU_m(lljj)_boosted_e_mujet_Flavor_CR" --ymin 1 --ymax 2e3 --output BoostFLVEMJ_mlljj --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0 --rmax 2.5
-python MM.py --hist "Obj_PU_m(lljj)_boosted_mu_ejets_Flavor_CR" --ymin 1 --ymax 2e3 --output BoostFLVMEJ_mlljj --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0 --rmax 2.5

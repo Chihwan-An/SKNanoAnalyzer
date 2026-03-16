@@ -1,2 +1,0 @@
-python EE.py --hist "Obj_PU_m(lljj)_boosted_DY_CR_EE" --ymin 3 --ymax 1e6 --output BoostDYEE_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.7 --rmax 1.3
-python MM.py --hist "Obj_PU_m(lljj)_boosted_DY_CR_MM" --ymin 3 --ymax 1e6 --output BoostDYMM_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.7 --rmax 1.3

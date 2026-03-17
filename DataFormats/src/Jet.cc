@@ -131,12 +131,12 @@ void Jet::SetJetID(unsigned char IDBit, int Run) {
     else if (abs(Eta()) > 2.7 && abs(Eta()) <= 3.0) j_tightJetID = (IDBit & (1 << 1)) && (neHEF() < 0.99);
     else if (abs(Eta()) > 3.0) j_tightJetID = (IDBit & (1 << 1)) && (neEmEF() < 0.4);      
     
-    bool j_tightLepVetoJetID = false;      
-    if (abs(Eta()) <= 2.7) j_tightLepVetoJetID = j_tightJetID && (muEF() < 0.8) && (chEmEF() < 0.8);      
-    else j_tightLepVetoJetID = j_tightJetID;      
-    j_looseJetId = (IDBit & 1);      
-    j_tightJetID = j_tightJetID;      
-    j_tightLepVetoJetID = j_tightLepVetoJetID;      
+    j_looseJetId = (IDBit & 1);
+
+    if (abs(Eta()) <= 2.7)
+      j_tightLepVetoJetID = j_tightJetID && (muEF() < 0.8) && (chEmEF() < 0.8);
+    else
+      j_tightLepVetoJetID = j_tightJetID;      
     */
   }
 }

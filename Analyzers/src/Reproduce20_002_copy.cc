@@ -29,10 +29,10 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        //el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        //el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
-        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
     }
     if (DataEra == "2022EE")
     {
@@ -40,8 +40,8 @@ void Reproduce20_002_copy::initializeAnalyzer() {
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
-        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
     }
     if (DataEra == "2023")
     {
@@ -49,8 +49,8 @@ void Reproduce20_002_copy::initializeAnalyzer() {
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 118.;   
-        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 117.; 
+        //el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 117.; 
     }
     if (DataEra == "2023BPix")
     {
@@ -58,8 +58,8 @@ void Reproduce20_002_copy::initializeAnalyzer() {
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
-        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 32.; 
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.; 
     }
 
     myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
@@ -523,7 +523,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
 
     if(!IsDATA){
         weight *= MCweight();
-        weight *= ev.GetTriggerLumi("Full");
+        weight *= ev.GetTriggerLumi("HLT_Mu50");
     }
     FillHist(this_syst + "/Cutflow_for_skim", 2.0 , 1.0, 10, 0., 10.);
     //Event selection
@@ -568,7 +568,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     
     ///         Leptons       ///
     
-    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.4); 
+    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.5); 
     RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , mu_set.Muon_MinPt, 2.4); 
     
     sort (my_electrons.begin(), my_electrons.end(), PtComparing);

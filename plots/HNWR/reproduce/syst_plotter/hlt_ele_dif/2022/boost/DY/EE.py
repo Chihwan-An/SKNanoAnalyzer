@@ -23,13 +23,13 @@ SAMPLE_MAP = {
     "TTLL": "TT",
     "TTLJ": "Nonprompt",
     "ST": "TT",      
-    "WHT": "Nonprompt",
+    "WJet": "Nonprompt",
     "ST_tch": "Nonprompt",
     "ST_sch": "Nonprompt"
 }
 
-DATA_FILES = [ "SingleElectron"]
-EXCLUDE_SAMPLES = ["DYJets_MG", "Skim", "Muon","DYHT","WJets"] 
+DATA_FILES = [ "EGamma"]
+EXCLUDE_SAMPLES = ["DYJets_MG", "Skim", "Muon","DYHT","WJetM","DYMLL"] 
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco", "MuonID", "MuonReco", "MuonTrig", "MuonIso","JER","JES"]
 
 # 메모리 누수 방지용

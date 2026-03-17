@@ -115,9 +115,9 @@
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-0to120_HT-40to100_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 4254,
-        "nmc": 146630714.0,
-        "sumsign": 146630714.0,
-        "sumW": 3239267608380.2383
+        "nmc": 146576723.0,
+        "sumsign": 146576723.0,
+        "sumW": 3238076134513.451
     },
     "WJetM0_120HT100to400": {
         "isMC": 1,
@@ -310,7 +310,7 @@
         "nmc": 71486192.0,
         "sumsign": 71486192.0,
         "sumW": 943451266539.3564
-    },
+    },    
     "DYJets": {
         "isMC": 1,
         "PD": "DYto2L-2Jets_MLL-50_TuneCP5_13p6TeV_amcatnloFXFX-pythia8",

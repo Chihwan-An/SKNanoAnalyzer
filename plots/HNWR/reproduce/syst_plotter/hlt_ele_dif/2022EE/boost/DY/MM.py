@@ -20,17 +20,18 @@ BACKGROUND_GROUPS = {
 
 SAMPLE_MAP = {
     "DY": "DYJets",
-    "TTLL": "TT",
+    "TTLL": "TT",   
     "TTLJ": "Nonprompt",
     "ST": "TT",      
-    "WHT": "Nonprompt",
+    "WJet": "Nonprompt",
     "ST_tch": "Nonprompt",
     "ST_sch": "Nonprompt"
 }
 
 DATA_FILES = [ "Muon"]
-EXCLUDE_SAMPLES = ["DYJets_MG", "Skim", "SingleElectron", "DYHT","WJets"] 
+EXCLUDE_SAMPLES = ["DYJets_MG", "Skim", "EGamma", "DYHT","WJetM","DYM"] 
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco", "MuonID", "MuonReco", "MuonTrig", "MuonIso","JER","JES"]
+
 
 # 메모리 누수 방지용
 _KEEPER = []

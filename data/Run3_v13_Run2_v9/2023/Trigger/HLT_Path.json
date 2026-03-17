@@ -2276,9 +2276,5 @@
     },
     "HLT_PPSMaxTracksPerRP4": {
         "lumi": 17794.0
-    },
-    "Full": {
-        "lumi": 17794.0,
-        "active": true
     }
 }

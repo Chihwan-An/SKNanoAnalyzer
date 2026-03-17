@@ -7,7 +7,7 @@ import argparse
 import ctypes
 
 # --- 1. 기본 설정 (인자가 없을 경우 사용됨) ---
-DEFAULT_DATA_PATH = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002_copy/2017/"
+DEFAULT_DATA_PATH = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002_copy/2023/"
 DEFAULT_HIST_NAME = "Obj_PU_Corr_DYCR_Resolved_EE_pt"
 
 # 샘플 그룹 및 매핑 설정
@@ -23,13 +23,13 @@ SAMPLE_MAP = {
     "TTLL": "TT",
     "TTLJ": "Nonprompt",
     "ST": "TT",      
-    "WHT": "Nonprompt",
+    "WJet": "Nonprompt",
     "ST_tch": "Nonprompt",
     "ST_sch": "Nonprompt"
 }
 
-DATA_FILES = [ "SingleElectron"]
-EXCLUDE_SAMPLES = ["DYJets_MG", "Skim", "Muon","DYHT","WJets"] 
+DATA_FILES = [ "EGamma"]
+EXCLUDE_SAMPLES = ["DYJets_MG", "Skim", "Muon","DYHT","WJetM","DYMLL","DYJetsTune"] 
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco", "MuonID", "MuonReco", "MuonTrig", "MuonIso","JER","JES"]
 
 # 메모리 누수 방지용

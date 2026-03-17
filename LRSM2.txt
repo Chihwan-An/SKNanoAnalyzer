@@ -1,5 +1,5 @@
-TTLL*
-TTLJ*
+TTLL_powheg
+TTLJ_powheg
 ST*
 EG*
 Muon
@@ -15,8 +15,8 @@ ZZZ
 TTW*
 TTZ*
 Single*
-WHT*
-WJets*
+WJet*
 DYJets*
-
+WR*
+DYM*
 

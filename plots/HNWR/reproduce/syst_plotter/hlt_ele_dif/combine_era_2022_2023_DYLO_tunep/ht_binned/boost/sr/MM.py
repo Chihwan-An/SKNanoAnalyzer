@@ -22,7 +22,7 @@ SAMPLE_MAP = {
     "TTLL": "TT",
     "TTLJ": "TT",
     "ST": "TT",      
-    "WJets": "Nonprompt",
+    "WJet": "Nonprompt",
     "ST_tch": "Nonprompt",
     "ST_sch": "Nonprompt"
 }

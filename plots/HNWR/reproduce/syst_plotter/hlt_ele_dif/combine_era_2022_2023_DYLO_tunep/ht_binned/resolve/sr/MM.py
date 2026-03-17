@@ -29,7 +29,7 @@ SAMPLE_MAP = {
 }
 
 DATA_FILES = [ "Muon"]
-EXCLUDE_SAMPLES = [ "Skim", "SingleElectron", "DYHT","WJets"] 
+EXCLUDE_SAMPLES = [ "Skim", "SingleElectron", "DYHT","WJet"] 
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco","ElectronTrig", "MuonID", "MuonReco", "MuonTrig", "MuonIso","JER","JES"]
 # 메모리 누수 방지용
 _KEEPER = []

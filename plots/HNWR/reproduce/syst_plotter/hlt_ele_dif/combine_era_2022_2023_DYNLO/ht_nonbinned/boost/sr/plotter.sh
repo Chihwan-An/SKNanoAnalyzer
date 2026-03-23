@@ -26,14 +26,14 @@ python EE.py --signal-scale 1.0 --hist "Obj_PU_boosted_pvgood_ee" --ymin 1e-1 --
 python EE.py --signal-scale 1.0 --hist "Obj_PU_boosted_jetnum_ee" --ymin 1e-1 --ymax 1e5 --output BoostSREE_jetnum --xmin 0 --xmax 20 --xlabel "Number of Jets" --rmin 0.5 --rmax 1.5
 
 # Boosted SR - EE SS
-python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_ee_SS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_SS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
-python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_ee_SS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_SS_leading_fatjet_pt --xmin 0 --xmax 2000 --xlabel "p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
-python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_ee_SS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_SS_WRMass --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5
+python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_ee_SS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_SS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "Same sign p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
+python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_ee_SS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_SS_leading_fatjet_pt --xmin 0 --xmax 2000 --xlabel "Same sign p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
+python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_ee_SS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_SS_WRMass --xmin 800 --xmax 8000 --xlabel "Same sign m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5
 
 # Boosted SR - EE OS
-python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_ee_OS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_OS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
-python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_ee_OS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_OS_leading_fatjet_pt  --xmin 0 --xmax 2000 --xlabel "p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
-python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_ee_OS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_OS_WRMass --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5
+python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_ee_OS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_OS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "Other sign p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
+python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_ee_OS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_OS_leading_fatjet_pt  --xmin 0 --xmax 2000 --xlabel "Other sign p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
+python EE.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_ee_OS" --ymin 1e-1 --ymax 1e5 --output BoostSREE_OS_WRMass --xmin 800 --xmax 8000 --xlabel "Other sign m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5
 
 # Boosted SR - MM (sign inclusive)
 python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_mumu" --ymin 3 --ymax 1e5 --output BoostSRMM_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "p_{T}^{ll} (GeV)" --rebin 50 --rmin 0.5 --rmax 1.5
@@ -61,11 +61,11 @@ python MM.py --signal-scale 1.0 --hist "Obj_PU_boosted_pvgood_mumu" --ymin 1e-1 
 python MM.py --signal-scale 1.0 --hist "Obj_PU_boosted_jetnum_mumu" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_jetnum --xmin 0 --xmax 20 --xlabel "Number of Jets" --rmin 0.5 --rmax 1.5
 
 # Boosted SR - MM SS
-python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_mumu_SS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_SS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
-python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_mumu_SS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_SS_leading_fatjet_pt --xmin 0 --xmax 2000 --xlabel "p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
-python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_mumu_SS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_SS_WRMass --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5
+python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_mumu_SS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_SS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "Same sign p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
+python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_mumu_SS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_SS_leading_fatjet_pt --xmin 0 --xmax 2000 --xlabel "Same sign p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
+python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_mumu_SS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_SS_WRMass --xmin 800 --xmax 8000 --xlabel "Same sign m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5
 
 # Boosted SR - MM OS
-python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_mumu_OS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_OS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
-python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_mumu_OS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_OS_leading_fatjet_pt --xmin 0 --xmax 2000 --xlabel "p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
-python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_mumu_OS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_OS_WRMass --xmin 800 --xmax 8000 --xlabel "m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5
+python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_Dilepton_Pt_mumu_OS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_OS_Dilepton_pt --xmin 0 --xmax 1000 --xlabel "Other sign p_{T}^{ll} (GeV)" --rebin 10 --rmin 0.5 --rmax 1.5
+python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_leading_fatjet_pt_boosted_mumu_OS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_OS_leading_fatjet_pt --xmin 0 --xmax 2000 --xlabel "Other sign p_{T}^{J} (GeV)" --bins "0,200,400,600,800,1000,2000" --rmin 0.5 --rmax 1.5
+python MM.py --signal-scale 1.0 --hist "Obj_PU_SR_boosted_WRMass_mumu_OS" --ymin 1e-1 --ymax 1e5 --output BoostSRMM_OS_WRMass --xmin 800 --xmax 8000 --xlabel "Other Sign m(lJ) (GeV)" --bins "800,1000,1200,1500,1800,8000" --rmin 0.5 --rmax 1.5

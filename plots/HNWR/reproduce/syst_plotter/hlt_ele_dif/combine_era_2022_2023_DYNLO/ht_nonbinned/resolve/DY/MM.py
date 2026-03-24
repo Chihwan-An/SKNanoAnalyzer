@@ -38,7 +38,7 @@ SAMPLE_MAP = {
 
 # ── MM 채널 전용 설정 ──────────────────────────────────────────────────────
 DATA_FILES      = ["Muon", "SingleMuon"]
-EXCLUDE_SAMPLES = ["Skim", "EGamma", "DYHT"]
+EXCLUDE_SAMPLES = ["Skim", "EGamma"]
 # ─────────────────────────────────────────────────────────────────────────
 
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco", "ElectronTrig",

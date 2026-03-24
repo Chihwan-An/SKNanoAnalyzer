@@ -37,7 +37,7 @@ SAMPLE_MAP = {
 }
 
 DATA_FILES = ["EGamma"]
-EXCLUDE_SAMPLES = ["Skim", "Muon", "SingleMuon", "DYHT"]
+EXCLUDE_SAMPLES = ["Skim", "Muon", "SingleMuon"]
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco", "ElectronTrig",
              "MuonID", "MuonReco", "MuonTrig", "MuonIso", "JER", "JES"]
 

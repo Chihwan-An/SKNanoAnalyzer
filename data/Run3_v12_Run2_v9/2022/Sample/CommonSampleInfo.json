@@ -2,7 +2,7 @@
     "DYMLL50to120HT40to70": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-40to70_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 316.7,
+        "xsec": 480.2220383,
         "nmc": 41806316.0,
         "sumsign": 41806316.0,
         "sumW": 63518805819.739624
@@ -10,7 +10,7 @@
     "DYMLL50to120HT70to100": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-70to100_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 140.1,
+        "xsec": 212.4379778,
         "nmc": 29428037.0,
         "sumsign": 29428037.0,
         "sumW": 25985147265.852966
@@ -18,7 +18,7 @@
     "DYMLL50to120HT100to400": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-100to400_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 179.6,
+        "xsec": 234.878937,
         "nmc": 34765767.0,
         "sumsign": 34765767.0,
         "sumW": 52245681769.1134
@@ -26,7 +26,7 @@
     "DYMLL50to120HT400to800": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 6.742,
+        "xsec":8.7202477896,
         "nmc": 1246830.0,
         "sumsign": 1246830.0,
         "sumW": 89208021.0601883
@@ -34,7 +34,7 @@
     "DYMLL50to120HT800to1500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-800to1500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.693,
+        "xsec": 0.898325608,
         "nmc": 2340651.0,
         "sumsign": 2340651.0,
         "sumW": 18415467.755940437
@@ -42,7 +42,7 @@
     "DYMLL50to120HT1500to2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-1500to2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.05047,
+        "xsec": 0.065423511,
         "nmc": 2385017.0,
         "sumsign": 2385017.0,
         "sumW": 1368265.5960336328
@@ -50,7 +50,7 @@
     "DYMLL50to120HT2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.00346,
+        "xsec": 0.004370223,
         "nmc": 1630460.0,
         "sumsign": 1630460.0,
         "sumW": 61741.34804749861
@@ -58,7 +58,7 @@
     "DYMLL120HT40to70": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-120_HT-40to70_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 4.6,
+        "xsec": 7.558098461,
         "nmc": 2707578.0,
         "sumsign": 2707578.0,
         "sumW": 62728814.29465103
@@ -66,7 +66,7 @@
     "DYMLL120HT70to100": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-120_HT-70to100_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 2.205,
+        "xsec": 3.343509929,
         "nmc": 1953844.0,
         "sumsign": 1953844.0,
         "sumW": 28482937.995030403
@@ -74,7 +74,7 @@
     "DYMLL120HT100to400": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-120_HT-100to400_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 3.352,
+        "xsec": 4.383709336,
         "nmc": 2113763.0,
         "sumsign": 2113763.0,
         "sumW": 65343955.794345856
@@ -82,7 +82,7 @@
     "DYMLL120HT400to800": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.1757,
+        "xsec": 0.227254158,
         "nmc": 1856726.0,
         "sumsign": 1856726.0,
         "sumW": 3907363.157598257
@@ -90,7 +90,7 @@
     "DYMLL120HT800to1500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-120_HT-800to1500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.02089,
+        "xsec": 0.027079397,
         "nmc": 2049333.0,
         "sumsign": 2049333.0,
         "sumW": 521274.77003729343
@@ -98,7 +98,7 @@
     "DYMLL120HT1500to2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-120_HT-1500to2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.001697,
+        "xsec": 0.002199796,
         "nmc": 1935494.0,
         "sumsign": 1935494.0,
         "sumW": 38554.1174321305
@@ -106,7 +106,7 @@
     "DYMLL120HT2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-120_HT-2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.0001247,
+        "xsec": 0.000157505,
         "nmc": 2262859.0,
         "sumsign": 2262859.0,
         "sumW": 3160.613174388651
@@ -114,7 +114,7 @@
     "WJetM0_120HT40to100": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-0to120_HT-40to100_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 4254,
+        "xsec": 5533.390059,
         "nmc": 146576723.0,
         "sumsign": 146576723.0,
         "sumW": 3238076134513.451
@@ -122,7 +122,7 @@
     "WJetM0_120HT100to400": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-0to120_HT-100to400_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 1626,
+        "xsec": 2112.005673,
         "nmc": 100572216.0,
         "sumsign": 100572216.0,
         "sumW": 1340319899750.995
@@ -130,7 +130,7 @@
     "WJetM0_120HT400to800": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-0to120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 59.99,
+        "xsec": 75.34058516,
         "nmc": 13533118.0,
         "sumsign": 13533118.0,
         "sumW": 8488803517.947754
@@ -138,7 +138,7 @@
     "WJetM0_120HT800to1500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-0to120_HT-800to1500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 6.23,
+        "xsec": 7.864421146,
         "nmc": 1432995.0,
         "sumsign": 1432995.0,
         "sumW": 99302233.88169098
@@ -146,7 +146,7 @@
     "WJetM0_120HT1500to2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-0to120_HT-1500to2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.4477,
+        "xsec": 0.565152704,
         "nmc": 477881.0,
         "sumsign": 477881.0,
         "sumW": 2412369.724501133
@@ -154,7 +154,7 @@
     "WJetM0_120HT2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-0to120_HT-2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.03075,
+        "xsec": 0.003960583,
         "nmc": 514983.0,
         "sumsign": 514983.0,
         "sumW": 171818.88557574153
@@ -162,7 +162,7 @@
     "WJetM120HT40to100": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-120_HT-40to100_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 20.56,
+        "xsec": 26.74341787,
         "nmc": 4532184.0,
         "sumsign": 4532184.0,
         "sumW": 515295044.5909729
@@ -170,7 +170,7 @@
     "WJetM120HT100to400": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-120_HT-100to400_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 10.19,
+        "xsec": 13.23575511,
         "nmc": 2132100.0,
         "sumsign": 2132100.0,
         "sumW": 196893630.81840515
@@ -178,7 +178,7 @@
     "WJetM120HT400to800": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-120_HT-400to800_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.5239,
+        "xsec": 0.657958536,
         "nmc": 506334.0,
         "sumsign": 506334.0,
         "sumW": 3142641.2019820213
@@ -186,7 +186,7 @@
     "WJetM120HT800to1500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-120_HT-800to1500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.06255,
+        "xsec": 0.078959798,
         "nmc": 483978.0,
         "sumsign": 483978.0,
         "sumW": 363786.2778504491
@@ -194,7 +194,7 @@
     "WJetM120HT1500to2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-120_HT-1500to2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.005066,
+        "xsec": 0.006395049,
         "nmc": 486619.0,
         "sumsign": 486619.0,
         "sumW": 28806.146144516766
@@ -202,7 +202,7 @@
     "WJetM120HT2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_MLNu-120_HT-2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-        "xsec": 0.0003788,
+        "xsec":0.00004878923 ,
         "nmc": 489635.0,
         "sumsign": 489635.0,
         "sumW": 2057.0368674001656
@@ -243,9 +243,9 @@
         "isMC": 1,
         "PD": "WRtoNEltoElElJJ_MWR6000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
         "xsec": 0.0001936,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 69333.0,
+        "sumsign": 69333.0,
+        "sumW": 69333.0
     },
     "WR6000N700EE": {
         "isMC": 1,
@@ -254,6 +254,30 @@
         "nmc": 69368.0,
         "sumsign": 69368.0,
         "sumW": 69368.0
+    },
+        "WR6000N2900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N2900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.738e-05,
+        "nmc": 68774.0,
+        "sumsign": 68774.0,
+        "sumW": 68774.0
+    },
+    "WR8000N100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.23e-05,
+        "nmc": 70000.0,
+        "sumsign": 70000.0,
+        "sumW": 70000.0
+    },
+    "WR8000N3900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.22e-06,
+        "nmc": 67640.0,
+        "sumsign": 67640.0,
+        "sumW": 67640.0
     },
     "WR2000N100MM": {
         "isMC": 1,
@@ -291,9 +315,9 @@
         "isMC": 1,
         "PD": "WRtoNMutoMuMuJJ_MWR6000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
         "xsec": 0.0001936,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 69285.0,
+        "sumsign": 69285.0,
+        "sumW": 69285.0
     },
     "WR6000N700MM": {
         "isMC": 1,
@@ -302,6 +326,30 @@
         "nmc": 70000.0,
         "sumsign": 70000.0,
         "sumW": 70000.0
+    },
+        "WR6000N2900MM": {
+        "isMC": 1,
+        "PD": "WRtoNMutoMuMuJJ_MWR6000_N2900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.738e-05,
+        "nmc": 68610.0,
+        "sumsign": 68610.0,
+        "sumW": 68610.0
+    },
+    "WR8000N100MM": {
+        "isMC": 1,
+        "PD": "WRtoNMutoMuMuJJ_MWR8000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.23e-05,
+        "nmc": 69274.0,
+        "sumsign": 69274.0,
+        "sumW": 69274.0
+    },
+    "WR8000N3900MM": {
+        "isMC": 1,
+        "PD": "WRtoNMutoMuMuJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.22e-06,
+        "nmc": 68626.0,
+        "sumsign": 68626.0,
+        "sumW": 68626.0
     },
     "DYJets_MG": {
         "isMC": 1,

@@ -107,7 +107,7 @@ void Jet::SetJetID(unsigned char IDBit, int Run) {
   // Please refer https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/117 or https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetID13p6TeV#Recommendations_for_the_13_6_AN1
   // We are moving to NanoAODv13 for Run3, need different implementation
   else { // Run == 3
-    
+    /*
     j_tightJetID = false;
     
     if (abs(Eta()) <= 2.6) 
@@ -124,9 +124,9 @@ void Jet::SetJetID(unsigned char IDBit, int Run) {
       j_tightLepVetoJetID = j_tightJetID && (muEF() < 0.8) && (chEmEF() < 0.8);
     else 
       j_tightLepVetoJetID = j_tightJetID;
-    
+    */
     //This is for NanoAODv12
-    /*
+    
     if (abs(Eta()) <= 2.7) j_tightJetID = IDBit & (1 << 1);
     else if (abs(Eta()) > 2.7 && abs(Eta()) <= 3.0) j_tightJetID = (IDBit & (1 << 1)) && (neHEF() < 0.99);
     else if (abs(Eta()) > 3.0) j_tightJetID = (IDBit & (1 << 1)) && (neEmEF() < 0.4);      
@@ -137,7 +137,7 @@ void Jet::SetJetID(unsigned char IDBit, int Run) {
       j_tightLepVetoJetID = j_tightJetID && (muEF() < 0.8) && (chEmEF() < 0.8);
     else
       j_tightLepVetoJetID = j_tightJetID;      
-    */
+    
   }
 }
 

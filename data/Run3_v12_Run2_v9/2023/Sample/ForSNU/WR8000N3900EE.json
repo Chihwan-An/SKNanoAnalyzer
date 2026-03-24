@@ -1,0 +1,24 @@
+{
+    "name": "WR8000N3900EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 3.22e-06,
+    "sumsign": 70000.0,
+    "sumW": 70000.0,
+    "nmc": 70000.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/00986b56-81cd-434a-8fd6-c5ba4a9e5300.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/05e2808a-69f6-49a0-a380-b5ab01a23fd4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/15634662-21fa-43d9-989f-076190c843ec.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/1928ff7b-bf45-41e8-a554-099b0b85b20e.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/296c51c1-4295-4b0f-81f7-2169de64da78.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/437bae9c-3f2f-4e47-834c-67a97cfa62a8.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/44c6ae28-a4e5-48e4-9d7f-b5d90b7333cf.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/8d7989e1-026e-4e98-8322-7f2c0c426da0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/920a5283-0dcf-4f6d-9371-2314f0ff57cd.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/b4468c01-f452-4f51-a169-e24b4c229eb2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/c0e3a040-3920-4ea0-8c2e-3ad4a7390f08.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/d27acd73-879f-4659-a04f-33f672e31596.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8/NANOAODSIM/130X_mcRun3_2023_realistic_v15-v2/130000/e7088c0c-cf4b-4df9-a69f-1d7fda8f70f0.root"
+    ]
+}

@@ -1,6 +1,1 @@
 systematics:
-  - syst: Muon_ID_Tight
-    evtLoopAgain: true
-    
-  - syst: Muon_ID
-    target: Muon_ID

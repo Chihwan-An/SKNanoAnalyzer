@@ -10,36 +10,96 @@ void Skim_20002::initializeAnalyzer() {
     GetOutfile()->cd();
     newtree = fChain->CloneTree(0);
 
+    el_set.AllElectrons.clear();
+    mu_set.AllMuons.clear();
+    jet_set.AllJets.clear();
+    fatjet_set.AllFatJets.clear();
+    gen_set.gens.clear();
+    
+    mu_set.Muon_Trigger.clear();
+    mu_set.Muon_Trigger_Safe_Pt_Cut = 0.;
+    el_set.Ele_Trigger.clear();
+    el_set.Ele_Trigger_Safe_Pt_Cut = 0.;
+
+    if ( DataEra=="2017")
+    {
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_OldMu100", "HLT_TkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Ele35_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 38.;  
+    }
+
+    if (DataEra == "2022")
+    {
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
+    }
+    if (DataEra == "2022EE")
+    {
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.;  
+    }
+    if (DataEra == "2023")
+    {
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;   
+        //el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 117.; 
+    }
+    if (DataEra == "2023BPix")
+    {
+        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
+        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  
+        //el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        //el_set.Ele_Trigger_Safe_Pt_Cut = 32.; 
+    }
 
     myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
 
     
     // Initialize systematic helper
     string SKNANO_HOME = getenv("SKNANO_HOME");
-    if (IsDATA) {
-        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/noSyst.yaml", DataStream, DataEra);
-    } else {
-        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/ExampleSystematic.yaml", MCSample, DataEra);
-    }
+    //if (IsDATA) {
+    //    systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/noSyst.yaml", DataStream, DataEra);
+    //} else {
+    //    systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/ExampleSystematic.yaml", MCSample, DataEra);
+    //}
+    
+
 
 }
 
 void Skim_20002::executeEvent() {
+    el_set.AllElectrons =  GetAllElectrons();
+    mu_set.AllMuons = GetAllMuons();
+    jet_set.AllJets = GetAllJets();
+    fatjet_set.AllFatJets = GetAllFatJets();
+    gen_set.gens = GetAllGens();
 
+    std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
     
-    for (const auto &syst_dummy : *systHelper) {
-        executeEventFromParameter();
-    }
+    executeEventFromParameter();
+    //for (const auto &syst_dummy : *systHelper) {
+    //    executeEventFromParameter();
+    //}
 
 }
 
 void Skim_20002::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
-    if (this_syst != "Central") {
-        return; // Only process the central value for this skim
-    }
-    
-
+    cout<<"Processing systematic variation: " << this_syst << endl;    
     newtree->Fill();
 
 }

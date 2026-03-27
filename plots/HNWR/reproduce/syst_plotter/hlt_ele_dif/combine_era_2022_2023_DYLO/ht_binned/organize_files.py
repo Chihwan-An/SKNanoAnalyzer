@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 파일 정리 스크립트: combine_era_2022_2023 폴더 내 파일을 계층 구조로 분류
-hierarchy: boost/resolve → DY/FLV/SR → EE/MM/E_Mu/Mu_E → jet/lepton/dilepton/jet_lepton/pileup
+hierarchy: boost/resolve → DY/FLV/SR → EE/MM/E_Mu/Mu_E → jet/lepton/dilepton/jet_lepton/pileup → OS/SS/Inclusive
 """
 
 import os
@@ -121,16 +121,25 @@ def organize(dry_run: bool = False):
             if obj_dir == 'other':
                 unclassified.append(f"{rel_dir}/{fname}  (var={var})")
 
-            dest_dir = os.path.join(src_dir, flavor_dir, obj_dir)
+            # --- OS / SS 폴더 추가 분류 ---
+            if var.startswith('OS_'):
+                sign_dir = 'OS'
+            elif var.startswith('SS_'):
+                sign_dir = 'SS'
+            else:
+                sign_dir = 'Inclusive' # OS/SS 명시가 없는 변수들
+
+            # 최종 경로에 sign_dir (OS/SS/Inclusive) 추가
+            dest_dir = os.path.join(src_dir, flavor_dir, obj_dir, sign_dir)
             src_path  = os.path.join(src_dir, fname)
             dest_path = os.path.join(dest_dir, fname)
 
             if dry_run:
-                print(f"[DRY] {rel_dir}/{fname}  →  {flavor_dir}/{obj_dir}/")
+                print(f"[DRY] {rel_dir}/{fname}  →  {flavor_dir}/{obj_dir}/{sign_dir}/")
             else:
                 os.makedirs(dest_dir, exist_ok=True)
                 shutil.move(src_path, dest_path)
-                print(f"[MOVED] {rel_dir}/{fname}  →  {flavor_dir}/{obj_dir}/")
+                print(f"[MOVED] {rel_dir}/{fname}  →  {flavor_dir}/{obj_dir}/{sign_dir}/")
             moved += 1
 
     print(f"\n{'[DRY RUN] ' if dry_run else ''}완료: {moved}개 이동, {skipped}개 건너뜀")

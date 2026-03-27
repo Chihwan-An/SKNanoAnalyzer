@@ -1,1 +1,2 @@
-python MM.py --signal-scale 1.0 --hist "Obj_PU_Corr_Flav_CR_Resolved_EM_mlljj" --ymin 1 --ymax 3e3 --output ResolveFLVEM_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0 --rmax 2.5
+#python MM.py --signal-scale 1.0 --hist "Obj_PU_Corr_Flav_CR_Resolved_EM_mlljj" --ymin 1 --ymax 3e3 --output ResolveFLVEM_mlljj --xmin 800 --xmax 8000 --xlabel "m(lljj) (GeV)" --bins "800,1000,1200,1400,1600,2000,2400,2800,3200,8000" --rmin 0 --rmax 2.5
+python MM.py --ymin 1 --hist "Obj_PU_Corr_Flav_CR_Resolved_EM_SS_mlljj" --ymin 1 --ymax 1e4 --output ResolveFLVEM_SS_mlljj --xmin 800 --xmax 4000 --xlabel "m(lljj) (GeV)"  --rmin 0 --rmax 2.0 --rebin 500

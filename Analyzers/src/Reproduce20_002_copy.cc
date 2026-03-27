@@ -1947,7 +1947,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     
                                                     
                                                 }
-                                            
+                                            }
                                                 if (is_tmp_lead_el) {
                                                     //SF 
                                                     
@@ -2036,7 +2036,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                         
                                                     }
                                                 }                                            
-                                            }
+                                            
                                         }
                                         else{ // low wr CR
                                             if (is_tmp_lead_el) {
@@ -2309,7 +2309,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         } // boost lead lep pt cut end
     }// boost selected event end
     systHelper->assignWeightFunctionMap(weight_function_map);
-    //bool exist_data = ((is_Resolved_DY_EE) || (is_Resolved_DY_MM) || (is_Resolved_SR_EE) || (is_Resolved_SR_EE_SS) || (is_Resolved_SR_EE_OS) || (is_Resolved_SR_MM) || (is_Resolved_SR_MM_SS) || (is_Resolved_SR_MM_OS) || (is_Resolved_Flav_EM) || (is_Boosted_DY_EE) || (is_Boosted_DY_MM) || (is_Boosted_SR_EE) || (is_Boosted_SR_EE_SS) || (is_Boosted_SR_EE_OS) || (is_Boosted_Flav_EMJ) || (is_Boosted_Flav_MEJ) );
+    
     //if (!exist_data) return;
     if(!IsDATA) {
         auto weight_map = systHelper->calculateWeight(); 
@@ -2397,6 +2397,44 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_OS_pv", Resolve_DYCREEpv, final_weight, 80, 0., 80.);
                 FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_OS_pvgood", Resolve_DYCREEpvgood, final_weight, 80, 0., 80.);
             }
+            if (is_Resolved_DY_EE_SS){
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_pt", Resolve_DYCREEpt , final_weight,100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_jet_pt", Resolve_DYCREEleadjetpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_jet_pt", Resolve_DYCREEsubleadjetpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj", Resolve_DYCREEmlljj, final_weight, 800, 0., 8000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_lep_pt", Resolve_DYCREEleadleppt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_lep_pt", Resolve_DYCREEsubleadleppt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mass", Resolve_DYCREEmass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_eta", Resolve_DYCREEeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_phi", Resolve_DYCREEphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_jet_eta", Resolve_DYCREEleadjeteta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_jet_phi", Resolve_DYCREEleadjetphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_jet_eta", Resolve_DYCREEsubleadjeteta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_jet_phi", Resolve_DYCREEsubleadjetphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_mass", Resolve_DYCREEj1j2mass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_pt", Resolve_DYCREEj1j2pt, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_eta", Resolve_DYCREEj1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_phi", Resolve_DYCREEj1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_mass", Resolve_DYCREEl1j1j2mass, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_pt", Resolve_DYCREEl1j1j2pt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_eta", Resolve_DYCREEl1j1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_phi", Resolve_DYCREEl1j1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_mass", Resolve_DYCREEl2j1j2mass, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_pt", Resolve_DYCREEl2j1j2pt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_eta", Resolve_DYCREEl2j1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_phi", Resolve_DYCREEl2j1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj_pt", Resolve_DYCREEmlljjpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj_eta", Resolve_DYCREEmlljjeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj_phi", Resolve_DYCREEmlljjphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_lep_eta", Resolve_DYCREEleadlepeta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_lep_phi", Resolve_DYCREEleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_lep_eta", Resolve_DYCREEsubleadlepeta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_lep_phi", Resolve_DYCREEsubleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_jetnum", Resolve_DYCREEjetnum, final_weight, 20, 0., 20.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_punum", Resolve_DYCREEpunum, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_pv", Resolve_DYCREEpv, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_pvgood", Resolve_DYCREEpvgood, final_weight, 80, 0., 80.);
+            }
             if (is_Resolved_DY_MM) {
                 if (syst_name == "Central") {
                     /*////cout
@@ -2404,7 +2442,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     <<"weight with only pu"<<weight
                     <<"sf_val"<<sf_val
                     << " final weight "<<final_weight<<endl;
-                if ((is_Resolved_DY_EE) or (is_Resolved_SR_EE_SS) or (is_Resolved_SR_EE_OS) or (is_Resolved_SR_MM) or (is_Resolved_SR_MM_SS) or (is_Resolved_SR_MM_OS) or (is_Resolved_Flav_EM) or (is_Boosted_DY_EE) or (is_Boosted_DY_MM) or (is_Boosted_SR_EE) or (is_Boosted_SR_EE_SS) or (is_Boosted_SR_EE_OS) or (is_Boosted_SR_MM) or (is_Boosted_SR_MM_SS) or (is_Boosted_SR_MM_OS) or (is_Boosted_Flav_EMJ) or (is_Boosted_Flav_MEJ)){
+                
                     ////cout<<"DY MM CR event passes also other region"<<endl;    
                 }
                  */   
@@ -2447,43 +2485,82 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_pv", Resolve_DYCRMMpv, final_weight, 80, 0., 80.);
                 FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_pvgood", Resolve_DYCRMMpvgood, final_weight, 80, 0., 80.);
             }
-            if ( is_Boosted_DY_EE_SS){
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__pt", Resolve_DYCRMMpt, final_weight,100, 0., 1000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_jet_pt", Resolve_DYCRMMleadjetpt, final_weight, 200, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_jet_pt", Resolve_DYCRMMsubleadjetpt, final_weight, 200, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj", Resolve_DYCRMMmlljj, final_weight, 800, 0., 8000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_lep_pt", Resolve_DYCRMMleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_lep_pt", Resolve_DYCRMMsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mass", Resolve_DYCRMMmass, final_weight, 100, 0., 1000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__eta", Resolve_DYCRMMeta, final_weight, 100, -5., 5.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__phi", Resolve_DYCRMMphi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_jet_eta", Resolve_DYCRMMleadjeteta, final_weight, 100, -2.5, 2.5);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_jet_phi", Resolve_DYCRMMleadjetphi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_jet_eta", Resolve_DYCRMMsubleadjeteta, final_weight, 100, -2.5, 2.5);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_jet_phi", Resolve_DYCRMMsubleadjetphi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_mass", Resolve_DYCRMMj1j2mass, final_weight, 100, 0., 1000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_pt", Resolve_DYCRMMj1j2pt, final_weight, 100, 0., 1000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_eta", Resolve_DYCRMMj1j2eta, final_weight, 100, -5., 5.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_phi", Resolve_DYCRMMj1j2phi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_mass", Resolve_DYCRMMl1j1j2mass, final_weight, 200, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_pt", Resolve_DYCRMMl1j1j2pt, final_weight, 200, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_eta", Resolve_DYCRMMl1j1j2eta, final_weight, 100, -5., 5.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_phi", Resolve_DYCRMMl1j1j2phi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_mass", Resolve_DYCRMMl2j1j2mass, final_weight, 200, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_pt", Resolve_DYCRMMl2j1j2pt, final_weight, 200, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_eta", Resolve_DYCRMMl2j1j2eta, final_weight, 100, -5., 5.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_phi", Resolve_DYCRMMl2j1j2phi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj_pt", Resolve_DYCRMMmlljjpt, final_weight, 200, 0., 2000.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj_eta", Resolve_DYCRMMmlljjeta, final_weight, 100, -5., 5.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj_phi", Resolve_DYCRMMmlljjphi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_lep_eta", Resolve_DYCRMMleadlepeta, final_weight, 100, -2.5, 2.5);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_lep_phi", Resolve_DYCRMMleadlepphi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_lep_eta", Resolve_DYCRMMsubleadlepeta, final_weight, 100, -2.5, 2.5);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_lep_phi", Resolve_DYCRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__jetnum", Resolve_DYCRMMjetnum, final_weight, 20, 0., 20.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__punum", Resolve_DYCRMMpunum, final_weight, 80, 0., 80.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__pv", Resolve_DYCRMMpv, final_weight, 80, 0., 80.);
-                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__pvgood", Resolve_DYCRMMpvgood, final_weight, 80, 0., 80.);
+            if ( is_Resolved_DY_MM_OS){
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_pt", Resolve_DYCRMMpt, final_weight,100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_jet_pt", Resolve_DYCRMMleadjetpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_jet_pt", Resolve_DYCRMMsubleadjetpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj", Resolve_DYCRMMmlljj, final_weight, 800, 0., 8000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_lep_pt", Resolve_DYCRMMleadleppt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_lep_pt", Resolve_DYCRMMsubleadleppt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mass", Resolve_DYCRMMmass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_eta", Resolve_DYCRMMeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_phi", Resolve_DYCRMMphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_jet_eta", Resolve_DYCRMMleadjeteta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_jet_phi", Resolve_DYCRMMleadjetphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_jet_eta", Resolve_DYCRMMsubleadjeteta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_jet_phi", Resolve_DYCRMMsubleadjetphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_mass", Resolve_DYCRMMj1j2mass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_pt", Resolve_DYCRMMj1j2pt, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_eta", Resolve_DYCRMMj1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_phi", Resolve_DYCRMMj1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_mass", Resolve_DYCRMMl1j1j2mass, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_pt", Resolve_DYCRMMl1j1j2pt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_eta", Resolve_DYCRMMl1j1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_phi", Resolve_DYCRMMl1j1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_mass", Resolve_DYCRMMl2j1j2mass, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_pt", Resolve_DYCRMMl2j1j2pt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_eta", Resolve_DYCRMMl2j1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_phi", Resolve_DYCRMMl2j1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj_pt", Resolve_DYCRMMmlljjpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj_eta", Resolve_DYCRMMmlljjeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj_phi", Resolve_DYCRMMmlljjphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_lep_eta", Resolve_DYCRMMleadlepeta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_lep_phi", Resolve_DYCRMMleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_lep_eta", Resolve_DYCRMMsubleadlepeta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_lep_phi", Resolve_DYCRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_jetnum", Resolve_DYCRMMjetnum, final_weight, 20, 0., 20.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_punum", Resolve_DYCRMMpunum, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_pv", Resolve_DYCRMMpv, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_pvgood", Resolve_DYCRMMpvgood, final_weight, 80, 0., 80.);
+
+            }
+            if ( is_Resolved_DY_MM_SS){
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_pt", Resolve_DYCRMMpt, final_weight,100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_jet_pt", Resolve_DYCRMMleadjetpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_jet_pt", Resolve_DYCRMMsubleadjetpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj", Resolve_DYCRMMmlljj, final_weight, 800, 0., 8000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_lep_pt", Resolve_DYCRMMleadleppt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_lep_pt", Resolve_DYCRMMsubleadleppt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mass", Resolve_DYCRMMmass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_eta", Resolve_DYCRMMeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_phi", Resolve_DYCRMMphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_jet_eta", Resolve_DYCRMMleadjeteta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_jet_phi", Resolve_DYCRMMleadjetphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_jet_eta", Resolve_DYCRMMsubleadjeteta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_jet_phi", Resolve_DYCRMMsubleadjetphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_mass", Resolve_DYCRMMj1j2mass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_pt", Resolve_DYCRMMj1j2pt, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_eta", Resolve_DYCRMMj1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_phi", Resolve_DYCRMMj1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_mass", Resolve_DYCRMMl1j1j2mass, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_pt", Resolve_DYCRMMl1j1j2pt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_eta", Resolve_DYCRMMl1j1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_phi", Resolve_DYCRMMl1j1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_mass", Resolve_DYCRMMl2j1j2mass, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_pt", Resolve_DYCRMMl2j1j2pt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_eta", Resolve_DYCRMMl2j1j2eta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_phi", Resolve_DYCRMMl2j1j2phi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj_pt", Resolve_DYCRMMmlljjpt, final_weight, 200, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj_eta", Resolve_DYCRMMmlljjeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj_phi", Resolve_DYCRMMmlljjphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_lep_eta", Resolve_DYCRMMleadlepeta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_lep_phi", Resolve_DYCRMMleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_lep_eta", Resolve_DYCRMMsubleadlepeta, final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_lep_phi", Resolve_DYCRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_jetnum", Resolve_DYCRMMjetnum, final_weight, 20, 0., 20.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_punum", Resolve_DYCRMMpunum, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_pv", Resolve_DYCRMMpv, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_pvgood", Resolve_DYCRMMpvgood, final_weight, 80, 0., 80.);
 
             }
             //SR
@@ -3304,6 +3381,70 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_pvgood", Boost_FlavMEJpvgood, final_weight, 80, 0., 80.);
                 FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_jetnum", Boost_FlavMEJjet_num, final_weight, 20, 0., 20.);
             }
+            if(is_Boosted_Flav_MEJ_SS) {
+                //cout<<"ok33"<<endl;
+                FillHist(syst_name + "/Obj_PU_pt(ll)_boosted_mu_ejets_SS_Flavor_CR", Boost_FlavMEJpt, final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_leading_fatjet_pt_boosted_mu_ejets_SS_Flavor_CR", Boost_FlavMEJleadfatjetpt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_m(lljj)_boosted_mu_ejets_SS_Flavor_CR", Boost_FlavMEJmlljj, final_weight, 8000, 0., 8000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_SDMass", Boost_FlavMEJSDM , final_weight, 10000, 0., 10000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadingLepPt", Boost_FlavMEJleadleppt , final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_SubLeadingLepPt", Boost_FlavMEJsubleadleppt , final_weight, 2000, 0., 2000.);
+
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadingLepEta", Boost_FlavMEJleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_SubLeadingLepEta", Boost_FlavMEJsubleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_Eta", Boost_FlavMEJfatjeteta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_Phi", Boost_FlavMEJfatjetphi , final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_DeltaR_LeadLep_Fatjet", Boost_FlavMEJdeltaR_leadlep_fatjet , final_weight, 100, 0., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadLep_LSF", Boost_FlavMEJleadlep_lsf , final_weight, 100, 0., 1.);    
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_mll", Boost_FlavMEJmll , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_pt", Boost_FlavMEJfatjetpt , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_WRpt", Boost_FlavMEJWRpt , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_mass", Boost_FlavMEJmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_eta", Boost_FlavMEJeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_phi", Boost_FlavMEJphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_WR_eta", Boost_FlavMEJWReta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_WR_phi", Boost_FlavMEJWRphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadingLepPhi", Boost_FlavMEJleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_SubLeadingLepPhi", Boost_FlavMEJsubleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_lsf3", Boost_FlavMEJfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_dphi_leadlep_fatjet", Boost_FlavMEJdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_punum", Boost_FlavMEJpileup_num, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_pv", Boost_FlavMEJpv, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_pvgood", Boost_FlavMEJpvgood, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_jetnum", Boost_FlavMEJjet_num, final_weight, 20, 0., 20.);
+            }
+            if(is_Boosted_Flav_MEJ_OS) {
+                //cout<<"ok33"<<endl;
+                FillHist(syst_name + "/Obj_PU_pt(ll)_boosted_mu_ejets_OS_Flavor_CR", Boost_FlavMEJpt, final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_leading_fatjet_pt_boosted_mu_ejets_OS_Flavor_CR", Boost_FlavMEJleadfatjetpt, final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_m(lljj)_boosted_mu_ejets_OS_Flavor_CR", Boost_FlavMEJmlljj, final_weight, 8000, 0., 8000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_SDMass", Boost_FlavMEJSDM , final_weight, 10000, 0., 10000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadingLepPt", Boost_FlavMEJleadleppt , final_weight, 2000, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_SubLeadingLepPt", Boost_FlavMEJsubleadleppt , final_weight, 2000, 0., 2000.);
+
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadingLepEta", Boost_FlavMEJleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_SubLeadingLepEta", Boost_FlavMEJsubleadlepeta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_Eta", Boost_FlavMEJfatjeteta , final_weight, 100, -2.5, 2.5);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_Phi", Boost_FlavMEJfatjetphi , final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_DeltaR_LeadLep_Fatjet", Boost_FlavMEJdeltaR_leadlep_fatjet , final_weight, 100, 0., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadLep_LSF", Boost_FlavMEJleadlep_lsf , final_weight, 100, 0., 1.);    
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_mll", Boost_FlavMEJmll , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_pt", Boost_FlavMEJfatjetpt , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_WRpt", Boost_FlavMEJWRpt , final_weight, 1000, 0., 1000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_mass", Boost_FlavMEJmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_eta", Boost_FlavMEJeta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_phi", Boost_FlavMEJphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_WR_eta", Boost_FlavMEJWReta, final_weight, 100, -5., 5.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_WR_phi", Boost_FlavMEJWRphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadingLepPhi", Boost_FlavMEJleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_SubLeadingLepPhi", Boost_FlavMEJsubleadlepphi, final_weight, 100, -3.14, 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_lsf3", Boost_FlavMEJfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_dphi_leadlep_fatjet", Boost_FlavMEJdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_punum", Boost_FlavMEJpileup_num, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_pv", Boost_FlavMEJpv, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_pvgood", Boost_FlavMEJpvgood, final_weight, 80, 0., 80.);
+                FillHist(syst_name + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_jetnum", Boost_FlavMEJjet_num, final_weight, 20, 0., 20.);
+            }
             // syst_name: "Central", "PU_Weight_Up" 등
             // sf_val: 해당 케이스의 SF 값 (예: 0.99)
             
@@ -3313,7 +3454,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     else { //DATA
         //resolved
             //DY CR
-            if (is_Resolved_DY_EE) {
+        if (is_Resolved_DY_EE) {
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_pt", Resolve_DYCREEpt , 1,100, 0., 1000.);
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_leading_jet_pt", Resolve_DYCREEleadjetpt, 1, 200, 0., 2000.);
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_subleading_jet_pt", Resolve_DYCREEsubleadjetpt, 1, 200, 0., 2000.);
@@ -3389,19 +3530,45 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_OS_pv", Resolve_DYCREEpv, 1, 80, 0., 80.);
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_OS_pvgood", Resolve_DYCREEpvgood, 1, 80, 0., 80.);
             }
-            if (is_Resolved_DY_MM) {
-                if (this_syst == "Central") {
-                    /*////cout
-                    <<"weight without pu "<<norm_weight
-                    <<"weight with only pu"<<weight
-                    <<"sf_val"<<sf_val
-                    << " final weight "<<final_weight<<endl;
-                if ((is_Resolved_DY_EE) or (is_Resolved_SR_EE_SS) or (is_Resolved_SR_EE_OS) or (is_Resolved_SR_MM) or (is_Resolved_SR_MM_SS) or (is_Resolved_SR_MM_OS) or (is_Resolved_Flav_EM) or (is_Boosted_DY_EE) or (is_Boosted_DY_MM) or (is_Boosted_SR_EE) or (is_Boosted_SR_EE_SS) or (is_Boosted_SR_EE_OS) or (is_Boosted_SR_MM) or (is_Boosted_SR_MM_SS) or (is_Boosted_SR_MM_OS) or (is_Boosted_Flav_EMJ) or (is_Boosted_Flav_MEJ)){
-                    ////cout<<"DY MM CR event passes also other region"<<endl;    
-                }
-                 */   
-                }
-                
+            if (is_Resolved_DY_EE_SS){
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_pt", Resolve_DYCREEpt , 1,100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_jet_pt", Resolve_DYCREEleadjetpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_jet_pt", Resolve_DYCREEsubleadjetpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj", Resolve_DYCREEmlljj, 1, 800, 0., 8000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_lep_pt", Resolve_DYCREEleadleppt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_lep_pt", Resolve_DYCREEsubleadleppt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mass", Resolve_DYCREEmass, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_eta", Resolve_DYCREEeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_phi", Resolve_DYCREEphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_jet_eta", Resolve_DYCREEleadjeteta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_jet_phi", Resolve_DYCREEleadjetphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_jet_eta", Resolve_DYCREEsubleadjeteta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_jet_phi", Resolve_DYCREEsubleadjetphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_mass", Resolve_DYCREEj1j2mass, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_pt", Resolve_DYCREEj1j2pt, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_eta", Resolve_DYCREEj1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_j1j2_phi", Resolve_DYCREEj1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_mass", Resolve_DYCREEl1j1j2mass, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_pt", Resolve_DYCREEl1j1j2pt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_eta", Resolve_DYCREEl1j1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l1j1j2_phi", Resolve_DYCREEl1j1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_mass", Resolve_DYCREEl2j1j2mass, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_pt", Resolve_DYCREEl2j1j2pt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_eta", Resolve_DYCREEl2j1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_l2j1j2_phi", Resolve_DYCREEl2j1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj_pt", Resolve_DYCREEmlljjpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj_eta", Resolve_DYCREEmlljjeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_mlljj_phi", Resolve_DYCREEmlljjphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_lep_eta", Resolve_DYCREEleadlepeta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_leading_lep_phi", Resolve_DYCREEleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_lep_eta", Resolve_DYCREEsubleadlepeta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_subleading_lep_phi", Resolve_DYCREEsubleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_jetnum", Resolve_DYCREEjetnum, 1, 20, 0., 20.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_punum", Resolve_DYCREEpunum, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_pv", Resolve_DYCREEpv, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_EE_SS_pvgood", Resolve_DYCREEpvgood, 1, 80, 0., 80.);
+            }
+            if (is_Resolved_DY_MM) {                
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_pt", Resolve_DYCRMMpt, 1,100, 0., 1000.);
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_leading_jet_pt", Resolve_DYCRMMleadjetpt, 1, 200, 0., 2000.);
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_subleading_jet_pt", Resolve_DYCRMMsubleadjetpt, 1, 200, 0., 2000.);
@@ -3439,43 +3606,82 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_pv", Resolve_DYCRMMpv, 1, 80, 0., 80.);
                 FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_pvgood", Resolve_DYCRMMpvgood, 1, 80, 0., 80.);
             }
-            if ( is_Boosted_DY_EE_SS){
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__pt", Resolve_DYCRMMpt, 1,100, 0., 1000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_jet_pt", Resolve_DYCRMMleadjetpt, 1, 200, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_jet_pt", Resolve_DYCRMMsubleadjetpt, 1, 200, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj", Resolve_DYCRMMmlljj, 1, 800, 0., 8000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_lep_pt", Resolve_DYCRMMleadleppt, 1, 2000, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_lep_pt", Resolve_DYCRMMsubleadleppt, 1, 2000, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mass", Resolve_DYCRMMmass, 1, 100, 0., 1000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__eta", Resolve_DYCRMMeta, 1, 100, -5., 5.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__phi", Resolve_DYCRMMphi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_jet_eta", Resolve_DYCRMMleadjeteta, 1, 100, -2.5, 2.5);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_jet_phi", Resolve_DYCRMMleadjetphi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_jet_eta", Resolve_DYCRMMsubleadjeteta, 1, 100, -2.5, 2.5);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_jet_phi", Resolve_DYCRMMsubleadjetphi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_mass", Resolve_DYCRMMj1j2mass, 1, 100, 0., 1000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_pt", Resolve_DYCRMMj1j2pt, 1, 100, 0., 1000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_eta", Resolve_DYCRMMj1j2eta, 1, 100, -5., 5.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__j1j2_phi", Resolve_DYCRMMj1j2phi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_mass", Resolve_DYCRMMl1j1j2mass, 1, 200, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_pt", Resolve_DYCRMMl1j1j2pt, 1, 200, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_eta", Resolve_DYCRMMl1j1j2eta, 1, 100, -5., 5.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l1j1j2_phi", Resolve_DYCRMMl1j1j2phi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_mass", Resolve_DYCRMMl2j1j2mass, 1, 200, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_pt", Resolve_DYCRMMl2j1j2pt, 1, 200, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_eta", Resolve_DYCRMMl2j1j2eta, 1, 100, -5., 5.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__l2j1j2_phi", Resolve_DYCRMMl2j1j2phi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj_pt", Resolve_DYCRMMmlljjpt, 1, 200, 0., 2000.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj_eta", Resolve_DYCRMMmlljjeta, 1, 100, -5., 5.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__mlljj_phi", Resolve_DYCRMMmlljjphi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_lep_eta", Resolve_DYCRMMleadlepeta, 1, 100, -2.5, 2.5);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__leading_lep_phi", Resolve_DYCRMMleadlepphi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_lep_eta", Resolve_DYCRMMsubleadlepeta, 1, 100, -2.5, 2.5);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__subleading_lep_phi", Resolve_DYCRMMsubleadlepphi, 1, 100, -3.14, 3.14);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__jetnum", Resolve_DYCRMMjetnum, 1, 20, 0., 20.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__punum", Resolve_DYCRMMpunum, 1, 80, 0., 80.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__pv", Resolve_DYCRMMpv, 1, 80, 0., 80.);
-                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS__pvgood", Resolve_DYCRMMpvgood, 1, 80, 0., 80.);
+            if ( is_Resolved_DY_MM_OS){
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_pt", Resolve_DYCRMMpt, 1,100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_jet_pt", Resolve_DYCRMMleadjetpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_jet_pt", Resolve_DYCRMMsubleadjetpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj", Resolve_DYCRMMmlljj, 1, 800, 0., 8000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_lep_pt", Resolve_DYCRMMleadleppt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_lep_pt", Resolve_DYCRMMsubleadleppt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mass", Resolve_DYCRMMmass, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_eta", Resolve_DYCRMMeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_phi", Resolve_DYCRMMphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_jet_eta", Resolve_DYCRMMleadjeteta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_jet_phi", Resolve_DYCRMMleadjetphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_jet_eta", Resolve_DYCRMMsubleadjeteta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_jet_phi", Resolve_DYCRMMsubleadjetphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_mass", Resolve_DYCRMMj1j2mass, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_pt", Resolve_DYCRMMj1j2pt, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_eta", Resolve_DYCRMMj1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_j1j2_phi", Resolve_DYCRMMj1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_mass", Resolve_DYCRMMl1j1j2mass, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_pt", Resolve_DYCRMMl1j1j2pt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_eta", Resolve_DYCRMMl1j1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l1j1j2_phi", Resolve_DYCRMMl1j1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_mass", Resolve_DYCRMMl2j1j2mass, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_pt", Resolve_DYCRMMl2j1j2pt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_eta", Resolve_DYCRMMl2j1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_l2j1j2_phi", Resolve_DYCRMMl2j1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj_pt", Resolve_DYCRMMmlljjpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj_eta", Resolve_DYCRMMmlljjeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_mlljj_phi", Resolve_DYCRMMmlljjphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_lep_eta", Resolve_DYCRMMleadlepeta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_leading_lep_phi", Resolve_DYCRMMleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_lep_eta", Resolve_DYCRMMsubleadlepeta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_subleading_lep_phi", Resolve_DYCRMMsubleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_jetnum", Resolve_DYCRMMjetnum, 1, 20, 0., 20.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_punum", Resolve_DYCRMMpunum, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_pv", Resolve_DYCRMMpv, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_OS_pvgood", Resolve_DYCRMMpvgood, 1, 80, 0., 80.);
+
+            }
+            if ( is_Resolved_DY_MM_SS){
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_pt", Resolve_DYCRMMpt, 1,100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_jet_pt", Resolve_DYCRMMleadjetpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_jet_pt", Resolve_DYCRMMsubleadjetpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj", Resolve_DYCRMMmlljj, 1, 800, 0., 8000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_lep_pt", Resolve_DYCRMMleadleppt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_lep_pt", Resolve_DYCRMMsubleadleppt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mass", Resolve_DYCRMMmass, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_eta", Resolve_DYCRMMeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_phi", Resolve_DYCRMMphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_jet_eta", Resolve_DYCRMMleadjeteta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_jet_phi", Resolve_DYCRMMleadjetphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_jet_eta", Resolve_DYCRMMsubleadjeteta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_jet_phi", Resolve_DYCRMMsubleadjetphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_mass", Resolve_DYCRMMj1j2mass, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_pt", Resolve_DYCRMMj1j2pt, 1, 100, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_eta", Resolve_DYCRMMj1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_j1j2_phi", Resolve_DYCRMMj1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_mass", Resolve_DYCRMMl1j1j2mass, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_pt", Resolve_DYCRMMl1j1j2pt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_eta", Resolve_DYCRMMl1j1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l1j1j2_phi", Resolve_DYCRMMl1j1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_mass", Resolve_DYCRMMl2j1j2mass, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_pt", Resolve_DYCRMMl2j1j2pt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_eta", Resolve_DYCRMMl2j1j2eta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_l2j1j2_phi", Resolve_DYCRMMl2j1j2phi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj_pt", Resolve_DYCRMMmlljjpt, 1, 200, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj_eta", Resolve_DYCRMMmlljjeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_mlljj_phi", Resolve_DYCRMMmlljjphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_lep_eta", Resolve_DYCRMMleadlepeta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_leading_lep_phi", Resolve_DYCRMMleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_lep_eta", Resolve_DYCRMMsubleadlepeta, 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_subleading_lep_phi", Resolve_DYCRMMsubleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_jetnum", Resolve_DYCRMMjetnum, 1, 20, 0., 20.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_punum", Resolve_DYCRMMpunum, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_pv", Resolve_DYCRMMpv, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Corr_DYCR_Resolved_MM_SS_pvgood", Resolve_DYCRMMpvgood, 1, 80, 0., 80.);
 
             }
             //SR
@@ -4295,6 +4501,70 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_pv", Boost_FlavMEJpv, 1, 80, 0., 80.);
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_pvgood", Boost_FlavMEJpvgood, 1, 80, 0., 80.);
                 FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_jetnum", Boost_FlavMEJjet_num, 1, 20, 0., 20.);
+            }
+            if(is_Boosted_Flav_MEJ_SS) {
+                //cout<<"ok33"<<endl;
+                FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_mu_ejets_SS_Flavor_CR", Boost_FlavMEJpt, 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_mu_ejets_SS_Flavor_CR", Boost_FlavMEJleadfatjetpt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_m(lljj)_boosted_mu_ejets_SS_Flavor_CR", Boost_FlavMEJmlljj, 1, 8000, 0., 8000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_SDMass", Boost_FlavMEJSDM , 1, 10000, 0., 10000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadingLepPt", Boost_FlavMEJleadleppt , 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_SubLeadingLepPt", Boost_FlavMEJsubleadleppt , 1, 2000, 0., 2000.);
+
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadingLepEta", Boost_FlavMEJleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_SubLeadingLepEta", Boost_FlavMEJsubleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_Eta", Boost_FlavMEJfatjeteta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_Phi", Boost_FlavMEJfatjetphi , 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_DeltaR_LeadLep_Fatjet", Boost_FlavMEJdeltaR_leadlep_fatjet , 1, 100, 0., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadLep_LSF", Boost_FlavMEJleadlep_lsf , 1, 100, 0., 1.);    
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_mll", Boost_FlavMEJmll , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_pt", Boost_FlavMEJfatjetpt , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_WRpt", Boost_FlavMEJWRpt , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_mass", Boost_FlavMEJmass, 1, 100, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_eta", Boost_FlavMEJeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_phi", Boost_FlavMEJphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_WR_eta", Boost_FlavMEJWReta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_WR_phi", Boost_FlavMEJWRphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_LeadingLepPhi", Boost_FlavMEJleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_SubLeadingLepPhi", Boost_FlavMEJsubleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_Fatjet_lsf3", Boost_FlavMEJfatjet_lsf3, 1, 100, 0., 1.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_dphi_leadlep_fatjet", Boost_FlavMEJdphi_leadlep_fatjet, 1, 100, 0., 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_punum", Boost_FlavMEJpileup_num, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_pv", Boost_FlavMEJpv, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_pvgood", Boost_FlavMEJpvgood, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_SS_jetnum", Boost_FlavMEJjet_num, 1, 20, 0., 20.);
+            }
+            if(is_Boosted_Flav_MEJ_OS) {
+                //cout<<"ok33"<<endl;
+                FillHist(this_syst + "/Obj_PU_pt(ll)_boosted_mu_ejets_OS_Flavor_CR", Boost_FlavMEJpt, 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_leading_fatjet_pt_boosted_mu_ejets_OS_Flavor_CR", Boost_FlavMEJleadfatjetpt, 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_m(lljj)_boosted_mu_ejets_OS_Flavor_CR", Boost_FlavMEJmlljj, 1, 8000, 0., 8000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_SDMass", Boost_FlavMEJSDM , 1, 10000, 0., 10000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadingLepPt", Boost_FlavMEJleadleppt , 1, 2000, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_SubLeadingLepPt", Boost_FlavMEJsubleadleppt , 1, 2000, 0., 2000.);
+
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadingLepEta", Boost_FlavMEJleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_SubLeadingLepEta", Boost_FlavMEJsubleadlepeta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_Eta", Boost_FlavMEJfatjeteta , 1, 100, -2.5, 2.5);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_Phi", Boost_FlavMEJfatjetphi , 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_DeltaR_LeadLep_Fatjet", Boost_FlavMEJdeltaR_leadlep_fatjet , 1, 100, 0., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadLep_LSF", Boost_FlavMEJleadlep_lsf , 1, 100, 0., 1.);    
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_mll", Boost_FlavMEJmll , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_pt", Boost_FlavMEJfatjetpt , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_WRpt", Boost_FlavMEJWRpt , 1, 1000, 0., 1000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_mass", Boost_FlavMEJmass, 1, 100, 0., 2000.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_eta", Boost_FlavMEJeta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_phi", Boost_FlavMEJphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_WR_eta", Boost_FlavMEJWReta, 1, 100, -5., 5.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_WR_phi", Boost_FlavMEJWRphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_LeadingLepPhi", Boost_FlavMEJleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_SubLeadingLepPhi", Boost_FlavMEJsubleadlepphi, 1, 100, -3.14, 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_Fatjet_lsf3", Boost_FlavMEJfatjet_lsf3, 1, 100, 0., 1.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_dphi_leadlep_fatjet", Boost_FlavMEJdphi_leadlep_fatjet, 1, 100, 0., 3.14);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_punum", Boost_FlavMEJpileup_num, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_pv", Boost_FlavMEJpv, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_pvgood", Boost_FlavMEJpvgood, 1, 80, 0., 80.);
+                FillHist(this_syst + "/Obj_PU_Boosted_Flavor_CR_mu_ejets_OS_jetnum", Boost_FlavMEJjet_num, 1, 20, 0., 20.);
             }
             // syst_name: "Central", "PU_Weight_Up" 등
     }

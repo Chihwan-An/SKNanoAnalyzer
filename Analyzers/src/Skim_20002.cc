@@ -21,14 +21,6 @@ void Skim_20002::initializeAnalyzer() {
     el_set.Ele_Trigger.clear();
     el_set.Ele_Trigger_Safe_Pt_Cut = 0.;
 
-    if ( DataEra=="2017")
-    {
-        mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_OldMu100", "HLT_TkMu100"}; 
-        mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele35_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 38.;  
-    }
-
     if (DataEra == "2022")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"}; 
@@ -71,11 +63,11 @@ void Skim_20002::initializeAnalyzer() {
     
     // Initialize systematic helper
     string SKNANO_HOME = getenv("SKNANO_HOME");
-    //if (IsDATA) {
-    //    systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/noSyst.yaml", DataStream, DataEra);
-    //} else {
-    //    systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/ExampleSystematic.yaml", MCSample, DataEra);
-    //}
+    if (IsDATA) {
+        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/noSyst.yaml", DataStream, DataEra);
+    } else {
+        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/ExampleSystematic.yaml", MCSample, DataEra);
+    }
     
 
 
@@ -100,8 +92,224 @@ void Skim_20002::executeEvent() {
 void Skim_20002::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
     cout<<"Processing systematic variation: " << this_syst << endl;    
-    newtree->Fill();
+    
+    
+    Event ev = GetEvent();
+    Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
 
+    bool pass_trig_muon = ev.PassTrigger(mu_set.Muon_Trigger);
+    bool pass_trig_elec = ev.PassTrigger(el_set.Ele_Trigger);
+
+    /////////Trigger pass ///////////
+    if ((!pass_trig_muon) and (!pass_trig_elec)) return;
+
+
+    RVec<Electron> electrons = el_set.AllElectrons;
+    RVec<Muon> muons = mu_set.AllMuons;
+    RVec<Jet> jets = jet_set.AllJets;
+
+
+    RVec<FatJet> fatjets = fatjet_set.AllFatJets;
+    if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) return;
+
+    ///         Leptons       ///
+    
+    RVec<Electron> my_electrons = SelectElectrons(electrons, "NOCUT" , el_set.Electron_MinPt, 2.4); 
+    RVec<Muon> my_muons = SelectMuons(muons, "NOCUT" , mu_set.Muon_MinPt, 2.4); 
+    
+    sort (my_electrons.begin(), my_electrons.end(), PtComparing);
+    sort (my_muons.begin(), my_muons.end(), PtComparing);
+
+    RVec<Electron *> Loose_electrons , Tight_electrons;
+    RVec<Muon *> Loose_muons , Tight_muons;
+    RVec<Lepton *> Tight_leps_el , Tight_leps_mu , Tight_leps;
+    RVec<Lepton *> Loose_leps_el , Loose_leps_mu , Loose_leps;
+    
+    float el_tight_and_loose = 0.;
+    float el_tight_but_fail_loose = 0.;
+    float el_loose_and_fail_tight = 0.;
+    float el_loose_but_tight = 0.;
+    
+
+    for (unsigned int i=0 ; i< my_electrons.size(); i ++) {
+        Electron & el = my_electrons.at(i);
+        //if (el_set.isPassCustomTightID(el, el_set)) {
+        if (el.PassID(el_set.Electron_Tight_ID[0])) {
+            Tight_electrons.push_back(&el);
+            Tight_leps_el.push_back( &el);
+            Tight_leps.push_back(&el);
+            if (el_set.isPassCustomLooseID(el)) {
+                el_tight_and_loose += 1.;
+            } else {
+                el_tight_but_fail_loose += 10.;
+            }
+        }
+
+        // Loose ID: Match Python selectLooseElectrons logic
+        // Pass if: (Loose WP without isolation) OR (HEEP)
+        bool passLooseNoIso = el_set.isPassLooseNoIso(el);
+        bool passHEEP = el.PassID(Electron::ElectronID::POG_HEEP);
+
+        if (passLooseNoIso || passHEEP) {
+        //if (el_set.isPassCustomLooseID(el)){  // OLD
+        //if (el.PassID(el_set.Electron_Loose_ID[0])) {  // OLD
+            Loose_electrons.push_back(&el);
+            Loose_leps_el.push_back(&el);
+            Loose_leps.push_back(&el);
+            if (!el_set.isPassCustomTightID(el, el_set)) {
+                el_loose_and_fail_tight += 100.;
+            } else {
+                el_loose_but_tight += 1000.;
+            }
+        }
+    }
+
+    for (unsigned int i=0 ; i< my_muons.size(); i ++) {
+        Muon & mu = my_muons.at(i);
+
+        float tkRelIso = mu.TkRelIso();
+        
+        if ((mu.PassID(mu_set.Muon_Tight_ID[0]))&&( tkRelIso < 0.1) ){ //global high pt id 
+            Tight_muons.push_back(&mu);
+            Tight_leps_mu.push_back( &mu);
+            Tight_leps.push_back(&mu);
+        }
+        if (mu.PassID(mu_set.Muon_Loose_ID[0])) {
+            Loose_muons.push_back(&mu);
+            Loose_leps_mu.push_back(&mu);
+            Loose_leps.push_back(&mu);
+        }
+    }
+    
+
+    /// FatJets ///
+
+
+    RVec<FatJet> fatjet_list ;
+    RVec<FatJet> lsf ;
+
+
+    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, Tight_leps);
+    jets = Clean_jet_with_loose_leptons(jets, Loose_leps);
+
+
+    for (unsigned int i=0 ; i< fatjets.size(); i ++) {
+        
+        FatJet & fj = fatjets.at(i);
+        if ((fj.Pt() > fatjet_set.FatJet_MinPt) && (abs(fj.Eta())<fatjet_set.FatJet_MaxEta) && (fj.SDMass() > fatjet_set.FatJet_SDM) ) {
+            
+            if (fj.PassID(fatjet_set.FatJet_ID)) {
+                fatjet_list.push_back(fj);
+                if (fj.LSF3() >fatjet_set.Fatjet_LSF) {
+                    lsf.push_back(fj);
+                }
+            }
+        }
+    }
+
+    fatjets = fatjet_list;
+    RVec<FatJet> fatjets_LSF = lsf;
+
+    sort (fatjets.begin(), fatjets.end(), PtComparing);
+    sort (fatjets_LSF.begin(), fatjets_LSF.end(), PtComparing);
+    
+
+
+    sort (Tight_leps.begin(), Tight_leps.end(), PtComparingPtr);
+
+    int n_Loose_leptons  = Loose_electrons.size() + Loose_muons.size();
+    int n_Tight_leptons  = Tight_electrons.size() + Tight_muons.size();
+    
+
+    ///         Jets       ///
+
+
+    
+    //jet veto 
+    bool is_jet_veto = AnalyzerCore::PassVetoMap(jets, mu_set.AllMuons, "jetvetomap");
+    if (!(is_jet_veto) ) return;
+    
+    
+
+    RVec<Jet> selected_jets = SelectJets(jets, jet_set.Jet_ID[0] , jet_set.Jet_MinPt, jet_set.Jet_MaxEta);
+    sort (selected_jets.begin(), selected_jets.end(), PtComparing);
+
+
+
+    bool IsResolvedEvent = false;
+    bool this_trigger_pass(false);
+    bool tmp_isEE(false), tmp_isMM(false), tmp_isEM(false);
+    
+    if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0)  && (Tight_leps[1]->Pt() > 53.0)) {
+        
+        if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
+            if (Tight_electrons[0]->Pt() < el_set.Ele_Trigger_Safe_Pt_Cut) return;
+
+            this_trigger_pass = pass_trig_elec;
+            tmp_isEE = true;
+    }
+    
+        else if ( (Tight_muons.size() == 2) && ( Tight_electrons.size() == 0 )) {
+            if (Tight_muons[0]->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return;
+            this_trigger_pass = pass_trig_muon;
+            tmp_isMM = true;
+        }
+        else if ( (Tight_muons.size() == 1) && ( Tight_electrons.size() == 1 )) {
+            if (Tight_muons[0]->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return;
+            this_trigger_pass = pass_trig_muon;
+            tmp_isEM = true;
+        }
+
+        if (this_trigger_pass) {
+            // needs 2 jets 
+            Lepton *LeadLep = Tight_leps[0];
+            Lepton *SubLeadLep = Tight_leps[1];
+            
+            float LeadLepCharge = LeadLep->Charge();
+            float SubLeadLepCharge = SubLeadLep->Charge();
+            bool dRLeadJetLepon(false), dRSubLeadJetLepon(false), dRTwoLetpton(false), dRTwoJets(false);
+            if (selected_jets.size() >= 2) {
+            dRLeadJetLepon = (selected_jets[0].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[0].DeltaR(*Tight_leps[1]) > 0.4);
+            dRSubLeadJetLepon = (selected_jets[1].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[1].DeltaR(*Tight_leps[1]) > 0.4);
+            dRTwoLetpton = (LeadLep->DeltaR(*SubLeadLep) > 0.4);
+            dRTwoJets = (selected_jets[0].DeltaR(selected_jets[1]) > 0.4);
+            }
+                if ((selected_jets.size() >= 2 )&&(dRLeadJetLepon)&&(dRSubLeadJetLepon)&&(dRTwoLetpton)&&(dRTwoJets)) { 
+                    IsResolvedEvent = true;
+                    
+                }
+            }
+    }
+    if (IsResolvedEvent) {
+        newtree->Fill();
+        return;
+    }
+
+    if ((n_Tight_leptons >0 ) && (Tight_leps[0]->Pt() > 60.0)) {
+        
+        
+        bool this_trigger_pass_boost(false);
+        bool is_tmp_lead_el(false), is_tmp_lead_mu(false);
+        Lepton * LeadLep = Tight_leps[0];
+        
+        
+        if ( LeadLep->IsElectron() ) {
+        
+            if (LeadLep->Pt() < el_set.Ele_Trigger_Safe_Pt_Cut) return;
+            is_tmp_lead_el = true;
+            this_trigger_pass_boost = pass_trig_elec;
+        }
+        else if ( LeadLep->IsMuon()){
+            if (LeadLep->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return;
+            is_tmp_lead_mu = true;
+            this_trigger_pass_boost = pass_trig_muon;
+        }
+        if (!this_trigger_pass_boost) return;
+    }
+
+
+
+    newtree->Fill();
 }
 
 void Skim_20002::WriteHist() {

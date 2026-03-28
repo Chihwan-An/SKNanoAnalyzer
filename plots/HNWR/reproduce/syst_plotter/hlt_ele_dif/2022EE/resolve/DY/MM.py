@@ -8,7 +8,7 @@ import ctypes
 import re
 
 # --- 1. 기본 설정 (인자가 없을 경우 사용됨) ---
-DEFAULT_DATA_PATH = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002_copy/combined_22_23/merged/"
+DEFAULT_DATA_PATH = "/gv0/Users/achihwan/SKNanoOutput/Reproduce20_002_copy/combined_22_23/2022EE/"
 DEFAULT_HIST_NAME = "Obj_PU_Corr_DYCR_Resolved_EE_pt"
 
 # 스크립트 이름으로 채널 자동 감지 (EE.py → "EE", MM.py → "MM")
@@ -38,7 +38,7 @@ SAMPLE_MAP = {
 
 # ── MM 채널 전용 설정 ──────────────────────────────────────────────────────
 DATA_FILES      = ["Muon", "SingleMuon"]
-EXCLUDE_SAMPLES = ["Skim", "EGamma", "DYHT"]
+EXCLUDE_SAMPLES = ["Skim", "EGamma", "DYJets"]
 # ─────────────────────────────────────────────────────────────────────────
 
 SYST_LIST = ["Pileup", "ElectronID", "ElectronReco", "ElectronTrig",

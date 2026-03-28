@@ -129,7 +129,7 @@ def run_plot():
     parser.add_argument("--logy",         action="store_false", default=True,    help="Y축 로그 스케일 해제")
     parser.add_argument("--rmin",         type=float, default=0.5,               help="Ratio 패널 Y축 최소값")
     parser.add_argument("--rmax",         type=float, default=1.5,               help="Ratio 패널 Y축 최대값")
-    parser.add_argument("--signal-scale", type=float, default=10.0,              help="Signal(WR) 히스토그램에 곱할 스케일 팩터 (기본값: 10)")
+    parser.add_argument("--signal-scale", type=float, default=1.0,              help="Signal(WR) 히스토그램에 곱할 스케일 팩터 (기본값: 10)")
     args = parser.parse_args()
 
     HIST_NAME    = args.hist

@@ -1,14 +1,19 @@
-Skim_20002_DYJets
-Skim_20002_DYJets10to50
+not using Skim_20002_DYJets
+not using Skim_20002_DYJets10to50
 Skim_20002_ST*
 Skim_20002_TTLL*
 Skim_20002_TTLJ*
-Skim_20002_WJets*
+not using Skim_20002_WJets*
 Skim_20002_WW*
 Skim_20002_WZ*
 Skim_20002_ZZ*
 Skim_20002_EG*
-Skim_20002_Muon0*
-Skim_20002_Muon1*
+Skim_20002_Muon*
 Skim_20002_TTW*
 Skim_20002_TTZ*
+
+Skim_20002_WR*
+Skim_20002_DYM*
+Skim_20002_WJetM*
+
+Skim_20002_Single*

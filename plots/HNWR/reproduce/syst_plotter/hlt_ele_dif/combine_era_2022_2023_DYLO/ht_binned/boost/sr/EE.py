@@ -133,7 +133,7 @@ def run_plot():
     args = parser.parse_args()
 
     HIST_NAME    = args.hist
-    IS_BLIND     = "SR" in HIST_NAME.upper()
+    IS_BLIND     = True
     REBIN_FACTOR = args.rebin
     Y_LOG        = args.logy
 

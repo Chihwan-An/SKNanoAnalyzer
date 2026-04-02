@@ -417,7 +417,7 @@ def run_plot():
     latex.SetTextFont(42); latex.SetTextSize(0.030); latex.SetTextAlign(31)
     latex.DrawLatex(0.95, 0.93, "62.31 fb^{-1} (13.6 TeV)")
     latex.SetTextAlign(11); latex.SetTextFont(62); latex.SetTextSize(0.045)
-    latex.DrawLatex(0.18, 0.82, "mm")
+    latex.DrawLatex(0.18, 0.82, "E #mu")
     latex.SetTextFont(42); latex.SetTextSize(0.040)
     latex.DrawLatex(0.18, 0.77, "Signal Region" if IS_BLIND else "Resolved FLV CR")
     p1.RedrawAxis()

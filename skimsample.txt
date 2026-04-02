@@ -9,8 +9,8 @@ Skim_20002_WZ*
 Skim_20002_ZZ*
 Skim_20002_EG*
 Skim_20002_Muon*
-Skim_20002_TTW*
-Skim_20002_TTZ*
+Skim_20002_ttW*
+Skim_20002_ttZ*
 
 Skim_20002_WR*
 Skim_20002_DYM*

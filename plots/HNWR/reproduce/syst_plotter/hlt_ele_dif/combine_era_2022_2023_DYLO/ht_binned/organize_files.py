@@ -32,37 +32,37 @@ SUBDIRS = {
 
 
 def classify_variable(var: str) -> str:
-    """변수명으로부터 오브젝트 타입 폴더 결정"""
+    """변수명으로부터 오브젝트 타입 폴더 결정 (OS_/SS_ prefix 제거 후 판단)"""
+
+    # OS_/SS_ prefix 제거 후 순수 변수명으로 분류
+    pure = re.sub(r'^(OS_|SS_)', '', var)
 
     # pileup
-    if var == 'punum':
+    if pure == 'punum':
         return 'pileup'
 
-    # lepton: leading_lep_* / subleading_lep_*
-    if re.match(r'(leading|subleading)_lep_', var):
+    # lepton
+    if re.match(r'(leading|subleading)_lep_', pure):
         return 'lepton'
 
-    # jet: fatjet / leading_jet / subleading_jet / j1j2 / jetnum / deltaR / dphi
-    #      + OS/SS prefixed jet variables
-    if re.match(r'(OS_|SS_)?(leading|subleading)_(jet|fatjet)', var):
+    # jet
+    if re.match(r'(leading|subleading)_(jet|fatjet)', pure):
         return 'jet'
-    if re.match(r'fatjet_|leading_fatjet_|leading_jet_|subleading_jet_|j1j2_|deltaR_|dphi_', var):
+    if re.match(r'fatjet_|leading_fatjet_|j1j2_|deltaR_|dphi_', pure):
         return 'jet'
-    if var == 'jetnum':
+    if pure == 'jetnum':
         return 'jet'
 
-    # dilepton: mll / ll_pt / Dilepton_pt / OS|SS_ variants / dilepton system kinematics
-    if var in ('mll', 'll_pt', 'Dilepton_pt', 'pt', 'eta', 'phi', 'mass'):
+    # dilepton
+    if re.match(r'dilepton_|ll_pt$|Dilepton_pt$', pure):
         return 'dilepton'
-    if re.match(r'(OS_|SS_)(ll_pt|Dilepton_pt)$', var):
+    if pure in ('mll', 'll_pt', 'Dilepton_pt', 'pt', 'eta', 'phi', 'mass'):
         return 'dilepton'
 
-    # jet_lepton (WR / 4-body system)
-    if re.match(r'WR_|mlljj|l1j1j2_|l2j1j2_', var):
+    # jet_lepton
+    if re.match(r'WR_|mlljj|l1j1j2_|l2j1j2_', pure):
         return 'jet_lepton'
-    if var == 'WRMass':
-        return 'jet_lepton'
-    if re.match(r'(OS_|SS_)(WRMass|mlljj)$', var):
+    if pure == 'WRMass':
         return 'jet_lepton'
 
     return 'other'

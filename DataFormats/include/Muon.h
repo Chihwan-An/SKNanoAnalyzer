@@ -84,6 +84,9 @@ public:
     inline WorkingPoint PuppiIsoId() const {return (WorkingPoint)j_puppiIsoId;}
     inline WorkingPoint TkIsoId() const {return (WorkingPoint)j_tkIsoId;}
 
+    void SetTightCharge(unsigned char tightCharge) { j_tightCharge = tightCharge; }
+    inline unsigned char TightCharge() const { return j_tightCharge; } // 0: fail, 2: pass (pterr/pt of muonBestTrack)
+
     void SetNTrackerLayers(int n) {j_nTrackerLayers = n;}
     inline int nTrackerLayers() const {return j_nTrackerLayers;}
     void SetOriginalPt(float pt) {j_miniAODPt = pt;}
@@ -126,6 +129,7 @@ public:
 private:
     bool j_isTracker, j_isStandalone, j_isGlobal;
     bool j_looseId, j_mediumId, j_mediumPromptId, j_tightId, j_softId, j_softMvaId, j_triggerIdLoose;
+    unsigned char j_tightCharge;
     unsigned char j_highPtId, j_miniIsoId, j_multiIsoId, j_mvaMuId, j_pfIsoId, j_puppiIsoId, j_tkIsoId;
     float j_softMva, j_mvaLowPt, j_mvaTTH;
     float j_tkRelIso;

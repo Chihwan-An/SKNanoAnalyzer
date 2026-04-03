@@ -634,6 +634,7 @@ RVec<Muon> AnalyzerCore::GetAllMuons() {
         muon.SetIsTracker(Muon_isTracker[i]);
         muon.SetIsGlobal(Muon_isGlobal[i]);
         muon.SetIsStandalone(Muon_isStandalone[i]);
+        muon.SetTightCharge(Muon_tightCharge[i]);
 
         muons.push_back(muon);
     }

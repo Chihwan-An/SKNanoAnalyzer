@@ -390,5 +390,10 @@
         "suffix": "20002",
         "PD": "TTLL_powheg",
         "isMC": 1
+    },
+    "Skim_20002_ttZtoNuNu": {
+        "suffix": "20002",
+        "PD": "ttZtoNuNu",
+        "isMC": 1
     }
 }

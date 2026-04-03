@@ -13,6 +13,8 @@ Muon::Muon() {
     j_softMvaId = false;
     j_triggerIdLoose = false;
 
+    // tight charge
+    j_tightCharge = 0;
     // unsigned char ID bits
     j_highPtId = 0;     // High PT cut-based ID (1 = tracker high pT, 2 = global high pT)
     j_miniIsoId = 0;    // 1=Loose, 2=Medium, 3=Tight, 4=VeryTight

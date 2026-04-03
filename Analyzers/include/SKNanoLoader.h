@@ -220,6 +220,7 @@ public:
     RVec<Bool_t> Muon_isGlobal;
     RVec<Bool_t> Muon_isStandalone;
     RVec<Bool_t> Muon_isTracker;
+    RVec<UChar_t> Muon_tightCharge;
     RVec<Bool_t> Muon_looseId;
     RVec<Float_t> Muon_mass;
     RVec<Bool_t> Muon_mediumId;

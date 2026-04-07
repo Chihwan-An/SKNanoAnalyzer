@@ -5,6 +5,7 @@
 #include "SystematicHelper.h"
 #include "Muon.h"
 #include "Electron.h"
+#include "LHE.h"
 
 class Reproduce20_002_copy : public AnalyzerCore {
 public:
@@ -140,6 +141,10 @@ public:
     struct Gens{
         RVec<Gen> gens;
     }gen_set;
+
+    struct LHECollection{
+        RVec<LHE> lhe_parts;
+    }lhe_set;
 
     RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;

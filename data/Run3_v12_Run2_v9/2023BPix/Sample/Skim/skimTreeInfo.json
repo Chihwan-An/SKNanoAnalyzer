@@ -395,5 +395,15 @@
         "suffix": "20002",
         "PD": "ttZtoNuNu",
         "isMC": 1
+    },
+    "Skim_20002_ttWtoLNu_EWK": {
+        "suffix": "20002",
+        "PD": "ttWtoLNu_EWK",
+        "isMC": 1
+    },
+    "Skim_20002_WWto4Q": {
+        "suffix": "20002",
+        "PD": "WWto4Q",
+        "isMC": 1
     }
 }

@@ -21,56 +21,77 @@ with open(f"{SKNanoDataDir}/{args.era}/Sample/CommonSampleInfo.json", "r") as f:
 def parseDataInfoFor(sample_name):
     # parse periods from sample_info
     periods = common_info[sample_name]["periods"]
-    nevts = []
-    for period in periods:
+    
+    # Get existing NEvents if available
+    if "NEvents" in common_info[sample_name]:
+        nevts = common_info[sample_name]["NEvents"]
+    else:
+        nevts = [-1] * len(periods)
+
+    updated = False
+    for i, period in enumerate(periods):
         try:
             f = ROOT.TFile.Open(f"{SKNanoOutputDir}/GetEffLumi/{args.era}/{sample_name}_{period}.root")
+            if not f or f.IsZombie():
+                continue
             h = f.Get("NEvents")
-            nevts.append(h.GetBinContent(1))
+            if h:
+                nevts[i] = h.GetBinContent(1)
+                updated = True
             f.Close()
         except:
             print(f"Error opening file for {sample_name} {period}")
-            nevts.append(-1)
     
+    if not updated:
+        return
+
     common_info[sample_name]["NEvents"] = nevts
 
     # add in ForSNU/$SAMPLE_NAME_PERIOD.json
-    for period in periods:
-        with open(f"{SKNanoDataDir}/{args.era}/Sample/ForSNU/{sample_name}_{period}.json", "r") as f:
-            for_snu_info = json.load(f)
-        for_snu_info["NEvents"] = nevts
-        with open(f"{SKNanoDataDir}/{args.era}/Sample/ForSNU/{sample_name}_{period}.json", "w") as f:
-            json.dump(for_snu_info, f, indent=4)
+    for i, period in enumerate(periods):
+        json_path = f"{SKNanoDataDir}/{args.era}/Sample/ForSNU/{sample_name}_{period}.json"
+        if os.path.exists(json_path):
+            with open(json_path, "r") as f:
+                for_snu_info = json.load(f)
+            for_snu_info["NEvents"] = nevts
+            with open(json_path, "w") as f:
+                json.dump(for_snu_info, f, indent=4)
 
 def parseMCInfoFor(sample_name):
-    nevts = 0
-    sumsign = 0
-    sumW = 0
     try:
         f = ROOT.TFile.Open(f"{SKNanoOutputDir}/GetEffLumi/{args.era}/{sample_name}.root")
-        h = f.Get("NEvents")
-        nevts = h.GetBinContent(1)
-        h = f.Get("sumSign")
-        sumsign = h.GetBinContent(1)
-        h = f.Get("sumW")
-        sumW = h.GetBinContent(1)
+        if not f or f.IsZombie():
+            return
+        
+        h_nevts = f.Get("NEvents")
+        h_sumsign = f.Get("sumSign")
+        h_sumW = f.Get("sumW")
+        
+        if not h_nevts or not h_sumsign or not h_sumW:
+            f.Close()
+            return
+
+        nevts = h_nevts.GetBinContent(1)
+        sumsign = h_sumsign.GetBinContent(1)
+        sumW = h_sumW.GetBinContent(1)
         f.Close()
+
+        common_info[sample_name]["nmc"] = nevts
+        common_info[sample_name]["sumsign"] = sumsign
+        common_info[sample_name]["sumW"] = sumW
+
+        # add in ForSNU/$SAMPLE_NAME.json
+        json_path = f"{SKNanoDataDir}/{args.era}/Sample/ForSNU/{sample_name}.json"
+        if os.path.exists(json_path):
+            with open(json_path, "r") as f:
+                for_snu_info = json.load(f)
+            for_snu_info["nmc"] = nevts
+            for_snu_info["sumsign"] = sumsign
+            for_snu_info["sumW"] = sumW
+            with open(json_path, "w") as f:
+                json.dump(for_snu_info, f, indent=4)
     except:
         print(f"Error opening file for {sample_name}")
-        sumsign = -1
-        sumW = -1
-    common_info[sample_name]["nmc"] = nevts
-    common_info[sample_name]["sumsign"] = sumsign
-    common_info[sample_name]["sumW"] = sumW
-
-    # add in ForSNU/$SAMPLE_NAME.json
-    with open(f"{SKNanoDataDir}/{args.era}/Sample/ForSNU/{sample_name}.json", "r") as f:
-        for_snu_info = json.load(f)
-    for_snu_info["nmc"] = nevts
-    for_snu_info["sumsign"] = sumsign
-    for_snu_info["sumW"] = sumW
-    with open(f"{SKNanoDataDir}/{args.era}/Sample/ForSNU/{sample_name}.json", "w") as f:
-        json.dump(for_snu_info, f, indent=4)
 
 def main():
     for sample_name in common_info.keys():

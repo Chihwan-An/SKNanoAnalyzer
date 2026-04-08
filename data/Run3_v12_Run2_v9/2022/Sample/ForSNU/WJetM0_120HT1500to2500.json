@@ -2,7 +2,7 @@
     "name": "WJetM0_120HT1500to2500",
     "isMC": 1,
     "PD": "WtoLNu-4Jets_MLNu-0to120_HT-1500to2500_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-    "xsec": 0.4477,
+    "xsec": 0.565152704,
     "sumsign": 477881.0,
     "sumW": 2412369.724501133,
     "nmc": 477881.0,

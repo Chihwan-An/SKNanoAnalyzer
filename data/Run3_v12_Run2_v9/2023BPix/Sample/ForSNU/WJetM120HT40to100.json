@@ -2,7 +2,7 @@
     "name": "WJetM120HT40to100",
     "isMC": 1,
     "PD": "WtoLNu-4Jets_MLNu-120_HT-40to100_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-    "xsec": 20.56,
+    "xsec": 26.74341787,
     "sumsign": 4335809.0,
     "sumW": 492621817.8892822,
     "nmc": 4335809.0,

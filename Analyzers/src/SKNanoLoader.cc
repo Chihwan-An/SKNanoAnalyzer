@@ -275,6 +275,7 @@ void SKNanoLoader::SetMaxLeafSize(){
     Electron_r9.resize(kMaxElectron);
     Electron_scEtOverPt.resize(kMaxElectron);
     Electron_seedGain.resize(kMaxElectron);
+    Electron_tightCharge.resize(kMaxElectron);
     Electron_sieie.resize(kMaxElectron);
     Electron_sip3d.resize(kMaxElectron);
     Electron_genPartFlav.resize(kMaxElectron);
@@ -890,6 +891,7 @@ void SKNanoLoader::Init() {
     SafeSetBranchAddress("Electron_r9", Electron_r9.data());
     SafeSetBranchAddress("Electron_scEtOverPt", Electron_scEtOverPt.data());
     SafeSetBranchAddress("Electron_seedGain", Electron_seedGain.data());
+    SafeSetBranchAddress("Electron_tightCharge", Electron_tightCharge.data());
     SafeSetBranchAddress("Electron_sieie", Electron_sieie.data());
     SafeSetBranchAddress("Electron_sip3d", Electron_sip3d.data());
     SafeSetBranchAddress("Electron_genPartFlav", Electron_genPartFlav.data());

@@ -66,33 +66,47 @@ def main():
     os.makedirs(os.path.join(os.environ['SKNANO_DATA'], args.era, 'Sample', 'ForSNU'), exist_ok=True)
     for alias, sampleInfo in sampleInfos.items():
         print(f"Processing {alias}...")
-        # Check if the sample is MC or data
         isMC = sampleInfo["isMC"]
         if isMC:
             basePath = os.path.join(BASEPATH, args.era, sampleInfo["PD"])
             fileJsonPath = os.path.join(os.environ['SKNANO_DATA'], args.era, 'Sample', 'ForSNU', alias+'.json')
-            jsonData = {
-                "name": alias,
-                "isMC": 1,
-                "PD": sampleInfo["PD"],
-                "xsec": sampleInfo["xsec"],
-                "sumsign": -1,
-                "sumW": -1,
-                "nmc": -1,
-                "path": parse_rootfiles_from(basePath)
-            }
+            
+            if os.path.exists(fileJsonPath):
+                with open(fileJsonPath, 'r') as f:
+                    jsonData = json.load(f)
+                jsonData["PD"] = sampleInfo["PD"]
+                jsonData["xsec"] = sampleInfo["xsec"]
+            else:
+                jsonData = {
+                    "name": alias,
+                    "isMC": 1,
+                    "PD": sampleInfo["PD"],
+                    "xsec": sampleInfo["xsec"],
+                    "sumsign": -1,
+                    "sumW": -1,
+                    "nmc": -1,
+                    "path": parse_rootfiles_from(basePath),
+                }
+            
             with open(fileJsonPath, 'w') as f:
                 json.dump(jsonData, f, indent=4)
         else:
             for period in sampleInfo["periods"]:
                 basePath = os.path.join(BASEPATH, args.era, f"{alias}/Run{YEAR}{period}")
                 fileJsonPath = os.path.join(os.environ['SKNANO_DATA'], args.era, 'Sample', 'ForSNU', alias+'_'+period+'.json')
-                jsonData = {
-                    "name": alias,
-                    "isMC": 0,
-                    "NEvents": [],  # Empty list for now, can be filled later
-                    "path": parse_rootfiles_from(basePath)
-                }
+                
+                if os.path.exists(fileJsonPath):
+                    with open(fileJsonPath, 'r') as f:
+                        jsonData = json.load(f)
+                    # path 건드리지 않음
+                else:
+                    jsonData = {
+                        "name": alias,
+                        "isMC": 0,
+                        "NEvents": [],
+                        "path": parse_rootfiles_from(basePath),
+                    }
+                
                 with open(fileJsonPath, 'w') as f:
                     json.dump(jsonData, f, indent=4)
 

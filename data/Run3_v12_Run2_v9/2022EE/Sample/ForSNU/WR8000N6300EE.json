@@ -1,0 +1,10 @@
+{
+    "name": "WR8000N6300EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR8000_N6300_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 8.486e-07,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": []
+}

@@ -129,11 +129,11 @@ def run_plot():
     parser.add_argument("--logy",         action="store_false", default=True,    help="Y축 로그 스케일 해제")
     parser.add_argument("--rmin",         type=float, default=0.5,               help="Ratio 패널 Y축 최소값")
     parser.add_argument("--rmax",         type=float, default=1.5,               help="Ratio 패널 Y축 최대값")
-    parser.add_argument("--signal-scale", type=float, default=1.0,              help="Signal(WR) 히스토그램에 곱할 스케일 팩터 (기본값: 10)")
+    parser.add_argument("--signal-scale", type=float, default=10.0,              help="Signal(WR) 히스토그램에 곱할 스케일 팩터 (기본값: 10)")
     args = parser.parse_args()
 
     HIST_NAME    = args.hist
-    IS_BLIND     = True
+    IS_BLIND     = "SR" in HIST_NAME.upper()
     REBIN_FACTOR = args.rebin
     Y_LOG        = args.logy
 
@@ -231,16 +231,24 @@ def run_plot():
 
     _KEEPER.extend([stack, h_total_mc, h_data])
 
-    # 시스테마틱 계산
-    print(">> Calculating Systematic Uncertainties (MC only)...")
-    n_bins     = h_total_mc.GetNbinsX()
-    sum_sq_up  = np.zeros(n_bins + 2)
-    sum_sq_dn  = np.zeros(n_bins + 2)
+    # 시스테마틱 계산 (전체 MC + 그룹별)
+    print(">> Calculating Systematic Uncertainties (MC only, total + per-group)...")
+    n_bins    = h_total_mc.GetNbinsX()
+    sum_sq_up = np.zeros(n_bins + 2)
+    sum_sq_dn = np.zeros(n_bins + 2)
 
     syst_per_bin = {syst: np.zeros(n_bins + 2) for syst in SYST_LIST}
 
+    # 그룹별 시스테마틱 저장소
+    sum_sq_up_group    = {g: np.zeros(n_bins + 2) for g in BACKGROUND_GROUPS}
+    sum_sq_dn_group    = {g: np.zeros(n_bins + 2) for g in BACKGROUND_GROUPS}
+    syst_per_bin_group = {syst: {g: np.zeros(n_bins + 2) for g in BACKGROUND_GROUPS} for syst in SYST_LIST}
+
     for syst in SYST_LIST:
         h_mc_up, h_mc_dn = None, None
+        h_group_up = {g: None for g in BACKGROUND_GROUPS}
+        h_group_dn = {g: None for g in BACKGROUND_GROUPS}
+
         for fname in all_files:
             fname_base = fname.replace(".root", "")
             # WR 시그널, EXCLUDE, DATA 제외
@@ -248,15 +256,30 @@ def run_plot():
                     or any(df in fname for df in DATA_FILES)
                     or fname_base.startswith("WR")):
                 continue
+
+            # 파일이 속하는 그룹 판별
+            matched_group = "Others"
+            for key, group in SAMPLE_MAP.items():
+                if key in fname: matched_group = group; break
+
             path = os.path.join(DEFAULT_DATA_PATH, fname)
             u = get_hist_from_file(path, f"{syst}_Up",   HIST_NAME, X_MAX, CUSTOM_BINS, REBIN_FACTOR)
             d = get_hist_from_file(path, f"{syst}_Down", HIST_NAME, X_MAX, CUSTOM_BINS, REBIN_FACTOR)
+
             if u:
                 if h_mc_up is None: h_mc_up = u.Clone("h_up"); h_mc_up.SetDirectory(0)
                 else: h_mc_up.Add(u)
+                if h_group_up[matched_group] is None:
+                    h_group_up[matched_group] = u.Clone(f"h_up_{matched_group}"); h_group_up[matched_group].SetDirectory(0)
+                else:
+                    h_group_up[matched_group].Add(u)
             if d:
                 if h_mc_dn is None: h_mc_dn = d.Clone("h_dn"); h_mc_dn.SetDirectory(0)
                 else: h_mc_dn.Add(d)
+                if h_group_dn[matched_group] is None:
+                    h_group_dn[matched_group] = d.Clone(f"h_dn_{matched_group}"); h_group_dn[matched_group].SetDirectory(0)
+                else:
+                    h_group_dn[matched_group].Add(d)
 
         if h_mc_up and h_mc_dn:
             for i in range(1, n_bins + 1):
@@ -267,6 +290,17 @@ def run_plot():
                 syst_per_bin[syst][i] = (max_diff / nom * 100) if nom > 0 else 0
                 sum_sq_up[i] += max(0, diff_up, diff_dn)**2
                 sum_sq_dn[i] += max(0, -diff_up, -diff_dn)**2
+
+                # 그룹별 시스테마틱
+                for g in BACKGROUND_GROUPS:
+                    if h_group_up[g] and h_group_dn[g] and group_hists[g]:
+                        g_nom    = group_hists[g].GetBinContent(i)
+                        g_dif_up = h_group_up[g].GetBinContent(i) - g_nom
+                        g_dif_dn = h_group_dn[g].GetBinContent(i) - g_nom
+                        g_max    = max(abs(g_dif_up), abs(g_dif_dn))
+                        syst_per_bin_group[syst][g][i] = (g_max / g_nom * 100) if g_nom > 0 else 0
+                        sum_sq_up_group[g][i] += max(0, g_dif_up, g_dif_dn)**2
+                        sum_sq_dn_group[g][i] += max(0, -g_dif_up, -g_dif_dn)**2
 
     # --- 에러 및 데이터 요약 목록 출력 ---
     print("\n>> Bin-by-bin Uncertainty & Data Summary")
@@ -313,6 +347,24 @@ def run_plot():
                         p_stat, p_syst_up, p_syst_dn, p_total_up, p_total_dn]
             for syst in SYST_LIST:
                 row_data.append(syst_per_bin[syst][i])
+            # 그룹별 시스테마틱 값 추가
+            for g in BACKGROUND_GROUPS:
+                g_nom      = group_hists[g].GetBinContent(i) if group_hists[g] else 0
+                g_stat     = group_hists[g].GetBinError(i)   if group_hists[g] else 0
+                g_syst_up  = math.sqrt(sum_sq_up_group[g][i])
+                g_syst_dn  = math.sqrt(sum_sq_dn_group[g][i])
+                g_err_up   = math.sqrt(g_stat**2 + sum_sq_up_group[g][i])
+                g_err_dn   = math.sqrt(g_stat**2 + sum_sq_dn_group[g][i])
+                row_data.append((g_stat    / g_nom * 100) if g_nom > 0 else 0.0)
+                row_data.append((g_syst_up / g_nom * 100) if g_nom > 0 else 0.0)
+                row_data.append((g_syst_dn / g_nom * 100) if g_nom > 0 else 0.0)
+                row_data.append((g_err_up  / g_nom * 100) if g_nom > 0 else 0.0)
+                row_data.append((g_err_dn  / g_nom * 100) if g_nom > 0 else 0.0)
+                for syst in SYST_LIST:
+                    row_data.append(syst_per_bin_group[syst][g][i])
+            # 시그널 샘플 빈 값 추가 (sorted 순서 고정)
+            for sig_name in sorted(signal_hists.keys()):
+                row_data.append(signal_hists[sig_name].GetBinContent(i))
             csv_rows.append(row_data)
     print("="*160 + "\n")
 
@@ -337,6 +389,14 @@ def run_plot():
         header = "Bin\tBinLow\tBinHigh\tMC_Total\tData\tDYJets\tTT\tNonprompt\tOthers\tStat_pct\tSystUp_pct\tSystDn_pct\tTotalUp_pct\tTotalDn_pct"
         for syst in SYST_LIST:
             header += f"\t{syst}_pct"
+        # 그룹별 시스테마틱 컬럼
+        for g in BACKGROUND_GROUPS:
+            header += f"\t{g}_Stat_pct\t{g}_SystUp_pct\t{g}_SystDn_pct\t{g}_TotalUp_pct\t{g}_TotalDn_pct"
+            for syst in SYST_LIST:
+                header += f"\t{g}_{syst}_pct"
+        # 시그널 샘플 컬럼 (sorted 순서 고정)
+        for sig_name in sorted(signal_hists.keys()):
+            header += f"\t{sig_name}"
         tsvf.write(header + "\n")
         for row in csv_rows:
             tsvf.write("\t".join(f"{v:.4f}" if isinstance(v, float) else str(v) for v in row) + "\n")

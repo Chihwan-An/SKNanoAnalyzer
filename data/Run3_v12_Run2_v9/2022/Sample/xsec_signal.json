@@ -1,0 +1,802 @@
+{
+    "WR2000N100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.1668,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N1100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N1100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.09102,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N1300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N1300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.06591,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N1500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N1500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.04033,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N1700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N1700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.01762,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N1900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N1900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.003042,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.1592,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.1477,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.1326,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR2000N900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR2000_N900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.1136,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.002389,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N1100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N1100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.00166,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N1300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N1300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.001546,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N1500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N1500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.00143,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N1700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N1700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.001307,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N1900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N1900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.001181,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N2100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N2100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.001048,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N2300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N2300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0009103,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N2500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N2500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0007731,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N2700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N2700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.000628,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N2900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N2900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0004911,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.002183,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N3100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N3100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0003566,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N3300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N3300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0002355,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N3500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N3500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0001309,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N3700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N3700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.464e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N3900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N3900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.207e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.002024,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.001894,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR4000N900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR4000_N900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.001779,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0001936,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N1100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N1100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 9.075e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N1300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N1300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 8.329e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N1500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N1500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 7.697e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N1700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N1700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 7.163e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N1900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N1900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 6.701e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N2100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N2100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 6.269e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N2300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N2300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.862e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N2500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N2500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.465e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N2700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N2700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.101e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N2900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N2900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.738e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0001553,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N3100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N3100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.354e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N3300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N3300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.983e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N3500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N3500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.598e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N3700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N3700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.222e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N3900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N3900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.833e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N4100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N4100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.452e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N4300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N4300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.074e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N4500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N4500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.704e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N4700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N4700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.351e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N4900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N4900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.025e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0001307,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N5100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N5100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 7.277e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N5300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N5300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.684e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N5500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N5500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.621e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N5700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N5700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.134e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N5900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N5900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.262e-07,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0001132,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR6000N900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR6000_N900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 0.0001006,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.23e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N1100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N1100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.163e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N1300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N1300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 9.758e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N1500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N1500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 8.367e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N1700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N1700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 7.355e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N1900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N1900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 6.541e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N2100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N2100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.934e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N2300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N2300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.443e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N2500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N2500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.036e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N2700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N2700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.689e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N2900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N2900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.391e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.043e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N3100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N3100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.125e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N3300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N3300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.874e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N3500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N3500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.649e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N3700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N3700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.433e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N3900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N3900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.22e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N4100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N4100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.016e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N4300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N4300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.806e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N4500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N4500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.604e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N4700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N4700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.398e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N4900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N4900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.189e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.282e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N5100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N5100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.987e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N5300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N5300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.788e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N5500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N5500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.59e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N5700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N5700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.395e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N5900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N5900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.206e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N6100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N6100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.023e-06,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N6300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N6300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 8.486e-07,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N6500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N6500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 6.853e-07,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N6700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N6700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 5.323e-07,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N6900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N6900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 3.957e-07,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.771e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N7100EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N7100_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 2.743e-07,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N7300EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N7300_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.747e-07,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N7500EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N7500_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 9.523e-08,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N7700EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N7700_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 4.186e-08,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N7900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N7900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.244e-08,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WR8000N900EE": {
+        "isMC": 1,
+        "PD": "WRtoNEltoElElJJ_MWR8000_N900_TuneCP5_13p6TeV_madgraph-pythia8",
+        "xsec": 1.414e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    }
+}

@@ -2,7 +2,7 @@
     "name": "DYMLL50to120HT40to70",
     "isMC": 1,
     "PD": "DYto2L-4Jets_MLL-50to120_HT-40to70_TuneCP5_13p6TeV_madgraphMLM-pythia8",
-    "xsec": 316.7,
+    "xsec": 480.2220383,
     "sumsign": 125345985.0,
     "sumW": 190454166551.1725,
     "nmc": 125345985.0,

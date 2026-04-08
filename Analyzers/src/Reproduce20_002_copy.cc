@@ -582,6 +582,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     float muon1_tight_charge = 1 ; 
     float muon2_tight_charge  = 1 ; 
 
+    float electron1_tight_charge = -1 ; 
+    float electron2_tight_charge = -1;
     
     float weight = 1.0;
     float norm_weight = 1.0;
@@ -809,7 +811,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             FillHist(this_syst + "/CutFlow", 3.0, weight, 20,-10,10.); // 2 tight leptons with pT cut
             this_trigger_pass = pass_trig_elec;
             tmp_isEE = true;
-            
+            electron1_tight_charge = Tight_electrons[0]->TightCharge();
+            electron2_tight_charge = Tight_electrons[1]->TightCharge();
             weight_function_map["E_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
 
             double eta1 = abs(Tight_electrons[0]->Eta());
@@ -861,7 +864,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             FillHist(this_syst + "/Cutflow_for_reseolved_SR", 3.0 , 1.0, 10, 0., 10.);
             this_trigger_pass = pass_trig_muon;
             tmp_isEM = true;
-            
+            electron1_tight_charge = Tight_electrons[0]->TightCharge();
             weight_function_map["E_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
 
             double eta1 = abs(Tight_electrons[0]->Eta());
@@ -1134,6 +1137,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                         Resolve_DYCREEpunum  = ev.nTrueInt();
                         Resolve_DYCREEpvgood = ev.nPVsGood();
                         Resolve_DYCREEpv = ev.nPV();
+                        FillHist(this_syst + "/Resolve_DY_CR_EE_electron1_tight_charge", electron1_tight_charge, 1.0, 5, 0., 5.);
+                        FillHist(this_syst + "/Resolve_DY_CR_EE_electron2_tight_charge", electron2_tight_charge, 1.0, 5, 0., 5.);
                         //cout << Resolve_DYCREEjetnum << "number of jet in DY CR EE" << endl;
                     }
                     else if (tmp_isMM) {
@@ -1301,6 +1306,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     Resolve_FlavCRpunum  = ev.nTrueInt();
                     Resolve_FlavCRpvgood = ev.nPVsGood();
                     Resolve_FlavCRpv = ev.nPV();
+                    FillHist(this_syst + "/Resolve_Flav_CR_electron1_tight_charge", electron1_tight_charge, 1.0, 5, 0., 5.);
                     }
                 }
                 // low mass CR 
@@ -1369,6 +1375,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                             else {
                                 is_Resolved_SR_EE_OS = true;
                             }
+                            FillHist(this_syst + "/Resolve_SR_EE_electron1_tight_charge", electron1_tight_charge, 1.0, 5, 0., 5.);
+                            FillHist(this_syst + "/Resolve_SR_EE_electron2_tight_charge", electron2_tight_charge, 1.0, 5, 0., 5.);
                         }
                         if (tmp_isMM){
                             FillHist(this_syst + "/Cutflow_for_reseolved_SR", 9.0 , 1.0, 10, 0., 10.);
@@ -1476,6 +1484,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Cutflow_for_e_mujet", 4.0 , 1.0,20, 0., 20.);
                 FillHist(this_syst + "/Cutflow_for_Boosted_SR", 4.0 , 1.0, 13, 0., 13.);
                 is_tmp_lead_el = true;
+                electron1_tight_charge = Tight_electrons[0]->TightCharge();
                 this_trigger_pass_boost = pass_trig_elec;
                 weight_function_map["E_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
 
@@ -1739,6 +1748,9 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                         else{
                                             FillHist(this_syst + "/Boosted_DY_CR_EE_looselepton_outsidefatjet_Fatjet_SDMass", HNFatJet.SDMass() , weight, 10000, 0., 10000.);
                                         }
+                                        electron2_tight_charge = ((Electron*)LowMllLooseLepton)->TightCharge();
+                                        FillHist(this_syst + "/Boosted_DY_CR_EE_electron1_tight_charge", electron1_tight_charge , 1.0, 5, 0., 5.);
+                                        FillHist(this_syst + "/Boosted_DY_CR_EE_electron2_tight_charge", electron2_tight_charge , 1.0, 5, 0., 5.);
                                     }
                                     if (is_tmp_lead_mu){// mumu
                                         muon1_tight_charge = Tight_muons[0]->TightCharge() ;
@@ -2088,6 +2100,9 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                         is_Boosted_SR_EE_OS = true;
                                                         
                                                     }
+                                                    electron2_tight_charge = ((Electron*)SFLooseLepton)->TightCharge();
+                                                    FillHist(this_syst + "/Boosted_SR_EE_electron1_tight_charge", electron1_tight_charge , 1.0, 5, 0., 5.);
+                                                    FillHist(this_syst + "/Boosted_SR_EE_electron2_tight_charge", electron2_tight_charge , 1.0, 5, 0., 5.);
                                                 }
                                                 if (is_tmp_lead_mu) {
                                                     
@@ -2368,6 +2383,9 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     }
                                                 }
                                             }
+                                            FillHist(this_syst + "/Boosted_Flav_EMJ_electron1_tight_charge", electron1_tight_charge , 1.0, 5, 0., 5.);
+                                            
+                                            
                                             
 
                                         }
@@ -2440,7 +2458,9 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
                                                 cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
-                                            
+                                            electron2_tight_charge = ((Electron*)OFLooseLepton)->TightCharge();
+                                            FillHist(this_syst + "/Boosted_Flav_EMJ_electron1_tight_charge", electron1_tight_charge , 1.0, 5, 0., 5.);
+                                            FillHist(this_syst + "/Boosted_Flav_EMJ_electron2_tight_charge", electron2_tight_charge , 1.0, 5, 0., 5.);
                                         
 
                                         }

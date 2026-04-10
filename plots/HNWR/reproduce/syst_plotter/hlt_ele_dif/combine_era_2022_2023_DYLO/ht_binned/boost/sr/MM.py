@@ -247,6 +247,22 @@ def run_plot():
     sum_sq_dn_group    = {g: np.zeros(n_bins + 2) for g in BACKGROUND_GROUPS}
     syst_per_bin_group = {syst: {g: np.zeros(n_bins + 2) for g in BACKGROUND_GROUPS} for syst in SYST_LIST}
 
+    # 통합 시스테마틱 저장소 (전체 적분값 기준)
+    sum_sq_up_int = 0.0
+    sum_sq_dn_int = 0.0
+    syst_per_int  = {syst: 0.0 for syst in SYST_LIST}
+    sum_sq_up_group_int = {g: 0.0 for g in BACKGROUND_GROUPS}
+    sum_sq_dn_group_int = {g: 0.0 for g in BACKGROUND_GROUPS}
+    syst_per_int_group  = {syst: {g: 0.0 for g in BACKGROUND_GROUPS} for syst in SYST_LIST}
+
+    # 시그널 시스테마틱 저장소
+    sum_sq_up_sig     = {sig: np.zeros(n_bins + 2) for sig in signal_hists}
+    sum_sq_dn_sig     = {sig: np.zeros(n_bins + 2) for sig in signal_hists}
+    syst_per_bin_sig  = {syst: {sig: np.zeros(n_bins + 2) for sig in signal_hists} for syst in SYST_LIST}
+    sum_sq_up_sig_int = {sig: 0.0 for sig in signal_hists}
+    sum_sq_dn_sig_int = {sig: 0.0 for sig in signal_hists}
+    syst_per_int_sig  = {syst: {sig: 0.0 for sig in signal_hists} for syst in SYST_LIST}
+
     for syst in SYST_LIST:
         h_mc_up, h_mc_dn = None, None
         h_group_up = {g: None for g in BACKGROUND_GROUPS}
@@ -284,6 +300,22 @@ def run_plot():
                 else:
                     h_group_dn[matched_group].Add(d)
 
+        # 시그널 up/dn 로드
+        h_sig_up_d, h_sig_dn_d = {}, {}
+        for fname in all_files:
+            fname_base = fname.replace(".root", "")
+            if not fname_base.startswith("WR"):
+                continue
+            if SCRIPT_CHANNEL and not fname_base.endswith(SCRIPT_CHANNEL):
+                continue
+            if fname_base not in signal_hists:
+                continue
+            path = os.path.join(DEFAULT_DATA_PATH, fname)
+            u = get_hist_from_file(path, f"{syst}_Up",   HIST_NAME, X_MAX, CUSTOM_BINS, REBIN_FACTOR)
+            d = get_hist_from_file(path, f"{syst}_Down", HIST_NAME, X_MAX, CUSTOM_BINS, REBIN_FACTOR)
+            if u: h_sig_up_d[fname_base] = u
+            if d: h_sig_dn_d[fname_base] = d
+
         if h_mc_up and h_mc_dn:
             for i in range(1, n_bins + 1):
                 nom      = h_total_mc.GetBinContent(i)
@@ -304,6 +336,41 @@ def run_plot():
                         syst_per_bin_group[syst][g][i] = (g_max / g_nom * 100) if g_nom > 0 else 0
                         sum_sq_up_group[g][i] += max(0, g_dif_up, g_dif_dn)**2
                         sum_sq_dn_group[g][i] += max(0, -g_dif_up, -g_dif_dn)**2
+
+            # 통합값 기준 syst 계산
+            nom_int    = h_total_mc.Integral()
+            dif_up_int = h_mc_up.Integral() - nom_int
+            dif_dn_int = h_mc_dn.Integral() - nom_int
+            syst_per_int[syst] = (max(abs(dif_up_int), abs(dif_dn_int)) / nom_int * 100) if nom_int > 0 else 0.0
+            sum_sq_up_int += max(0, dif_up_int, dif_dn_int)**2
+            sum_sq_dn_int += max(0, -dif_up_int, -dif_dn_int)**2
+
+            for g in BACKGROUND_GROUPS:
+                if h_group_up[g] and h_group_dn[g] and group_hists[g]:
+                    g_int     = group_hists[g].Integral()
+                    g_dif_up_int = h_group_up[g].Integral() - g_int
+                    g_dif_dn_int = h_group_dn[g].Integral() - g_int
+                    syst_per_int_group[syst][g] = (max(abs(g_dif_up_int), abs(g_dif_dn_int)) / g_int * 100) if g_int > 0 else 0.0
+                    sum_sq_up_group_int[g] += max(0, g_dif_up_int, g_dif_dn_int)**2
+                    sum_sq_dn_group_int[g] += max(0, -g_dif_up_int, -g_dif_dn_int)**2
+
+        # 시그널 시스테마틱 계산
+        for sig in signal_hists:
+            if sig in h_sig_up_d and sig in h_sig_dn_d:
+                h_su, h_sd = h_sig_up_d[sig], h_sig_dn_d[sig]
+                for i in range(1, n_bins + 1):
+                    s_nom    = signal_hists[sig].GetBinContent(i)
+                    s_dif_up = h_su.GetBinContent(i) - s_nom
+                    s_dif_dn = h_sd.GetBinContent(i) - s_nom
+                    syst_per_bin_sig[syst][sig][i] = (max(abs(s_dif_up), abs(s_dif_dn)) / s_nom * 100) if s_nom > 0 else 0.0
+                    sum_sq_up_sig[sig][i] += max(0, s_dif_up, s_dif_dn)**2
+                    sum_sq_dn_sig[sig][i] += max(0, -s_dif_up, -s_dif_dn)**2
+                s_int        = signal_hists[sig].Integral()
+                s_dif_up_int = h_su.Integral() - s_int
+                s_dif_dn_int = h_sd.Integral() - s_int
+                syst_per_int_sig[syst][sig] = (max(abs(s_dif_up_int), abs(s_dif_dn_int)) / s_int * 100) if s_int > 0 else 0.0
+                sum_sq_up_sig_int[sig] += max(0, s_dif_up_int, s_dif_dn_int)**2
+                sum_sq_dn_sig_int[sig] += max(0, -s_dif_up_int, -s_dif_dn_int)**2
 
     # --- 에러 및 데이터 요약 목록 출력 ---
     print("\n>> Bin-by-bin Uncertainty & Data Summary")
@@ -367,7 +434,27 @@ def run_plot():
                     row_data.append(syst_per_bin_group[syst][g][i])
             # 시그널 샘플 빈 값 추가 (sorted 순서 고정)
             for sig_name in sorted(signal_hists.keys()):
-                row_data.append(signal_hists[sig_name].GetBinContent(i))
+                s_nom    = signal_hists[sig_name].GetBinContent(i)
+                s_stat   = signal_hists[sig_name].GetBinError(i)
+                s_su_sq  = sum_sq_up_sig[sig_name][i]
+                s_sd_sq  = sum_sq_dn_sig[sig_name][i]
+                s_syst_up = math.sqrt(s_su_sq)
+                s_syst_dn = math.sqrt(s_sd_sq)
+                s_err_up  = math.sqrt(s_stat**2 + s_su_sq)
+                s_err_dn  = math.sqrt(s_stat**2 + s_sd_sq)
+                row_data.append(s_nom)
+                if s_nom > 0:
+                    row_data += [
+                        s_stat    / s_nom * 100,
+                        s_syst_up / s_nom * 100,
+                        s_syst_dn / s_nom * 100,
+                        s_err_up  / s_nom * 100,
+                        s_err_dn  / s_nom * 100,
+                    ]
+                    for syst in SYST_LIST:
+                        row_data.append(syst_per_bin_sig[syst][sig_name][i])
+                else:
+                    row_data += [0.0] * (5 + len(SYST_LIST))
             csv_rows.append(row_data)
     print("="*160 + "\n")
 
@@ -387,23 +474,105 @@ def run_plot():
         print(f"  {rank:>2}. {s:<15}: {avg:8.2f}%")
     print("="*60 + "\n")
 
+    # --- TSV 헤더 구성 ---
+    header = "Bin\tBinLow\tBinHigh\tMC_Total\tData\tDYJets\tTT\tNonprompt\tOthers\tStat_pct\tSystUp_pct\tSystDn_pct\tTotalUp_pct\tTotalDn_pct"
+    for syst in SYST_LIST:
+        header += f"\t{syst}_pct"
+    for g in BACKGROUND_GROUPS:
+        header += f"\t{g}_Stat_pct\t{g}_SystUp_pct\t{g}_SystDn_pct\t{g}_TotalUp_pct\t{g}_TotalDn_pct"
+        for syst in SYST_LIST:
+            header += f"\t{g}_{syst}_pct"
+    for sig_name in sorted(signal_hists.keys()):
+        header += f"\t{sig_name}\t{sig_name}_Stat_pct\t{sig_name}_SystUp_pct\t{sig_name}_SystDn_pct\t{sig_name}_TotalUp_pct\t{sig_name}_TotalDn_pct"
+        for syst in SYST_LIST:
+            header += f"\t{sig_name}_{syst}_pct"
+
     tsv_file = f"{PLOT_OUT_NAME}.tsv"
     with open(tsv_file, "w") as tsvf:
-        header = "Bin\tBinLow\tBinHigh\tMC_Total\tData\tDYJets\tTT\tNonprompt\tOthers\tStat_pct\tSystUp_pct\tSystDn_pct\tTotalUp_pct\tTotalDn_pct"
-        for syst in SYST_LIST:
-            header += f"\t{syst}_pct"
-        # 그룹별 시스테마틱 컬럼
-        for g in BACKGROUND_GROUPS:
-            header += f"\t{g}_Stat_pct\t{g}_SystUp_pct\t{g}_SystDn_pct\t{g}_TotalUp_pct\t{g}_TotalDn_pct"
-            for syst in SYST_LIST:
-                header += f"\t{g}_{syst}_pct"
-        # 시그널 샘플 컬럼 (sorted 순서 고정)
-        for sig_name in sorted(signal_hists.keys()):
-            header += f"\t{sig_name}"
         tsvf.write(header + "\n")
         for row in csv_rows:
             tsvf.write("\t".join(f"{v:.4f}" if isinstance(v, float) else str(v) for v in row) + "\n")
     print(f">> TSV saved as {tsv_file}")
+
+    # --- 통합 TSV (전체 적분값 기준, 단일 행) ---
+    total_mc   = h_total_mc.Integral()
+    total_data = h_data.Integral() if h_data else 0.0
+    total_stat_err = ctypes.c_double(0.0)
+    h_total_mc.IntegralAndError(1, n_bins, total_stat_err)
+    total_stat    = total_stat_err.value
+    total_syst_up = math.sqrt(sum_sq_up_int)
+    total_syst_dn = math.sqrt(sum_sq_dn_int)
+    total_err_up  = math.sqrt(total_stat**2 + sum_sq_up_int)
+    total_err_dn  = math.sqrt(total_stat**2 + sum_sq_dn_int)
+
+    int_row = ["Total", h_total_mc.GetBinLowEdge(1), h_total_mc.GetBinLowEdge(n_bins + 1), total_mc, total_data]
+    for g in ["DYJets", "TT", "Nonprompt", "Others"]:
+        int_row.append(group_hists[g].Integral() if group_hists[g] else 0.0)
+
+    if total_mc > 0:
+        int_row += [
+            total_stat    / total_mc * 100,
+            total_syst_up / total_mc * 100,
+            total_syst_dn / total_mc * 100,
+            total_err_up  / total_mc * 100,
+            total_err_dn  / total_mc * 100,
+        ]
+        for syst in SYST_LIST:
+            int_row.append(syst_per_int[syst])
+    else:
+        int_row += [0.0] * (5 + len(SYST_LIST))
+
+    for g in BACKGROUND_GROUPS:
+        g_nom_total = group_hists[g].Integral() if group_hists[g] else 0.0
+        g_stat_err  = ctypes.c_double(0.0)
+        if group_hists[g]:
+            group_hists[g].IntegralAndError(1, n_bins, g_stat_err)
+        g_stat    = g_stat_err.value
+        g_syst_up = math.sqrt(sum_sq_up_group_int[g])
+        g_syst_dn = math.sqrt(sum_sq_dn_group_int[g])
+        g_err_up  = math.sqrt(g_stat**2 + sum_sq_up_group_int[g])
+        g_err_dn  = math.sqrt(g_stat**2 + sum_sq_dn_group_int[g])
+        if g_nom_total > 0:
+            int_row += [
+                g_stat    / g_nom_total * 100,
+                g_syst_up / g_nom_total * 100,
+                g_syst_dn / g_nom_total * 100,
+                g_err_up  / g_nom_total * 100,
+                g_err_dn  / g_nom_total * 100,
+            ]
+            for syst in SYST_LIST:
+                int_row.append(syst_per_int_group[syst][g])
+        else:
+            int_row += [0.0] * (5 + len(SYST_LIST))
+
+    for sig_name in sorted(signal_hists.keys()):
+        s_nom_int = signal_hists[sig_name].Integral()
+        s_stat_err_int = ctypes.c_double(0.0)
+        signal_hists[sig_name].IntegralAndError(1, n_bins, s_stat_err_int)
+        s_stat_int    = s_stat_err_int.value
+        s_syst_up_int = math.sqrt(sum_sq_up_sig_int[sig_name])
+        s_syst_dn_int = math.sqrt(sum_sq_dn_sig_int[sig_name])
+        s_err_up_int  = math.sqrt(s_stat_int**2 + sum_sq_up_sig_int[sig_name])
+        s_err_dn_int  = math.sqrt(s_stat_int**2 + sum_sq_dn_sig_int[sig_name])
+        int_row.append(s_nom_int)
+        if s_nom_int > 0:
+            int_row += [
+                s_stat_int    / s_nom_int * 100,
+                s_syst_up_int / s_nom_int * 100,
+                s_syst_dn_int / s_nom_int * 100,
+                s_err_up_int  / s_nom_int * 100,
+                s_err_dn_int  / s_nom_int * 100,
+            ]
+            for syst in SYST_LIST:
+                int_row.append(syst_per_int_sig[syst][sig_name])
+        else:
+            int_row += [0.0] * (5 + len(SYST_LIST))
+
+    integrated_tsv_file = f"{PLOT_OUT_NAME}_integrated.tsv"
+    with open(integrated_tsv_file, "w") as f:
+        f.write(header + "\n")
+        f.write("\t".join(f"{v:.4f}" if isinstance(v, float) else str(v) for v in int_row) + "\n")
+    print(f">> Integrated TSV saved as {integrated_tsv_file}")
 
     # --- 그리기 ---
     c  = ROOT.TCanvas("c", "c", 800, 900)

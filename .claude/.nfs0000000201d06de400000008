@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source setup.sh)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(grep:*)",
+      "Bash(zcat:*)",
+      "Bash(gunzip:*)",
+      "Bash(__NEW_LINE_88953fd43ec2cea9__ echo \"\")",
+      "Bash(__NEW_LINE_b878e441827e212b__ echo \"\")",
+      "Bash(find /data6/Users/achihwan/SKNanoAnalyzer-v13/docs -name *.yaml)",
+      "Bash(find /data6/Users/achihwan/SKNanoAnalyzer-v13/SKNanoLoader -name *.cc)",
+      "Bash(find /data6/Users/achihwan/SKNanoAnalyzer-v13/install -name SKNanoLoader*)",
+      "Bash(find /data6/Users/achihwan/SKNanoAnalyzer-v13 -path */src/SKNanoLoader*)",
+      "Bash(find /data6/Users/achihwan/SKNanoAnalyzer-v13/install -name *.cc)",
+      "Bash(find /data6/Users/achihwan/SKNanoAnalyzer-v13 -name *.h -exec grep -l Muon_isTracker {})",
+      "Bash(2)"
+    ]
+  }
+}

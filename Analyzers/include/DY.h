@@ -28,6 +28,7 @@ public:
     // Physics objects
     RVec<Muon> AllMuons;
     RVec<Jet> AllJets;
+    RVec<FatJet> AllFatJets;
     
     RVec<Muon> selectedMuons;
     float dilepton_mass;

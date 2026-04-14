@@ -45,6 +45,9 @@ Electron::Electron() {
     // others
     j_r9 = -999.;
     j_rho = -999.;
+    j_vidNestedWPBitmap = 0;
+    j_vidNestedWPBitmapHEEP = 0;
+    j_scEtOverPt = -999.;
     j_genPartFlav = 0;
     j_genPartIdx = -1;
     j_jetIdx = -1;

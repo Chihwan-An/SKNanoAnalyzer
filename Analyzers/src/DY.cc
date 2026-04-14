@@ -52,6 +52,7 @@ void DY::executeEvent() {
     
     AllMuons = GetAllMuons();
     AllJets = GetAllJets();
+    AllFatJets = GetAllFatJets();
     
     for (const auto &syst_dummy : *systHelper) {
         executeEventFromParameter();
@@ -67,7 +68,13 @@ void DY::executeEventFromParameter() {
     
     RVec<Muon> muons = AllMuons;
     RVec<Jet> jets = AllJets;
-    
+    RVec<FatJet> fatjets = AllFatJets;
+    if (fatjets.size() > 0) {
+        if (fatjets[0].Pt() > 0.){
+            cout<<"fatjet size: "<<fatjets.size()<<endl;
+            cout<<"fatjet pt: "<<fatjets[0].Pt()<<endl;
+        }
+    }
     if (!ev.PassTrigger(IsoMuTriggerName)) return;
 
     RVec<Muon> selectedMuons;

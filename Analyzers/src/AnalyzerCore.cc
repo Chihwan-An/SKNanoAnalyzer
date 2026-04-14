@@ -831,6 +831,9 @@ ElectronViewCollection AnalyzerCore::GetAllElectronViews() {
   storage->jetIdx.bind(&Electron_jetIdx);
   storage->scEta.bind(&Electron_superclusterEta);
   storage->deltaEtaSC.bind(&Electron_deltaEtaSC);
+  storage->vidNestedWPBitmap.bind(&Electron_vidNestedWPBitmap);
+  storage->vidNestedWPBitmapHEEP.bind(&Electron_vidNestedWPBitmapHEEP);
+  storage->scEtOverPt.bind(&Electron_scEtOverPt);
 
   const std::size_t n = storage->size();
   storage->rho.assign(n, Rho_fixedGridRhoFastjetAll);
@@ -946,6 +949,9 @@ RVec<Electron> AnalyzerCore::MaterializeElectrons(
     electron.SetDeltaPhiInSeed(view.deltaPhiInSeed());
     electron.SetPFClusterIso(view.ecalPFClusterIso(), view.hcalPFClusterIso());
     electron.SetRho(view.Rho());
+    electron.SetVidNestedWPBitmap(view.VidNestedWPBitmap());
+    electron.SetVidNestedWPBitmapHEEP(view.VidNestedWPBitmapHEEP());
+    electron.SetScEtOverPt(view.scEtOverPt());
     electron.AttachLazyPayload(ctx, &AnalyzerCore::ElectronEnsureThunk,
                                static_cast<int>(sourceIndex));
     materialised.emplace_back(std::move(electron));
@@ -978,6 +984,9 @@ RVec<Electron> AnalyzerCore::MaterializeElectrons(
     electron.SetDeltaPhiInSeed(view.deltaPhiInSeed());
     electron.SetPFClusterIso(view.ecalPFClusterIso(), view.hcalPFClusterIso());
     electron.SetRho(view.Rho());
+    electron.SetVidNestedWPBitmap(view.VidNestedWPBitmap());
+    electron.SetVidNestedWPBitmapHEEP(view.VidNestedWPBitmapHEEP());
+    electron.SetScEtOverPt(view.scEtOverPt());
     electron.AttachLazyPayload(ctx, &AnalyzerCore::ElectronEnsureThunk,
                                static_cast<int>(sourceIndex));
     materialised.emplace_back(std::move(electron));
@@ -1230,7 +1239,110 @@ std::shared_ptr<JetSoA> AnalyzerCore::CreateJetSoA() const {
   return storage;
 }
 
+std::shared_ptr<FatJetSoA> AnalyzerCore::CreateFatJetSoA() const {
+  auto storage = std::make_shared<FatJetSoA>();
+  storage->pt.bind(&FatJet_pt);
+  storage->eta.bind(&FatJet_eta);
+  storage->phi.bind(&FatJet_phi);
+  storage->mass.bind(&FatJet_mass);
+  storage->rawFactor.bind(&FatJet_rawFactor);
+  storage->area.bind(&FatJet_area);
+  storage->chHEF.bind(&FatJet_chHEF);
+  storage->neHEF.bind(&FatJet_neHEF);
+  storage->neEmEF.bind(&FatJet_neEmEF);
+  storage->chEmEF.bind(&FatJet_chEmEF);
+  storage->muEF.bind(&FatJet_muEF);
+  storage->hadronFlavour.bind(&FatJet_hadronFlavour);
+  storage->chMultiplicity.bind(&FatJet_chMultiplicity);
+  storage->neMultiplicity.bind(&FatJet_neMultiplicity);
+  storage->nConstituents.bind(&FatJet_nConstituents);
+  storage->electronIdx3SJ.bind(&FatJet_electronIdx3SJ);
+  storage->muonIdx3SJ.bind(&FatJet_muonIdx3SJ);
+  storage->subJetIdx1.bind(&FatJet_subJetIdx1);
+  storage->subJetIdx2.bind(&FatJet_subJetIdx2);
+  storage->genJetAK8Idx.bind(&FatJet_genJetAK8Idx);
+  storage->hfEmEF.bind(&FatJet_hfEmEF);
+  storage->hfHEF.bind(&FatJet_hfHEF);
+  storage->lsf3.bind(&FatJet_lsf3);
+  storage->msoftdrop.bind(&FatJet_msoftdrop);
+  storage->n2b1.bind(&FatJet_n2b1);
+  storage->n3b1.bind(&FatJet_n3b1);
+  storage->tau1.bind(&FatJet_tau1);
+  storage->tau2.bind(&FatJet_tau2);
+  storage->tau3.bind(&FatJet_tau3);
+  storage->tau4.bind(&FatJet_tau4);
+  storage->massCorrGeneric.bind(&FatJet_globalParT3_massCorrGeneric);
+  storage->massCorrX2p.bind(&FatJet_globalParT3_massCorrX2p);
+  storage->massCorr.bind(&FatJet_particleNet_massCorr);
+  storage->globalParT3_massCorrGeneric.bind(&FatJet_globalParT3_massCorrGeneric);
+  storage->globalParT3_massCorrX2p.bind(&FatJet_globalParT3_massCorrX2p);
+  storage->globalParT3_withMassTopvsQCD.bind(&FatJet_globalParT3_withMassTopvsQCD);
+  storage->globalParT3_withMassWvsQCD.bind(&FatJet_globalParT3_withMassWvsQCD);
+  storage->globalParT3_withMassZvsQCD.bind(&FatJet_globalParT3_withMassZvsQCD);
+  storage->globalParT3_QCD.bind(&FatJet_globalParT3_QCD);
+  storage->globalParT3_TopbWev.bind(&FatJet_globalParT3_TopbWev);
+  storage->globalParT3_TopbWmv.bind(&FatJet_globalParT3_TopbWmv);
+  storage->globalParT3_TopbWq.bind(&FatJet_globalParT3_TopbWq);
+  storage->globalParT3_TopbWqq.bind(&FatJet_globalParT3_TopbWqq);
+  storage->globalParT3_TopbWtauhv.bind(&FatJet_globalParT3_TopbWtauhv);
+  storage->globalParT3_WvsQCD.bind(&FatJet_globalParT3_WvsQCD);
+  storage->globalParT3_XWW3q.bind(&FatJet_globalParT3_XWW3q);
+  storage->globalParT3_XWW4q.bind(&FatJet_globalParT3_XWW4q);
+  storage->globalParT3_XWWqqev.bind(&FatJet_globalParT3_XWWqqev);
+  storage->globalParT3_XWWqqmv.bind(&FatJet_globalParT3_XWWqqmv);
+  storage->globalParT3_Xbb.bind(&FatJet_globalParT3_Xbb);
+  storage->globalParT3_Xcc.bind(&FatJet_globalParT3_Xcc);
+  storage->globalParT3_Xcs.bind(&FatJet_globalParT3_Xcs);
+  storage->globalParT3_Xqq.bind(&FatJet_globalParT3_Xqq);
+  storage->globalParT3_Xtauhtaue.bind(&FatJet_globalParT3_Xtauhtaue);
+  storage->globalParT3_Xtauhtauh.bind(&FatJet_globalParT3_Xtauhtauh);
+  storage->globalParT3_Xtauhtaum.bind(&FatJet_globalParT3_Xtauhtaum);
+  storage->particleNetLegacy_QCD.bind(&FatJet_particleNetLegacy_QCD);
+  storage->particleNetLegacy_Xbb.bind(&FatJet_particleNetLegacy_Xbb);
+  storage->particleNetLegacy_Xcc.bind(&FatJet_particleNetLegacy_Xcc);
+  storage->particleNetLegacy_Xqq.bind(&FatJet_particleNetLegacy_Xqq);
+  storage->particleNetLegacy_mass.bind(&FatJet_particleNetLegacy_mass);
+  storage->particleNetWithMass_H4qvsQCD.bind(&FatJet_particleNetWithMass_H4qvsQCD);
+  storage->particleNetWithMass_HbbvsQCD.bind(&FatJet_particleNetWithMass_HbbvsQCD);
+  storage->particleNetWithMass_HccvsQCD.bind(&FatJet_particleNetWithMass_HccvsQCD);
+  storage->particleNetWithMass_QCD.bind(&FatJet_particleNetWithMass_QCD);
+  storage->particleNetWithMass_TvsQCD.bind(&FatJet_particleNetWithMass_TvsQCD);
+  storage->particleNetWithMass_WvsQCD.bind(&FatJet_particleNetWithMass_WvsQCD);
+  storage->particleNetWithMass_ZvsQCD.bind(&FatJet_particleNetWithMass_ZvsQCD);
+  storage->particleNet_QCD.bind(&FatJet_particleNet_QCD);
+  storage->particleNet_QCD0HF.bind(&FatJet_particleNet_QCD0HF);
+  storage->particleNet_QCD1HF.bind(&FatJet_particleNet_QCD1HF);
+  storage->particleNet_QCD2HF.bind(&FatJet_particleNet_QCD2HF);
+  storage->particleNet_WVsQCD.bind(&FatJet_particleNet_WVsQCD);
+  storage->particleNet_XbbVsQCD.bind(&FatJet_particleNet_XbbVsQCD);
+  storage->particleNet_XccVsQCD.bind(&FatJet_particleNet_XccVsQCD);
+  storage->particleNet_XggVsQCD.bind(&FatJet_particleNet_XggVsQCD);
+  storage->particleNet_XqqVsQCD.bind(&FatJet_particleNet_XqqVsQCD);
+  storage->particleNet_XteVsQCD.bind(&FatJet_particleNet_XteVsQCD);
+  storage->particleNet_XtmVsQCD.bind(&FatJet_particleNet_XtmVsQCD);
+  storage->particleNet_XttVsQCD.bind(&FatJet_particleNet_XttVsQCD);
+  storage->particleNet_massCorr.bind(&FatJet_particleNet_massCorr);
+  return storage;
+}
+
 void AnalyzerCore::InitialiseJetSystematics(JetSoA &storage) const {
+  const std::size_t n = storage.size();
+  storage.jecFactor.assign(n, 1.f);
+  storage.correctedPt.assign(n, 0.f);
+  storage.correctedMass.assign(n, 0.f);
+  storage.smearedPtNominal.assign(n, 0.f);
+  storage.smearedPtUp.assign(n, 0.f);
+  storage.smearedPtDown.assign(n, 0.f);
+  storage.smearedMassNominal.assign(n, 0.f);
+  storage.smearedMassUp.assign(n, 0.f);
+  storage.smearedMassDown.assign(n, 0.f);
+  storage.jesPtUp.assign(n, 0.f);
+  storage.jesPtDown.assign(n, 0.f);
+  storage.jesMassUp.assign(n, 0.f);
+  storage.jesMassDown.assign(n, 0.f);
+}
+
+void AnalyzerCore::InitialiseFatJetSystematics(FatJetSoA &storage) const {
   const std::size_t n = storage.size();
   storage.jecFactor.assign(n, 1.f);
   storage.correctedPt.assign(n, 0.f);
@@ -1265,6 +1377,27 @@ void AnalyzerCore::PopulateJetStorageWithoutCorrections(JetSoA &storage) const {
     storage.jesPtDown[i] = -999.f;
     storage.jesMassUp[i] = -999.f;
     storage.jesMassDown[i] = -999.f;
+  }
+}
+
+void AnalyzerCore::PopulateFatJetStorageWithoutCorrections(FatJetSoA &storage) const {
+  const std::size_t n = storage.size();
+  for (std::size_t i = 0; i < n; ++i) {
+    const float origPt = storage.pt[i];
+    const float origMass = storage.mass[i];
+    storage.jecFactor[i] = 1.f;
+    storage.correctedPt[i] = origPt;
+    storage.correctedMass[i] = origMass;
+    storage.smearedPtNominal[i] = origPt;
+    storage.smearedPtUp[i] = origPt;
+    storage.smearedPtDown[i] = origPt;
+    storage.smearedMassNominal[i] = origMass;
+    storage.smearedMassUp[i] = origMass;
+    storage.smearedMassDown[i] = origMass;
+    storage.jesPtUp[i] = origPt;
+    storage.jesPtDown[i] = origPt;
+    storage.jesMassUp[i] = origMass;
+    storage.jesMassDown[i] = origMass;
   }
 }
 
@@ -2650,6 +2783,8 @@ FatJet AnalyzerCore::MaterializeFatJet(const FatJetViewCollection &fatjets,
 
   fatjet.SetCorrection(corrs);
 
+  fatjet.SetSDM(fatjetView.Msoftdrop());
+  fatjet.SetLSF3(fatjetView.Lsf3());
 
   FatJet unsmeared;
   unsmeared.SetPtEtaPhiM(correctedPt, fatjetView.Eta(), fatjetView.Phi(),
@@ -2677,13 +2812,57 @@ FatJetViewCollection AnalyzerCore::GetAllFatJetViews() {
 
   const bool isMC = !IsDATA;
   const float rho = Rho_fixedGridRhoFastjetAll;
-  ApplyFatJetEnergyCorrections(*storage, rho);
+  //ApplyFatJetEnergyCorrections(*storage, rho);
+  PopulateFatJetStorageWithoutCorrections(*storage);
 
   FatJetViewCollection fatjetViews = FatJetViewCollection(std::move(storage));
-  SmearFatJetViews(fatjetViews, rho);
+  //SmearFatJetViews(fatjetViews, rho);
 
   return fatjetViews;
 }
+
+RVec<FatJet>
+AnalyzerCore::MaterializeFatJets(const FatJetViewCollection &jets,
+                              const MyCorrection::variation &jesVar,
+                              const MyCorrection::variation &jerVar) const {
+  RVec<FatJet> materialised;
+  if (jets.empty())
+    return materialised;
+
+  materialised.reserve(jets.size());
+  for (std::size_t idx = 0; idx < jets.size(); ++idx) {
+    const auto &view = jets[idx];
+    if (!view.valid())
+      continue;
+    materialised.emplace_back(MaterializeFatJet(jets, idx, jesVar, jerVar));
+  }
+  return materialised;
+}
+
+RVec<FatJet>
+AnalyzerCore::MaterializeFatJets(const FatJetViewCollection &jets,
+                              const std::vector<std::size_t> &indices,
+                              const MyCorrection::variation &jesVar,
+                              const MyCorrection::variation &jerVar) const {
+  RVec<FatJet> materialised;
+  if (indices.empty() || jets.empty())
+    return materialised;
+
+  materialised.reserve(indices.size());
+  const std::size_t n = jets.size();
+  for (const auto idx : indices) {
+    if (idx >= n)
+      throw runtime_error(
+          "[AnalyzerCore::MaterializeFatJets] Index out of range: " +
+          to_string(idx) + " >= " + to_string(n));
+    const auto &view = jets[idx];
+    if (!view.valid())
+      continue;
+    materialised.emplace_back(MaterializeFatJet(jets, idx, jesVar, jerVar));
+  }
+  return materialised;
+}
+
 
 RVec<FatJet> AnalyzerCore::GetAllFatJets(){
   FatJetViewCollection fatjetView = GetAllFatJetViews();

@@ -58,6 +58,9 @@ struct ElectronSoA {
     ColumnView<short> jetIdx;
     ColumnView<float> scEta;
     ColumnView<float> deltaEtaSC;
+    ColumnView<int> vidNestedWPBitmap;
+    ColumnView<int> vidNestedWPBitmapHEEP;
+    ColumnView<float> scEtOverPt;
 
     std::vector<float> rho;
     std::vector<float> dEsigmaUp;
@@ -122,6 +125,9 @@ public:
     short GenPartIdx() const { return store->genPartIdx[idx]; }
     short JetIdx() const { return store->jetIdx[idx]; }
     float ScEta() const { return store->scEta[idx]; }
+    int VidNestedWPBitmap() const { return store->vidNestedWPBitmap[idx]; }
+    int VidNestedWPBitmapHEEP() const { return store->vidNestedWPBitmapHEEP[idx]; }
+    float scEtOverPt() const { return store->scEtOverPt[idx]; }
     std::size_t rawIndex() const { return idx; }
     float deltaEtaInSC() const { return store->deltaEtaSC[idx]; }
     float deltaEtaInSeed() const { return idx < store->deltaEtaSeed.size() ? store->deltaEtaSeed[idx] : 0.f; }

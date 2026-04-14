@@ -327,16 +327,19 @@
         "lumi": 110110
     },
     "HLT_Mu50": {
-        "lumi": 110110
+        "lumi": 110110,
+        "active": true
     },
     "HLT_Mu55": {
         "lumi": 110110
     },
     "HLT_CascadeMu100": {
-        "lumi": 110110
+        "lumi": 110110,
+        "active": true
     },
     "HLT_HighPtTkMu100": {
-        "lumi": 110110
+        "lumi": 110110,
+        "active": true
     },
     "HLT_DiPFJetAve40": {
         "lumi": 110110
@@ -852,7 +855,8 @@
         "lumi": 110110
     },
     "HLT_Photon200": {
-        "lumi": 110110
+        "lumi": 110110,
+        "active": true
     },
     "HLT_Photon30EB_TightID_TightIso": {
         "lumi": 110110
@@ -1218,7 +1222,8 @@
         "lumi": 110110
     },
     "HLT_Ele115_CaloIdVT_GsfTrkIdT": {
-        "lumi": 110110
+        "lumi": 110110,
+        "active": true
     },
     "HLT_Ele135_CaloIdVT_GsfTrkIdT": {
         "lumi": 110110

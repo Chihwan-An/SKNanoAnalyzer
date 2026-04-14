@@ -68,6 +68,8 @@ FatJet::FatJet() : Particle() {
 
 FatJet::FatJet(std::shared_ptr<const FatJetSoA> storage, std::size_t index) : Particle() {
     initializeMembers();
+    storage_ = std::move(storage);
+    index_ = index;
     if (storage_) {
         const float pt = storage_->pt[index_];
         const float eta = storage_->eta[index_];

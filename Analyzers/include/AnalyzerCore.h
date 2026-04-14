@@ -150,7 +150,7 @@ public:
     FatJetViewCollection GetAllFatJetViews();
 
     void SmearJetViews(const JetViewCollection &jets, const float rho);
-    void SmearFatJetViews(const FatJetViewCollection &jets, const float rho);
+    //void SmearFatJetViews(const FatJetViewCollection &jets, const float rho);
     GenJetViewCollection GetAllGenJetViews();
     RVec<Muon> GetAllMuons();
     std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const std::vector<std::size_t> &seed_indices, const Muon::MuonID ID, const float ptmin, const float fetamax) const;
@@ -362,7 +362,7 @@ protected:
     std::shared_ptr<FatJetSoA> CreateFatJetSoA() const;
     void InitialiseFatJetSystematics(FatJetSoA &storage) const;
     void PopulateFatJetStorageWithoutCorrections(FatJetSoA &storage) const;
-    void ApplyFatJetEnergyCorrections(FatJetSoA &storage, float rho);
+    //void ApplyFatJetEnergyCorrections(FatJetSoA &storage, float rho);
     std::vector<int> MatchJetsToGenJets(const JetViewCollection& jets,
     const GenJetViewCollection& genjets,
     float rho) const;

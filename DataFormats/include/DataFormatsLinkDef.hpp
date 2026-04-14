@@ -18,6 +18,7 @@
 #pragma link C++ class Photon+;
 #pragma link C++ class Jet+;
 #pragma link C++ class FatJet+;
+#pragma link C++ class FatJetView+;
 #pragma link C++ class JetTaggingParameter+;
 #pragma link C++ class TrigObj+;
 #pragma link C++ class JetConstituent+;

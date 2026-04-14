@@ -9,6 +9,7 @@
 #pragma link C++ class AnalyzerCore+;
 #pragma link C++ class ExampleRun+;
 #pragma link C++ class ExampleViewRun+;
+#pragma link C++ class DY+;
 #pragma link C++ class GetEffLumi+;
 #pragma link C++ class GeneratorBase+;
 #pragma link C++ class TriggerInfo+;
@@ -16,7 +17,7 @@
 #pragma link C++ class Vcb_SL+;
 #pragma link C++ class Vcb_DL+;
 #pragma link C++ class Vcb_FH+;
-#pragma link C++ class DY+;
+#pragma link C++ class HNWR+;
 
 
 

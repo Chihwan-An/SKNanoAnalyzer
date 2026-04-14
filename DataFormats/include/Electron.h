@@ -143,6 +143,15 @@ public:
     void SetRho(float rho) { j_rho = rho; }
     inline float rho() const { return j_rho; }
 
+    void SetVidNestedWPBitmap(int bitmap) { j_vidNestedWPBitmap = bitmap; }
+    inline int VidNestedWPBitmap() const { return j_vidNestedWPBitmap; }
+
+    void SetVidNestedWPBitmapHEEP(int bitmap) { j_vidNestedWPBitmapHEEP = bitmap; }
+    inline int VidNestedWPBitmapHEEP() const { return j_vidNestedWPBitmapHEEP; }
+
+    void SetScEtOverPt(float scEtOverPt) { j_scEtOverPt = scEtOverPt; }
+    inline float scEtOverPt() const { return j_scEtOverPt; }
+
     void SetEnergyErr(float energyErr) { j_energyErr = energyErr; markLoaded(Property::EnergyErr); }
     inline float energyErr() const { ensure(Property::EnergyErr); return j_energyErr; }
 
@@ -233,6 +242,9 @@ private:
     // others
     float j_r9;
     float j_rho;
+    int j_vidNestedWPBitmap;
+    int j_vidNestedWPBitmapHEEP;
+    float j_scEtOverPt;
     short j_genPartIdx;
     unsigned char j_genPartFlav;
     short j_jetIdx;

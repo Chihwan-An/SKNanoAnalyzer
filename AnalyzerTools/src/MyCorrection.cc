@@ -212,9 +212,9 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
   if (era == "2024") {
     const string tag = "/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/";
     const string tag_temp = "/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/";
-    config.json_muon += tag + "muon_Z.json.gz";
-    config.json_muon_trig_eff += "/2024/MUO/muon_trig.json";
-    config.json_muon_trig_sf += tag + "muon_Z.json.gz";
+    config.json_muon += tag + "muon_HighPt.json.gz";
+    config.json_muon_trig_eff += "/2024/MUO/muon_HighPt.json";
+    config.json_muon_trig_sf += tag + "muon_HighPt.json.gz";
     config.json_puWeights += tag + "puWeights_BCDEFGHI.json.gz";
     config.json_btagging += tag + "btagging.json.gz";
     // config.json_ctagging += "/2023_Summer23BPix/ctagging.json.gz";
@@ -325,7 +325,7 @@ float MyCorrection::GetMuonRECOSF(const Muon &muon,
   auto cset = cset_muon->at("NUM_TrackerMuons_DEN_genTracks");
   return safeEvaluate(cset, "GetMuonRECOSF",
                       {muon.Eta(),
-                       (muon.MiniAODPt() < 40. ? 40. : muon.MiniAODPt()),
+                       (muon.MiniAODPt() < 50.f ? 50.f : muon.MiniAODPt()),
                        getSystString_MUO(syst)});
 }
 
@@ -340,17 +340,18 @@ float MyCorrection::GetMuonRECOSF(const RVec<Muon> &muons,
 
 float MyCorrection::GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon,
                                 const variation syst) const {
+  const float pt = muon.MiniAODPt() < 50.f ? 50.f : muon.MiniAODPt();
   if (Muon_ID_SF_Key == "TopHNT") {
     auto cset = cset_muon_TopHNT_idsf->at("sf");
     if (syst == variation::nom) {
       return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "nom"});
+                          {fabs(muon.Eta()), pt, "nom"});
     } else if (syst == variation::up) {
       return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "up"});
+                          {fabs(muon.Eta()), pt, "up"});
     } else if (syst == variation::down) {
       return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "down"});
+                          {fabs(muon.Eta()), pt, "down"});
     } else {
       throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid syst value");
     }
@@ -358,7 +359,7 @@ float MyCorrection::GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon,
     auto cset = cset_muon->at(string(Muon_ID_SF_Key));
     return safeEvaluate(
         cset, "GetMuonIDSF",
-        {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_MUO(syst)});
+        {fabs(muon.Eta()), pt, getSystString_MUO(syst)});
   }
 }
 
@@ -583,12 +584,13 @@ float MyCorrection::GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key,
     }
     return 1.;
   }
+  const float pt_clamped = pt < 50.f ? 50.f : pt;
   if (isData)
     return safeEvaluate(cset, "GetTriggerEff",
-                        {"data", getSystString_MUO(syst), eta, pt});
+                        {"data", getSystString_MUO(syst), eta, pt_clamped});
   else
     return safeEvaluate(cset, "GetTriggerEff",
-                        {"mc", getSystString_MUO(syst), eta, pt});
+                        {"mc", getSystString_MUO(syst), eta, pt_clamped});
 }
 
 float MyCorrection::GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key,
@@ -629,7 +631,7 @@ float MyCorrection::GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key,
       auto cset = set->at(Muon_Trigger_SF_Key.Data());
       weight = safeEvaluate(cset, "GetMuonTriggerSF",
                             {muon.Eta(),
-                             muon.MiniAODPt() > 26.f ? muon.MiniAODPt() : 26.f,
+                             muon.MiniAODPt() > 50.f ? muon.MiniAODPt() : 50.f,
                              getSystString_MUO(syst)});
       return true;
     } catch (const std::out_of_range &) {
@@ -1413,16 +1415,18 @@ bool MyCorrection::PassFatJetID(const FatJet &fatjet,
     cset = cset_jetid->at("AK8PUPPI_Tight");
     out = cset->evaluate({fabs(fatjet.Eta()), fatjet.chHEF(), fatjet.neHEF(),
                           fatjet.chEmEF(), fatjet.neEmEF(), fatjet.muEF(),
-                          fatjet.chMultiplicity(), fatjet.neMultiplicity(),
-                          fatjet.chMultiplicity() + fatjet.neMultiplicity()});
+                          static_cast<int>(fatjet.chMultiplicity()),
+                          static_cast<int>(fatjet.neMultiplicity()),
+                          static_cast<int>(fatjet.chMultiplicity() + fatjet.neMultiplicity())});
     return out > 0.5; // return is real
     break;
   case FatJet::FatJetID::TIGHTLEPVETO:
     cset = cset_jetid->at("AK8PUPPI_TightLeptonVeto");
     out = cset->evaluate({fabs(fatjet.Eta()), fatjet.chHEF(), fatjet.neHEF(),
                           fatjet.chEmEF(), fatjet.neEmEF(), fatjet.muEF(),
-                          fatjet.chMultiplicity(), fatjet.neMultiplicity(),
-                          fatjet.chMultiplicity() + fatjet.neMultiplicity()});
+                          static_cast<int>(fatjet.chMultiplicity()),
+                          static_cast<int>(fatjet.neMultiplicity()),
+                          static_cast<int>(fatjet.chMultiplicity() + fatjet.neMultiplicity())});
     return out > 0.5; // return is real
     break;
   case FatJet::FatJetID::NOCUT:

@@ -1,6 +1,8 @@
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_dilepton_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_leading_jet_pt_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_subleading_jet_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_mlljj_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_leading_lep_pt_plot.png has been created
 usage: MM.py [-h] [--hist HIST] [--rebin REBIN] [--output OUTPUT]
@@ -25,6 +27,7 @@ Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_l1j1j2_eta_plot.png has
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_l1j1j2_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_l2j1j2_mass_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_l2j1j2_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_l2j1j2_eta_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_l2j1j2_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_mlljj_pt_plot.png has been created
@@ -36,49 +39,78 @@ Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_subleading_lep_eta_plot
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_subleading_lep_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_jetnum_plot.png has been created
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_tight_punum_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_dilepton_pt_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_leading_jet_pt_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_subleading_jet_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_mlljj_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_leading_lep_pt_plot.png has been created
 usage: MM.py [-h] [--hist HIST] [--rebin REBIN] [--output OUTPUT]
              [--ymin YMIN] [--ymax YMAX] [--xmin XMIN] [--xmax XMAX]
              [--bins BINS] [--xlabel XLABEL] [--logy] [--rmin RMIN]
              [--rmax RMAX] [--signal-scale SIGNAL_SCALE]
 MM.py: error: unrecognized arguments: 20
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_dilepton_mass_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_dilepton_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_dilepton_phi_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_leading_jet_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_leading_jet_phi_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_subleading_jet_eta_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_subleading_jet_phi_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_j1j2_mass_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_j1j2_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_j1j2_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_j1j2_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l1j1j2_mass_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l1j1j2_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l1j1j2_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l1j1j2_phi_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l2j1j2_mass_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l2j1j2_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l2j1j2_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_l2j1j2_phi_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_mlljj_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_mlljj_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_mlljj_phi_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_leading_lep_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_leading_lep_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_subleading_lep_eta_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_subleading_lep_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_jetnum_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_OS_not_tight_punum_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_dilepton_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_leading_jet_pt_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_subleading_jet_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_mlljj_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_leading_lep_pt_plot.png has been created
 usage: MM.py [-h] [--hist HIST] [--rebin REBIN] [--output OUTPUT]
              [--ymin YMIN] [--ymax YMAX] [--xmin XMIN] [--xmax XMAX]
@@ -86,6 +118,7 @@ usage: MM.py [-h] [--hist HIST] [--rebin REBIN] [--output OUTPUT]
              [--rmax RMAX] [--signal-scale SIGNAL_SCALE]
 MM.py: error: unrecognized arguments: 20
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_dilepton_mass_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_dilepton_eta_plot.png has been created
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_dilepton_phi_plot.png has been created
@@ -100,16 +133,22 @@ Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_j1j2_mass_plot.png has 
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_j1j2_pt_plot.png has been created
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_j1j2_eta_plot.png has been created
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_j1j2_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l1j1j2_mass_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l1j1j2_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l1j1j2_eta_plot.png has been created
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l1j1j2_phi_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l2j1j2_mass_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l2j1j2_pt_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l2j1j2_eta_plot.png has been created
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_l2j1j2_phi_plot.png has been created
@@ -124,6 +163,7 @@ Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_subleading_lep_eta_plot
 THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_subleading_lep_phi_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_jetnum_plot.png has been created
+THStack::BuildStack:0: RuntimeWarning: Histograms with a negative minimum may produce wrong plots
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_tight_punum_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_not_tight_dilepton_pt_plot.png has been created
 Info in <TCanvas::Print>: png file ResolveFLVEM_SS_not_tight_leading_jet_pt_plot.png has been created

@@ -21,7 +21,7 @@ elif "MM" in os.path.basename(__file__):
 # 샘플 그룹 및 매핑 설정
 BACKGROUND_GROUPS = {
     "DYJets": [ROOT.kYellow, "Drell-Yan"],
-    "TT": [ROOT.kRed, "T#bar{T}+tW"],
+    "TT": [ROOT.kRed, "t#bar{t}(lep)+tW"],
     "Nonprompt": [ROOT.kGreen+2, "Nonprompt"],
     "Others": [ROOT.kBlue, "Others"]
 }
@@ -219,9 +219,8 @@ def run_plot():
     X_MAX  = min(X_MAX_REQ, h_xmax)
 
     # Stack 생성
-    STACK_ORDER = ["Others", "Nonprompt", "TT", "DYJets"]
     valid_groups      = [(g, group_hists[g].Integral()) for g in BACKGROUND_GROUPS if group_hists[g]]
-    sorted_for_stack  = [(g, val) for g in STACK_ORDER for (grp, val) in valid_groups if grp == g]
+    sorted_for_stack = sorted(valid_groups, key=lambda x: x[1], reverse=False)    
     stack = ROOT.THStack("stack", "")
     for g_key, yield_val in sorted_for_stack:
         h = group_hists[g_key]
@@ -410,13 +409,13 @@ def run_plot():
 
     latex = ROOT.TLatex(); latex.SetNDC()
     latex.SetTextFont(61); latex.SetTextSize(0.045); latex.DrawLatex(0.12, 0.93, "CMS")
-    latex.SetTextFont(52); latex.SetTextSize(0.035); latex.DrawLatex(0.21, 0.93, "Preliminary")
+    latex.SetTextFont(52); latex.SetTextSize(0.035); latex.DrawLatex(0.21, 0.93, "Work in progress")
     latex.SetTextFont(42); latex.SetTextSize(0.030); latex.SetTextAlign(31)
-    latex.DrawLatex(0.95, 0.93, "62.31 fb^{-1} (13.6 TeV)")
-    latex.SetTextAlign(11); latex.SetTextFont(62); latex.SetTextSize(0.045)
+    latex.DrawLatex(0.90, 0.93, "62.31 fb^{-1} (13.6 TeV)")
+    latex.SetTextAlign(11); latex.SetTextFont(62); latex.SetTextSize(0.06)
     latex.DrawLatex(0.18, 0.82, "ee")
-    latex.SetTextFont(42); latex.SetTextSize(0.040)
-    latex.DrawLatex(0.18, 0.77, "Signal Region" if IS_BLIND else "Resolved DY CR")
+    latex.SetTextFont(42); latex.SetTextSize(0.060)
+    latex.DrawLatex(0.18, 0.75, "Signal Region" if IS_BLIND else "Resolved DY CR")
     p1.RedrawAxis()
 
     # --- Ratio pad ---

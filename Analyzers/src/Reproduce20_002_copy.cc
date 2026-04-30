@@ -16,7 +16,7 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     mu_set.Muon_Trigger.clear();
     mu_set.Muon_Trigger_Safe_Pt_Cut = 0.;
     el_set.Ele_Trigger.clear();
-    el_set.Ele_Trigger_Safe_Pt_Cut = 0.;
+    el_set.Ele_Trigger_Safe_PObj_PU_boosted_WRMass_ee_t_Cut = 0.;
 
     if ( DataEra=="2017")
     {

@@ -2,8 +2,7 @@
     "name": "SingleMuon",
     "isMC": 0,
     "NEvents": [
-        3630944.0,
-        17124072.0
+        17124071.0
     ],
     "path": [
         "/gv0/DATA/SKNano/Run3NanoAODv12/2022/DATA/SingleMuon/PeriodC/240706_061310/0000/tree_1.root",

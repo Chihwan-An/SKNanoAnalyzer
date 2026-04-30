@@ -6,4 +6,4 @@
 	url = ssh://git@gitlab.cern.ch:7999/cms-nanoAOD/jsonpog-integration.git
 [submodule "plots"]
 	path = plots
-	url = git@gitlab.cern.ch:7999/achihwan/SKNano-plots.git
+	url = https://gitlab.cern.ch/achihwan/SKNano-plots.git

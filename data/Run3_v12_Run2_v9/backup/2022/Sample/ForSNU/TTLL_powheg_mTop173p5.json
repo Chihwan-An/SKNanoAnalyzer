@@ -1,0 +1,11 @@
+{
+    "name": "TTLL_powheg_mTop173p5",
+    "isMC": 1,
+    "PD": "TTto2L2Nu_MT-173p5_TuneCP5_13p6TeV_powheg-pythia8",
+    "xsec_formula": "923.6*3*0.1086*3*0.1086",
+    "nmc": 9445459.0,
+    "sumsign": 9370051.0,
+    "sumW": 739617446.588234,
+    "xsec": 98.03611310400001,
+    "path": []
+}

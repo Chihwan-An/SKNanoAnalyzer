@@ -1,0 +1,11 @@
+{
+    "name": "TTLJ_powheg_CP5Down",
+    "isMC": 1,
+    "PD": "TTtoLNu2Q_TuneCP5Down_13p6TeV_powheg-pythia8",
+    "xsec_formula": "923.6*2*3*0.1086*0.6741",
+    "nmc": 32337000.0,
+    "sumsign": 32075424.0,
+    "sumW": 10810925338.957031,
+    "xsec": 405.685352016,
+    "path": []
+}

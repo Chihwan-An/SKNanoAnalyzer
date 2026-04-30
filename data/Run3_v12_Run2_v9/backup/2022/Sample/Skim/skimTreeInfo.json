@@ -1,0 +1,400 @@
+{
+    "Skim_20002_ttZtoLL_MLL50toInf": {
+        "suffix": "20002",
+        "PD": "ttZtoLL_MLL50toInf",
+        "isMC": 1
+    },
+    "Skim_20002_ttZtoLL_MLL4to50": {
+        "suffix": "20002",
+        "PD": "ttZtoLL_MLL4to50",
+        "isMC": 1
+    },
+    "Skim_20002_ttWtoLNu": {
+        "suffix": "20002",
+        "PD": "ttWtoLNu",
+        "isMC": 1
+    },
+    "Skim_20002_WWtoLNu2Q": {
+        "suffix": "20002",
+        "PD": "WWtoLNu2Q",
+        "isMC": 1
+    },
+    "Skim_20002_WWto2L2Nu": {
+        "suffix": "20002",
+        "PD": "WWto2L2Nu",
+        "isMC": 1
+    },
+    "Skim_20002_WZtoLNu2Q": {
+        "suffix": "20002",
+        "PD": "WZtoLNu2Q",
+        "isMC": 1
+    },
+    "Skim_20002_WZto2L2Q": {
+        "suffix": "20002",
+        "PD": "WZto2L2Q",
+        "isMC": 1
+    },
+    "Skim_20002_WZto3LNu": {
+        "suffix": "20002",
+        "PD": "WZto3LNu",
+        "isMC": 1
+    },
+    "Skim_20002_ZZto2L2Nu": {
+        "suffix": "20002",
+        "PD": "ZZto2L2Nu",
+        "isMC": 1
+    },
+    "Skim_20002_ZZto2L2Q": {
+        "suffix": "20002",
+        "PD": "ZZto2L2Q",
+        "isMC": 1
+    },
+    "Skim_20002_ZZto2Nu2Q": {
+        "suffix": "20002",
+        "PD": "ZZto2Nu2Q",
+        "isMC": 1
+    },
+    "Skim_20002_ZZto4L": {
+        "suffix": "20002",
+        "PD": "ZZto4L",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL120HT2500": {
+        "suffix": "20002",
+        "PD": "DYMLL120HT2500",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL120HT1500to2500": {
+        "suffix": "20002",
+        "PD": "DYMLL120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL120HT800to1500": {
+        "suffix": "20002",
+        "PD": "DYMLL120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL120HT400to800": {
+        "suffix": "20002",
+        "PD": "DYMLL120HT400to800",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL120HT100to400": {
+        "suffix": "20002",
+        "PD": "DYMLL120HT100to400",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL120HT70to100": {
+        "suffix": "20002",
+        "PD": "DYMLL120HT70to100",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL120HT40to70": {
+        "suffix": "20002",
+        "PD": "DYMLL120HT40to70",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL50to120HT2500": {
+        "suffix": "20002",
+        "PD": "DYMLL50to120HT2500",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL50to120HT1500to2500": {
+        "suffix": "20002",
+        "PD": "DYMLL50to120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL50to120HT800to1500": {
+        "suffix": "20002",
+        "PD": "DYMLL50to120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL50to120HT400to800": {
+        "suffix": "20002",
+        "PD": "DYMLL50to120HT400to800",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL50to120HT100to400": {
+        "suffix": "20002",
+        "PD": "DYMLL50to120HT100to400",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL50to120HT70to100": {
+        "suffix": "20002",
+        "PD": "DYMLL50to120HT70to100",
+        "isMC": 1
+    },
+    "Skim_20002_DYMLL50to120HT40to70": {
+        "suffix": "20002",
+        "PD": "DYMLL50to120HT40to70",
+        "isMC": 1
+    },
+    "Skim_20002_WR8000N3900MM": {
+        "suffix": "20002",
+        "PD": "WR8000N3900MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR8000N100MM": {
+        "suffix": "20002",
+        "PD": "WR8000N100MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR6000N2900MM": {
+        "suffix": "20002",
+        "PD": "WR6000N2900MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR6000N700MM": {
+        "suffix": "20002",
+        "PD": "WR6000N700MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR6000N100MM": {
+        "suffix": "20002",
+        "PD": "WR6000N100MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR4000N2100MM": {
+        "suffix": "20002",
+        "PD": "WR4000N2100MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR4000N100MM": {
+        "suffix": "20002",
+        "PD": "WR4000N100MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR2000N1100MM": {
+        "suffix": "20002",
+        "PD": "WR2000N1100MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR2000N100MM": {
+        "suffix": "20002",
+        "PD": "WR2000N100MM",
+        "isMC": 1
+    },
+    "Skim_20002_WR8000N3900EE": {
+        "suffix": "20002",
+        "PD": "WR8000N3900EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR8000N100EE": {
+        "suffix": "20002",
+        "PD": "WR8000N100EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR6000N2900EE": {
+        "suffix": "20002",
+        "PD": "WR6000N2900EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR6000N700EE": {
+        "suffix": "20002",
+        "PD": "WR6000N700EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR6000N100EE": {
+        "suffix": "20002",
+        "PD": "WR6000N100EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR4000N2100EE": {
+        "suffix": "20002",
+        "PD": "WR4000N2100EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR4000N100EE": {
+        "suffix": "20002",
+        "PD": "WR4000N100EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR2000N1100EE": {
+        "suffix": "20002",
+        "PD": "WR2000N1100EE",
+        "isMC": 1
+    },
+    "Skim_20002_WR2000N100EE": {
+        "suffix": "20002",
+        "PD": "WR2000N100EE",
+        "isMC": 1
+    },
+    "Skim_20002_DYJets": {
+        "suffix": "20002",
+        "PD": "DYJets",
+        "isMC": 1
+    },
+    "Skim_20002_DYJets_MG": {
+        "suffix": "20002",
+        "PD": "DYJets_MG",
+        "isMC": 1
+    },
+    "Skim_20002_WJets": {
+        "suffix": "20002",
+        "PD": "WJets",
+        "isMC": 1
+    },
+    "Skim_20002_WJets_MG": {
+        "suffix": "20002",
+        "PD": "WJets_MG",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM120HT2500": {
+        "suffix": "20002",
+        "PD": "WJetM120HT2500",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM120HT1500to2500": {
+        "suffix": "20002",
+        "PD": "WJetM120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM120HT800to1500": {
+        "suffix": "20002",
+        "PD": "WJetM120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM120HT400to800": {
+        "suffix": "20002",
+        "PD": "WJetM120HT400to800",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM120HT100to400": {
+        "suffix": "20002",
+        "PD": "WJetM120HT100to400",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM120HT40to100": {
+        "suffix": "20002",
+        "PD": "WJetM120HT40to100",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM0_120HT2500": {
+        "suffix": "20002",
+        "PD": "WJetM0_120HT2500",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM0_120HT1500to2500": {
+        "suffix": "20002",
+        "PD": "WJetM0_120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM0_120HT800to1500": {
+        "suffix": "20002",
+        "PD": "WJetM0_120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM0_120HT400to800": {
+        "suffix": "20002",
+        "PD": "WJetM0_120HT400to800",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM0_120HT100to400": {
+        "suffix": "20002",
+        "PD": "WJetM0_120HT100to400",
+        "isMC": 1
+    },
+    "Skim_20002_WJetM0_120HT40to100": {
+        "suffix": "20002",
+        "PD": "WJetM0_120HT40to100",
+        "isMC": 1
+    },
+    "Skim_20002_Muon": {
+        "suffix": "20002",
+        "PD": "Muon",
+        "isMC": 0,
+        "periods": [
+            "D",
+            "C"
+        ]
+    },
+    "Skim_20002_EGamma": {
+        "suffix": "20002",
+        "PD": "EGamma",
+        "isMC": 0,
+        "periods": [
+            "D",
+            "C"
+        ]
+    },
+    "Skim_20002_ST_tch_antitop": {
+        "suffix": "20002",
+        "PD": "ST_tch_antitop",
+        "isMC": 1
+    },
+    "Skim_20002_ST_tch_top": {
+        "suffix": "20002",
+        "PD": "ST_tch_top",
+        "isMC": 1
+    },
+    "Skim_20002_ST_tW_antitop_Fullyhad": {
+        "suffix": "20002",
+        "PD": "ST_tW_antitop_Fullyhad",
+        "isMC": 1
+    },
+    "Skim_20002_ST_tW_top_Fullyhad": {
+        "suffix": "20002",
+        "PD": "ST_tW_top_Fullyhad",
+        "isMC": 1
+    },
+    "Skim_20002_ST_tW_antitop_Lep": {
+        "suffix": "20002",
+        "PD": "ST_tW_antitop_Lep",
+        "isMC": 1
+    },
+    "Skim_20002_ST_tW_top_Lep": {
+        "suffix": "20002",
+        "PD": "ST_tW_top_Lep",
+        "isMC": 1
+    },
+    "Skim_20002_ST_tW_antitop_Semilep": {
+        "suffix": "20002",
+        "PD": "ST_tW_antitop_Semilep",
+        "isMC": 1
+    },
+    "Skim_20002_ST_tW_top_Semilep": {
+        "suffix": "20002",
+        "PD": "ST_tW_top_Semilep",
+        "isMC": 1
+    },
+    "Skim_20002_ST_sch_antitop_Lep": {
+        "suffix": "20002",
+        "PD": "ST_sch_antitop_Lep",
+        "isMC": 1
+    },
+    "Skim_20002_ST_sch_top_Lep": {
+        "suffix": "20002",
+        "PD": "ST_sch_top_Lep",
+        "isMC": 1
+    },
+    "Skim_20002_TTLJ_powheg": {
+        "suffix": "20002",
+        "PD": "TTLJ_powheg",
+        "isMC": 1
+    },
+    "Skim_20002_TTLL_powheg": {
+        "suffix": "20002",
+        "PD": "TTLL_powheg",
+        "isMC": 1
+    },
+    "Skim_20002_ttZtoNuNu": {
+        "suffix": "20002",
+        "PD": "ttZtoNuNu",
+        "isMC": 1
+    },
+    "Skim_20002_ttZtoQQ": {
+        "suffix": "20002",
+        "PD": "ttZtoQQ",
+        "isMC": 1
+    },
+    "Skim_20002_ttWtoLNu_EWK": {
+        "suffix": "20002",
+        "PD": "ttWtoLNu_EWK",
+        "isMC": 1
+    },
+    "Skim_20002_WWto4Q": {
+        "suffix": "20002",
+        "PD": "WWto4Q",
+        "isMC": 1
+    }
+}

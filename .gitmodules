@@ -4,3 +4,6 @@
 [submodule "external/jsonpog-integration"]
 	path = external/jsonpog-integration
 	url = ssh://git@gitlab.cern.ch:7999/cms-nanoAOD/jsonpog-integration.git
+[submodule "plots"]
+	path = plots
+	url = git@gitlab.cern.ch:7999/achihwan/SKNano-plots.git

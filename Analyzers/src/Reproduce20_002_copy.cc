@@ -2554,10 +2554,110 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                 }
                                             }
                                             FillHist(this_syst + "/Boosted_Flav_EMJ_electron1_tight_charge", electron1_tight_charge , 1.0, 5, 0., 5.);
-                                            
-                                            
-                                            
 
+                                            /*
+                                            // LHE-reco matching for Flav_EMJ
+                                            // Step 1: Match first tight electron (LeadLep) to LHE electron with deltaR < 0.3
+                                            bool lhe_match_tight_el = false;
+                                            int lhe_matched_tight_el_idx = -1;
+                                            for (int i = 0; i < (int)lhe.size(); i++) {
+                                                if (abs(lhe[i].PdgId()) == 11) {
+                                                    if (LeadLep->DeltaR(lhe[i]) < 0.3) {
+                                                        lhe_match_tight_el = true;
+                                                        lhe_matched_tight_el_idx = i;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            FillHist(this_syst + "/Boosted_Flav_EMJ_lhe_match_tight_el", lhe_match_tight_el ? 1.0 : 0.0, weight, 2, 0., 2.);
+
+                                            // Step 2: If tight electron matched, find same-flavor loose electron
+                                            // with pt < 53 GeV (did not pass pt cut) and inside fatjet, then match to LHE
+                                            if (lhe_match_tight_el) {
+                                                bool lhe_match_loose_el_in_fatjet = false;
+                                                for (unsigned int k = 0; k < Loose_SF_leps.size(); k++) {
+                                                    if (LeadLep->DeltaR(*Loose_SF_leps[k]) < 0.01) continue;   // skip LeadLep
+                                                    //if (Loose_SF_leps[k]->Pt() >= 53.0) continue;              // only pt < 53 GeV (did not pass pt cut)
+                                                    //if (HNFatJet.DeltaR(*Loose_SF_leps[k]) >= 0.8) continue;  // must be inside fatjet
+                                                    for (int i = 0; i < (int)lhe.size(); i++) {
+                                                        if (i == lhe_matched_tight_el_idx) continue;  // don't reuse already matched LHE particle
+                                                        if (abs(lhe[i].PdgId()) == 11) {
+                                                            if (Loose_SF_leps[k]->DeltaR(lhe[i]) < 0.3) {
+                                                                lhe_match_loose_el_in_fatjet = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    if (lhe_match_loose_el_in_fatjet) break;
+                                                }
+                                                FillHist(this_syst + "/Boosted_Flav_EMJ_lhe_match_loose_el_in_fatjet", lhe_match_loose_el_in_fatjet ? 1.0 : 0.0, weight, 2, 0., 2.);
+
+                                                // Gen-LHE matching chain
+                                                // Find loose LHE: another LHE electron not chosen as tight LHE
+                                                bool lhe_loose_found = false;
+                                                int lhe_loose_idx = -1;
+                                                for (int i = 0; i < (int)lhe.size(); i++) {
+                                                    if (i == lhe_matched_tight_el_idx) continue;
+                                                    if (abs(lhe[i].PdgId()) == 11) {
+                                                        lhe_loose_found = true;
+                                                        lhe_loose_idx = i;
+                                                        break;
+                                                    }
+                                                }
+                                                FillHist(this_syst + "/Boosted_Flav_EMJ_lhe_loose_found", lhe_loose_found ? 1.0 : 0.0, weight, 2, 0., 2.);
+
+                                                if (lhe_loose_found) {
+                                                    float lhe_loose_charge = lhe[lhe_loose_idx].Charge();
+                                                    FillHist(this_syst + "/Boosted_Flav_EMJ_lhe_loose_charge", lhe_loose_charge, weight, 5, -2., 3.);
+                                                    FillHist(this_syst + "/Boosted_Flav_EMJ_lhe_loose_pt",  lhe[lhe_loose_idx].Pt(),  weight, 500, 0., 500.);
+                                                    FillHist(this_syst + "/Boosted_Flav_EMJ_lhe_loose_eta", lhe[lhe_loose_idx].Eta(), weight, 100, -5., 5.);
+                                                    FillHist(this_syst + "/Boosted_Flav_EMJ_lhe_loose_dR_fatjet", HNFatJet.DeltaR(lhe[lhe_loose_idx]), weight, 100, 0., 5.);
+
+                                                    // Match loose LHE to gen electron (PID=+-11) with deltaR < 0.3
+                                                    bool gen_lhe_loose_matched = false;
+                                                    int gen_matched_idx = -1;
+                                                    for (int i = 0; i < (int)gen_set.gens.size(); i++) {
+                                                        if (abs(gen_set.gens[i].PID()) == 11) {
+                                                            if (lhe[lhe_loose_idx].DeltaR(gen_set.gens[i]) < 0.3) {
+                                                                gen_lhe_loose_matched = true;
+                                                                gen_matched_idx = i;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    FillHist(this_syst + "/Boosted_Flav_EMJ_gen_lhe_loose_match", gen_lhe_loose_matched ? 1.0 : 0.0, weight, 2, 0., 2.);
+
+                                                    if (gen_lhe_loose_matched) {
+                                                        float gen_matched_charge = gen_set.gens[gen_matched_idx].Charge();
+                                                        FillHist(this_syst + "/Boosted_Flav_EMJ_gen_matched_charge", gen_matched_charge, weight, 5, -2., 3.);
+                                                        FillHist(this_syst + "/Boosted_Flav_EMJ_gen_matched_pt",  gen_set.gens[gen_matched_idx].Pt(),  weight, 500, 0., 500.);
+                                                        FillHist(this_syst + "/Boosted_Flav_EMJ_gen_matched_eta", gen_set.gens[gen_matched_idx].Eta(), weight, 100, -5., 5.);
+                                                        FillHist(this_syst + "/Boosted_Flav_EMJ_gen_matched_dR_fatjet", HNFatJet.DeltaR(gen_set.gens[gen_matched_idx]), weight, 100, 0., 5.);
+
+                                                        // Match gen to Loose SF lepton (electron, not LeadLep)
+                                                        bool gen_match_loose_sf = false;
+                                                        for (unsigned int k = 0; k < Loose_SF_leps.size(); k++) {
+                                                            if (LeadLep->DeltaR(*Loose_SF_leps[k]) < 0.01) continue;
+                                                            if (gen_set.gens[gen_matched_idx].DeltaR(*Loose_SF_leps[k]) < 0.3) {
+                                                                gen_match_loose_sf = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                        FillHist(this_syst + "/Boosted_Flav_EMJ_gen_match_loose_sf_lep", gen_match_loose_sf ? 1.0 : 0.0, weight, 2, 0., 2.);
+
+                                                        // Match gen to all electrons (my_electrons)
+                                                        bool gen_match_any_el = false;
+                                                        for (unsigned int k = 0; k < my_electrons.size(); k++) {
+                                                            if (gen_set.gens[gen_matched_idx].DeltaR(my_electrons[k]) < 0.3) {
+                                                                gen_match_any_el = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                        FillHist(this_syst + "/Boosted_Flav_EMJ_gen_match_any_el", gen_match_any_el ? 1.0 : 0.0, weight, 2, 0., 2.);
+                                                    }
+                                                }
+                                            }
+                                            */
                                         }
                                         else if (is_tmp_lead_mu) {
                                             // Boosted Flavor CR
@@ -3254,21 +3354,21 @@ bool Reproduce20_002_copy::Electrons::isPassCustomLooseID(const Electron& el) co
 
     if (fabs(el.scEta()) <= 1.479){
     
-        if(!(el.hoe() < 0.05 + 1.16/el.E() + 0.0324*el.rho()/el.E())) return false;
-        if (!(el.sieie() < 0.0112)) return false;
-        if (!(fabs(el.deltaEtaInSeed()) < 0.00377)) return false;
-        if (!(fabs(el.deltaPhiInSC()) < 0.0884)) return false;
-        if (!(fabs(el.eInvMinusPInv()) < 0.193)) return false;
+        if(!(el.hoe() < 0.05 + 1.28/el.E() + 0.0422*el.rho()/el.E())) return false;
+        if (!(el.sieie() < 0.00107)) return false;
+        if (!(fabs(el.deltaEtaInSeed()) < 0.00691)) return false;
+        if (!(fabs(el.deltaPhiInSC()) < 0.175)) return false;
+        if (!(fabs(el.eInvMinusPInv()) < 0.138)) return false;
         if (!(el.LostHits() <= 1)) return false;
         if (!(el.ConvVeto())) return false;
         return true;
     }
     else {
-        if(!(el.hoe() < 0.0441 + 2.54/el.E() + 0.183*el.rho()/el.E())) return false;
-        if (!(el.sieie() < 0.0425)) return false;
-        if (!(fabs(el.deltaEtaInSeed()) < 0.00674)) return false;
-        if (!(fabs(el.deltaPhiInSC()) < 0.169)) return false;
-        if (!(fabs(el.eInvMinusPInv()) < 0.111)) return false;
+        if(!(el.hoe() < 0.05 + 2.3/el.E() + 0.262*el.rho()/el.E())) return false;
+        if (!(el.sieie() < 0.0275)) return false;
+        if (!(fabs(el.deltaEtaInSeed()) < 0.0121)) return false;
+        if (!(fabs(el.deltaPhiInSC()) < 0.228)) return false;
+        if (!(fabs(el.eInvMinusPInv()) < 0.127)) return false;
         if (!(el.LostHits() <= 1)) return false;
         if (!(el.ConvVeto())) return false;
         return true;

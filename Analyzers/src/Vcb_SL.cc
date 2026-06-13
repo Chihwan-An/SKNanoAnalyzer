@@ -1,19 +1,366 @@
 #include "Vcb_SL.h"
 #include "Jet.h"
+#include "VcbParameters.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include <stdexcept>
+
+namespace {
+constexpr int kTabNetEventContextFeatDim = 5;
+constexpr int kWcbNNNumFolds = 5;
+constexpr int kWcbNNMaxJets = 8;
+constexpr int kWcbNNJetFeatureDim = 13;
+constexpr int kWcbNNJetVectorDim = 4;
+constexpr int kWcbNNLepFeatureDim = 5;
+constexpr int kWcbNNLepVectorDim = 4;
+constexpr int kWcbNNLepSequenceLen = 2;
+constexpr const char *kWcbNNModelDir =
+    "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/nn/"
+    "1L_Wcb/v4";
+constexpr std::array<const char *, 8> kWcbNNScoreBranchNames = {
+    "score_tt_Wcb", "score_ttLF", "score_ttcj", "score_tt2c",
+    "score_ttcc",   "score_ttbj", "score_tt2b", "score_ttbb",
+};
+constexpr std::array<const char *, 8> kWcbNNPreSoftmaxBranchNames = {
+    "pre_softmax_tt_Wcb", "pre_softmax_ttLF", "pre_softmax_ttcj",
+    "pre_softmax_tt2c",   "pre_softmax_ttcc", "pre_softmax_ttbj",
+    "pre_softmax_tt2b",   "pre_softmax_ttbb",
+};
+
+struct WcbNNResult {
+  std::array<float, kWcbNNScoreBranchNames.size()> scores = {};
+  std::array<float, kWcbNNScoreBranchNames.size()> pre_softmax = {};
+  int category = -1;
+};
+
+float safe_log_for_wcb_nn(float value) {
+  return (value > 0.f && std::isfinite(value)) ? std::log(value) : 0.f;
+}
+
+void append_preprocessed_feature(FloatArray &dest,
+                                 const std::vector<float> &src,
+                                 int target_length, float median,
+                                 float norm_factor, float lower_bound,
+                                 float upper_bound) {
+  for (int i = 0; i < target_length; ++i) {
+    if (i < static_cast<int>(src.size())) {
+      float value = (src[i] - median) * norm_factor;
+      if (!std::isfinite(value))
+        value = 0.f;
+      dest.push_back(std::clamp(value, lower_bound, upper_bound));
+    } else {
+      dest.push_back(0.f);
+    }
+  }
+}
+
+std::array<float, kWcbNNScoreBranchNames.size()>
+derive_centered_logits_from_scores(
+    const std::array<float, kWcbNNScoreBranchNames.size()> &scores) {
+  constexpr float kProbFloor = 1.e-12f;
+  std::array<float, kWcbNNScoreBranchNames.size()> logits = {};
+
+  float prob_sum = 0.f;
+  for (std::size_t i = 0; i < scores.size(); ++i) {
+    const float clipped_score = std::max(scores[i], kProbFloor);
+    logits[i] = clipped_score;
+    prob_sum += clipped_score;
+  }
+  if (!(prob_sum > 0.f) || !std::isfinite(prob_sum)) {
+    logits.fill(0.f);
+    return logits;
+  }
+
+  float mean_logit = 0.f;
+  for (std::size_t i = 0; i < logits.size(); ++i) {
+    logits[i] = std::log(logits[i] / prob_sum);
+    mean_logit += logits[i];
+  }
+  mean_logit /= static_cast<float>(logits.size());
+  for (float &value : logits) {
+    value -= mean_logit;
+  }
+  return logits;
+}
+
+const FloatArray &
+extract_single_output_scores(const std::unordered_map<std::string, FloatArray>
+                                 &output_data,
+                             const MLHelper &helper) {
+  const auto output_names = helper.GetOutputNames();
+  if (!output_names.empty()) {
+    const auto it = output_data.find(output_names.front());
+    if (it != output_data.end())
+      return it->second;
+  }
+  if (output_data.size() == 1)
+    return output_data.begin()->second;
+  throw std::runtime_error(
+      "[Vcb_SL] Failed to resolve the Wcb NN output tensor.");
+}
+
+const std::vector<std::unique_ptr<MLHelper>> &get_wcb_nn_fold_helpers() {
+  static const auto helpers = [] {
+    std::vector<std::unique_ptr<MLHelper>> loaded_helpers;
+    loaded_helpers.reserve(kWcbNNNumFolds);
+    for (int i = 0; i < kWcbNNNumFolds; ++i) {
+      loaded_helpers.emplace_back(std::make_unique<MLHelper>(
+          std::string(kWcbNNModelDir) + "/net." + std::to_string(i) + ".onnx",
+          MLHelper::ModelType::ONNX));
+    }
+    return loaded_helpers;
+  }();
+  return helpers;
+}
+
+bool use_single_wcb_nn_fold(const TString &data_era) {
+  return data_era.Contains("2024");
+}
+
+WcbNNResult evaluate_wcb_nn(const Vcb_SL &analyzer,
+                           unsigned long long event_number) {
+  std::vector<float> ak4_pt_log;
+  std::vector<float> ak4_energy_log;
+  std::vector<float> ak4_eta;
+  std::vector<float> ak4_tag_B4;
+  std::vector<float> ak4_tag_B3;
+  std::vector<float> ak4_tag_B2;
+  std::vector<float> ak4_tag_B1;
+  std::vector<float> ak4_tag_B0;
+  std::vector<float> ak4_tag_C4;
+  std::vector<float> ak4_tag_C3;
+  std::vector<float> ak4_tag_C2;
+  std::vector<float> ak4_tag_C1;
+  std::vector<float> ak4_tag_C0;
+  std::vector<float> ak4_px;
+  std::vector<float> ak4_py;
+  std::vector<float> ak4_pz;
+  std::vector<float> ak4_energy;
+
+  const auto reserve_jets = analyzer.Jets.size();
+  ak4_pt_log.reserve(reserve_jets);
+  ak4_energy_log.reserve(reserve_jets);
+  ak4_eta.reserve(reserve_jets);
+  ak4_tag_B4.reserve(reserve_jets);
+  ak4_tag_B3.reserve(reserve_jets);
+  ak4_tag_B2.reserve(reserve_jets);
+  ak4_tag_B1.reserve(reserve_jets);
+  ak4_tag_B0.reserve(reserve_jets);
+  ak4_tag_C4.reserve(reserve_jets);
+  ak4_tag_C3.reserve(reserve_jets);
+  ak4_tag_C2.reserve(reserve_jets);
+  ak4_tag_C1.reserve(reserve_jets);
+  ak4_tag_C0.reserve(reserve_jets);
+  ak4_px.reserve(reserve_jets);
+  ak4_py.reserve(reserve_jets);
+  ak4_pz.reserve(reserve_jets);
+  ak4_energy.reserve(reserve_jets);
+
+  for (const auto &jet : analyzer.Jets) {
+    const int jet_cat = static_cast<int>(analyzer.JetCategory(jet));
+    ak4_pt_log.push_back(safe_log_for_wcb_nn(jet.Pt()));
+    ak4_energy_log.push_back(safe_log_for_wcb_nn(jet.E()));
+    ak4_eta.push_back(jet.Eta());
+    ak4_tag_B4.push_back(jet_cat == 11 ? 1.f : 0.f);
+    ak4_tag_B3.push_back(jet_cat == 10 ? 1.f : 0.f);
+    ak4_tag_B2.push_back(jet_cat == 9 ? 1.f : 0.f);
+    ak4_tag_B1.push_back(jet_cat == 8 ? 1.f : 0.f);
+    ak4_tag_B0.push_back(jet_cat == 7 ? 1.f : 0.f);
+    ak4_tag_C4.push_back(jet_cat == 6 ? 1.f : 0.f);
+    ak4_tag_C3.push_back(jet_cat == 5 ? 1.f : 0.f);
+    ak4_tag_C2.push_back(jet_cat == 4 ? 1.f : 0.f);
+    ak4_tag_C1.push_back(jet_cat == 3 ? 1.f : 0.f);
+    ak4_tag_C0.push_back(jet_cat == 2 ? 1.f : 0.f);
+    ak4_px.push_back(jet.Px());
+    ak4_py.push_back(jet.Py());
+    ak4_pz.push_back(jet.Pz());
+    ak4_energy.push_back(jet.E());
+  }
+  std::vector<float> ak4_mask(analyzer.Jets.size(), 1.f);
+
+  std::vector<float> lep_pt_log;
+  std::vector<float> lep_energy_log;
+  std::vector<float> lep_eta;
+  std::vector<float> lep_isMu;
+  std::vector<float> lep_isEl;
+  std::vector<float> lep_px;
+  std::vector<float> lep_py;
+  std::vector<float> lep_pz;
+  std::vector<float> lep_energy;
+  lep_pt_log.reserve(kWcbNNLepSequenceLen);
+  lep_energy_log.reserve(kWcbNNLepSequenceLen);
+  lep_eta.reserve(kWcbNNLepSequenceLen);
+  lep_isMu.reserve(kWcbNNLepSequenceLen);
+  lep_isEl.reserve(kWcbNNLepSequenceLen);
+  lep_px.reserve(kWcbNNLepSequenceLen);
+  lep_py.reserve(kWcbNNLepSequenceLen);
+  lep_pz.reserve(kWcbNNLepSequenceLen);
+  lep_energy.reserve(kWcbNNLepSequenceLen);
+
+  lep_pt_log.push_back(safe_log_for_wcb_nn(analyzer.lepton.Pt()));
+  lep_energy_log.push_back(safe_log_for_wcb_nn(analyzer.lepton.E()));
+  lep_eta.push_back(analyzer.lepton.Eta());
+  lep_isMu.push_back(analyzer.channel == Vcb::Channel::Mu ? 1.f : 0.f);
+  lep_isEl.push_back(analyzer.channel == Vcb::Channel::El ? 1.f : 0.f);
+  lep_px.push_back(analyzer.lepton.Px());
+  lep_py.push_back(analyzer.lepton.Py());
+  lep_pz.push_back(analyzer.lepton.Pz());
+  lep_energy.push_back(analyzer.lepton.E());
+
+  lep_pt_log.push_back(safe_log_for_wcb_nn(analyzer.MET.Pt()));
+  lep_energy_log.push_back(safe_log_for_wcb_nn(analyzer.MET.E()));
+  lep_eta.push_back(0.f);
+  lep_isMu.push_back(0.f);
+  lep_isEl.push_back(0.f);
+  lep_px.push_back(analyzer.MET.Px());
+  lep_py.push_back(analyzer.MET.Py());
+  lep_pz.push_back(analyzer.MET.Pz());
+  lep_energy.push_back(analyzer.MET.E());
+  std::vector<float> lep_mask(kWcbNNLepSequenceLen, 1.f);
+
+  std::unordered_map<std::string, VariousArray> input_data = {
+      {"jet_features", FloatArray{}}, {"jet_vectors", FloatArray{}},
+      {"jet_mask", FloatArray{}},     {"lep_features", FloatArray{}},
+      {"lep_vectors", FloatArray{}},  {"lep_mask", FloatArray{}},
+  };
+  std::unordered_map<std::string, IntArray> input_shape = {
+      {"jet_features", {1, kWcbNNJetFeatureDim, kWcbNNMaxJets}},
+      {"jet_vectors", {1, kWcbNNJetVectorDim, kWcbNNMaxJets}},
+      {"jet_mask", {1, 1, kWcbNNMaxJets}},
+      {"lep_features", {1, kWcbNNLepFeatureDim, kWcbNNLepSequenceLen}},
+      {"lep_vectors", {1, kWcbNNLepVectorDim, kWcbNNLepSequenceLen}},
+      {"lep_mask", {1, 1, kWcbNNLepSequenceLen}},
+  };
+
+  auto &jet_features = std::get<FloatArray>(input_data["jet_features"]);
+  auto &jet_vectors = std::get<FloatArray>(input_data["jet_vectors"]);
+  auto &jet_mask = std::get<FloatArray>(input_data["jet_mask"]);
+  auto &lep_features = std::get<FloatArray>(input_data["lep_features"]);
+  auto &lep_vectors = std::get<FloatArray>(input_data["lep_vectors"]);
+  auto &lep_mask_group = std::get<FloatArray>(input_data["lep_mask"]);
+
+  jet_features.reserve(kWcbNNJetFeatureDim * kWcbNNMaxJets);
+  jet_vectors.reserve(kWcbNNJetVectorDim * kWcbNNMaxJets);
+  jet_mask.reserve(kWcbNNMaxJets);
+  lep_features.reserve(kWcbNNLepFeatureDim * kWcbNNLepSequenceLen);
+  lep_vectors.reserve(kWcbNNLepVectorDim * kWcbNNLepSequenceLen);
+  lep_mask_group.reserve(kWcbNNLepSequenceLen);
+
+  append_preprocessed_feature(jet_features, ak4_pt_log, kWcbNNMaxJets, 4.f,
+                              1.f, -5.f, 5.f);
+  append_preprocessed_feature(jet_features, ak4_energy_log, kWcbNNMaxJets, 4.f,
+                              1.f, -5.f, 5.f);
+  append_preprocessed_feature(jet_features, ak4_eta, kWcbNNMaxJets, 0.f, 1.f,
+                              -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_B4, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_B3, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_B2, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_B1, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_B0, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_C4, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_C3, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_C2, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_C1, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_features, ak4_tag_C0, kWcbNNMaxJets, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+
+  append_preprocessed_feature(jet_vectors, ak4_px, kWcbNNMaxJets, 0.f, 1.f,
+                              -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_vectors, ak4_py, kWcbNNMaxJets, 0.f, 1.f,
+                              -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_vectors, ak4_pz, kWcbNNMaxJets, 0.f, 1.f,
+                              -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_vectors, ak4_energy, kWcbNNMaxJets, 0.f, 1.f,
+                              -1.e32f, 1.e32f);
+  append_preprocessed_feature(jet_mask, ak4_mask, kWcbNNMaxJets, 0.f, 1.f,
+                              -1.e32f, 1.e32f);
+
+  append_preprocessed_feature(lep_features, lep_pt_log, kWcbNNLepSequenceLen,
+                              4.f, 1.f, -5.f, 5.f);
+  append_preprocessed_feature(lep_features, lep_energy_log,
+                              kWcbNNLepSequenceLen, 4.f, 1.f, -5.f, 5.f);
+  append_preprocessed_feature(lep_features, lep_eta, kWcbNNLepSequenceLen, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(lep_features, lep_isMu, kWcbNNLepSequenceLen,
+                              0.f, 1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(lep_features, lep_isEl, kWcbNNLepSequenceLen,
+                              0.f, 1.f, -1.e32f, 1.e32f);
+
+  append_preprocessed_feature(lep_vectors, lep_px, kWcbNNLepSequenceLen, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(lep_vectors, lep_py, kWcbNNLepSequenceLen, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(lep_vectors, lep_pz, kWcbNNLepSequenceLen, 0.f,
+                              1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(lep_vectors, lep_energy,
+                              kWcbNNLepSequenceLen, 0.f, 1.f, -1.e32f, 1.e32f);
+  append_preprocessed_feature(lep_mask_group, lep_mask, kWcbNNLepSequenceLen,
+                              0.f, 1.f, -1.e32f, 1.e32f);
+
+  const auto &helpers = get_wcb_nn_fold_helpers();
+  if (helpers.empty()) {
+    throw std::runtime_error("[Vcb_SL] No Wcb NN fold helper is available.");
+  }
+
+  WcbNNResult result;
+  auto fill_scores_from_output =
+      [&](const std::unordered_map<std::string, FloatArray> &output_data,
+          const MLHelper &helper, std::array<float, 8> &dest) {
+        const auto &scores = extract_single_output_scores(output_data, helper);
+        if (scores.size() != dest.size()) {
+          throw std::runtime_error(
+              "[Vcb_SL] Unexpected Wcb NN output size: expected 8 scores.");
+        }
+        std::copy(scores.begin(), scores.end(), dest.begin());
+      };
+
+  if (use_single_wcb_nn_fold(analyzer.DataEra)) {
+    const std::size_t fold_idx =
+        static_cast<std::size_t>(event_number % helpers.size());
+    const auto output_data =
+        helpers[fold_idx]->Run_ONNX_Model(input_data, input_shape);
+    fill_scores_from_output(output_data, *helpers[fold_idx], result.scores);
+  } else {
+    std::array<float, 8> score_sum = {};
+    for (const auto &helper : helpers) {
+      const auto output_data = helper->Run_ONNX_Model(input_data, input_shape);
+      std::array<float, 8> fold_scores = {};
+      fill_scores_from_output(output_data, *helper, fold_scores);
+      for (std::size_t i = 0; i < fold_scores.size(); ++i) {
+        score_sum[i] += fold_scores[i];
+      }
+    }
+    const float inv_nfolds = 1.f / static_cast<float>(helpers.size());
+    for (std::size_t i = 0; i < score_sum.size(); ++i) {
+      result.scores[i] = score_sum[i] * inv_nfolds;
+    }
+  }
+
+  result.pre_softmax = derive_centered_logits_from_scores(result.scores);
+  result.category = static_cast<int>(std::distance(
+      result.scores.begin(),
+      std::max_element(result.scores.begin(), result.scores.end())));
+  return result;
+}
+}
 
 Vcb_SL::Vcb_SL() {
-  constexpr int max_jet = 8;
-  constexpr int mom_feat_dim = 7;
-
   // Persist shapes (batch dimension fixed to 1 for now)
-  onnx_input_shape["Momenta_data"] = {1, max_jet, mom_feat_dim};
-  onnx_input_shape["Momenta_mask"] = {1, max_jet};
+  onnx_input_shape["Momenta_data"] = {1, kMaxJetsForONNX, kMomFeatDimONNX};
+  onnx_input_shape["Momenta_mask"] = {1, kMaxJetsForONNX};
   onnx_input_shape["Met_data"] = {1, 1, 3};
   onnx_input_shape["Met_mask"] = {1, 1};
   onnx_input_shape["Lepton_data"] = {1, 1, 7};
@@ -28,17 +375,22 @@ Vcb_SL::Vcb_SL() {
   onnx_input_data["Lepton_mask"] = BoolArray{};
 
   std::get<FloatArray>(onnx_input_data["Momenta_data"])
-      .reserve(max_jet * mom_feat_dim);
-  std::get<BoolArray>(onnx_input_data["Momenta_mask"]).reserve(max_jet);
+      .reserve(kMaxJetsForONNX * kMomFeatDimONNX);
+  std::get<BoolArray>(onnx_input_data["Momenta_mask"]).reserve(kMaxJetsForONNX);
   std::get<FloatArray>(onnx_input_data["Met_data"]).reserve(3);
   std::get<BoolArray>(onnx_input_data["Met_mask"]).reserve(1);
   std::get<FloatArray>(onnx_input_data["Lepton_data"]).reserve(7);
   std::get<BoolArray>(onnx_input_data["Lepton_mask"]).reserve(1);
 
   // TabNet buffers
-  tabnet_input_shape["input"] = {1, 17};
+  const int tabnet_input_dim =
+      1 + 2 + 2 + (kUseILRJetFeatures ? 4 : 2) +
+      static_cast<int>(kWcbNNPreSoftmaxBranchNames.size()) + 2 +
+      kTabNetEventContextFeatDim;
+  tabnet_input_shape["input"] = {1, tabnet_input_dim};
   tabnet_input_data["input"] = FloatArray{};
-  std::get<FloatArray>(tabnet_input_data["input"]).reserve(17);
+  std::get<FloatArray>(tabnet_input_data["input"]).reserve(tabnet_input_dim);
+  tabnet_class_logits.reserve(7);
   tabnet_class_scores.reserve(7);
   tabnet_weighted_scores.reserve(7);
 }
@@ -200,6 +552,10 @@ Vcb_SL::SolveNeutrinoPz(const Lepton &lepton, const Particle &met) {
 bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
                                    bool loose_cut) {
   Clear();
+  wcb_nn_scores.fill(0.f);
+  wcb_nn_pre_softmax.fill(0.f);
+  wcb_nn_category = -1;
+  wcb_nn_cache_valid = false;
   FillCutFlow(0); // start
 
   // 1) trigger
@@ -212,19 +568,8 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
   FillCutFlow(1); // trigger passed
 
   // 2) jet veto map (common)
-  if (!PassJetVetoMap(AllJetViews, AllMuonViews))
+  if (!PassJetVetoMap(AllJetViews))
     return false;
-  // 2.5) EEP veto (only 2022EE)
-  auto eep_veto_indices =
-      SelectJetIndices(AllJetViews, Jet::JetID::NOCUT, 30., INFINITY);
-  if (DataEra == "2022EE") {
-    RVec<Jet> eep_veto_jets;
-    eep_veto_jets.reserve(eep_veto_indices.size());
-    for (auto idx : eep_veto_indices)
-      eep_veto_jets.emplace_back(MaterializeJet(AllJetViews, idx));
-    if (!PassJetVetoMap(eep_veto_jets, AllMuonViews, "jetvetomap_eep"))
-      return false;
-  }
   FillCutFlow(2); // veto maps passed
 
   // 3) MET filter
@@ -367,12 +712,6 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
         return false;
     }
     Muons = MaterializeMuons(AllMuonViews, Muons_indices);
-    if (!HasFlag("Skim")) {
-      // additional muon prompt mva cut
-      if (!Muons[0].PassID(Muon::MuonID::POG_PROMPTMVA_WP0p64)) {
-        return false;
-      }
-    }
     Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
     lepton = Muons[0];
     leptons.push_back(lepton);
@@ -382,8 +721,29 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
   // 5) MET + jet p4 shift
   MyCorrection::variation jesVar = MyCorrection::variation::nom;
   MyCorrection::variation jerVar = MyCorrection::variation::nom;
-  if (!PropagateJetSystToMET(AllJetViews, *systHelper, ev, MET, jesVar, jerVar))
-    return false;
+  const std::string systTarget = systHelper->getCurrentIterSysTarget();
+  const TString systSource = systHelper->getCurrentIterSysSource();
+  const MyCorrection::variation systVar = systHelper->getCurrentIterVariation();
+
+  MET = ev.GetMETVector(Event::MET_Type::PUPPI);
+  bool doJetPropagation = true;
+  if (systTarget.find("Jet_En") != std::string::npos) {
+    const bool doBreakdown = HasFlag("doBreakdown");
+    if (!PrepareJetJESVariations(AllJetViews, systSource, doBreakdown))
+      return false;
+    if (!IsDATA)
+      jesVar = systVar;
+  } else if (systTarget == "Jet_Res") {
+    if (!IsDATA)
+      jerVar = systVar;
+  } else if (systTarget == "UE") {
+    MET = ev.GetMETVector(Event::MET_Type::PUPPI, systVar, Event::MET_Syst::UE);
+    doJetPropagation = false;
+  }
+
+  if (doJetPropagation)
+    PropagateJetSystToMET(AllJetViews, MET, jesVar, jerVar);
+  if (MET.Pt() < (loose_cut ? SL_MET_cut - 5.f : SL_MET_cut)) return false;
   FillCutFlow(5); // MET/JES/JER propagation done
 
   // 6) jets
@@ -411,8 +771,13 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
   FillCutFlow(6); // jet selection passed
 
   // 7) flavour tagging
-  short bWP_work = loose_cut ? 0 : 1;
-  short cWP_work = loose_cut ? 0 : 1;
+  UpdateAllJetTaggingCaches(AllJetViews, jetIndices);
+  // short bWP_work = loose_cut ? 0 : 1;
+  // short cWP_work = loose_cut ? 0 : 1;
+  short bWP_work = 1;
+  short cWP_work = 1;
+  short bWP_loose_work = 0;
+  short cWP_loose_work = 0;
 
   for (const auto &jet : Jets) {
     const short bWP = GetPassedBTaggingWP(jet);
@@ -420,6 +785,8 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
 
     if (bWP >= bWP_work)
       n_b_tagged_jets++;
+    if (bWP >= bWP_loose_work)
+      n_loose_b_tagged_jets++;
     if (!IsDATA) {
       if (std::abs(jet.hadronFlavour()) == 5)
         n_hadronFlav_b_jets++;
@@ -435,12 +802,21 @@ bool Vcb_SL::PassBaseLineSelection(bool remove_flavtagging_cut,
     const short cWP = GetPassedCTaggingWP(jet);
     if (cWP >= cWP_work)
       n_c_tagged_jets++;
+    if (cWP >= cWP_loose_work)
+      n_loose_c_tagged_jets++;
   }
   n_hf_jets = n_b_tagged_jets + n_c_tagged_jets;
+  n_loose_hf_jets = n_loose_b_tagged_jets + n_loose_c_tagged_jets;
   FillCutFlow(7); // b/c tag c ounting done
+  if(!loose_cut){
+    if ((n_b_tagged_jets < 1 || n_hf_jets < 3) && !remove_flavtagging_cut) return false;
+  }
+  else{
+    if ((n_loose_b_tagged_jets < 1 || n_loose_hf_jets < 3) && !remove_flavtagging_cut) return false;
+  }
 
-  if ((n_b_tagged_jets < 1 || n_hf_jets < 3) && !remove_flavtagging_cut)
-    return false;
+  // if ((n_b_tagged_jets < 2) && !remove_flavtagging_cut)
+  //   return false;
   FillCutFlow(8); // flavour tag cut passed
 
   SetTTbarId();
@@ -737,6 +1113,55 @@ void Vcb_SL::FillTrainingTree() {
   FillTrees();
 }
 
+void Vcb_SL::EnsureWcbNNEvaluated() {
+  if (wcb_nn_cache_valid)
+    return;
+
+  const WcbNNResult nn_result =
+      evaluate_wcb_nn(*this, static_cast<unsigned long long>(event));
+  wcb_nn_scores = nn_result.scores;
+  wcb_nn_pre_softmax = nn_result.pre_softmax;
+  wcb_nn_category = nn_result.category;
+  wcb_nn_cache_valid = true;
+}
+
+void Vcb_SL::FillHistogramsAtThisPoint(std::string_view histPrefix,
+                                       float weight) {
+  Vcb::FillHistogramsAtThisPoint(histPrefix, weight);
+
+  const std::string base(histPrefix);
+  std::string name;
+  name.reserve(base.size() + 64);
+
+  bool use_placeholder_scores = !wcb_nn_cache_valid && weight == 0.f;
+  if (!use_placeholder_scores) {
+    try {
+      EnsureWcbNNEvaluated();
+    } catch (const std::exception &e) {
+      std::cerr << "[Vcb_SL::FillHistogramsAtThisPoint] Wcb NN inference failed: "
+                << e.what() << "\n";
+      wcb_nn_scores.fill(0.f);
+      wcb_nn_pre_softmax.fill(0.f);
+      wcb_nn_category = -1;
+      wcb_nn_cache_valid = true;
+    }
+  }
+
+  for (std::size_t i = 0; i < kWcbNNScoreBranchNames.size(); ++i) {
+    name.assign(base);
+    name.push_back('/');
+    name.append(kWcbNNScoreBranchNames[i]);
+    const float value = use_placeholder_scores ? 0.f : wcb_nn_scores[i];
+    FillHist(name, value, weight, 50, 0.f, 1.f);
+  }
+
+  name.assign(base);
+  name.append("/nn_category");
+  const float category_value =
+      use_placeholder_scores ? -1.f : static_cast<float>(wcb_nn_category);
+  FillHist(name, category_value, weight, 9, -1.5f, 7.5f);
+}
+
 std::string sanitize_branch_name(std::string_view raw) {
   std::string sanitized;
   sanitized.reserve(raw.size());
@@ -957,6 +1382,95 @@ void Vcb_SL::FillTreeAtThisPoint(
   SetBranch(tree_name, "luminosityBlock", static_cast<int>(luminosityBlock));
   SetBranch(tree_name, "event", static_cast<int>(event));
 
+  try {
+    InferONNX();
+  } catch (const std::exception &e) {
+    std::cerr << "[Vcb_SL::FillTreeAtThisPoint] SPANet inference failed: "
+              << e.what() << "\n";
+    onnx_inference_valid = false;
+    assignment.fill(-1);
+    std::fill(class_score_logp.begin(), class_score_logp.end(), 0.f);
+    detection_score_logp = -999.f;
+    assignment_logp = -999.f;
+  }
+
+  bool onnx_assignment_valid = onnx_inference_valid;
+  for (std::size_t i = 2; i < assignment.size(); ++i) {
+    const int idx = assignment[i];
+    if (idx < 0 || static_cast<std::size_t>(idx) >= Jets.size()) {
+      onnx_assignment_valid = false;
+      break;
+    }
+  }
+
+  for (std::size_t i = 0; i < class_score_logp.size(); ++i) {
+    SetBranch(tree_name, "logp_class_" + std::to_string(i), class_score_logp[i]);
+  }
+  SetBranch(tree_name, "detection_score_logp", detection_score_logp);
+  SetBranch(tree_name, "assignment_logp", assignment_logp);
+  SetBranch(tree_name, "assignment_hb_idx", assignment[0]);
+  SetBranch(tree_name, "assignment_lb_idx", assignment[1]);
+  SetBranch(tree_name, "assignment_w1_idx", assignment[2]);
+  SetBranch(tree_name, "assignment_w2_idx", assignment[3]);
+  SetBranch(tree_name, "onnx_assignment_valid", onnx_assignment_valid);
+
+  if (onnx_assignment_valid) {
+    try {
+      InferTabNet();
+    } catch (const std::exception &e) {
+      std::cerr << "[Vcb_SL::FillTreeAtThisPoint] TabNet inference failed: "
+                << e.what() << "\n";
+      final_template_score = -1.f;
+      tabnet_class_logits.clear();
+      tabnet_class_scores.clear();
+      tabnet_weighted_scores.clear();
+    }
+  } else {
+    final_template_score = -1.f;
+    tabnet_class_logits.clear();
+    tabnet_class_scores.clear();
+    tabnet_weighted_scores.clear();
+  }
+  SetBranch(tree_name, "Template_MVA_Score", final_template_score);
+  for (std::size_t i = 0; i < 7; ++i) {
+    const float logit_value =
+        i < tabnet_class_logits.size() ? tabnet_class_logits[i] : -999.f;
+    const float score_value =
+        i < tabnet_class_scores.size() ? tabnet_class_scores[i] : -999.f;
+    const float weighted_score_value =
+        i < tabnet_weighted_scores.size() ? tabnet_weighted_scores[i] : -999.f;
+    SetBranch(tree_name, "tabnet_logit_" + std::to_string(i), logit_value);
+    SetBranch(tree_name, "tabnet_score_" + std::to_string(i), score_value);
+    SetBranch(tree_name, "tabnet_weighted_score_" + std::to_string(i),
+              weighted_score_value);
+  }
+
+  try {
+    EnsureWcbNNEvaluated();
+    for (std::size_t i = 0; i < kWcbNNScoreBranchNames.size(); ++i) {
+      SetBranch(tree_name, kWcbNNScoreBranchNames[i], wcb_nn_scores[i]);
+    }
+    for (std::size_t i = 0; i < kWcbNNPreSoftmaxBranchNames.size(); ++i) {
+      SetBranch(tree_name, kWcbNNPreSoftmaxBranchNames[i],
+                wcb_nn_pre_softmax[i]);
+    }
+    SetBranch(tree_name, "nn_category", wcb_nn_category);
+  } catch (const std::exception &e) {
+    std::cerr << "[Vcb_SL::FillTreeAtThisPoint] Wcb NN inference failed: "
+              << e.what() << "\n";
+    wcb_nn_scores.fill(0.f);
+    wcb_nn_pre_softmax.fill(0.f);
+    wcb_nn_category = -1;
+    wcb_nn_cache_valid = true;
+    for (const char *branch_name : kWcbNNScoreBranchNames) {
+      SetBranch(tree_name, branch_name, 0.f);
+    }
+    for (const char *branch_name : kWcbNNPreSoftmaxBranchNames) {
+      SetBranch(tree_name, branch_name, 0.f);
+    }
+    SetBranch(tree_name, "nn_category", -1);
+  }
+
   FillTrees(tree_name);
 }
 
@@ -1041,14 +1555,49 @@ void Vcb_SL::FillTemplateTrainingTree(
   SetBranch("Template_Training_Tree", "detection_score_logp",
             detection_score_logp);
   SetBranch("Template_Training_Tree", "assignment_logp", assignment_logp);
+  try {
+    EnsureWcbNNEvaluated();
+    for (std::size_t i = 0; i < kWcbNNScoreBranchNames.size(); ++i) {
+      SetBranch("Template_Training_Tree", kWcbNNScoreBranchNames[i],
+                wcb_nn_scores[i]);
+    }
+    for (std::size_t i = 0; i < kWcbNNPreSoftmaxBranchNames.size(); ++i) {
+      SetBranch("Template_Training_Tree", kWcbNNPreSoftmaxBranchNames[i],
+                wcb_nn_pre_softmax[i]);
+    }
+    SetBranch("Template_Training_Tree", "nn_category", wcb_nn_category);
+  } catch (const std::exception &e) {
+    std::cerr
+        << "[Vcb_SL::FillTemplateTrainingTree] Wcb NN inference failed: "
+        << e.what() << "\n";
+    wcb_nn_scores.fill(0.f);
+    wcb_nn_pre_softmax.fill(0.f);
+    wcb_nn_category = -1;
+    wcb_nn_cache_valid = true;
+    for (const char *branch_name : kWcbNNScoreBranchNames) {
+      SetBranch("Template_Training_Tree", branch_name, 0.f);
+    }
+    for (const char *branch_name : kWcbNNPreSoftmaxBranchNames) {
+      SetBranch("Template_Training_Tree", branch_name, 0.f);
+    }
+    SetBranch("Template_Training_Tree", "nn_category", -1);
+  }
 
   int chk_reco_correct = 0;
   if (ttbar_jet_indices[2] == assignment[2] &&
       ttbar_jet_indices[3] == assignment[3]) {
     chk_reco_correct = 1;
   }
-  SetBranch("Template_Training_Tree", "chk_reco_correct", chk_reco_correct);
   SetBranch("Template_Training_Tree", "weight_mc", MCNormalization());
+  SetBranch("Template_Training_Tree", "chk_reco_correct", chk_reco_correct);
+  SetBranch("Template_Training_Tree", "n_bjets", n_loose_b_tagged_jets);
+  SetBranch("Template_Training_Tree", "n_jets", n_jets);
+  SetBranch("Template_Training_Tree", "n_cjets", n_loose_c_tagged_jets);
+  SetBranch("Template_Training_Tree", "ht", HT);
+  SetBranch("Template_Training_Tree", "Met_Pt", MET.Pt());
+
+
+
 
   FillTrees();
 }
@@ -1679,44 +2228,22 @@ void Vcb_SL::InferONNX() {
   onnx_inference_valid = false;
   assignment.fill(-1);
   std::fill(class_score_logp.begin(), class_score_logp.end(), 0.f);
+  detection_score_logp = -999.f;
+  assignment_logp = -999.f;
   class_label = classCategory::tt;
   size_t current_fold = rle_bucket(RunNumber, luminosityBlock, event, 4);
 
   // ------------------------
   // 1. 준비: 시퀀셜(Jet) 파트
   // ------------------------
-  constexpr int max_jet_reco = 8;    // RECO model jet count
-  constexpr int max_jet_classif = 9; // temporary: CLASSIF model expects 9 jets
-  constexpr int mom_feat_dim = 7;    // pt, eta, sinφ, cosφ, m, ilrdim1, ilrdim2
-                                     // //N0, L0, C0..C4, B0..B4
+  constexpr int max_jet_onnx = kMaxJetsForONNX;
 
   auto &Momenta_data = std::get<FloatArray>(onnx_input_data["Momenta_data"]);
   auto &Momenta_mask = std::get<BoolArray>(onnx_input_data["Momenta_mask"]);
   Momenta_data.clear();
   Momenta_mask.clear();
 
-  auto fill_category_bits = [](int cat, float &N0, float &L0, float (&C)[5],
-                               float (&B)[5]) {
-    N0 = L0 = 0.f;
-    for (int i = 0; i < 5; ++i) {
-      C[i] = 0.f;
-      B[i] = 0.f;
-    }
-
-    if (cat == 0) {
-      N0 = 1.f;
-    } else if (cat == 1) {
-      L0 = 1.f;
-    } else if (2 <= cat && cat <= 6) {
-      // C0..C4
-      C[cat - 2] = 1.f;
-    } else if (7 <= cat && cat <= 11) {
-      // B0..B4
-      B[cat - 7] = 1.f;
-    }
-  };
-
-  for (int i = 0; i < max_jet_reco; ++i) {
+  for (int i = 0; i < max_jet_onnx; ++i) {
     if (i < static_cast<int>(Jets.size())) {
       const auto &j = Jets[i];
 
@@ -1724,35 +2251,63 @@ void Vcb_SL::InferONNX() {
       const float eta = j.Eta();
       const float phi = j.Phi();
       const float mass = j.M();
-      const float ilrdim1 = JetILRdim1Score(j);
-      const float ilrdim2 = JetILRdim2Score(j);
-      float N0, L0;
-      float C[5], B[5];
-      int jetCat = static_cast<int>(JetCategory(j)); // 너 예제에 있던 그 함수
-      fill_category_bits(jetCat, N0, L0, C, B);
 
-      // 한 jet = 17개 피처 순서 그대로 push
+      // shared kinematics
       Momenta_data.push_back(pt);
       Momenta_data.push_back(eta);
       Momenta_data.push_back(static_cast<float>(TMath::Sin(phi)));
       Momenta_data.push_back(static_cast<float>(TMath::Cos(phi)));
       Momenta_data.push_back(mass);
-      Momenta_data.push_back(ilrdim1);
-      Momenta_data.push_back(ilrdim2);
-      // Momenta_data.push_back(N0);
-      // Momenta_data.push_back(L0);
-      // for (int k = 0; k < 5; ++k)
-      //   Momenta_data.push_back(C[k]);
-      // for (int k = 0; k < 5; ++k)
-      //   Momenta_data.push_back(B[k]);
+
+      if constexpr (kUseILRJetFeatures) {
+        const float ilrdim1 = JetILRdim1Score(j);
+        const float ilrdim2 = JetILRdim2Score(j);
+        Momenta_data.push_back(ilrdim1);
+        Momenta_data.push_back(ilrdim2);
+      } else {
+        float N0 = 0.f;
+        float L0 = 0.f;
+        std::array<float, 5> C = {};
+        std::array<float, 5> B = {};
+        const int jetCat = static_cast<int>(JetCategory(j));
+        if (jetCat == 0) {
+          N0 = 1.f;
+        } else if (jetCat == 1) {
+          L0 = 1.f;
+        } else if (2 <= jetCat && jetCat <= 6) {
+          C[jetCat - 2] = 1.f;
+        } else if (7 <= jetCat && jetCat <= 11) {
+          B[jetCat - 7] = 1.f;
+        }
+        Momenta_data.push_back(N0);
+        Momenta_data.push_back(L0);
+        for (float value : C)
+          Momenta_data.push_back(value);
+        for (float value : B)
+          Momenta_data.push_back(value);
+      }
 
       Momenta_mask.push_back(1);
     } else {
       // padding jet
-      for (int k = 0; k < mom_feat_dim; ++k)
+      for (int k = 0; k < kMomFeatDimONNX; ++k)
         Momenta_data.push_back(0.f);
       Momenta_mask.push_back(0);
     }
+  }
+  const size_t expected_reco_mom_size =
+      static_cast<size_t>(max_jet_onnx) * kMomFeatDimONNX;
+  if (Momenta_data.size() != expected_reco_mom_size ||
+      Momenta_mask.size() != static_cast<size_t>(max_jet_onnx)) {
+    std::cerr << "[InferONNX] Invalid RECO Momenta shape in "
+              << (kUseILRJetFeatures ? "ILR" : "JetCategory") << " mode: got ("
+              << Momenta_mask.size() << ", "
+              << (Momenta_mask.empty()
+                      ? 0
+                      : Momenta_data.size() / Momenta_mask.size())
+              << "), expected (" << max_jet_onnx << ", " << kMomFeatDimONNX
+              << ")\n";
+    return;
   }
 
   // ------------------------
@@ -1794,23 +2349,23 @@ void Vcb_SL::InferONNX() {
   const auto &input_shape_reco = onnx_input_shape;
   auto input_shape_classif = onnx_input_shape;
   auto input_data_classif = onnx_input_data;
-  if (max_jet_classif != max_jet_reco) {
-    input_shape_classif["Momenta_data"] = {1, max_jet_classif, mom_feat_dim};
-    input_shape_classif["Momenta_mask"] = {1, max_jet_classif};
-    auto &classif_mom =
-        std::get<FloatArray>(input_data_classif["Momenta_data"]);
-    auto &classif_mask =
-        std::get<BoolArray>(input_data_classif["Momenta_mask"]);
-    if (classif_mask.size() > static_cast<size_t>(max_jet_classif)) {
-      classif_mask.resize(max_jet_classif);
-      classif_mom.resize(static_cast<size_t>(max_jet_classif) * mom_feat_dim);
-    } else {
-      while (classif_mask.size() < static_cast<size_t>(max_jet_classif)) {
-        for (int k = 0; k < mom_feat_dim; ++k)
-          classif_mom.push_back(0.f);
-        classif_mask.push_back(0);
-      }
-    }
+  auto &classif_mom = std::get<FloatArray>(input_data_classif["Momenta_data"]);
+  auto &classif_mask = std::get<BoolArray>(input_data_classif["Momenta_mask"]);
+  input_shape_classif["Momenta_data"] = {1, max_jet_onnx, kMomFeatDimONNX};
+  input_shape_classif["Momenta_mask"] = {1, max_jet_onnx};
+  const size_t expected_classif_mom_size =
+      static_cast<size_t>(max_jet_onnx) * kMomFeatDimONNX;
+  if (classif_mom.size() != expected_classif_mom_size ||
+      classif_mask.size() != static_cast<size_t>(max_jet_onnx)) {
+    std::cerr << "[InferONNX] Invalid CLASSIF Momenta shape in "
+              << (kUseILRJetFeatures ? "ILR" : "JetCategory") << " mode: got ("
+              << classif_mask.size() << ", "
+              << (classif_mask.empty()
+                      ? 0
+                      : classif_mom.size() / classif_mask.size())
+              << "), expected (" << max_jet_onnx << ", " << kMomFeatDimONNX
+              << ")\n";
+    return;
   }
 
   std::unordered_map<std::string, FloatArray> output_data_classif =
@@ -1878,12 +2433,12 @@ void Vcb_SL::InferONNX() {
 
   detection_score_logp = hw45log_detection_logits[0];
 
-  const int J = (int)std::min<size_t>(max_jet_reco, Jets.size());
+  const int J = (int)std::min<size_t>(max_jet_onnx, Jets.size());
 
   // shapes (배치차원 포함)
-  std::vector<int> hw45_shape = {1, max_jet_reco, max_jet_reco};
-  std::vector<int> ht_shape = {1, max_jet_reco, max_jet_reco, max_jet_reco};
-  std::vector<int> lt_shape = {1, max_jet_reco};
+  std::vector<int> hw45_shape = {1, max_jet_onnx, max_jet_onnx};
+  std::vector<int> ht_shape = {1, max_jet_onnx, max_jet_onnx, max_jet_onnx};
+  std::vector<int> lt_shape = {1, max_jet_onnx};
 
   int w1_assignment = -1, w2_assignment = -1, hb_assignment = -1,
       lb_assignment = -1;
@@ -1931,9 +2486,9 @@ void Vcb_SL::InferONNX() {
   //   for (int a = 0; a < J; ++a) {
   //     if (a == w1 || a == w2)
   //       continue;
-  //     size_t flat = (size_t)(0 * max_jet_reco * max_jet_reco * max_jet_reco +
-  //                            a * max_jet_reco * max_jet_reco +
-  //                            w1 * max_jet_reco + w2);
+  //     size_t flat = (size_t)(0 * max_jet_onnx * max_jet_onnx * max_jet_onnx +
+  //                            a * max_jet_onnx * max_jet_onnx +
+  //                            w1 * max_jet_onnx + w2);
   //     float s = htlog_logits.at(flat);
   //     if (s > best) {
   //       best = s;
@@ -1984,13 +2539,18 @@ void Vcb_SL::InferONNX() {
 }
 
 void Vcb_SL::InferTabNet() {
-  static const std::array<float, 7> class_weight_vec = {1.0,
-                                                        1.3220714330673218,
-                                                        0.6278531551361084,
-                                                        0.519160270690918,
-                                                        0.17914541065692902,
-                                                        5.709803581237793,
-                                                        3.0536484718322754};
+  final_template_score = -1.f;
+  tabnet_class_logits.clear();
+  tabnet_class_scores.clear();
+  tabnet_weighted_scores.clear();
+
+  static const std::array<float, 7> class_weight_vec = {                1.0,
+                0.8231302499771118,
+                0.6102186441421509,
+                0.5526220202445984,
+                0.14842554926872253,
+                6.188438892364502,
+                4.698705196380615,};
 
   //                                                "varlist": [
   //   "m_had_w",
@@ -2000,65 +2560,87 @@ void Vcb_SL::InferTabNet() {
   //   "eta_w_d",
   //   "Cat_w_u",
   //   "Cat_w_d",
-  //   "logp_class_0",
-  //   "logp_class_1",
-  //   "logp_class_2",
-  //   "logp_class_3",
-  //   "logp_class_4",
-  //   "logp_class_5",
+  //   "pre_softmax_tt_Wcb",
+  //   "pre_softmax_ttLF",
+  //   "pre_softmax_ttcj",
+  //   "pre_softmax_tt2c",
+  //   "pre_softmax_ttcc",
+  //   "pre_softmax_ttbj",
+  //   "pre_softmax_tt2b",
+  //   "pre_softmax_ttbb",
   //   "detection_score_logp",
-  //   "assignment_logp"
+  //   "assignment_logp",
+  //   "n_bjets",
+  //   "n_jets",
+  //   "n_cjets",
+  //   "ht",
+  //   "Met_Pt",
   // ]
 
   auto &input_vector = std::get<FloatArray>(tabnet_input_data["input"]);
+  const int expected_tabnet_input_dim =
+      1 + 2 + 2 + (kUseILRJetFeatures ? 4 : 2) +
+      static_cast<int>(kWcbNNPreSoftmaxBranchNames.size()) + 2 +
+      kTabNetEventContextFeatDim;
   input_vector.clear();
-  input_vector.reserve(17);
-  auto winsorize = [](float val, float lower, float upper) {
-    return std::clamp(val, lower, upper);
-  };
+  input_vector.reserve(expected_tabnet_input_dim);
+  EnsureWcbNNEvaluated();
 
   // m_had_w
   {
     Particle hw = Jets[assignment[2]] + Jets[assignment[3]];
-    input_vector.push_back(winsorize(hw.M(), 0.f, 300.f));
+    input_vector.push_back(hw.M());
   }
   // pt_w_u
-  input_vector.push_back(log1p(Jets[assignment[2]].Pt()));
+  input_vector.push_back(Jets[assignment[2]].Pt());
   // pt_w_d
-  input_vector.push_back(log1p(Jets[assignment[3]].Pt()));
+  input_vector.push_back(Jets[assignment[3]].Pt());
   // eta_w_u
   input_vector.push_back(Jets[assignment[2]].Eta());
   // eta_w_d
   input_vector.push_back(Jets[assignment[3]].Eta());
-  // Cat_w_u
-  // input_vector.push_back(static_cast<float>(JetCategory(Jets[assignment[2]])));
-  // Cat_w_d
-  // input_vector.push_back(static_cast<float>(JetCategory(Jets[assignment[3]])));
-  // ilrdim1_w_u
-  input_vector.push_back(JetILRdim1Score(Jets[assignment[2]]));
-  // ilrdim1_w_d
-  input_vector.push_back(JetILRdim1Score(Jets[assignment[3]]));
-  // ilrdim2_w_u
-  input_vector.push_back(JetILRdim2Score(Jets[assignment[2]]));
-  // ilrdim2_w_d
-  input_vector.push_back(JetILRdim2Score(Jets[assignment[3]]));
-  // logp_class_0 ~ logp_class_5
-  for (size_t i = 0; i < class_score_logp.size(); ++i) {
-    input_vector.push_back(class_score_logp[i]);
+  if constexpr (kUseILRJetFeatures) {
+    // ilrdim1_w_u / ilrdim1_w_d / ilrdim2_w_u / ilrdim2_w_d
+    input_vector.push_back(JetILRdim1Score(Jets[assignment[2]]));
+    input_vector.push_back(JetILRdim1Score(Jets[assignment[3]]));
+    input_vector.push_back(JetILRdim2Score(Jets[assignment[2]]));
+    input_vector.push_back(JetILRdim2Score(Jets[assignment[3]]));
+  } else {
+    // Cat_w_u / Cat_w_d
+    input_vector.push_back(
+        static_cast<float>(JetCategory(Jets[assignment[2]])));
+    input_vector.push_back(
+        static_cast<float>(JetCategory(Jets[assignment[3]])));
   }
+  // pre_softmax_tt_Wcb ~ pre_softmax_ttbb
+  for (float pre_softmax : wcb_nn_pre_softmax)
+    input_vector.push_back(pre_softmax);
   // detection_score_logp
   input_vector.push_back(detection_score_logp);
   // assignment_logp
   input_vector.push_back(assignment_logp);
+  input_vector.push_back(n_loose_b_tagged_jets);
+  input_vector.push_back(n_jets);
+  input_vector.push_back(n_loose_c_tagged_jets);
+  input_vector.push_back(HT);
+  input_vector.push_back(MET.Pt());
+  if (static_cast<int>(input_vector.size()) != expected_tabnet_input_dim) {
+    std::cerr << "[InferTabNet] Invalid TabNet input feature size in "
+              << (kUseILRJetFeatures ? "ILR" : "JetCategory") << " mode: got "
+              << input_vector.size() << ", expected "
+              << expected_tabnet_input_dim << "\n";
+    final_template_score = -1.f;
+    return;
+  }
   int this_fold = rle_bucket(luminosityBlock, RunNumber, event, 4);
   std::unordered_map<std::string, FloatArray> output_data =
       myMLHelper_TabNet_folds[this_fold]->Run_ONNX_Model(tabnet_input_data,
                                                          tabnet_input_shape);
-  auto &tabnet_class_logits = output_data.at("logits"); // [1, 7]
+  const auto &tabnet_logits_output = output_data.at("logits"); // [1, 7]
+  tabnet_class_logits.assign(tabnet_logits_output.begin(),
+                             tabnet_logits_output.end());
 
   // element-wise exp (vectorized) with reusable buffers
-  tabnet_class_scores.clear();
-  tabnet_weighted_scores.clear();
   tabnet_class_scores.reserve(tabnet_class_logits.size());
   tabnet_weighted_scores.resize(tabnet_class_logits.size());
 

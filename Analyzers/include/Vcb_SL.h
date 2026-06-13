@@ -42,8 +42,10 @@ public:
     tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> FitKinFitter(const RVec<Jet> &jets, const RVec<unsigned int> &permutation, Particle &neutrino, Lepton &lepton);
     void FillTrainingTree() override;
     void FillTemplateTrainingTree(const std::unordered_map<std::string, float> &weight_map) override;
+    void FillHistogramsAtThisPoint(std::string_view histPrefix, float weight = 1.f) override;
     void FillTreeAtThisPoint(  std::string_view treePrefix, float MCNormalizationWeight,
     const std::unordered_map<std::string, float> &weight_map) override;
+    void EnsureWcbNNEvaluated();
     void virtual CreateTrainingTree() override;
     void virtual CreateTemplateTrainingTree() override;
     RVec<RVec<unsigned int>> GetPermutations(const RVec<Jet> &jets) override;
@@ -122,6 +124,13 @@ public:
     Particle gen_neutrino;
 
     //infering ONNX
+    static constexpr bool kUseILRJetFeatures = false;
+    static constexpr int kMaxJetsForONNX = 8;
+    static constexpr int kMomFeatDimILR = 7;       // pt, eta, sinphi, cosphi, m, ilr1, ilr2
+    static constexpr int kMomFeatDimJetCategory = 17; // pt, eta, sinphi, cosphi, m, N0, L0, C0..C4, B0..B4
+    static constexpr int kMomFeatDimONNX =
+        kUseILRJetFeatures ? kMomFeatDimILR : kMomFeatDimJetCategory;
+
     enum class classCategory
     {
         Signal,
@@ -145,12 +154,18 @@ public:
     // Reusable TabNet buffers
     std::unordered_map<std::string, VariousArray> tabnet_input_data;
     std::unordered_map<std::string, std::vector<int>> tabnet_input_shape;
+    std::vector<float> tabnet_class_logits;
     std::vector<float> tabnet_class_scores;
     std::vector<float> tabnet_weighted_scores;
 
     // Cached ttbar matching info
     bool ttbar_indices_computed = false;
 
+    // Cached Wcb classifier outputs shared by tree/hist filling paths
+    std::array<float, 8> wcb_nn_scores = {};
+    std::array<float, 8> wcb_nn_pre_softmax = {};
+    int wcb_nn_category = -1;
+    bool wcb_nn_cache_valid = false;
 
 };
 

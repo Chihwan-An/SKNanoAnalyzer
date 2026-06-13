@@ -7,12 +7,133 @@
 #include "TEntryList.h"
 #include "TEntryListArray.h"
 #include "TObjArray.h"
+#include "UParTScoreUtils.h"
 #include <TLorentzVector.h>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <filesystem>
+#include <sstream>
+#include <system_error>
 #include <unordered_map>
 #include <unordered_set>
+
+namespace {
+std::string to_lower_ascii(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
+  return s;
+}
+
+bool starts_with(const std::string &value, const std::string &prefix) {
+  return value.size() >= prefix.size() &&
+         value.compare(0, prefix.size(), prefix) == 0;
+}
+
+bool is_digits(const std::string &value) {
+  return !value.empty() &&
+         std::all_of(value.begin(), value.end(),
+                     [](unsigned char c) { return std::isdigit(c) != 0; });
+}
+
+bool is_bootstrap_source(const std::string &source) {
+  const std::string lowered = to_lower_ascii(source);
+  return starts_with(lowered, "bootstrap_");
+}
+
+std::string normalize_bootstrap_source_key(std::string source) {
+  source = to_lower_ascii(std::move(source));
+  constexpr char prefix[] = "bootstrap_";
+  if (!starts_with(source, prefix))
+    return "";
+
+  std::string index = source.substr(sizeof(prefix) - 1);
+  if (!is_digits(index))
+    return "";
+  if (index.size() == 1)
+    index = "0" + index;
+  return "syst_target_bootstrap_" + index;
+}
+
+std::string ot_source_to_integrated_stem(std::string source) {
+  source = to_lower_ascii(std::move(source));
+  if (source == "fsr")
+    return "syst_weight_FSR";
+  if (source == "isr")
+    return "syst_weight_ISR";
+  if (source == "muf")
+    return "syst_weight_MuF";
+  if (source == "mur")
+    return "syst_weight_MuR";
+  if (source == "pileup")
+    return "syst_weight_Pileup";
+  if (source == "jet_en" || source == "jes")
+    return "syst_tree_Jet_En";
+  if (source == "jet_res" || source == "jer")
+    return "syst_tree_Jet_Res";
+  if (starts_with(source, "priorsf_"))
+    return "syst_target_priorSF_" + source.substr(8);
+  return "";
+}
+
+std::vector<float> ot_pt_edges() {
+  return {25.f, 35.f, 50.f, 70.f, 90.f, 120.f, 1e+8f};
+}
+
+UParTScore::Prob3 remap_prob3_with_second_lut(const UParTScore::Mapper &mapper,
+                                              const UParTScore::Prob3 &p_in,
+                                              float pt, int hadronFlavor) {
+  constexpr double eps = 1e-12;
+  const double pb = std::max(p_in.pb, eps);
+  const double pc = std::max(p_in.pc, eps);
+  const double pl = std::max(p_in.pl, eps);
+
+  // Build a branch-like tuple reproducing current (pb, pc, pl),
+  // then run the second OT map.
+  const double probudg = pl;
+  const double SvUDG = 0.0;
+  const double CvL = pc / std::max(pc + pl, eps);
+  const double CvB = pc / std::max(pb + pc, eps);
+
+  return mapper.MappedProb3(probudg, SvUDG, CvL, CvB, pt, hadronFlavor);
+}
+
+float strict_ot_pt_value(const std::vector<float> &pts, std::size_t idx,
+                         const char *label, const std::string &syst_target) {
+  if (idx >= pts.size()) {
+    throw std::runtime_error("[Vcb::OtLutPtFromStore] Missing " +
+                             std::string(label) + " for jet index " +
+                             std::to_string(idx) +
+                             " (systematic target: " + syst_target + ")");
+  }
+
+  const float pt = pts[idx];
+  if (!(pt > 0.f) || !std::isfinite(pt)) {
+    throw std::runtime_error("[Vcb::OtLutPtFromStore] Invalid " +
+                             std::string(label) + " = " + std::to_string(pt) +
+                             " at jet index " + std::to_string(idx) +
+                             " (systematic target: " + syst_target + ")");
+  }
+  return pt;
+}
+
+float ot_pt_value_or_nominal(const std::vector<float> &pts, std::size_t idx,
+                             const std::vector<float> &nominal_pts,
+                             const std::string &syst_target) {
+  const float nominal_pt =
+      strict_ot_pt_value(nominal_pts, idx, "smearedPtNominal", syst_target);
+
+  if (idx >= pts.size())
+    return nominal_pt;
+
+  const float pt = pts[idx];
+  if (!(pt > 0.f) || !std::isfinite(pt))
+    return nominal_pt;
+
+  return pt;
+}
+} // namespace
 
 // namespace {
 
@@ -151,27 +272,184 @@ std::pair<double, double> Vcb::hf_bvc_from_prob3(const Prob3 &p, double eps) {
   return UParTScore::hf_bvc_from_prob3(p, eps);
 }
 
-
 Vcb::Prob3 Vcb::MappedProb3_from_components(double probudg, double SvUDG,
                                             double CvL, double CvB, float pt,
                                             int hadronFalvor) const {
-  UParTScore::Mapper mapper(UParT_OT_Central.get(), IsDATA,
-                            HasFlag("Unmapped"));
-  return mapper.MappedProb3(probudg, SvUDG, CvL, CvB, pt, hadronFalvor);
+  UParTScore::Mapper mapper_central(CurrentOtLut(), IsDATA,
+                                    HasFlag("Unmapped"));
+  Prob3 p =
+      mapper_central.MappedProb3(probudg, SvUDG, CvL, CvB, pt, hadronFalvor);
 
+  if (!IsDATA && !HasFlag("Unmapped") && UParT_OT_SystActive) {
+    UParTScore::Mapper mapper_syst(UParT_OT_SystActive, false, false);
+    p = remap_prob3_with_second_lut(mapper_syst, p, pt, hadronFalvor);
+  }
+  return p;
 }
 
 Vcb::Vcb() {}
 
-int Vcb::bin_hf(double x) {
-  return int(x >= HF_T1) + int(x >= HF_T2) + int(x >= HF_T3);
+const OtJsonLutBank *Vcb::CurrentOtLut() const {
+  return UParT_OT_Central.get();
 }
 
-int Vcb::bin_bvc(double y) {
-  return int(y >= BVC_T1) + int(y >= BVC_T2) + int(y >= BVC_T3) +
-         int(y >= BVC_T4) + int(y >= BVC_T5) + int(y >= BVC_T6) +
-         int(y >= BVC_T7);
+std::string Vcb::BuildSystOtLutKey(const std::string &source,
+                                   MyCorrection::variation variation) const {
+  const std::string lowered = to_lower_ascii(source);
+
+  if (starts_with(lowered, "bootstrap_")) {
+    // Requested behavior: bootstrap down variation uses central LUT.
+    if (variation == MyCorrection::variation::down)
+      return "";
+    if (variation != MyCorrection::variation::up)
+      return "";
+    return normalize_bootstrap_source_key(lowered);
+  }
+
+  const std::string stem = ot_source_to_integrated_stem(lowered);
+  if (stem.empty())
+    return "";
+
+  switch (variation) {
+  case MyCorrection::variation::up:
+    return stem + "_Up";
+  case MyCorrection::variation::down:
+    return stem + "_Down";
+  default:
+    return "";
+  }
 }
+
+const OtJsonLutBank *Vcb::GetOrLoadOtLut(const std::string &json_path,
+                                         const std::string &bundle_key) {
+  std::string cache_key = json_path;
+  cache_key += "#";
+  cache_key += bundle_key.empty() ? "central" : bundle_key;
+
+  auto it = UParT_OT_ByPath.find(cache_key);
+  if (it != UParT_OT_ByPath.end())
+    return it->second.get();
+
+  auto lut = std::make_unique<OtJsonLutBank>(ot_pt_edges());
+  lut->load_json(json_path, bundle_key);
+  const OtJsonLutBank *ptr = lut.get();
+  UParT_OT_ByPath.emplace(cache_key, std::move(lut));
+  return ptr;
+}
+
+void Vcb::UpdateActiveOtLutForCurrentSystematic() {
+  UParT_OT_SystActive = nullptr;
+
+  if (!UParT_OT_Central || IsDATA || HasFlag("Unmapped") || !systHelper)
+    return;
+
+  const std::string current_iter = systHelper->getCurrentSysName();
+  const auto targets = systHelper->get_targets_from_name(current_iter);
+  const bool uses_flavtag =
+      std::find(targets.begin(), targets.end(), "flavtag") != targets.end();
+  if (!uses_flavtag)
+    return;
+
+  const auto variation = systHelper->getCurrentIterVariation();
+  if (variation == MyCorrection::variation::nom)
+    return;
+
+  const std::string source = systHelper->getCurrentIterSysSource();
+  const bool bootstrap_down =
+      variation == MyCorrection::variation::down && is_bootstrap_source(source);
+  const std::string bundle_key = BuildSystOtLutKey(source, variation);
+  if (bundle_key.empty()) {
+    if (bootstrap_down)
+      return;
+
+    const std::string warn_key =
+        "unknown_source:" + source + ":" + std::to_string(int(variation));
+    if (UParT_OT_WarnedOnce.insert(warn_key).second) {
+      std::cerr << "[Vcb::UpdateActiveOtLutForCurrentSystematic] Unknown OT "
+                   "systematic source '"
+                << source << "' for " << current_iter
+                << ", fallback to central LUT" << std::endl;
+    }
+    return;
+  }
+
+  std::error_code ec;
+  if (!std::filesystem::exists(UParT_OT_Central_Path, ec)) {
+    const std::string warn_key = "missing_path:" + UParT_OT_Central_Path;
+    if (UParT_OT_WarnedOnce.insert(warn_key).second) {
+      std::cerr << "[Vcb::UpdateActiveOtLutForCurrentSystematic] Missing OT "
+                   "LUT: "
+                << UParT_OT_Central_Path << ", fallback to central LUT"
+                << std::endl;
+    }
+    return;
+  }
+
+  try {
+    UParT_OT_SystActive = GetOrLoadOtLut(UParT_OT_Central_Path, bundle_key);
+  } catch (const std::exception &e) {
+    const std::string warn_key = "load_fail:" + bundle_key;
+    if (UParT_OT_WarnedOnce.insert(warn_key).second) {
+      std::cerr << "[Vcb::UpdateActiveOtLutForCurrentSystematic] Failed to "
+                   "load OT LUT "
+                << bundle_key << " from " << UParT_OT_Central_Path << ": "
+                << e.what() << ", fallback to central LUT" << std::endl;
+    }
+    UParT_OT_SystActive = nullptr;
+  }
+}
+
+float Vcb::OtLutPtFromStore(const JetSoA &store, std::size_t idx) const {
+  const std::string syst_target =
+      systHelper ? systHelper->getCurrentIterSysTarget() : "Central";
+  const auto variation = systHelper ? systHelper->getCurrentIterVariation()
+                                    : MyCorrection::variation::nom;
+
+  if (IsDATA) {
+    return strict_ot_pt_value(store.correctedPt, idx, "correctedPt",
+                              syst_target);
+  }
+  const float nominal_pt = strict_ot_pt_value(store.smearedPtNominal, idx,
+                                              "smearedPtNominal", syst_target);
+
+  if (syst_target.find("Jet_En") != std::string::npos) {
+    switch (variation) {
+    case MyCorrection::variation::up:
+      return ot_pt_value_or_nominal(store.jesPtUp, idx, store.smearedPtNominal,
+                                    syst_target);
+    case MyCorrection::variation::down:
+      return ot_pt_value_or_nominal(store.jesPtDown, idx,
+                                    store.smearedPtNominal, syst_target);
+    case MyCorrection::variation::nom:
+      return nominal_pt;
+    default:
+      throw std::runtime_error(
+          "[Vcb::OtLutPtFromStore] Unsupported variation for Jet_En target");
+    }
+  }
+
+  if (syst_target == "Jet_Res") {
+    switch (variation) {
+    case MyCorrection::variation::up:
+      return ot_pt_value_or_nominal(store.smearedPtUp, idx,
+                                    store.smearedPtNominal, syst_target);
+    case MyCorrection::variation::down:
+      return ot_pt_value_or_nominal(store.smearedPtDown, idx,
+                                    store.smearedPtNominal, syst_target);
+    case MyCorrection::variation::nom:
+      return nominal_pt;
+    default:
+      throw std::runtime_error(
+          "[Vcb::OtLutPtFromStore] Unsupported variation for Jet_Res target");
+    }
+  }
+
+  return nominal_pt;
+}
+
+int Vcb::bin_hf(double x) { return UParTScore::bin_hf(x); }
+
+int Vcb::bin_bvc(double y) { return UParTScore::bin_bvc(y); }
 
 // std::pair<double,double>
 // Vcb::HFvLF_BvC_from_components(double probudg, double SvUDG, double CvL,
@@ -222,9 +500,9 @@ int Vcb::bin_bvc(double y) {
 std::pair<double, double>
 Vcb::HFvLF_BvC_from_components(double probudg, double SvUDG, double CvL,
                                double CvB, float pt, int hadronFalvor) const {
-  UParTScore::Mapper mapper(UParT_OT_Central.get(), IsDATA,
-                            HasFlag("Unmapped"));
-  return mapper.HFvLF_BvC(probudg, SvUDG, CvL, CvB, pt, hadronFalvor);
+  const Prob3 p =
+      MappedProb3_from_components(probudg, SvUDG, CvL, CvB, pt, hadronFalvor);
+  return UParTScore::hf_bvc_from_prob3(p);
 }
 
 std::pair<double, double> Vcb::HFvLF_BvC_from_ParT(const Jet &j) const {
@@ -242,27 +520,12 @@ std::pair<double, double> Vcb::HFvLF_BvC_from_storage(const JetSoA &store,
                                                       std::size_t idx) const {
   return HFvLF_BvC_from_components(
       store.uparTAK4UDG[idx], store.uparTAK4SvUDG[idx], store.uparTAK4CvL[idx],
-      store.uparTAK4CvB[idx], float(store.pt[idx]),
+      store.uparTAK4CvB[idx], OtLutPtFromStore(store, idx),
       int(store.hadronFlavour[idx]));
 }
 
 Vcb::Cat Vcb::classify_from_scores(double hf, double bvc) const {
-  if (!(hf >= 0.0 && hf <= 1.0 && bvc >= 0.0 && bvc <= 1.0))
-    return Vcb::Cat::N0;
-
-  const int ih = bin_hf(hf);
-  if (ih == 0)
-    return Vcb::Cat::L0;
-  if (ih == 1)
-    return Vcb::Cat::C0;
-  if (ih == 2)
-    return Vcb::Cat::C1;
-
-  static constexpr Vcb::Cat TOP_MAP[8] = {
-      Vcb::Cat::C4, Vcb::Cat::C3, Vcb::Cat::C2, Vcb::Cat::B0,
-      Vcb::Cat::B1, Vcb::Cat::B2, Vcb::Cat::B3, Vcb::Cat::B4};
-  const int jb = bin_bvc(bvc);
-  return TOP_MAP[jb];
+  return UParTScore::classify_from_scores(hf, bvc);
 }
 
 Vcb::Cat Vcb::classify_from_storage(const JetSoA &store,
@@ -275,7 +538,7 @@ void Vcb::initializeAnalyzer() {
   rle_bucket_compute_checksum();
   SetChannel();
   string SKNANO_HOME = std::getenv("SKNANO_HOME");
-  string TABNET_TRAINING_DIR = "/data6/Users/yeonjoon/VcbMVAStudy/TabNet_template/TabNET_model/2024_QuadJet";
+  string TABNET_TRAINING_DIR = "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/tabnet/input_cat";
   if (!IsDATA) {
     TString json_path = SKNANO_HOME + "/ModellingPatch/" + MCSample.Data() +
                         "_" + DataEra.Data() + "_summary.json";
@@ -286,10 +549,9 @@ void Vcb::initializeAnalyzer() {
   std::string ctagging_eff_file = "ctaggingEff.json";
   std::string btagging_R_file = "btaggingR.json";
   std::string ctagging_R_file = "ctaggingR.json";
-  UParT_OT_Central = std::make_unique<OtJsonLutBank>(
-      std::vector<float>{25, 35, 50, 70, 90, 120, 1e+8f});
-  UParT_OT_Central->load_json(
-      "/data6/Users/yeonjoon/SKNANOAnalyzer_NanoV15/data/Run3_v15_Run2_v15/2024/BTV/LUT_200_v3.json");
+  UParT_OT_Central = std::make_unique<OtJsonLutBank>(ot_pt_edges());
+  UParT_OT_Central->load_json(UParT_OT_Central_Path);
+  UParT_OT_SystActive = nullptr;
   if (channel == Channel::FH) {
     std::cout << "Initialize MyCorrection for FH" << std::endl;
     btagging_R_file = "Vcb_FH_btaggingR.json";
@@ -317,19 +579,22 @@ void Vcb::initializeAnalyzer() {
     myMLHelper_RECO_folds.reserve(4);
     for (int i = 0; i < 4; ++i) {
       myMLHelper_CLASSIF_folds.push_back(std::make_unique<MLHelper>(
-          SKNANO_HOME + "/data/spanet_version_" + std::to_string(i) +
-              "_CLASSIF.onnx",
+          "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/"
+          "spanet/input_cat/classif/spanet_fold" +
+              std::to_string(i) + ".onnx",
           MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
     }
     for (int i = 0; i < 4; ++i) {
       myMLHelper_RECO_folds.push_back(std::make_unique<MLHelper>(
-          SKNANO_HOME + "/data/spanet_version_" + std::to_string(i) +
-              "_RECO.onnx",
+          "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/"
+          "spanet/input_cat/reco/spanet_fold" +
+              std::to_string(i) + ".onnx",
           MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
     }
     for (int i = 0; i < 4; ++i) {
       myMLHelper_TabNet_folds.push_back(std::make_unique<MLHelper>(
-          TABNET_TRAINING_DIR+ "/onnx/tabnet_fold" + std::to_string(i) + ".onnx",
+          TABNET_TRAINING_DIR + "/tabnet_fold" + std::to_string(i) +
+              ".onnx",
           MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
     }
   } else if (channel == Channel::MM || channel == Channel::ME ||
@@ -359,10 +624,10 @@ void Vcb::initializeAnalyzer() {
         SKNANO_HOME + "/AnalyzerTools/noSyst.yaml", DataStream, DataEra);
   } else {
 
-    systHelper = std::make_unique<SystematicHelper>(
-        SKNANO_HOME + "/AnalyzerTools/"
-                      "VcbSystematic_BTag.yaml",
-        MCSample, DataEra);
+    systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME +
+                                                        "/AnalyzerTools/"
+                                                        "VcbSystematic_OT.yaml",
+                                                    MCSample, DataEra);
   }
 
   CreateTrainingTree();
@@ -616,13 +881,20 @@ void Vcb::FillTreeAtThisPoint(
     const std::unordered_map<std::string, float> &weight_map) {}
 
 void Vcb::UpdateAllJetTaggingCaches(const JetViewCollection &jets) {
-  ComputeParTScores(jets, jetHFvLFAll, jetBvCAll, jetCategoryAll);
+  ComputeParTScores(jets, jetHFvLFAll, jetBvCAll, jetCategoryAll, nullptr);
 }
 
-void Vcb::ComputeParTScores(const JetViewCollection &jets,
-                            std::vector<float> &hfScores,
-                            std::vector<float> &bvcScores,
-                            std::vector<Vcb::Cat> &categories) const {
+void Vcb::UpdateAllJetTaggingCaches(
+    const JetViewCollection &jets,
+    const std::vector<std::size_t> &selected_indices) {
+  ComputeParTScores(jets, jetHFvLFAll, jetBvCAll, jetCategoryAll,
+                    &selected_indices);
+}
+
+void Vcb::ComputeParTScores(
+    const JetViewCollection &jets, std::vector<float> &hfScores,
+    std::vector<float> &bvcScores, std::vector<Vcb::Cat> &categories,
+    const std::vector<std::size_t> *selected_indices) const {
   const auto &storagePtr = jets.storage();
   if (!storagePtr) {
     hfScores.clear();
@@ -643,30 +915,71 @@ void Vcb::ComputeParTScores(const JetViewCollection &jets,
   const JetSoA &store = *storagePtr;
   const std::size_t n = store.size();
 
-  hfScores.resize(n);
-  bvcScores.resize(n);
-  categories.resize(n);
+  if (!partInputBranchesValidated) {
+    partInputBranchesValidated = true;
+    std::vector<std::string> missing;
+    auto check_branch = [&](const auto &column, const char *name) {
+      const auto *branch = column.branch();
+      if (!branch || !branch->valid())
+        missing.emplace_back(name);
+    };
+    check_branch(store.uparTAK4UDG, "Jet_btagUParTAK4UDG");
+    check_branch(store.uparTAK4SvUDG, "Jet_btagUParTAK4SvUDG");
+    check_branch(store.uparTAK4CvL, "Jet_btagUParTAK4CvL");
+    check_branch(store.uparTAK4CvB, "Jet_btagUParTAK4CvB");
+    if (!IsDATA)
+      check_branch(store.hadronFlavour, "Jet_hadronFlavour");
+
+    if (!missing.empty()) {
+      std::ostringstream oss;
+      oss << "[Vcb::ComputeParTScores] Missing required branches for ParT "
+             "category tagging: ";
+      for (std::size_t i = 0; i < missing.size(); ++i) {
+        if (i)
+          oss << ", ";
+        oss << missing[i];
+      }
+      throw std::runtime_error(oss.str());
+    }
+  }
+
+  hfScores.assign(n, -1.f);
+  bvcScores.assign(n, -1.f);
+  categories.assign(n, Vcb::Cat::N0);
 
   // ✅ mapped prob3 캐시 (핵심)
-  jetProbBAll.resize(n);
-  jetProbCAll.resize(n);
-  jetProbLAll.resize(n);
-  jetILRdim1All.resize(n);
-  jetILRdim2All.resize(n);
+  jetProbBAll.assign(n, -1.f);
+  jetProbCAll.assign(n, -1.f);
+  jetProbLAll.assign(n, -1.f);
+  jetILRdim1All.assign(n, -999.f);
+  jetILRdim2All.assign(n, -999.f);
 
   // (선택) 기존 캐시 유지한다면 같이 채움
-  jetHFvLFAll.resize(n);
-  jetBvCAll.resize(n);
+  jetHFvLFAll.assign(n, -1.f);
+  jetBvCAll.assign(n, -1.f);
 
-  UParTScore::Mapper mapper(UParT_OT_Central.get(), IsDATA,
-                            HasFlag("Unmapped"));
+  UParTScore::Mapper mapper_central(CurrentOtLut(), IsDATA,
+                                    HasFlag("Unmapped"));
+  std::unique_ptr<UParTScore::Mapper> mapper_syst = nullptr;
+  if (!IsDATA && !HasFlag("Unmapped") && UParT_OT_SystActive) {
+    mapper_syst =
+        std::make_unique<UParTScore::Mapper>(UParT_OT_SystActive, false, false);
+  }
 
-  for (std::size_t i = 0; i < n; ++i) {
+  auto fill_one = [&](std::size_t i) {
+    if (i >= n)
+      return;
+    const float lut_pt = OtLutPtFromStore(store, i);
+
     // 1) mapped (pb,pc,pl)
-    Prob3 p = mapper.MappedProb3(
+    Prob3 p = mapper_central.MappedProb3(
         double(store.uparTAK4UDG[i]), double(store.uparTAK4SvUDG[i]),
-        double(store.uparTAK4CvL[i]), double(store.uparTAK4CvB[i]),
-        float(store.pt[i]), int(store.hadronFlavour[i]));
+        double(store.uparTAK4CvL[i]), double(store.uparTAK4CvB[i]), lut_pt,
+        int(store.hadronFlavour[i]));
+    if (mapper_syst) {
+      p = remap_prob3_with_second_lut(*mapper_syst, p, lut_pt,
+                                      int(store.hadronFlavour[i]));
+    }
 
     jetProbBAll[i] = float(p.pb);
     jetProbCAll[i] = float(p.pc);
@@ -683,6 +996,17 @@ void Vcb::ComputeParTScores(const JetViewCollection &jets,
 
     jetHFvLFAll[i] = hfScores[i];
     jetBvCAll[i] = bvcScores[i];
+  };
+
+  if (selected_indices) {
+    for (const std::size_t i : *selected_indices) {
+      fill_one(i);
+    }
+    return;
+  }
+
+  for (std::size_t i = 0; i < n; ++i) {
+    fill_one(i);
   }
 }
 
@@ -791,11 +1115,10 @@ void Vcb::executeEvent() {
   AllElectronViews = GetAllElectronViews();
   AllJetViews = GetAllJetViews();
   AllGenViews = GetAllGenViews();
-  UpdateAllJetTaggingCaches(AllJetViews);
   AllGens = GetAllGens();
   AllGenJets = GetAllGenJets();
   ev = GetEvent();
-  if(!myCorr->IsGoldenLumi(RunNumber, luminosityBlock)){
+  if (!myCorr->IsGoldenLumi(RunNumber, luminosityBlock)) {
     return;
   }
 
@@ -807,13 +1130,14 @@ void Vcb::executeEvent() {
   if (HasFlag("TemplateTraining")) {
     Clear();
     for (const auto &syst_dummy : *systHelper) {
+      UpdateActiveOtLutForCurrentSystematic();
       if (!PassBaseLineSelection(false, false))
         continue;
       InferONNX();
       if (systHelper->getCurrentIterSysTarget().find("Central") !=
           std::string::npos) {
         const auto weight_map = systHelper->calculateWeight(false);
-        FillTemplateTrainingTree(weight_map );
+        FillTemplateTrainingTree(weight_map);
         return;
       }
     }
@@ -823,6 +1147,7 @@ void Vcb::executeEvent() {
   if (HasFlag("Training")) {
     Clear();
     for (const auto &syst_dummy : *systHelper) {
+      UpdateActiveOtLutForCurrentSystematic();
       if (!PassBaseLineSelection(false, true))
         continue;
       if (systHelper->getCurrentIterSysTarget().find("Central") !=
@@ -966,16 +1291,6 @@ void Vcb::SetSystematicLambda(bool remove_flavtagging_sf) {
         }
       };
 
-  std::function<float(MyCorrection::variation, TString)> BTag_lambda =
-      [&](MyCorrection::variation syst, TString source) {
-        float weight = 1.f;
-        weight *= myCorr->GetBTaggingSF(
-            Jets, JetTagging::JetTaggingSFMethod::shape, syst, source);
-        weight *= myCorr->GetBTaggingR(Jets, Sample_Shorthand[MCSample.Data()],
-                                       syst, source);
-        return weight;
-      };
-
   std::function<float()> top_pt_reweight_lambda = [this, get_subproc_name]() {
     if (!MCSample.Contains("TT"))
       return 1.f;
@@ -1056,9 +1371,9 @@ void Vcb::SetSystematicLambda(bool remove_flavtagging_sf) {
   weight_function_map["BFrag"] = dummy_lambda;
 
   if (remove_flavtagging_sf)
-    weight_function_map["btag"] = dummy_lambda;
+    weight_function_map["flavtag"] = dummy_lambda;
   else
-    weight_function_map["btag"] = dummy_lambda;
+    weight_function_map["flavtag"] = dummy_lambda;
   systHelper->assignWeightFunctionMap(weight_function_map);
 }
 
@@ -1124,7 +1439,10 @@ void Vcb::Clear() {
   n_jets = 0;
   n_b_tagged_jets = 0;
   n_c_tagged_jets = 0;
+  n_loose_b_tagged_jets = 0;
+  n_loose_c_tagged_jets = 0;
   n_hf_jets = 0;
+  n_loose_hf_jets = 0;
   n_hadronFlav_b_jets = 0;
   n_hadronFlav_c_jets = 0;
   find_all_jets = false;
@@ -1139,6 +1457,7 @@ void Vcb::Clear() {
 
 void Vcb::executeEventFromParameter() {
   Clear();
+  UpdateActiveOtLutForCurrentSystematic();
   enum class OUTPUT_TYPE { HISTOGRAMS, TREE };
   OUTPUT_TYPE output_type = OUTPUT_TYPE::HISTOGRAMS;
   if (HasFlag("OutputTrees"))
@@ -1170,8 +1489,8 @@ void Vcb::executeEventFromParameter() {
   if (IsDATA) {
     if (output_type == OUTPUT_TYPE::HISTOGRAMS) {
       FillHistogramsAtThisPoint(base_path + "Central/data_obs", 1.f);
-       FillONNXRecoInfo(base_path + "Central/data_obs", 1.f);
-       FillTabNetInfo(base_path + "Central/data_obs", 1.f);
+      FillONNXRecoInfo(base_path + "Central/data_obs", 1.f);
+      FillTabNetInfo(base_path + "Central/data_obs", 1.f);
     } else {
       const std::unordered_map<std::string, float> data_weights = {
           {"Central", 1.f}};
@@ -1228,7 +1547,8 @@ void Vcb::CreateTrainingTree() {}
 void Vcb::CreateTemplateTrainingTree() {}
 
 void Vcb::FillTrainingTree() {}
-void Vcb::FillTemplateTrainingTree(const std::unordered_map<std::string, float> &weight_map) {}
+void Vcb::FillTemplateTrainingTree(
+    const std::unordered_map<std::string, float> &weight_map) {}
 
 RVec<int> Vcb::FindTTbarJetIndices() {
   RVec<int> iamnothing;
@@ -1245,9 +1565,6 @@ RVec<RVec<unsigned int>> Vcb::GetPermutations(const RVec<Jet> &jets) {
 void Vcb::SkimTree() {
   Clear();
   if (!skimTreeInitialized) {
-    RVec<TString> keeps = {"*"};
-    RVec<TString> drops = {};
-    // NewTree("Events", keeps, drops); // Placeholder; filled in WriteHist
     skimTreeInitialized = true;
   }
 
@@ -1260,6 +1577,7 @@ void Vcb::SkimTree() {
     for (const auto &syst_dummy : *systHelper) {
       Clear();
       leptons.clear();
+      UpdateActiveOtLutForCurrentSystematic();
       if (PassBaseLineSelection(true, true)) {
         // Record global entry; actual copy is deferred to WriteHist.
         skim_passed_global_entries.push_back(currentEntry);

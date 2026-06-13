@@ -13,7 +13,7 @@
 static constexpr Muon::MuonID Muon_Veto_ID = Muon::MuonID::POG_TIGHT;
 static constexpr Electron::ElectronID Electron_Veto_ID =
     Electron::ElectronID::POG_MVAISO_WP90;
-static constexpr Muon::MuonID Muon_Veto_Iso = Muon::MuonID::POG_PFISO_TIGHT;
+static constexpr Muon::MuonID Muon_Veto_Iso = Muon::MuonID::POG_PFISO_LOOSE;
 //static constexpr Muon::MuonID Muon_Tight_ID = Muon::MuonID::POG_PROMPTMVA_WP0p64;
 static constexpr Muon::MuonID Muon_Tight_ID = Muon::MuonID::POG_TIGHT;
 static constexpr Muon::MuonID Muon_Tight_Iso = Muon::MuonID::POG_PFISO_TIGHT;
@@ -41,7 +41,7 @@ static inline std::unordered_map<std::string, float> Electron_Tight_Pt = {
 
 static constexpr float Jet_Veto_DR = 0.4;
 
-static constexpr Jet::JetID Jet_ID = Jet::JetID::TIGHT;
+static constexpr Jet::JetID Jet_ID = Jet::JetID::TIGHTLEPVETO;
 static constexpr Jet::JetID Jet_PUID = Jet::JetID::PUID_MEDIUM;
 static constexpr float Jet_Eta_cut = 2.4;
 
@@ -184,6 +184,7 @@ static constexpr JetTagging::JetFlavTaggerWP SL_BTag_WP =
     JetTagging::JetFlavTaggerWP::Medium;
 
 static constexpr float SL_Jet_Pt_cut = 25.f;
+static constexpr float SL_MET_cut = 20.f;
 
 // DL part
 static constexpr JetTagging::JetFlavTaggerWP DL_BTag_WP =
@@ -220,6 +221,20 @@ static inline std::unordered_map<std::string, std::string> Sample_Shorthand = {
     {"WJets", "VJets"},
     {"DYJets_MG", "VJets"},
     {"WJets_MG", "VJets"},
+    {"WtoLNu_1J", "VJets"},
+    {"WtoLNu_2J", "VJets"},
+    {"WtoLNu_3J", "VJets"},
+    {"WtoLNu_4J", "VJets"},
+    {"WtoLNu_PTLNu_40to100_1J", "VJets"},
+    {"WtoLNu_PTLNu_100to200_1J", "VJets"},
+    {"WtoLNu_PTLNu_200to400_1J", "VJets"},
+    {"WtoLNu_PTLNu_400to600_1J", "VJets"},
+    {"WtoLNu_PTLNu_600toInf_1J", "VJets"},
+    {"WtoLNu_PTLNu_40to100_2J", "VJets"},
+    {"WtoLNu_PTLNu_100to200_2J", "VJets"},
+    {"WtoLNu_PTLNu_200to400_2J", "VJets"},
+    {"WtoLNu_PTLNu_400to600_2J", "VJets"},
+    {"WtoLNu_PTLNu_600toInf_2J", "VJets"},
     {"DYto2E_MLL10to50", "VJets"},
     {"DYto2Mu_MLL10to50", "VJets"},
     {"DYto2E_MLL50to120", "VJets"},
@@ -240,10 +255,6 @@ static inline std::unordered_map<std::string, std::string> Sample_Shorthand = {
     {"DYto2Mu_MLL2500to4000", "VJets"},
     {"DYto2Mu_MLL4000to6000", "VJets"},
     {"DYto2Mu_MLL6000toInf", "VJets"},
-    {"WtoLNu_1J", "VJets"},
-    {"WtoLNu_2J", "VJets"},
-    {"WtoLNu_3J", "VJets"},
-    {"WtoLNu_4J", "VJets"},
     {"ST_tW_top_Semilep", "ST"},
     {"ST_tW_antitop_Semilep", "ST"},
     {"ST_tW_top_Lep", "ST"},

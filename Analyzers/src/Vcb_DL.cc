@@ -40,10 +40,7 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
         break;
     }
     FillCutFlow(1);
-    if (!PassJetVetoMap(AllJetViews, AllMuonViews))
-        return false;
-    RVec<Jet> eep_veto_jets = SelectJets(AllJetViews, Jet::JetID::NOCUT, 30., INFINITY);
-    if (DataEra == "2022EE" && !PassJetVetoMap(eep_veto_jets, AllMuonViews, "jetvetomap_eep"))
+    if (!PassJetVetoMap(AllJetViews))
         return false;
 
     FillCutFlow(2);
@@ -227,9 +224,34 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
 
     MyCorrection::variation jesVar = MyCorrection::variation::nom;
     MyCorrection::variation jerVar = MyCorrection::variation::nom;
-    if (!PropagateJetSystToMET(AllJetViews, *systHelper, ev, MET, jesVar,
-                               jerVar))
-        return false;
+    const std::string systTarget = systHelper->getCurrentIterSysTarget();
+    const TString systSource = systHelper->getCurrentIterSysSource();
+    const MyCorrection::variation systVar = systHelper->getCurrentIterVariation();
+
+    MET = ev.GetMETVector(Event::MET_Type::PUPPI);
+    bool doJetPropagation = true;
+    if (systTarget.find("Jet_En") != std::string::npos)
+    {
+        const bool doBreakdown = HasFlag("doBreakdown");
+        if (!PrepareJetJESVariations(AllJetViews, systSource, doBreakdown))
+            return false;
+        if (!IsDATA)
+            jesVar = systVar;
+    }
+    else if (systTarget == "Jet_Res")
+    {
+        if (!IsDATA)
+            jerVar = systVar;
+    }
+    else if (systTarget == "UE")
+    {
+        MET = ev.GetMETVector(Event::MET_Type::PUPPI, systVar,
+                              Event::MET_Syst::UE);
+        doJetPropagation = false;
+    }
+
+    if (doJetPropagation)
+        PropagateJetSystToMET(AllJetViews, MET, jesVar, jerVar);
 
     std::vector<std::size_t> jetIndices = SelectJetIndices(
         AllJetViews, Jet_ID, DL_Jet_Pt_cut, Jet_Eta_cut, jesVar, jerVar);
@@ -247,6 +269,7 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
         return false;
     FillCutFlow(4);
     FillCutFlow(5);
+    UpdateAllJetTaggingCaches(AllJetViews, jetIndices);
     for (const auto &jet : Jets)
     {
         if (GetPassedBTaggingWP(jet) >= 1)

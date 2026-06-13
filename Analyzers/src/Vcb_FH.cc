@@ -110,10 +110,7 @@ bool Vcb_FH::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
     Clear();
     if (!(ev.PassTrigger(FH_Trigger_DoubleBTag[DataEra.Data()]) || ev.PassTrigger(FH_Trigger[DataEra.Data()])))
         return false;
-    if (!PassJetVetoMap(AllJetViews, AllMuonViews))
-        return false;
-    RVec<Jet> eep_veto_jets = SelectJets(AllJetViews, Jet::JetID::NOCUT, 30., INFINITY);
-    if (DataEra == "2022EE" && !PassJetVetoMap(eep_veto_jets, AllMuonViews, "jetvetomap_eep"))
+    if (!PassJetVetoMap(AllJetViews))
         return false;
     if (!PassMetFilter(AllJetViews, ev))
         return false;
@@ -125,9 +122,34 @@ bool Vcb_FH::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
     Jets = MaterializeJets(AllJetViews, jetIndices);
     MyCorrection::variation jesVar = MyCorrection::variation::nom;
     MyCorrection::variation jerVar = MyCorrection::variation::nom;
-    if (!PropagateJetSystToMET(AllJetViews, *systHelper, ev, MET, jesVar,
-                               jerVar))
-        return false;
+    const std::string systTarget = systHelper->getCurrentIterSysTarget();
+    const TString systSource = systHelper->getCurrentIterSysSource();
+    const MyCorrection::variation systVar = systHelper->getCurrentIterVariation();
+
+    MET = ev.GetMETVector(Event::MET_Type::PUPPI);
+    bool doJetPropagation = true;
+    if (systTarget.find("Jet_En") != std::string::npos)
+    {
+        const bool doBreakdown = HasFlag("doBreakdown");
+        if (!PrepareJetJESVariations(AllJetViews, systSource, doBreakdown))
+            return false;
+        if (!IsDATA)
+            jesVar = systVar;
+    }
+    else if (systTarget == "Jet_Res")
+    {
+        if (!IsDATA)
+            jerVar = systVar;
+    }
+    else if (systTarget == "UE")
+    {
+        MET = ev.GetMETVector(Event::MET_Type::PUPPI, systVar,
+                              Event::MET_Syst::UE);
+        doJetPropagation = false;
+    }
+
+    if (doJetPropagation)
+        PropagateJetSystToMET(AllJetViews, MET, jesVar, jerVar);
     Jets = SelectJets(Jets, Jet_ID, SL_Jet_Pt_cut, Jet_Eta_cut);
 
     Muons_Veto = SelectMuons(AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
@@ -141,6 +163,15 @@ bool Vcb_FH::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
     std::sort(Jets.begin(), Jets.end(), PtComparing);
     HT = GetHT(Jets);
     n_jets = Jets.size();
+    std::vector<std::size_t> selectedJetIndices;
+    selectedJetIndices.reserve(Jets.size());
+    for (const auto &jet : Jets)
+    {
+        const int idx = jet.OriginalIndex();
+        if (idx >= 0)
+            selectedJetIndices.push_back(static_cast<std::size_t>(idx));
+    }
+    UpdateAllJetTaggingCaches(AllJetViews, selectedJetIndices);
 
     if (n_jets < 6)
         return false;

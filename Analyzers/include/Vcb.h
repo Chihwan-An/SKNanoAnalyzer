@@ -10,6 +10,7 @@
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -18,7 +19,6 @@
 #include "GenView.h"
 #include "MLHelper.h"
 #include "OtJsonLutBank.h"
-#include "UParTScoreUtils.h"
 #include "SystematicHelper.h"
 #include "TFitConstraintEp.h"
 #include "TFitConstraintM.h"
@@ -36,6 +36,11 @@ using IntArray = std::vector<int>;
 using BoolArray = std::vector<uint8_t>;
 using VariousArray = std::variant<FloatArray, IntArray, BoolArray>;
 
+namespace UParTScore {
+enum class Cat : int;
+struct Prob3;
+} // namespace UParTScore
+
 class Vcb : public AnalyzerCore {
 public:
   using Prob3 = UParTScore::Prob3;
@@ -44,7 +49,7 @@ public:
 
   void rle_bucket_compute_checksum();
 
-  enum class Cat { N0, L0, C0, C1, C2, C3, C4, B0, B1, B2, B3, B4 };
+  using Cat = UParTScore::Cat;
   inline bool isPIDUpTypeQuark(int pdg) {
     return (abs(pdg) == 2 || abs(pdg) == 4 || abs(pdg) == 6);
   }
@@ -196,6 +201,9 @@ public:
   
   Cat JetCategory(const Jet &jet) const;
   void UpdateAllJetTaggingCaches(const JetViewCollection &jets);
+  void UpdateAllJetTaggingCaches(
+      const JetViewCollection &jets,
+      const std::vector<std::size_t> &selected_indices);
   Vcb();
   virtual ~Vcb() = default;
 
@@ -224,7 +232,10 @@ public:
   short n_jets;
   short n_b_tagged_jets;
   short n_c_tagged_jets;
+  short n_loose_b_tagged_jets;
+  short n_loose_c_tagged_jets;
   short n_hf_jets;
+  short n_loose_hf_jets;
   short n_hadronFlav_b_jets;
   short n_hadronFlav_c_jets;
   bool find_all_jets;
@@ -245,6 +256,7 @@ public:
   mutable std::vector<float> jetProbLAll;
   mutable std::vector<float> jetILRdim1All;
   mutable std::vector<float> jetILRdim2All;
+  mutable bool partInputBranchesValidated = false;
 
   struct TreeKinematicsBuffers {
     std::vector<float> Jet_Pt;
@@ -308,22 +320,24 @@ public:
   std::vector<std::unique_ptr<MLHelper>> myMLHelper_TabNet_folds;
 
   std::unique_ptr<OtJsonLutBank> UParT_OT_Central;
+  std::unordered_map<std::string, std::unique_ptr<OtJsonLutBank>>
+      UParT_OT_ByPath;
+  std::unordered_set<std::string> UParT_OT_WarnedOnce;
+  const OtJsonLutBank *UParT_OT_SystActive = nullptr;
+  std::string UParT_OT_Central_Path =
+      "/data6/Users/yeonjoon/OptimalTransport/OTv8/LUTv8_integrated.json.gz";
 
 protected:
-  inline static constexpr double HF_T1 = 0.264;
-  inline static constexpr double HF_T2 = 0.448;
-  inline static constexpr double HF_T3 = 0.767;
-  inline static constexpr double BVC_T1 = 0.01;
-  inline static constexpr double BVC_T2 = 0.028;
-  inline static constexpr double BVC_T3 = 0.094;
-  inline static constexpr double BVC_T4 = 0.69;
-  inline static constexpr double BVC_T5 = 0.918;
-  inline static constexpr double BVC_T6 = 0.978;
-  inline static constexpr double BVC_T7 = 0.994;
-
   // --- pure helpers: static
   static int bin_hf(double x);
   static int bin_bvc(double y);
+  const OtJsonLutBank *CurrentOtLut() const;
+  void UpdateActiveOtLutForCurrentSystematic();
+  const OtJsonLutBank *GetOrLoadOtLut(const std::string &json_path,
+                                      const std::string &bundle_key = "");
+  std::string BuildSystOtLutKey(const std::string &source,
+                                MyCorrection::variation variation) const;
+  float OtLutPtFromStore(const JetSoA &store, std::size_t idx) const;
 
   std::pair<double, double> HFvLF_BvC_from_components(double probudg,
                                                       double SvUDG, double CvL,
@@ -343,7 +357,9 @@ protected:
   void ComputeParTScores(const JetViewCollection &jets,
                          std::vector<float> &hfScores,
                          std::vector<float> &bvcScores,
-                         std::vector<Vcb::Cat> &categories) const;
+                         std::vector<Vcb::Cat> &categories,
+                         const std::vector<std::size_t> *selected_indices =
+                             nullptr) const;
   static inline double clip(double x, double lo, double hi);
 
 

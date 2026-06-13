@@ -169,12 +169,18 @@ def _compute_template_features(
     B_w_u = [np.zeros(n, dtype=np.float32) for _ in range(5)]
     C_w_d = [np.zeros(n, dtype=np.float32) for _ in range(5)]
     B_w_d = [np.zeros(n, dtype=np.float32) for _ in range(5)]
+    ILR_DIM_1_w_u = np.zeros(n, dtype=np.float32)
+    ILR_DIM_2_w_u = np.zeros(n, dtype=np.float32)
+    ILR_DIM_1_w_d = np.zeros(n, dtype=np.float32)
+    ILR_DIM_2_w_d = np.zeros(n, dtype=np.float32)
 
     jet_pt = jets["pt"]
     jet_eta = jets["eta"]
     jet_phi = jets["phi"]
     jet_mass = jets["mass"]
     jet_cat = jets["cat"]
+    jet_ilr_dim_1 = jets["ilr_dim_1"]
+    jet_ilr_dim_2 = jets["ilr_dim_2"]
 
     for i in range(n):
         if not valid_mask[i]:
@@ -232,6 +238,10 @@ def _compute_template_features(
         for k in range(5):
             C_w_d[k][i] = C[k][0]
             B_w_d[k][i] = B[k][0]
+        ILR_DIM_1_w_u[i] = jet_ilr_dim_1[i, w1]
+        ILR_DIM_2_w_u[i] = jet_ilr_dim_2[i, w1]
+        ILR_DIM_1_w_d[i] = jet_ilr_dim_1[i, w2]
+        ILR_DIM_2_w_d[i] = jet_ilr_dim_2[i, w2]
 
     return {
         "m_had_w": m_had_w,
@@ -241,6 +251,10 @@ def _compute_template_features(
         "eta_w_d": eta_w_d,
         "Cat_w_u": cat_w_u,
         "Cat_w_d": cat_w_d,
+        "ILR_Dim_1_w_u": ILR_DIM_1_w_u,
+        "ILR_Dim_2_w_u": ILR_DIM_2_w_u,
+        "ILR_Dim_1_w_d": ILR_DIM_1_w_d,
+        "ILR_Dim_2_w_d": ILR_DIM_2_w_d,
         "N0_w_u": N0_w_u,
         "L0_w_u": L0_w_u,
         "N0_w_d": N0_w_d,
@@ -274,12 +288,14 @@ class OnnxBatchProcessor:
         runner: OnnxRunner,
         runtime_cfg: RuntimeConfig,
         console: Console,
-        max_jets: int,
+        max_jets_reco: int,
+        max_jets_classif: int,
     ):
         self.runner = runner
         self.runtime_cfg = runtime_cfg
         self.console = console
-        self.max_jets = max_jets
+        self.max_jets_reco = max_jets_reco
+        self.max_jets_classif = max_jets_classif
 
     def _select_trees(
         self, infile: uproot.ReadOnlyFile, include: Sequence[str] | None
@@ -306,7 +322,15 @@ class OnnxBatchProcessor:
         batch: Mapping[str, ak.Array],
         channel: str,
     ) -> tuple[Dict[str, object], int, int]:
-        inputs, jet_counts, jets = build_spanet_inputs(batch, channel, self.max_jets)
+        inputs_reco, jet_counts, jets = build_spanet_inputs(
+            batch, channel, self.max_jets_reco
+        )
+        if self.max_jets_classif == self.max_jets_reco:
+            inputs_class = inputs_reco
+        else:
+            inputs_class, _, _ = build_spanet_inputs(
+                batch, channel, self.max_jets_classif
+            )
         fold_ids = np.asarray(batch["index_fold_spanet"], dtype=np.int64)
         n_events = fold_ids.shape[0]
 
@@ -329,7 +353,7 @@ class OnnxBatchProcessor:
         lb_idx = np.full(n_events, -1, dtype=np.int32)
         valid = np.zeros(n_events, dtype=bool)
 
-        eligible = (jet_counts >= 3) & inputs["Lepton_mask"].reshape(-1)
+        eligible = (jet_counts >= 3) & inputs_reco["Lepton_mask"].reshape(-1)
         if np.any(~eligible):
             raise RuntimeError("Some events are not eligible for processing")
         
@@ -343,9 +367,12 @@ class OnnxBatchProcessor:
                 indices = np.nonzero(fold_mask)[0]
                 for start in range(0, len(indices), batch_size):
                     sub_idx = indices[start : start + batch_size]
-                    feeds = {k: v[sub_idx] for k, v in inputs.items()}
+                    class_feeds = {k: v[sub_idx] for k, v in inputs_class.items()}
+                    reco_feeds = {k: v[sub_idx] for k, v in inputs_reco.items()}
 
-                    outputs = self.runner.run_spanet(int(fold), feeds)
+                    outputs = self.runner.run_spanet(
+                        int(fold), class_feeds, reco_feeds=reco_feeds
+                    )
                     class_scores_raw = outputs["class"]["EVENT/signal"]
                     hw_logits_raw = outputs["reco"]["hw_45_assignment_log_probability"]
                     detection_raw = outputs["reco"]["hw_45_detection_log_probability"]
@@ -353,7 +380,7 @@ class OnnxBatchProcessor:
                     class_scores = _extract_class_scores(class_scores_raw)
                     class_scores = _ensure_rows(class_scores, len(sub_idx))
 
-                    hw_logits = _reshape_hw_logits(hw_logits_raw, self.max_jets)
+                    hw_logits = _reshape_hw_logits(hw_logits_raw, self.max_jets_reco)
                     if hw_logits.shape[0] != len(sub_idx):
                         if hw_logits.shape[0] == 1:
                             hw_logits = np.repeat(hw_logits, len(sub_idx), axis=0)
@@ -363,7 +390,7 @@ class OnnxBatchProcessor:
                     detection_logits = _flatten_detection(detection_raw)
 
                     w1, w2, assign_lp, valid_mask = _pick_assignments(
-                        hw_logits, jet_counts[sub_idx], self.max_jets
+                        hw_logits, jet_counts[sub_idx], self.max_jets_reco
                     )
 
                     logp_classes[sub_idx] = class_scores
@@ -378,7 +405,7 @@ class OnnxBatchProcessor:
             bad_indices = np.nonzero(invalid_mask)[0]
             preview = []
             for idx in bad_indices[:5]:
-                J = int(min(jet_counts[idx], self.max_jets))
+                J = int(min(jet_counts[idx], self.max_jets_reco))
                 preview.append(
                     {
                         "event_idx": int(idx),
@@ -397,7 +424,7 @@ class OnnxBatchProcessor:
             )
 
         template_feats = _compute_template_features(
-            jets, jet_counts, w1_idx, w2_idx, valid, self.max_jets
+            jets, jet_counts, w1_idx, w2_idx, valid, self.max_jets_reco
         )
 
         output_arrays.update(

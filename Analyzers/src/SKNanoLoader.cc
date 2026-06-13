@@ -21,7 +21,7 @@ SKNanoLoader::SKNanoLoader()
     Userflags.clear();
 }
 
-void SKNanoLoader::configureTreeCache(TTree *tree)
+void SKNanoLoader::configureTreeCache(TTree *tree, bool resetCache)
 {
     if (!tree)
         return;
@@ -32,10 +32,12 @@ void SKNanoLoader::configureTreeCache(TTree *tree)
         return;
     }
 
+    if (resetCache)
+        tree->SetCacheSize(0);
     tree->SetCacheSize(treeCacheSizeBytes);
-    const Long64_t cacheEnd =
-        fChain ? fChain->GetEntries() : tree->GetEntries();
-    tree->SetCacheEntryRange(0, cacheEnd);
+    const Long64_t cacheBegin = currentEntry >= 0 ? currentEntry : 0;
+    const Long64_t cacheEnd = fChain ? fChain->GetEntries() : tree->GetEntries();
+    tree->SetCacheEntryRange(cacheBegin, cacheEnd);
     tree->SetCacheLearnEntries(treeCacheLearnEntries >= 0 ? treeCacheLearnEntries : -1);
 
     if (auto *file = tree->GetCurrentFile())
@@ -43,7 +45,9 @@ void SKNanoLoader::configureTreeCache(TTree *tree)
         if (auto *cache = tree->GetReadCache(file, true))
         {
             cache->SetBufferSize(treeCacheSizeBytes);
-            cache->SetLearnPrefill(enableTreePrefetching ? TTreeCache::kAllBranches : TTreeCache::kNoPrefill);
+            cache->SetLearnPrefill(TTreeCache::kNoPrefill);
+            if (resetCache)
+                cache->ResetCache();
         }
     }
 
@@ -62,6 +66,11 @@ void SKNanoLoader::configureTreeCache(TTree *tree)
             if (capacity >= 0 && id >= capacity)
                 continue; // skip pathological IDs that would overflow TObjArray
             tree->AddBranchToCache(name.c_str(), true);
+        }
+        if (auto *file = tree->GetCurrentFile())
+        {
+            if (auto *cache = tree->GetReadCache(file, false))
+                cache->StopLearningPhase();
         }
     }
 }
@@ -93,8 +102,15 @@ void SKNanoLoader::Loop()
     currentLocalEntry = -1;
     branchManager.bindEntrySource(&currentLocalEntry);
     cachePrefetchConfigured = false;
+    cachePrefetchWarmupEntries = 0;
 
     Long64_t processed = 0;
+
+    int next_log_percent = 0;
+    const int log_step_percent = 5;                        // 5% 진행될 때마다 로깅
+    auto last_log_time = startTime;
+    const auto log_step_time = std::chrono::seconds(60);   // 또는 60초가 지날 때마다 로깅
+
     for (Long64_t globalEntry = 0; globalEntry < targetEntries; ++globalEntry)
     {
         Long64_t localEntry = fChain->LoadTree(globalEntry);
@@ -110,30 +126,45 @@ void SKNanoLoader::Loop()
             TTree *currentTree = fChain->GetTree();
             branchManager.attachTree(currentTree);
             ResetBranchStates();
+            cachePrefetchConfigured = false;
+            cachePrefetchWarmupEntries = 0;
         }
 
         if (globalEntry < skipEntries)
             continue;
 
-        if (LogEvery > 0 && (processed % LogEvery == 0))
+        int current_percent = (entriesToProcess > 0) ? (processed * 100) / entriesToProcess : 100;
+
+        if (current_percent >= next_log_percent || (processed % 1000 == 0))
         {
             auto currentTime = std::chrono::steady_clock::now();
-            std::chrono::duration<double> elapsedTime = currentTime - startTime;
-            double timePerEvent = processed > 0 ? elapsedTime.count() / static_cast<double>(processed) : 0.0;
-            Long64_t remainingEvents = std::max(entriesToProcess - processed, 0LL);
-            double estimatedRemaining = remainingEvents * timePerEvent;
+            
+            if (current_percent >= next_log_percent || (currentTime - last_log_time) >= log_step_time)
+            {
+                std::chrono::duration<double> elapsedTime = currentTime - startTime;
+                double timePerEvent = processed > 0 ? elapsedTime.count() / static_cast<double>(processed) : 0.0;
+                Long64_t remainingEvents = std::max(entriesToProcess - processed, 0LL);
+                double estimatedRemaining = remainingEvents * timePerEvent;
 
-            cout << "[SKNanoLoader::Loop] Processing " << (skipEntries + processed) << " / " << targetEntries
-                 << " | Elapsed: " << std::fixed << std::setprecision(2) << elapsedTime.count() << "s, Remaining: " << estimatedRemaining << "s" << endl;
+                cout << "[SKNanoLoader::Loop] Progress: " << std::setw(3) << current_percent << "% "
+                     << "(" << (skipEntries + processed) << " / " << targetEntries << ") "
+                     << "| Elapsed: " << std::fixed << std::setprecision(1) << elapsedTime.count() << "s "
+                     << "| ETA: " << std::fixed << std::setprecision(1) << estimatedRemaining << "s" << endl;
+
+                next_log_percent = ((current_percent / log_step_percent) + 1) * log_step_percent;
+                last_log_time = currentTime; // 마지막 로그 시간 갱신
+            }
         }
 
         executeEvent();
         ++processed;
+        ++cachePrefetchWarmupEntries;
+
         if (!cachePrefetchConfigured &&
             enableTreePrefetching &&
-            processed >= CACHE_PREFETCH_WARMUP_EVENTS)
+            cachePrefetchWarmupEntries >= CACHE_PREFETCH_WARMUP_EVENTS)
         {
-            configureTreeCache(fChain);
+            configureTreeCache(fChain, true);
             cachePrefetchConfigured = true;
         }
         if (processed >= entriesToProcess)
@@ -142,7 +173,9 @@ void SKNanoLoader::Loop()
 
     auto endTime = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsedTime = endTime - startTime;
-    cout << "[SKNanoLoader::Loop] Event Loop Finished in " << std::fixed << std::setprecision(2) << elapsedTime.count() << "s" << endl;
+    
+    cout << "[SKNanoLoader::Loop] Progress: 100% (" << targetEntries << " / " << targetEntries << ") "
+         << "| Event Loop Finished in " << std::fixed << std::setprecision(2) << elapsedTime.count() << "s" << endl;
 }
 
 void SKNanoLoader::Init()

@@ -5,14 +5,17 @@ from pathlib import Path
 from typing import Dict, Sequence
 
 # Geometry for the SPANet inputs
-MAX_JETS = 8
-MOM_FEAT_DIM = 17
+MAX_JETS_RECO = 8
+MAX_JETS_CLASSIF = 9
+# Backward-compatible alias (defaults to reco geometry)
+MAX_JETS = MAX_JETS_RECO
+MOM_FEAT_DIM = 7
 MET_DIM = 3
 LEPTON_DIM = 7
 
 # Default runtime knobs
 DEFAULT_BATCH_SIZE = 8192
-DEFAULT_CHUNK_SIZE = 65536 * 64
+DEFAULT_CHUNK_SIZE = 65536
 DEFAULT_OUTPUT_SUFFIX = "_onnx.root"
 
 # Model naming
@@ -70,6 +73,10 @@ ONNX_OUTPUT_BRANCH_TYPES: Dict[str, str] = {
     "B2_w_d": "float32",
     "B3_w_d": "float32",
     "B4_w_d": "float32",
+    "ilr_dim_1_w_u": "float32",
+    "ilr_dim_2_w_u": "float32",
+    "ilr_dim_1_w_d": "float32",
+    "ilr_dim_2_w_d": "float32",
 }
 
 # Expected folds

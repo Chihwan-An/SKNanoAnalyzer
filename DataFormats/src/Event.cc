@@ -1,5 +1,7 @@
 #include "Event.h"
 
+#include <stdexcept>
+
 ClassImp(Event)
 
 Event::Event() {
@@ -67,13 +69,11 @@ bool Event::IsPDForTrigger(TString trig, TString PD) {
 }
 
 void Event::SetMET(RVec<float> MET_pt, RVec<float> MET_phi) {
+    if (MET_pt.size() < 3 || MET_phi.size() < 3)
+        throw std::runtime_error("[Event::SetMET] PUPPI MET requires central, unclustered up, and unclustered down values");
     j_METVector_PUPPI.SetPtEtaPhiM(MET_pt[0], 0, MET_phi[0], 0);
     j_METVector_PUPPI_UE_UP.SetPtEtaPhiM(MET_pt[1], 0, MET_phi[1], 0);
     j_METVector_PUPPI_UE_Down.SetPtEtaPhiM(MET_pt[2], 0, MET_phi[2], 0);
-    j_METVector_PUPPI_JER_UP.SetPtEtaPhiM(MET_pt[3], 0, MET_phi[3], 0);
-    j_METVector_PUPPI_JER_Down.SetPtEtaPhiM(MET_pt[4], 0, MET_phi[4], 0);
-    j_METVector_PUPPI_JES_UP.SetPtEtaPhiM(MET_pt[5], 0, MET_phi[5], 0);
-    j_METVector_PUPPI_JES_Down.SetPtEtaPhiM(MET_pt[6], 0, MET_phi[6], 0);
 }
 
 Particle Event::GetMETVector(Event::MET_Type MET_type, MyCorrection::variation syst, Event::MET_Syst source) const
@@ -82,22 +82,6 @@ Particle Event::GetMETVector(Event::MET_Type MET_type, MyCorrection::variation s
         cerr << "[Event::GetMETVector] Only PUPPI MET is implemented" << endl;
         exit(EXIT_FAILURE);
     }
-    // switch (syst) {
-    //     case MET_Syst::CENTRAL:
-    //         return j_METVector_PUPPI;
-    //     case MET_Syst::UE_UP:
-    //         return j_METVector_PUPPI_UE_UP;
-    //     case MET_Syst::UE_DOWN:
-    //         return j_METVector_PUPPI_UE_Down;
-    //     case MET_Syst::JER_UP:
-    //         return j_METVector_PUPPI_JER_UP;
-    //     case MET_Syst::JER_DOWN:
-    //         return j_METVector_PUPPI_JER_Down;
-    //     case MET_Syst::JES_UP:
-    //         return j_METVector_PUPPI_JES_UP;
-    //     case MET_Syst::JES_DOWN:
-    //         return j_METVector_PUPPI_JES_Down;
-    // }
     switch (syst) {
         case MyCorrection::variation::nom:
             switch (source) {
@@ -112,9 +96,8 @@ Particle Event::GetMETVector(Event::MET_Type MET_type, MyCorrection::variation s
                 case MET_Syst::UE:
                     return j_METVector_PUPPI_UE_UP;
                 case MET_Syst::JER:
-                    return j_METVector_PUPPI_JER_UP;
                 case MET_Syst::JES:
-                    return j_METVector_PUPPI_JES_UP;
+                    throw std::runtime_error("[Event::GetMETVector] JER/JES MET shifts are propagated from corrected jets; direct Event MET storage only contains unclustered shifts");
                 default:
                     cerr << "[Event::GetMETVector] Source is not MET_Syst::UE, JER, or JES but variation is up" << endl;
                     exit(EXIT_FAILURE);
@@ -124,9 +107,8 @@ Particle Event::GetMETVector(Event::MET_Type MET_type, MyCorrection::variation s
                 case MET_Syst::UE:
                     return j_METVector_PUPPI_UE_Down;
                 case MET_Syst::JER:
-                    return j_METVector_PUPPI_JER_Down;
                 case MET_Syst::JES:
-                    return j_METVector_PUPPI_JES_Down;
+                    throw std::runtime_error("[Event::GetMETVector] JER/JES MET shifts are propagated from corrected jets; direct Event MET storage only contains unclustered shifts");
                 default:
                     cerr << "[Event::GetMETVector] Source is not MET_Syst::UE, JER, or JES but variation is down" << endl;
                     exit(EXIT_FAILURE);

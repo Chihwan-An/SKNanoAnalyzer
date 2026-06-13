@@ -205,13 +205,16 @@ class OnnxRunner:
     def run_spanet(
         self,
         fold: int,
-        feeds: Mapping[str, object],
+        class_feeds: Mapping[str, object],
+        reco_feeds: Mapping[str, object] | None = None,
     ) -> Dict[str, Dict[str, object]]:
+        if reco_feeds is None:
+            reco_feeds = class_feeds
         class_sess = self._get_class_session(fold)
         reco_sess = self._get_reco_session(fold)
         return {
-            "class": self._run_session(class_sess, feeds),
-            "reco": self._run_session(reco_sess, feeds),
+            "class": self._run_session(class_sess, class_feeds),
+            "reco": self._run_session(reco_sess, reco_feeds),
         }
 
     @property

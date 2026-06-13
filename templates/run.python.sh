@@ -1,5 +1,7 @@
 #!/bin/bash
-export PATH=[MAMBA_BIN_PATH]:$PATH
+unset CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_PROMPT_MODIFIER CONDA_SHLVL
+unset MAMBA_EXE
+export PATH=[MAMBA_BIN_PATH]:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export MAMBA_ROOT_PREFIX=[MAMBA_ROOT_PREFIX]
 eval "$(micromamba shell hook -s bash)"
 micromamba activate Nano
@@ -20,7 +22,7 @@ export ROCCOR_PATH=$SKNANO_HOME/external/RoccoR
 export ONNXRUNTIME_INCLUDE_DIR=${CONDA_PREFIX}/include/onnxruntime/core/session
 export ONNXRUNTIME_LIB_DIR=${CONDA_PREFIX}/lib
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CORRECTION_LIB_DIR:[SKNANO_RUNLOG_LIB]
+export LD_LIBRARY_PATH=[SKNANO_RUNLOG_LIB]:${CONDA_PREFIX}/lib:$SKNANO_HOME/external/lhapdf/redhat/lib:$CORRECTION_LIB_DIR
 
 export ROOT_HIST=0
 export ROOT_INCLUDE_PATH=[ROOT_INCLUDE_PATH]

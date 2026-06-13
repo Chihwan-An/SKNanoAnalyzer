@@ -27,6 +27,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
+option(SKNANO_USE_NATIVE_ARCH "Build with -march=native for same-machine local runs" OFF)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     add_compile_options(
         $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Release>>:-O3>
@@ -35,8 +37,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Release>>:-ffast-math>
         $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:RelWithDebInfo>>:-ffast-math>
         $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:MinSizeRel>>:-ffast-math>
-        $<$<COMPILE_LANGUAGE:CXX>:-march=native>
     )
+    if(SKNANO_USE_NATIVE_ARCH)
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-march=native>)
+    endif()
 endif()
 
 if(VecCore_FOUND)
@@ -80,4 +84,3 @@ FetchContent_MakeAvailable(yaml-cpp json)
 set(CMAKE_CXX_STANDARD ${ROOT_CXX_STANDARD})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-

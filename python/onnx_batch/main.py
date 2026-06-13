@@ -22,7 +22,8 @@ try:  # pragma: no cover - runtime convenience
         DEFAULT_MODEL_DIR,
         DEFAULT_OUTPUT_SUFFIX,
         DEFAULT_RECO_PATTERN,
-        MAX_JETS,
+        MAX_JETS_CLASSIF,
+        MAX_JETS_RECO,
         ModelConfig,
         RuntimeConfig,
     )
@@ -38,7 +39,8 @@ except ImportError:  # pragma: no cover - runtime convenience
         DEFAULT_MODEL_DIR,
         DEFAULT_OUTPUT_SUFFIX,
         DEFAULT_RECO_PATTERN,
-        MAX_JETS,
+        MAX_JETS_CLASSIF,
+        MAX_JETS_RECO,
         ModelConfig,
         RuntimeConfig,
     )
@@ -404,7 +406,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         console.print(f"[red]Failed to initialize ONNX runtime:[/] {exc}")
         return 1
 
-    processor = OnnxBatchProcessor(runner, runtime_cfg, console, max_jets=MAX_JETS)
+    processor = OnnxBatchProcessor(
+        runner,
+        runtime_cfg,
+        console,
+        max_jets_reco=MAX_JETS_RECO,
+        max_jets_classif=MAX_JETS_CLASSIF,
+    )
 
     console.rule("[bold green]Starting batched ONNX inference")
     start = time.perf_counter()

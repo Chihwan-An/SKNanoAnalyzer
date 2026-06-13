@@ -12,6 +12,8 @@ from .config import (
     DEFAULT_OUTPUT_SUFFIX,
     DEFAULT_RECO_PATTERN,
     MAX_JETS,
+    MAX_JETS_CLASSIF,
+    MAX_JETS_RECO,
     ONNX_OUTPUT_BRANCH_TYPES,
 )
 from .main import main
@@ -24,6 +26,8 @@ __all__ = [
     "DEFAULT_OUTPUT_SUFFIX",
     "DEFAULT_RECO_PATTERN",
     "MAX_JETS",
+    "MAX_JETS_CLASSIF",
+    "MAX_JETS_RECO",
     "ONNX_OUTPUT_BRANCH_TYPES",
     "main",
 ]

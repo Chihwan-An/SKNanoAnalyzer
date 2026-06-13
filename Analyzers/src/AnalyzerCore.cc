@@ -513,6 +513,10 @@ float AnalyzerCore::MCweight(bool usesign, bool norm_1invpb) const {
 
 // Objects
 Event AnalyzerCore::GetEvent() {
+  const Long64_t entry = CurrentEntry();
+  if (cachedEventEntry == entry)
+    return cachedEvent;
+
   Event ev;
   ev.SetRunLumiEvent(RunNumber, luminosityBlock, event);
   ev.SetnPileUp(Pileup_nPU);
@@ -527,12 +531,21 @@ Event AnalyzerCore::GetEvent() {
                           PuppiMET_phiUnclusteredDown};
   ev.SetMET(MET_pts, MET_phis);
   ev.setRho(Rho_fixedGridRhoFastjetAll);
-  return ev;
+  cachedEvent = ev;
+  cachedEventEntry = entry;
+  return cachedEvent;
 }
 
 GenViewCollection AnalyzerCore::GetAllGenViews() {
-  if (IsDATA)
-    return {};
+  const Long64_t entry = CurrentEntry();
+  if (cachedGenViewsEntry == entry)
+    return cachedGenViews;
+
+  if (IsDATA) {
+    cachedGenViews = GenViewCollection();
+    cachedGenViewsEntry = entry;
+    return cachedGenViews;
+  }
 
   auto storage = std::make_shared<GenSoA>();
   storage->pt.bind(&GenPart_pt);
@@ -543,12 +556,22 @@ GenViewCollection AnalyzerCore::GetAllGenViews() {
   storage->status.bind(&GenPart_status);
   storage->motherIdx.bind(&GenPart_genPartIdxMother);
   storage->statusFlags.bind(&GenPart_statusFlags);
-  return GenViewCollection(std::move(storage));
+  GenViewCollection result(std::move(storage));
+  cachedGenViews = result;
+  cachedGenViewsEntry = entry;
+  return cachedGenViews;
 }
 
 GenJetViewCollection AnalyzerCore::GetAllGenJetViews() {
-  if (IsDATA)
-    return {};
+  const Long64_t entry = CurrentEntry();
+  if (cachedGenJetViewsEntry == entry)
+    return cachedGenJetViews;
+
+  if (IsDATA) {
+    cachedGenJetViews = GenJetViewCollection();
+    cachedGenJetViewsEntry = entry;
+    return cachedGenJetViews;
+  }
 
   auto storage = std::make_shared<GenJetSoA>();
   storage->pt.bind(&GenJet_pt);
@@ -557,10 +580,17 @@ GenJetViewCollection AnalyzerCore::GetAllGenJetViews() {
   storage->mass.bind(&GenJet_mass);
   storage->partonFlavour.bind(&GenJet_partonFlavour);
   storage->hadronFlavour.bind(&GenJet_hadronFlavour);
-  return GenJetViewCollection(std::move(storage));
+  GenJetViewCollection result(std::move(storage));
+  cachedGenJetViews = result;
+  cachedGenJetViewsEntry = entry;
+  return cachedGenJetViews;
 }
 
 MuonViewCollection AnalyzerCore::GetAllMuonViews() {
+  const Long64_t entry = CurrentEntry();
+  if (cachedMuonViewsEntry == entry)
+    return cachedMuonViews;
+
   auto storage = std::make_shared<MuonSoA>();
   storage->pt.bind(&Muon_pt);
   storage->eta.bind(&Muon_eta);
@@ -606,8 +636,12 @@ MuonViewCollection AnalyzerCore::GetAllMuonViews() {
   storage->momentumScaleUp.resize(n, 0.f);
   storage->momentumScaleDown.resize(n, 0.f);
 
-  if (n == 0)
-    return MuonViewCollection(std::move(storage));
+  if (n == 0) {
+    MuonViewCollection result(std::move(storage));
+    cachedMuonViews = result;
+    cachedMuonViewsEntry = entry;
+    return cachedMuonViews;
+  }
 
   RVec<Gen> truth;
   if (!IsDATA)
@@ -642,7 +676,10 @@ MuonViewCollection AnalyzerCore::GetAllMuonViews() {
     storage->correctedPt[i] = miniAODPt * roccor;
   }
 
-  return MuonViewCollection(std::move(storage));
+  MuonViewCollection result(std::move(storage));
+  cachedMuonViews = result;
+  cachedMuonViewsEntry = entry;
+  return cachedMuonViews;
 }
 
 RVec<Muon> AnalyzerCore::GetAllMuons() {
@@ -789,6 +826,10 @@ RVec<Muon> AnalyzerCore::SelectMuons(const RVec<Muon> &muons,
 }
 
 ElectronViewCollection AnalyzerCore::GetAllElectronViews() {
+  const Long64_t entry = CurrentEntry();
+  if (cachedElectronViewsEntry == entry)
+    return cachedElectronViews;
+
   auto storage = std::make_shared<ElectronSoA>();
   storage->pt.bind(&Electron_pt);
   storage->eta.bind(&Electron_eta);
@@ -841,7 +882,10 @@ ElectronViewCollection AnalyzerCore::GetAllElectronViews() {
   storage->deltaPhiSC.assign(n, -999.f);
   storage->deltaPhiSeed.assign(n, -999.f);
 
-  return ElectronViewCollection(std::move(storage));
+  ElectronViewCollection result(std::move(storage));
+  cachedElectronViews = result;
+  cachedElectronViewsEntry = entry;
+  return cachedElectronViews;
 }
 
 RVec<Electron> AnalyzerCore::GetAllElectrons() {
@@ -1079,9 +1123,16 @@ AnalyzerCore::MaterializeGenJets(const GenJetViewCollection &genjets) const {
 }
 
 RVec<Gen> AnalyzerCore::GetAllGens() {
+  const Long64_t entry = CurrentEntry();
+  if (cachedGensEntry == entry)
+    return cachedGens;
+
   RVec<Gen> gens;
-  if (IsDATA)
-    return gens;
+  if (IsDATA) {
+    cachedGens = gens;
+    cachedGensEntry = entry;
+    return cachedGens;
+  }
 
   GenViewCollection view = GetAllGenViews();
   gens.reserve(view.size());
@@ -1090,7 +1141,9 @@ RVec<Gen> AnalyzerCore::GetAllGens() {
     gens.emplace_back(storage, i);
   }
 
-  return gens;
+  cachedGens = gens;
+  cachedGensEntry = entry;
+  return cachedGens;
 }
 
 RVec<LHE> AnalyzerCore::GetAllLHEs() {
@@ -1243,6 +1296,8 @@ void AnalyzerCore::InitialiseJetSystematics(JetSoA &storage) const {
   storage.jesPtDown.assign(n, 0.f);
   storage.jesMassUp.assign(n, 0.f);
   storage.jesMassDown.assign(n, 0.f);
+  storage.jesVariationSource.clear();
+  storage.jesVariationValid = false;
 }
 
 void AnalyzerCore::PopulateJetStorageWithoutCorrections(JetSoA &storage) const {
@@ -1385,7 +1440,6 @@ void AnalyzerCore::ApplyJetSmearingAndUncertainties(
     }
     return;
   }
-  const auto &jesSources = JetEnergyScaleSources();
   constexpr float MIN_JET_ENERGY = 1e-2f;
 
   auto &storage = *jets.storage();
@@ -1463,12 +1517,16 @@ void AnalyzerCore::ApplyJetScaleVariation(JetViewCollection &jets,
   if (n == 0)
     return;
 
-  const auto &jesSources = JetEnergyScaleSources();
   const bool useTotalSource =
       source.IsNull() || source.EqualTo("total", TString::kIgnoreCase);
+  const std::string sourceKey =
+      useTotalSource ? std::string("total") : std::string(source.Data());
+  if (storage.jesVariationValid && storage.jesVariationSource == sourceKey)
+    return;
+
+  const auto &jesSources = JetEnergyScaleSources();
 
   for (std::size_t i = 0; i < n; ++i) {
-    const float baseSmearedPt = storage.smearedPtNominal[i];
     float unc = 0.f;
 
     if (useTotalSource) {
@@ -1497,6 +1555,8 @@ void AnalyzerCore::ApplyJetScaleVariation(JetViewCollection &jets,
     storage.jesMassUp[i] = storage.smearedMassNominal[i] * (1.f + unc);
     storage.jesMassDown[i] = storage.smearedMassNominal[i] * (1.f - unc);
   }
+  storage.jesVariationSource = sourceKey;
+  storage.jesVariationValid = true;
 }
 
 void AnalyzerCore::ApplyJetSmearVariation(JetViewCollection &jets,
@@ -1523,16 +1583,27 @@ const std::vector<TString> &AnalyzerCore::JetEnergyScaleSources() const {
 }
 
 JetViewCollection AnalyzerCore::GetAllJetViews() {
+  const Long64_t entry = CurrentEntry();
+  if (cachedJetViewsEntry == entry)
+    return cachedJetViews;
+
   auto storage = CreateJetSoA();
   InitialiseJetSystematics(*storage);
 
   const std::size_t n = storage->size();
-  if (n == 0)
-    return JetViewCollection(std::move(storage));
+  if (n == 0) {
+    JetViewCollection result(std::move(storage));
+    cachedJetViews = result;
+    cachedJetViewsEntry = entry;
+    return cachedJetViews;
+  }
 
   if (!myCorr) {
     PopulateJetStorageWithoutCorrections(*storage);
-    return JetViewCollection(std::move(storage));
+    JetViewCollection result(std::move(storage));
+    cachedJetViews = result;
+    cachedJetViewsEntry = entry;
+    return cachedJetViews;
   }
 
   const bool isMC = !IsDATA;
@@ -1542,7 +1613,9 @@ JetViewCollection AnalyzerCore::GetAllJetViews() {
   JetViewCollection jetViews = JetViewCollection(std::move(storage));
   SmearJetViews(jetViews, rho);
 
-  return jetViews;
+  cachedJetViews = jetViews;
+  cachedJetViewsEntry = entry;
+  return cachedJetViews;
 }
 
 void AnalyzerCore::SmearJetViews(const JetViewCollection &jets,
@@ -3656,8 +3729,14 @@ void AnalyzerCore::SetBranch(const TString &treename, const TString &branchname,
     if (it == this_branchmap->end()) {
       auto br = tree->Branch(branchname, this_address, leaflist);
       this_branchmap->insert({string(branchname), br});
+      branchAddressCache[br] = this_address;
     } else {
-      it->second->SetAddress(this_address);
+      auto cacheIt = branchAddressCache.find(it->second);
+      if (cacheIt == branchAddressCache.end() ||
+          cacheIt->second != this_address) {
+        it->second->SetAddress(this_address);
+        branchAddressCache[it->second] = this_address;
+      }
     }
   } catch (int e) {
     cout << "[AnalyzerCore::SetBranch] Error get tree: " << treename.Data()

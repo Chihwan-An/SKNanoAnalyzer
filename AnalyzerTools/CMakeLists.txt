@@ -1,5 +1,6 @@
 # Find packages
 find_package(ROOT REQUIRED)
+find_package(ZLIB REQUIRED)
 # Find libraries with more robust method
 find_library(LHAPDF_LIBRARY NAMES LHAPDF PATHS $ENV{LHAPDF_LIB_DIR})
 find_library(CORRECTION_LIBRARY NAMES correctionlib PATHS $ENV{CORRECTION_LIB_DIR})
@@ -73,6 +74,7 @@ target_include_directories(AnalyzerTools PUBLIC
 # Link libraries
 target_link_libraries(AnalyzerTools PUBLIC 
     ${ROOT_LIBRARIES}
+    ZLIB::ZLIB
     ${LHAPDF_LIBRARY}
     ${CORRECTION_LIBRARY}
     DataFormats

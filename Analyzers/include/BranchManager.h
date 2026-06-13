@@ -123,10 +123,11 @@ public:
     void bindAddress() const override {
         if (!branch)
             return;
+        boundAddress = nullptr;
         if (capacity > 0 && !buffer.empty())
-            branch->SetAddress(buffer.data());
+            setAddress(buffer.data());
         else
-            branch->SetAddress(&zeroValue);
+            setAddress(&zeroValue);
         needsRebind = false;
     }
 
@@ -183,7 +184,7 @@ public:
         if (needed == 0)
         {
             buffer.clear();
-            branch->SetAddress(&zeroValue);
+            setAddress(&zeroValue);
             capacity = 0;
             if (lastEntry != target)
             {
@@ -196,7 +197,7 @@ public:
         if (buffer.capacity() < needed)
             buffer.reserve(needed);
         buffer.resize(needed);
-        branch->SetAddress(buffer.data());
+        setAddress(buffer.data());
         capacity = buffer.capacity();
 
         if (lastEntry == target)
@@ -210,6 +211,14 @@ private:
     mutable std::vector<T> buffer;
     mutable std::size_t capacity = 0;
     mutable T zeroValue{};
+    mutable void *boundAddress = nullptr;
+
+    void setAddress(void *address) const {
+        if (boundAddress == address)
+            return;
+        branch->SetAddress(address);
+        boundAddress = address;
+    }
 };
 
 template <typename CountT>
@@ -221,10 +230,11 @@ public:
     void bindAddress() const override {
         if (!branch)
             return;
+        boundAddress = nullptr;
         if (capacity > 0 && !storage.empty())
-            branch->SetAddress(storage.data());
+            setAddress(storage.data());
         else
-            branch->SetAddress(&zeroValue);
+            setAddress(&zeroValue);
         needsRebind = false;
     }
 
@@ -270,7 +280,7 @@ public:
         if (needed == 0)
         {
             storage.clear();
-            branch->SetAddress(&zeroValue);
+            setAddress(&zeroValue);
             capacity = 0;
             if (lastEntry != target)
             {
@@ -283,7 +293,7 @@ public:
         if (storage.capacity() < needed)
             storage.reserve(needed);
         storage.resize(needed);
-        branch->SetAddress(storage.data());
+        setAddress(storage.data());
         capacity = storage.capacity();
 
         if (lastEntry == target)
@@ -297,6 +307,14 @@ private:
     mutable std::vector<unsigned char> storage;
     mutable std::size_t capacity = 0;
     mutable unsigned char zeroValue = 0;
+    mutable void *boundAddress = nullptr;
+
+    void setAddress(void *address) const {
+        if (boundAddress == address)
+            return;
+        branch->SetAddress(address);
+        boundAddress = address;
+    }
 };
 
 class BranchManager {

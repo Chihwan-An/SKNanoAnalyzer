@@ -3,7 +3,7 @@ set(CORRECTION_INCLUDE_DIR $ENV{CORRECTION_INCLUDE_DIR})
 set(LHAPDF_INCLUDE_DIR $ENV{LHAPDF_INCLUDE_DIR})
 
 # Define the library with source files and the generated dictionary
-file(GLOB SOURCES src/*.cc)
+file(GLOB SOURCES CONFIGURE_DEPENDS src/*.cc)
 add_library(Analyzers SHARED
     ${SOURCES}
     #${CMAKE_CURRENT_BINARY_DIR}/G__Analyzers.cxx
@@ -21,7 +21,7 @@ target_include_directories(Analyzers PRIVATE
 )
 
 # Generate the ROOT dictionary before defining the library
-file(GLOB HEADERS include/*.h)
+file(GLOB HEADERS CONFIGURE_DEPENDS include/*.h)
 foreach(HEADER ${HEADERS})
     file(RELATIVE_PATH REL_HEADER ${CMAKE_CURRENT_SOURCE_DIR} ${HEADER})
     list(APPEND REL_HEADERS ${REL_HEADER})

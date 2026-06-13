@@ -108,7 +108,23 @@ def getEraList(eras, runs):
             eras += [e for e, r in Run.items() if r == 3]
     return eras
 
-def makeSampleList(samplelist,era):
+def parsePeriodFilter(period_arg):
+    period_tokens = [token.strip() for token in period_arg.split(",") if token.strip() != ""]
+    if len(period_tokens) == 0:
+        return None
+    if len(period_tokens) == 1 and period_tokens[0].lower() == "all":
+        return None
+    return set(period_tokens)
+
+def filterDataPeriods(periods, period_filter, era, sample_name):
+    if period_filter is None:
+        return periods
+    selected_periods = [period for period in periods if period in period_filter]
+    if len(selected_periods) == 0:
+        print('\033[93m'+f"Warning: no matching periods for {sample_name} in era {era}. requested={sorted(period_filter)}, available={periods}"+'\033[0m')
+    return selected_periods
+
+def makeSampleList(samplelist,era,period_filter=None):
     #add Period to data sample, and wildcard search
     copylist = []
     for sample in samplelist:
@@ -125,7 +141,8 @@ def makeSampleList(samplelist,era):
                         if skimInfoJsons[era][sampleInfo]['isMC']:
                             copylist.append(sampleInfo)
                         else:
-                            copylist += [f"{sampleInfo}_{period}" for period in skimInfoJsons[era][sampleInfo]['periods']]
+                            periods = filterDataPeriods(skimInfoJsons[era][sampleInfo]['periods'], period_filter, era, sampleInfo)
+                            copylist += [f"{sampleInfo}_{period}" for period in periods]
                 continue
             elif sample not in skimInfoJsons[era]:
                 print('\033[93m'+f"Warning: {sample} is not exist in era {era}"+'\033[0m')
@@ -135,7 +152,8 @@ def makeSampleList(samplelist,era):
             if sampleInfo['isMC']:
                 copylist.append(sample)
             if not sampleInfo['isMC']:
-                copylist += [f"{sample}_{period}" for period in sampleInfo['periods']]
+                periods = filterDataPeriods(sampleInfo['periods'], period_filter, era, sample)
+                copylist += [f"{sample}_{period}" for period in periods]
         else:
             if '*' in sample:
                 #wildcard search using regex
@@ -146,7 +164,8 @@ def makeSampleList(samplelist,era):
                         if sampleInfoJsons[era][sampleInfo]['isMC']:
                             copylist.append(sampleInfo)
                         else:
-                            copylist += [f"{sampleInfo}_{period}" for period in sampleInfoJsons[era][sampleInfo]['periods']]
+                            periods = filterDataPeriods(sampleInfoJsons[era][sampleInfo]['periods'], period_filter, era, sampleInfo)
+                            copylist += [f"{sampleInfo}_{period}" for period in periods]
                 continue
             elif sample not in sampleInfoJsons[era]:
                 print('\033[93m'+f"Warning: {sample} is not exist in era {era}"+'\033[0m')
@@ -155,7 +174,8 @@ def makeSampleList(samplelist,era):
             if sampleInfo['isMC']:
                 copylist.append(sample)
             if not sampleInfo['isMC']:
-                copylist += [f"{sample}_{period}" for period in sampleInfo['periods']]
+                periods = filterDataPeriods(sampleInfo['periods'], period_filter, era, sample)
+                copylist += [f"{sample}_{period}" for period in periods]
 
     return copylist
 
@@ -198,7 +218,7 @@ def setParser():
     #parser.add_argument('-q', dest='Queue', default="fastq")
     parser.add_argument('-e', dest='Era', default="All",help="2022, 2022EE. can be comma separated")
     parser.add_argument('-r', dest='Run', default="None",help="Run2, Run3. can be comma separated. override era option")
-    parser.add_argument('-p', dest='Period', default="All",help="Data period (e.g. A, B, C, etc.) for data samples. Default: All")
+    parser.add_argument('-p', dest='Period', default="All",help="Data period filter for data samples (e.g. I or I,I_v2). Default: All")
     parser.add_argument('--userflags', dest='Userflags', default="")
     parser.add_argument('--exclude', dest='ExcludeSample', default="",
     help="Exclude samples by regex (comma-separated, supports * wildcard)")
@@ -654,6 +674,7 @@ if __name__ == '__main__':
     timestamp, string_JobStartTime = getTimeStamp()
     _, abs_MasterDirectoryName= getMasterDirectoryName(timestamp, args.Analyzer, userflags)
     InputSamplelist = getInputSampleList(args.InputSample)
+    period_filter = parsePeriodFilter(args.Period)
     exclude_regexes = getExcludeRegexList(args.ExcludeSample)
     
     dag_list = []
@@ -662,7 +683,7 @@ if __name__ == '__main__':
 
     for era in eras:
         print(f"Working on {era}")
-        InputSamplelist_era = makeSampleList(InputSamplelist, era)
+        InputSamplelist_era = makeSampleList(InputSamplelist, era, period_filter)
         if exclude_regexes:
             InputSamplelist_era = [
                 sample for sample in InputSamplelist_era

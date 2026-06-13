@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 import awkward as ak
 import numpy as np
 
-from .config import LEPTON_DIM, MAX_JETS, MET_DIM, MOM_FEAT_DIM
+from .config import LEPTON_DIM, MAX_JETS_RECO, MET_DIM, MOM_FEAT_DIM
 
 
 def detect_channel(tree_name: str, override: str | None = None) -> str:
@@ -42,7 +42,7 @@ def _pad_vector(array: ak.Array, length: int, fill) -> Tuple[np.ndarray, np.ndar
 def build_spanet_inputs(
     batch: Dict[str, ak.Array],
     channel: str,
-    max_jets: int = MAX_JETS,
+    max_jets: int = MAX_JETS_RECO,
 ) -> Tuple[Dict[str, np.ndarray], np.ndarray, Dict[str, np.ndarray]]:
     """
     Convert a ROOT batch to SPANet ONNX inputs.
@@ -54,6 +54,8 @@ def build_spanet_inputs(
     jet_phi_np, _ = _pad_vector(batch["Jet_Phi"], max_jets, 0.0)
     jet_mass_np, _ = _pad_vector(batch["Jet_Mass"], max_jets, 0.0)
     jet_cat_np, _ = _pad_vector(batch["Jet_Category"], max_jets, 0)
+    jet_ilr_dim_1_np, _ = _pad_vector(batch["Jet_ILR_Dim_1"], max_jets, 0.0)
+    jet_ilr_dim_2_np, _ = _pad_vector(batch["Jet_ILR_Dim_2"], max_jets, 0.0)
     jet_counts = np.asarray(ak.num(batch["Jet_Pt"]), dtype=np.int32)
 
     sin_phi = np.sin(jet_phi_np).astype(np.float32)
@@ -70,10 +72,13 @@ def build_spanet_inputs(
         sin_phi[..., None],
         cos_phi[..., None],
         jet_mass_np[..., None],
-        N0[..., None],
-        L0[..., None],
-        np.stack(C_bits, axis=-1),
-        np.stack(B_bits, axis=-1),
+        #N0[..., None],
+        #L0[..., None],
+
+        #np.stack(C_bits, axis=-1),
+        #np.stack(B_bits, axis=-1),
+        jet_ilr_dim_1_np[..., None],
+        jet_ilr_dim_2_np[..., None],
     ]
     momenta_data = np.concatenate(mom_components, axis=2).astype(np.float32)
     if momenta_data.shape != (
@@ -146,6 +151,8 @@ def build_spanet_inputs(
         "phi": jet_phi_np,
         "mass": jet_mass_np,
         "cat": jet_cat_np,
+        "ilr_dim_1": jet_ilr_dim_1_np,
+        "ilr_dim_2": jet_ilr_dim_2_np,
         "mask": jet_mask_np,
     }
     return inputs, jet_counts, jets

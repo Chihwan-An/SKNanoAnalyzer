@@ -3,6 +3,7 @@ import os
 import json
 import argparse
 import glob
+import re
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--era', type=str, default='2016preVFP', help='era')
@@ -64,6 +65,21 @@ def parse_rootfiles_from(basePath):
     filePaths.sort(key=extract_number)
     return filePaths
 
+PERIOD_WITH_VERSION_RE = re.compile(r"^(?P<base>[A-Z])(?:_(?P<version>v\d+))?$")
+DIR_VERSION_SUFFIX_RE = re.compile(r"_v\d+$")
+
+def split_period(period):
+    match = PERIOD_WITH_VERSION_RE.fullmatch(period)
+    if match is None:
+        return period, None
+    return match.group("base"), match.group("version")
+
+def filter_matches_for_period(matches, period):
+    _, version = split_period(period)
+    if version is None:
+        return [path for path in matches if DIR_VERSION_SUFFIX_RE.search(os.path.basename(path)) is None]
+    return [path for path in matches if os.path.basename(path).endswith(f"_{version}")]
+
 def main():
     sampleInfoJson = os.path.join(os.environ['SKNANO_DATA'], args.era, 'Sample', 'CommonSampleInfo.json')
     sampleInfos = json.load(open(sampleInfoJson))
@@ -89,26 +105,34 @@ def main():
                 json.dump(jsonData, f, indent=4)
         else:
             for period in sampleInfo["periods"]:
-                pattern = os.path.join(BASEPATH, args.era, f"{alias}/*Run{YEAR}{period}*")
-                matches = glob.glob(pattern)
+                period_base, _ = split_period(period)
+                pattern = os.path.join(BASEPATH, args.era, f"{alias}/*Run{YEAR}{period_base}*")
+                matches = sorted(glob.glob(pattern))
+                matches = filter_matches_for_period(matches, period)
                 print(matches)
 
-                for basePath in matches:
-                    fileJsonPath = os.path.join(
-                        os.environ['SKNANO_DATA'],
-                        args.era,
-                        'Sample',
-                        'ForSNU',
-                        f"{alias}_{period}.json"
-                    )
-                    jsonData = {
-                        "name": alias,
-                        "isMC": 0,
-                        "NEvents": [],
-                        "path": parse_rootfiles_from(basePath)
-                    }
-                    with open(fileJsonPath, 'w') as f:
-                        json.dump(jsonData, f, indent=4)
+                if len(matches) == 0:
+                    print(f"No path matches for {alias}_{period} (pattern: {pattern})")
+                    continue
+                if len(matches) > 1:
+                    raise RuntimeError(f"Ambiguous paths for {alias}_{period}: {matches}")
+
+                basePath = matches[0]
+                fileJsonPath = os.path.join(
+                    os.environ['SKNANO_DATA'],
+                    args.era,
+                    'Sample',
+                    'ForSNU',
+                    f"{alias}_{period}.json"
+                )
+                jsonData = {
+                    "name": alias,
+                    "isMC": 0,
+                    "NEvents": [],
+                    "path": parse_rootfiles_from(basePath)
+                }
+                with open(fileJsonPath, 'w') as f:
+                    json.dump(jsonData, f, indent=4)
 
 
 if __name__ == "__main__":

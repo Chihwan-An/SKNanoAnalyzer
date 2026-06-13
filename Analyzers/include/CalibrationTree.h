@@ -36,7 +36,15 @@ using VariousArray = std::variant<FloatArray, IntArray, BoolArray>;
 
 class CalibrationTree : public AnalyzerCore {
 public:
-  enum class Channel { TTDilep, WCharm_Mu, WCharm_El, DYLight, TTSemilep };
+  enum class Channel {
+    TTDilep,
+    WCharm_Mu,
+    WCharm_El,
+    DYLight,
+    DYCharm,
+    QCDCharmDijet,
+    TTSemilep
+  };
 
   struct KinFitterResult {
     int status;
@@ -79,6 +87,8 @@ public:
   bool PassTTDilepBaselineSelection();
   bool PassWCharmBaselineSelection();
   bool PassDYLightBaselineSelection();
+  bool PassDYCharmBaselineSelection();
+  bool PassQCDCharmDijetSelection();
   bool PassTTSemilepBaselineSelection();
   void virtual FillHistogramsAtThisPoint(std::string_view histPrefix,
                                          float weight = 1.f);
@@ -86,6 +96,15 @@ public:
       std::string_view treePrefix, float MCNormalizationWeight,
       const std::unordered_map<std::string, float> &weight_map);
   void SetSystematicLambda(bool remove_flavtagging_sf = false);
+  bool PassEventPreselectionBeforeSystematics();
+  bool PassChannelTriggerPreselection() const;
+  bool PassLeptonCachePreselection();
+  void BuildLeptonSelectionCache();
+  void ResetEventCaches();
+  void EnsureSVViews();
+  const std::string &CachedTreeName(std::string_view treePrefix);
+  const std::string &CachedJetBranchName(std::size_t jetIndex,
+                                         std::string_view suffix);
   inline float virtual MCNormalization() {
     return MCweight() * ev.GetTriggerLumi(Mu_Trigger[DataEra.Data()]);
   }
@@ -136,6 +155,9 @@ public:
   float wcharm_dphi_w_jet;
   float wcharm_pt_ratio;
   float wcharm_dphi_trkmet_met;
+  int wcharm_jet0_nelectrons;
+  int wcharm_jet0_nmuons;
+  int wcharm_jet0_nsoftmuons;
   int wcharm_jet0_nsv;
   int wcharm_sv0_idx;
   int wcharm_sv1_idx;
@@ -171,6 +193,39 @@ public:
   float wcharm_sv1_x;
   float wcharm_sv1_y;
   float wcharm_sv1_z;
+  // DYCharm / QCDCharm kinematics (tag/probe)
+  bool dycharm_has_tagprobe;
+  float dycharm_tag_pt;
+  float dycharm_tag_eta;
+  float dycharm_tag_phi;
+  int dycharm_tag_hadronFlavour;
+  float dycharm_probe_pt;
+  float dycharm_probe_eta;
+  float dycharm_probe_phi;
+  int dycharm_probe_hadronFlavour;
+  float dycharm_z_pt;
+  float dycharm_z_mass;
+  float dycharm_jj_pt;
+  float dycharm_jj_mass;
+  float dycharm_dR_jj;
+  float dycharm_dphi_z_jj;
+  float dycharm_ptbal_z_jj;
+  float dycharm_ptasym_jj;
+
+  bool qcdcharm_has_tagprobe;
+  float qcdcharm_tag_pt;
+  float qcdcharm_tag_eta;
+  float qcdcharm_tag_phi;
+  int qcdcharm_tag_hadronFlavour;
+  float qcdcharm_probe_pt;
+  float qcdcharm_probe_eta;
+  float qcdcharm_probe_phi;
+  int qcdcharm_probe_hadronFlavour;
+  float qcdcharm_jj_pt;
+  float qcdcharm_jj_mass;
+  float qcdcharm_dR_jj;
+  float qcdcharm_dphi_jj;
+  float qcdcharm_ptasym_jj;
   // kinematic fitter result
   KinFitterResult best_KF_result;
 
@@ -179,6 +234,31 @@ public:
   std::unique_ptr<SystematicHelper> systHelper;
   std::vector<float> jetHFvLFAll;
   std::vector<float> jetBvCAll;
+  bool useMyUParTBranches = false;
+  int myUParTCacheTreeNumber = -1;
+  std::unordered_map<std::string, TBranch *> myUParTBranchCache;
+  struct LeptonSelectionCache {
+    bool valid = false;
+    Long64_t entry = -1;
+    std::vector<std::size_t> looseMuonIndices;
+    std::vector<std::size_t> tightMuonIndices;
+    std::vector<std::size_t> looseElectronIndices;
+    std::vector<std::size_t> tightElectronIndices;
+
+    void reset(Long64_t newEntry) {
+      valid = false;
+      entry = newEntry;
+      looseMuonIndices.clear();
+      tightMuonIndices.clear();
+      looseElectronIndices.clear();
+      tightElectronIndices.clear();
+    }
+  };
+  LeptonSelectionCache leptonSelectionCache;
+  bool svViewsLoaded = false;
+  std::unordered_map<std::string, std::string> sanitizedTreeNameCache;
+  std::unordered_map<std::string, std::string> jetBranchNameCache;
+  float ReadMyUParTValue(std::string_view branchName, std::size_t jetIndex);
   float LeptonTriggerWeight(bool isEle, const MyCorrection::variation syst,
                             const TString &source);
 
@@ -192,6 +272,10 @@ public:
       return "WCharm_El";
     case Channel::DYLight:
       return "DYLight";
+    case Channel::DYCharm:
+      return "DYCharm";
+    case Channel::QCDCharmDijet:
+      return "QCDCharmDijet";
     case Channel::TTSemilep:
       return "TTSemilep";
     default:

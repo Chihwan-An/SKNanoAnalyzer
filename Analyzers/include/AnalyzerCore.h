@@ -372,6 +372,22 @@ protected:
     absl::flat_hash_map<std::string, TH3*, TransparentStringHash, TransparentStringEq> histmap3d;
     unordered_map<string, TTree*> treemap;
     unordered_map<TTree*, unordered_map<string, TBranch*>> branchmaps; 
+    unordered_map<TBranch*, void*> branchAddressCache;
+    static constexpr Long64_t kInvalidCacheEntry = -2;
+    Long64_t cachedEventEntry = kInvalidCacheEntry;
+    Event cachedEvent;
+    Long64_t cachedMuonViewsEntry = kInvalidCacheEntry;
+    MuonViewCollection cachedMuonViews;
+    Long64_t cachedElectronViewsEntry = kInvalidCacheEntry;
+    ElectronViewCollection cachedElectronViews;
+    Long64_t cachedJetViewsEntry = kInvalidCacheEntry;
+    JetViewCollection cachedJetViews;
+    Long64_t cachedGenViewsEntry = kInvalidCacheEntry;
+    GenViewCollection cachedGenViews;
+    Long64_t cachedGenJetViewsEntry = kInvalidCacheEntry;
+    GenJetViewCollection cachedGenJetViews;
+    Long64_t cachedGensEntry = kInvalidCacheEntry;
+    RVec<Gen> cachedGens;
     std::unordered_map<std::string, std::unique_ptr<float>> scalar_float_storage;
     std::unordered_map<std::string, std::unique_ptr<int>> scalar_int_storage;
     std::unordered_map<std::string, std::unique_ptr<bool>> scalar_bool_storage;
@@ -393,11 +409,17 @@ protected:
                 //template <typename T, std::size_t N> TBranch *Branch(const char* name, std::array<T, N> *obj, Int_t bufsize = 32000, Int_t splitlevel = 99)
                 auto br = tree->Branch(branchname, &address);
                 this_branchmap->insert({string(branchname), br});
+                branchAddressCache[br] = &address;
             }
             else
             {
                 //void TBranch::SetAddress(void *add)
-                it -> second->SetAddress(&address);
+                auto cacheIt = branchAddressCache.find(it->second);
+                if (cacheIt == branchAddressCache.end() ||
+                    cacheIt->second != static_cast<void *>(&address)) {
+                    it->second->SetAddress(&address);
+                    branchAddressCache[it->second] = &address;
+                }
             }
         } catch (int e) {
             cout << "[AnalyzerCore::SetBranch] Error get tree: " << treename.Data() << endl;

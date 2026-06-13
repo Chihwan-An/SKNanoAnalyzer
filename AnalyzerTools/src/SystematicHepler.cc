@@ -1,6 +1,25 @@
 #include "SystematicHelper.h"
 #include <yaml-cpp/yaml.h>
 
+namespace {
+
+bool ends_with(const std::string &value, const std::string &suffix) {
+    if (value.size() < suffix.size()) return false;
+    return value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+std::string strip_variation_suffix(const std::string &syst_name) {
+    if (ends_with(syst_name, "_Up")) {
+        return syst_name.substr(0, syst_name.size() - 3);
+    }
+    if (ends_with(syst_name, "_Down")) {
+        return syst_name.substr(0, syst_name.size() - 5);
+    }
+    return syst_name;
+}
+
+} // namespace
+
 SystematicHelper::SystematicHelper(std::string yaml_path,
     TString sample,
     TString Era)
@@ -549,16 +568,7 @@ std::vector<std::string> SystematicHelper::get_targets_from_name(const std::stri
         targets.push_back(central_name);
         return targets;
     }
-    std::string syst_name_no_variation = syst_name;
-    for (const auto &prefix : variation_prefix)
-    {
-        size_t found = syst_name.find(prefix.second);
-        if (found != std::string::npos)
-        {
-            syst_name_no_variation = syst_name.substr(0, found);
-            break;
-        }
-    }
+    std::string syst_name_no_variation = strip_variation_suffix(syst_name);
     SYST *syst = findSystematic(syst_name_no_variation);
     
     //check if syst is in correlation table
@@ -588,16 +598,7 @@ std::vector<std::string> SystematicHelper::get_sources_from_name(const std::stri
         sources.push_back(central_name);
         return sources;
     }
-    std::string syst_name_no_variation = syst_name;
-    for (const auto &prefix : variation_prefix)
-    {
-        size_t found = syst_name.find(prefix.second);
-        if (found != std::string::npos)
-        {
-            syst_name_no_variation = syst_name.substr(0, found);
-            break;
-        }
-    }
+    std::string syst_name_no_variation = strip_variation_suffix(syst_name);
 
     SYST *syst = findSystematic(syst_name_no_variation);
     
@@ -622,17 +623,15 @@ std::vector<std::string> SystematicHelper::get_sources_from_name(const std::stri
 }
 
 MyCorrection::variation SystematicHelper::get_variation_from_name(const std::string &syst_name){
-    //find which prefix is in the syst_name
+    // find variation from explicit suffix
     if (syst_name == central_name){
         return MyCorrection::variation::nom;
     }
-    for (const auto &prefix : variation_prefix)
-    {
-        size_t found = syst_name.find(prefix.second);
-        if (found != std::string::npos)
-        {
-            return prefix.first;
-        }
+    if (ends_with(syst_name, "_Up")) {
+        return MyCorrection::variation::up;
+    }
+    if (ends_with(syst_name, "_Down")) {
+        return MyCorrection::variation::down;
     }
     throw std::runtime_error("[SystematicHelper::get_variation_from_name] weird syst_name");
 }

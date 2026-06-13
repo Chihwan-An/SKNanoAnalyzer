@@ -122,17 +122,11 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
 
   // Please use ####### as placeholder
   if (!IsData) {
-    JME_JER_GT["2024"] =
-        "Summer23BPixPrompt23_RunD_JRV1_MC_######_AK4PFPuppi"; // this is
-                                                               // because real
-                                                               // content of
-                                                               // file is this
-    JME_JES_GT["2024"] = "Summer24Prompt24_V2_MC_######_AK4PFPuppi";
+    JME_JER_GT["2024"] = "Summer24Prompt24_JRV1_MC_######_AK4PFPuppi";
+    JME_JES_GT["2024"] = "Summer24Prompt24_V3_MC_######_AK4PFPuppi";
   } else {
-    JME_JER_GT["2024"] =
-    "Summer23BPixPrompt23_RunD_JRV1_MC_######_AK4PFPuppi"; // this is
-    // because real content of file is this
-    JME_JES_GT["2024"] = "Summer24Prompt24_V2_DATA_######_AK4PFPuppi";
+    JME_JER_GT["2024"] = "Summer24Prompt24_JRV1_MC_######_AK4PFPuppi";
+    JME_JES_GT["2024"] = "Summer24Prompt24_V3_DATA_######_AK4PFPuppi";
   }
 
   JME_vetomap_keys["2024"] = "Summer24Prompt24_RunBCDEFGHI_V1";
@@ -210,7 +204,8 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
   // config.json_electron_custom_emu_leg2_eff = sknano_data_str;
 
   if (era == "2024") {
-    const string tag = "/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/";
+    const string tag =
+        "/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/";
     const string tag_temp = "/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/";
     config.json_muon += tag + "muon_Z.json.gz";
     config.json_muon_trig_eff += "/2024/MUO/muon_trig.json";
@@ -223,8 +218,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     // config.json_btagging_R += "/2023BPix/BTV/" + btagging_R_file;
     // config.json_ctagging_R += "/2023BPix/BTV/" + ctagging_R_file;
     config.json_electron += tag + "electron.json.gz";
-    config.json_electron_variation =
-        tag + "electronSS_EtDependent.json.gz";
+    config.json_electron_variation = tag + "electronSS_EtDependent.json.gz";
     config.json_electron_hlt += tag + "electronHlt.json.gz";
     // config.json_photon += "/2023_Summer23BPix/photon.json.gz";
     config.json_jetid += tag + "jetid.json.gz";
@@ -259,7 +253,8 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
 // GoldenLumi
 bool MyCorrection::IsGoldenLumi(const unsigned int runNumber,
                                 const unsigned int lumiSection) const {
-  if(!IsDATA) return true;  
+  if (!IsDATA)
+    return true;
   return golden_json_parser->isGood(runNumber, lumiSection);
 }
 
@@ -532,9 +527,9 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key,
 
     auto cset = cset_electron->at(key);
     return safeEvaluate(cset, "GetElectronIDSF",
-                        {DataEra.Data() + std::string("Prompt"), getSystString_EGM(syst),
-                         string(Electron_ID_SF_Key), eta,
-                         pt < 999.9f ? pt : 999.9f});
+                        {DataEra.Data() + std::string("Prompt"),
+                         getSystString_EGM(syst), string(Electron_ID_SF_Key),
+                         eta, pt < 999.9f ? pt : 999.9f});
   }
 }
 
@@ -1451,6 +1446,27 @@ float MyCorrection::GetJERSF(const float eta, const float pt,
   string cset_string = JME_JER_GT.at(GetEra().Data());
   cset_string.replace(cset_string.find("######"), 6, "ScaleFactor");
   cset = cset_jerc->at(cset_string);
+  if (GetEra() == "2024") {
+    const float sf = safeEvaluate(cset, "GetJERSF", {eta, pt});
+    if (syst == variation::nom) {
+      return sf;
+    }
+
+    string unc_cset_string = JME_JER_GT.at(GetEra().Data());
+    unc_cset_string.replace(unc_cset_string.find("######"), 6,
+                            "SFUncertainty");
+    const auto cset_unc = cset_jerc->at(unc_cset_string);
+    const float sf_unc = safeEvaluate(cset_unc, "GetJERSFUncertainty",
+                                      {eta, pt});
+    if (syst == variation::up) {
+      return sf + sf_unc;
+    }
+    if (syst == variation::down) {
+      const float sf_down = sf - sf_unc;
+      return sf_down > 0.f ? sf_down : 0.f;
+    }
+    return sf;
+  }
   if (Run == 3) {
     return safeEvaluate(cset, "GetJERSF", {eta, pt, getSystString_JME(syst)});
   } else if (Run == 2) {
@@ -1464,23 +1480,61 @@ float MyCorrection::GetJESSF(const float area, const float eta, const float pt,
                              const float phi, const float rho,
                              const unsigned int runNumber) const {
   correction::CompoundCorrection::Ref cset = nullptr;
+  correction::Correction::Ref cset_L1 = nullptr;
+  correction::Correction::Ref cset_L2 = nullptr;
+  correction::Correction::Ref cset_L3 = nullptr;
+  correction::Correction::Ref cset_res = nullptr;
   string cset_string = JME_JES_GT.at(GetEra().Data());
   cset_string.replace(cset_string.find("######"), 6, "L1L2L3Res");
-  cset = cset_jerc->compound().at(cset_string);
-  vector<correction::Variable::Type> args;
-  float JESSF = 1.;
-  if (GetEra() == "2023BPix" || GetEra() == "2024") {
-    args = {area, eta, pt, rho, phi};
-    if (IsDATA)
-      args = {area, eta, pt, rho, phi, static_cast<float>(runNumber)};
-  } else if (GetEra() == "2023") {
-    args = {area, eta, pt, rho};
-    if (IsDATA)
-      args = {area, eta, pt, rho, static_cast<float>(runNumber)};
-  } else {
-    args = {area, eta, pt, rho};
+  string cset_string_L1 = JME_JES_GT.at(GetEra().Data());
+  string cset_string_L2 = JME_JES_GT.at(GetEra().Data());
+  string cset_string_L3 = JME_JES_GT.at(GetEra().Data());
+  string cset_string_res = JME_JES_GT.at(GetEra().Data());
+  cset_string_L1.replace(cset_string_L1.find("######"), 6, "L1FastJet");
+  cset_string_L2.replace(cset_string_L2.find("######"), 6, "L2Relative");
+  cset_string_L3.replace(cset_string_L3.find("######"), 6, "L3Absolute");
+  cset_string_res.replace(cset_string_res.find("######"), 6, "L2L3Residual");
+  if (GetEra() != "2024") {
+    cset = cset_jerc->compound().at(cset_string);
+    vector<correction::Variable::Type> args;
+    float JESSF = 1.;
+    if (GetEra() == "2023BPix") {
+      args = {area, eta, pt, rho, phi};
+      if (IsDATA)
+        args = {area, eta, pt, rho, phi, static_cast<float>(runNumber)};
+    } else if (GetEra() == "2023") {
+      args = {area, eta, pt, rho};
+      if (IsDATA)
+        args = {area, eta, pt, rho, static_cast<float>(runNumber)};
+    } else {
+      args = {area, eta, pt, rho};
+    }
+    return safeEvaluate(cset, "GetJERSF", args);
   }
-  return safeEvaluate(cset, "GetJERSF", args);
+  else{
+    float current_pt = pt;
+    float current_corr = 1.f;
+    cset_L1 = cset_jerc->at(cset_string_L1);
+    cset_L2 = cset_jerc->at(cset_string_L2);
+    cset_L3 = cset_jerc->at(cset_string_L3);
+    cset_res = cset_jerc->at(cset_string_res);
+    float sf_L1 = safeEvaluate(cset_L1, "GetJESCorrection",
+                               {area, eta, current_pt, rho});
+    current_pt = current_pt * sf_L1;
+    float sf_L2 = safeEvaluate(cset_L2, "GetJESCorrection",
+                               {eta, phi, current_pt});
+    current_pt = current_pt * sf_L2;
+    float sf_L3 = safeEvaluate(cset_L3, "GetJESCorrection",
+                               {eta, current_pt});
+    current_pt = current_pt * sf_L3;
+    float sf_res = 1.;
+    if (IsDATA) {
+      if(abs(eta) >=2.0 && abs(eta) < 2.5) current_pt = std::max(30.001f, current_pt);
+      sf_res = safeEvaluate(cset_res, "GetJESCorrection",
+                            {static_cast<float>(runNumber), eta, current_pt});
+    }
+    return sf_L1 * sf_L2 * sf_L3 * sf_res;
+  }
 }
 
 float MyCorrection::GetJESUncertainty(const float eta, const float pt,
@@ -1699,8 +1753,8 @@ float MyCorrection::GetBFragReweight(
     const TLorentzVector &LastCopyTop, const TLorentzVector &LastCopyAntiTop,
     const TLorentzVector &LastCopyWPlus, const TLorentzVector &LastCopyWMinus,
     const TLorentzVector &FirstCopyBHadronFromTop,
-    const TLorentzVector &FirstCopyBHadronFromAntiTop, const variation &syst)
-    const {
+    const TLorentzVector &FirstCopyBHadronFromAntiTop,
+    const variation &syst) const {
   if (syst == variation::down)
     return 1.f;
   const float x_e_top =

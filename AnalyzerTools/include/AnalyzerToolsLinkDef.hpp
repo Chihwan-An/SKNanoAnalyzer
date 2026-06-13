@@ -15,5 +15,6 @@
 #pragma link C++ class OtJsonLutBank+;
 #pragma link C++ class UParTScore::Mapper+;
 #pragma link C++ class UParTScore::Prob3+;
+#pragma link C++ enum UParTScore::Cat;
 
 #endif

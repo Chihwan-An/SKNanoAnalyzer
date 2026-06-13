@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include "TLorentzVector.h"
@@ -82,6 +83,8 @@ struct JetSoA {
     std::vector<float> jesPtDown;
     std::vector<float> jesMassUp;
     std::vector<float> jesMassDown;
+    std::string jesVariationSource;
+    bool jesVariationValid = false;
 
     std::size_t size() const { return pt.size(); }
 };

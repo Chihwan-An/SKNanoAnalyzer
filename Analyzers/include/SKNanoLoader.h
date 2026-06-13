@@ -83,13 +83,14 @@ public:
     // A larger default cache and longer learn phase help steady throughput
     // across file boundaries.
     Long64_t treeCacheSizeBytes = 200LL * 1024 * 1024; // 200 MB default cache
-    int treeCacheLearnEntries = 20000;                 // learn on first 20k entries
+    int treeCacheLearnEntries = 100;                   // learn quickly for short jobs
     bool enableTreePrefetching = true;
-    static constexpr Long64_t CACHE_PREFETCH_WARMUP_EVENTS = 20000;
+    static constexpr Long64_t CACHE_PREFETCH_WARMUP_EVENTS = 100;
     bool cachePrefetchConfigured = false;
+    Long64_t cachePrefetchWarmupEntries = 0;
 
 protected:
-    void configureTreeCache(TTree *tree);
+    void configureTreeCache(TTree *tree, bool resetCache = false);
 
 #include "generated_branch_decls.inc"
 };

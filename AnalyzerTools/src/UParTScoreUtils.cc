@@ -10,6 +10,34 @@
 
 namespace UParTScore {
 
+int bin_hf(double x) {
+  return int(x >= HF_T1) + int(x >= HF_T2) + int(x >= HF_T3);
+}
+
+int bin_bvc(double y) {
+  return int(y >= BVC_T1) + int(y >= BVC_T2) + int(y >= BVC_T3) +
+         int(y >= BVC_T4) + int(y >= BVC_T5) + int(y >= BVC_T6) +
+         int(y >= BVC_T7);
+}
+
+Cat classify_from_scores(double hf, double bvc) {
+  if (!(hf >= 0.0 && hf <= 1.0 && bvc >= 0.0 && bvc <= 1.0))
+    return Cat::N0;
+
+  const int ih = bin_hf(hf);
+  if (ih == 0)
+    return Cat::L0;
+  if (ih == 1)
+    return Cat::C0;
+  if (ih == 2)
+    return Cat::C1;
+
+  static constexpr Cat TOP_MAP[8] = {Cat::C4, Cat::C3, Cat::C2, Cat::B0,
+                                     Cat::B1, Cat::B2, Cat::B3, Cat::B4};
+  const int jb = bin_bvc(bvc);
+  return TOP_MAP[jb];
+}
+
 double clip(double x, double lo, double hi) {
   return std::min(hi, std::max(lo, x));
 }

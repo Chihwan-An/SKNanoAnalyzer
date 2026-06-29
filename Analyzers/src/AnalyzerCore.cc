@@ -760,6 +760,7 @@ RVec<Electron> AnalyzerCore::GetAllElectrons(){
         electron.SetGenPartFlav(Electron_genPartFlav[i]);
         electron.SetVidNestedWPBitmapHEEP(Electron_vidNestedWPBitmapHEEP[i]);
         electron.SetVidNestedWPBitmap(Electron_vidNestedWPBitmap[i]);
+        electron.scEtOverPt(Electron_scEtOverPt[i]);
 
         if (Run == 2) {
             electron.SetEnergyResUnc(Electron_dEsigmaUp[i], Electron_dEsigmaDown[i]);
@@ -2067,12 +2068,6 @@ void AnalyzerCore::FillTrees(const TString &treename) {
             TTree *tree = pair.second;
             tree->Fill();
         }
-        this_floats.clear();
-        this_ints.clear();
-        this_bools.clear();
-        this_floats.shrink_to_fit();
-        this_ints.shrink_to_fit();
-        this_bools.shrink_to_fit(); // Mandatory;
     } else {
         // Convert treeName to std::string for comparison
         std::string treeNameStr(treename.Data());
@@ -2082,12 +2077,6 @@ void AnalyzerCore::FillTrees(const TString &treename) {
             // Tree with the given name exists, fill it
             TTree *tree = it->second;
             tree->Fill();
-            this_floats.clear();
-            this_ints.clear();
-            this_bools.clear();
-            this_floats.shrink_to_fit();
-            this_ints.shrink_to_fit();
-            this_bools.shrink_to_fit(); // Mandatory;
         } else {
             // Handle the case where the treeName is not found in the map
             throw std::runtime_error("[AnalyzerCore::FillTrees] Tree with name '" + treeNameStr + "' not found in treemap.");

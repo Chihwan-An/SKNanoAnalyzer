@@ -201,10 +201,26 @@ public:
 
     TTree* NewTree(const TString &treename, const RVec<TString> &keeps = {}, const RVec<TString> &drops = {});
     TTree* GetTree(const TString &treename);
-    inline void SetBranch(const TString &treename, const TString &branchname, float val) { this_floats.push_back(val); SetBranch(treename, branchname, (void*)(&this_floats.back()), branchname + "/F"); };
-    inline void SetBranch(const TString &treename, const TString &branchname, double val) { this_floats.push_back(float(val)); SetBranch(treename, branchname, (void*)(&this_floats.back()), branchname + "/F"); };
-    inline void SetBranch(const TString &treename, const TString &branchname, int val) { this_ints.push_back(val); SetBranch(treename, branchname, (void*)(&this_ints.back()), branchname + "/I"); };
-    inline void SetBranch(const TString &treename, const TString &branchname, bool val) { this_bools.push_back(val); SetBranch(treename, branchname, (void *)(&this_bools.back()), branchname + "/O"); }
+    inline void SetBranch(const TString &treename, const TString &branchname, float val) {
+        const string key = string(treename.Data()) + "/" + string(branchname.Data());
+        tree_float_values[key] = val;
+        SetBranch(treename, branchname, (void*)(&tree_float_values[key]), branchname + "/F");
+    };
+    inline void SetBranch(const TString &treename, const TString &branchname, double val) {
+        const string key = string(treename.Data()) + "/" + string(branchname.Data());
+        tree_float_values[key] = static_cast<float>(val);
+        SetBranch(treename, branchname, (void*)(&tree_float_values[key]), branchname + "/F");
+    };
+    inline void SetBranch(const TString &treename, const TString &branchname, int val) {
+        const string key = string(treename.Data()) + "/" + string(branchname.Data());
+        tree_int_values[key] = val;
+        SetBranch(treename, branchname, (void*)(&tree_int_values[key]), branchname + "/I");
+    };
+    inline void SetBranch(const TString &treename, const TString &branchname, bool val) {
+        const string key = string(treename.Data()) + "/" + string(branchname.Data());
+        tree_bool_values[key] = val;
+        SetBranch(treename, branchname, (void*)(&tree_bool_values[key]), branchname + "/O");
+    }
     //fill RVec to branch -> Not work do not use
     //template <typename T>
     //inline void SetBranch(const TString &treename, const TString &branchname, std::vector<T> &val) {SetBranch_Vector(treename, branchname, val);};
@@ -219,9 +235,9 @@ private:
     unordered_map<string, TH3*> histmap3d;
     unordered_map<string, TTree*> treemap;
     unordered_map<TTree*, unordered_map<string, TBranch*>> branchmaps; 
-    deque<float> this_floats;
-    deque<int> this_ints;
-    deque<char> this_bools;
+    unordered_map<string, float> tree_float_values;
+    unordered_map<string, int> tree_int_values;
+    unordered_map<string, bool> tree_bool_values;
     TFile *outfile;
     void SetBranch(const TString &treename, const TString &branchname, void *address, const TString &leaflist);
     template <typename T>

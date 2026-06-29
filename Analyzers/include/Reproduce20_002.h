@@ -5,6 +5,7 @@
 #include "SystematicHelper.h"
 #include "Muon.h"
 #include "Electron.h"
+#include "LHE.h"
 
 class Reproduce20_002 : public AnalyzerCore {
 public:
@@ -118,7 +119,7 @@ public:
         //TString Jet_ID ="TIGHTLEPVETO";
         RVec<Jet::JetID> Jet_ID = {Jet::JetID::TIGHTLEPVETO};
         float Jet_MinPt = 40.;
-        float Jet_MaxEta = 2.4;
+        float Jet_MaxEta = 2.5;
         RVec<Jet::JetID> JetIds;
         RVec<Jet>cleanedjet_with_tight_leptons;
         RVec<Jet>cleanedjet_with_loose_leptons;
@@ -130,13 +131,28 @@ public:
         TString FatJet_ID ="Tight";
         float Fatjet_LSF = 0.75;
         float FatJet_MinPt = 200.;
-        float FatJet_MaxEta = 2.4;
+        float FatJet_MaxEta = 2.5;
         float FatJet_SDM = 40;
     }fatjet_set;
 
     struct Gens{
         RVec<Gen> gens;
     }gen_set;
+
+    struct LHECollection{
+        RVec<LHE> lhe_parts;
+    }lhe_set;
+
+    // Signal categorization flags (set per event in executeEventFromParameter)
+    bool sig_isSignal  = false;
+    bool sig_isOffshell = false;
+    bool sig_isOnshell  = false;
+    bool sig_isTb       = false;
+
+    // Compute the signal/offshell/onshell/tb flags from gens, LHE and sample name
+    void SetSignalFlags();
+    // Fill the SR cutflow (base + offshell/onshell/tb copies) for a given region
+    void FillCutflowSR(const TString &this_syst, bool isResolved, double binN);
 
     RVec<Jet> Clean_jet_with_tight_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & tight_leps) ;
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;

@@ -85,8 +85,10 @@ void Reproduce20_002_copy::executeEvent() {
     gen_set.gens = GetAllGens();
     lhe_set.lhe_parts = GetAllLHEs();
 
+    SetSignalFlags();
+
     std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
-    
+
     for (const auto &syst_dummy : *systHelper) {
         executeEventFromParameter();
     }
@@ -95,12 +97,10 @@ void Reproduce20_002_copy::executeEvent() {
 
 void Reproduce20_002_copy::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
-    FillHist(this_syst + "/Cutflow_for_reseolved_SR", 1.0 , 1.0, 10, 0., 10.);
-    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 1.0 , 1.0, 13, 0., 13.);
+    
     Event ev = GetEvent();
     Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
-    FillHist(this_syst + "/Cutflow_for_reseolved_SR", 2.0 , 1.0, 10, 0., 10.);
-    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 2.0 , 1.0, 13, 0., 13.);
+    
     
     std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
     auto dummy_sf = [](MyCorrection::variation var, TString source) -> float { return 1.0; };
@@ -654,6 +654,11 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("HLT_Mu50");
     }
+    FillHist(this_syst + "/Cutflow_for_reseolved_SR", 1.0 , weight, 10, 0., 10.);
+    FillSignalCutflow(this_syst, true, 1.0, weight);
+    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 1.0 , weight, 13, 0., 13.);
+    FillSignalCutflow(this_syst, false, 1.0, weight);
+    
     FillHist(this_syst + "/Cutflow_for_skim", 2.0 , 1.0, 10, 0., 10.);
     //Event selection
     RVec<Electron> electrons = el_set.AllElectrons;
@@ -688,6 +693,10 @@ void Reproduce20_002_copy::executeEventFromParameter() {
 
     RVec<FatJet> fatjets = fatjet_set.AllFatJets;
     if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) return;
+    FillHist(this_syst + "/Cutflow_for_reseolved_SR", 2.0 , weight, 10, 0., 10.);
+    FillSignalCutflow(this_syst, true, 2.0, weight);
+    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 2.0 , weight, 13, 0., 13.);
+    FillSignalCutflow(this_syst, false, 2.0, weight);
     FillHist(this_syst + "/Cutflow_for_skim", 3.0 , 1.0, 10, 0., 10.);
     bool pass_trig_muon = ev.PassTrigger(mu_set.Muon_Trigger);
     bool pass_trig_elec = ev.PassTrigger(el_set.Ele_Trigger);
@@ -867,7 +876,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         
         if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
             if (Tight_electrons[0]->Pt() < el_set.Ele_Trigger_Safe_Pt_Cut) return;
-            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 3.0 , 1.0, 10, 0., 10.);
+            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 3.0 , weight , 10, 0., 10.);
+            FillSignalCutflow(this_syst, true, 3.0, weight);
             FillHist(this_syst + "/CutFlow", 3.0, weight, 20,-10,10.); // 2 tight leptons with pT cut
             this_trigger_pass = pass_trig_elec;
             tmp_isEE = true;
@@ -914,14 +924,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     
         else if ( (Tight_muons.size() == 2) && ( Tight_electrons.size() == 0 )) {
             if (Tight_muons[0]->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return;
-            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 3.0 , 1.0, 10, 0., 10.);
+            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 3.0 , weight , 10, 0., 10.);
+            FillSignalCutflow(this_syst, true, 3.0, weight);
             this_trigger_pass = pass_trig_muon;
             tmp_isMM = true;
             FillHist(this_syst + "/tightmuons", 2 , weight, 5, 0., 5.);
         }
         else if ( (Tight_muons.size() == 1) && ( Tight_electrons.size() == 1 )) {
             if (Tight_muons[0]->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return;
-            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 3.0 , 1.0, 10, 0., 10.);
+            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 3.0 , weight , 10, 0., 10.);
+            FillSignalCutflow(this_syst, true, 3.0, weight);
             this_trigger_pass = pass_trig_muon;
             tmp_isEM = true;
             electron1_tight_charge = Tight_electrons[0]->TightCharge();
@@ -970,7 +982,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         
 
         if (this_trigger_pass) {
-            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 4.0 , 1.0, 10, 0., 10.);
+            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 4.0 , weight, 10, 0., 10.);
+            FillSignalCutflow(this_syst, true, 4.0, weight);
             // needs 2 jets 
             Lepton *LeadLep = Tight_leps[0];
             Lepton *SubLeadLep = Tight_leps[1];
@@ -979,7 +992,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             float SubLeadLepCharge = SubLeadLep->Charge();
             bool dRLeadJetLepon(false), dRSubLeadJetLepon(false), dRTwoLetpton(false), dRTwoJets(false);
             if (selected_jets.size() >= 2) {
-                FillHist(this_syst + "/Cutflow_for_reseolved_SR", 5.0 , 1.0, 10, 0., 10.);
+                FillHist(this_syst + "/Cutflow_for_reseolved_SR", 5.0 , weight, 10, 0., 10.);
+                FillSignalCutflow(this_syst, true, 5.0, weight);
             dRLeadJetLepon = (selected_jets[0].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[0].DeltaR(*Tight_leps[1]) > 0.4);
             dRSubLeadJetLepon = (selected_jets[1].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[1].DeltaR(*Tight_leps[1]) > 0.4);
             dRTwoLetpton = (LeadLep->DeltaR(*SubLeadLep) > 0.4);
@@ -989,7 +1003,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Jetnumber_before_resolved_selection2", selected_jets.size(), weight, 20,-10,10.);
                 if ((selected_jets.size() >= 2 )&&(dRLeadJetLepon)&&(dRSubLeadJetLepon)&&(dRTwoLetpton)&&(dRTwoJets)) { 
                     FillHist(this_syst + "/Jetnumber_before_resolved_selection3", selected_jets.size(), weight, 20,-10,10.);
-                    FillHist(this_syst + "/Cutflow_for_reseolved_SR", 6.0 , 1.0, 10, 0., 10.);
+                    FillHist(this_syst + "/Cutflow_for_reseolved_SR", 6.0 , weight, 10, 0., 10.);
+                    FillSignalCutflow(this_syst, true, 6.0, weight);
                     IsResolvedEvent = true;
                     // Mass calculation 
                     Particle WRCand = *LeadLep + *SubLeadLep + selected_jets[0] + selected_jets[1];
@@ -1401,14 +1416,17 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     {
                     }
                     }
-                FillHist(this_syst + "/Cutflow_for_reseolved_SR", 7.0 , 1.0, 10, 0., 10.);
-                FillHist(this_syst + "/Cutflow_for_reseolved_SR", 8.0 , 1.0, 10, 0., 10.);
+                FillHist(this_syst + "/Cutflow_for_reseolved_SR", 7.0 , weight, 10, 0., 10.);
+                FillSignalCutflow(this_syst, true, 7.0, weight);
+                FillHist(this_syst + "/Cutflow_for_reseolved_SR", 8.0 , weight, 10, 0., 10.);
+                FillSignalCutflow(this_syst, true, 8.0, weight);
                 //Resovled SR
                 if (DiLepMassGT400 && WRCand.M() > 800.0) {
                     if (!IsDATA){
                         if (tmp_isEE){
                             is_Resolved_SR_EE = true;
-                            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 9.0 , 1.0, 10, 0., 10.);
+                            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 9.0 , weight, 10, 0., 10.);
+                            FillSignalCutflow(this_syst, true, 9.0, weight);
                             Resolve_SREEpt = dilepton_pt;
                             Resolve_SREEleadjetpt = selected_jets[0].Pt();
                             Resolve_SREEsubleadjetpt = selected_jets[1].Pt();
@@ -1451,6 +1469,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                             Resolve_SREEpunum  = ev.nTrueInt();
                             Resolve_SREEpvgood = ev.nPVsGood();
                             Resolve_DYSREEpv = ev.nPV();
+                            for (int i = 0; i < lhe.size(); i++) {
+                                float q1 = lhe[i].PdgId();
+                                float q2 = lhe[i].PdgId();
+                                if (i > 2) {
+                                    if (abs(q1) < 7 && abs(q2) < 7) {
+                                        FillHist( this_syst + "/Resolved_SR_EE_q", q1, weight, 14, -7., 7.);
+                                        FillHist( this_syst + "/Resolved_SR_EE_q", q2, weight, 14, -7., 7.);
+                                    }
+                                    }
+                                }
                             // charge
                             if ( LeadLepCharge * SubLeadLepCharge > 0 ) {
                                 is_Resolved_SR_EE_SS = true;
@@ -1476,7 +1504,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                             }
                         }
                         if (tmp_isMM){
-                            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 9.0 , 1.0, 10, 0., 10.);
+                            FillHist(this_syst + "/Cutflow_for_reseolved_SR", 9.0 , weight, 10, 0., 10.);
+                            FillSignalCutflow(this_syst, true, 9.0, weight);
                             is_Resolved_SR_MM = true;
                             muon1_tight_charge = Tight_muons[0]->TightCharge() ;
                             muon2_tight_charge = Tight_muons[1]->TightCharge() ;
@@ -1532,6 +1561,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
                                                 cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
+                            for (int i = 0; i < lhe.size(); i++) {
+                                float q1 = lhe[i].PdgId();
+                                float q2 = lhe[i].PdgId();
+                                if (i > 2) {
+                                    if (abs(q1) < 7 && abs(q2) < 7) {
+                                        FillHist( this_syst + "/Resolved_SR_MM_q", q1, weight, 14, -7., 7.);
+                                        FillHist( this_syst + "/Resolved_SR_MM_q", q2, weight, 14, -7., 7.);
+                                    }
+                                    }
+                                }
                         // charge
                             if ( LeadLepCharge * SubLeadLepCharge > 0 ) {
                                 is_Resolved_SR_MM_SS = true;
@@ -1559,7 +1598,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
 }
     
     if (!IsResolvedEvent){
-        FillHist(this_syst + "/Cutflow_for_Boosted_SR", 3.0 , 1.0, 13, 0., 13.);
+        FillHist(this_syst + "/Cutflow_for_Boosted_SR", 3.0 ,weight, 13, 0., 13.);
+        FillSignalCutflow(this_syst, false, 3.0, weight);
         FillHist(this_syst + "/Boost_tightlepnum", n_Tight_leptons , weight, 10, 0., 10.);
 
         FillHist(this_syst + "/Cutflow_for_e_mujet", 1.0 , 1.0, 20, 0., 20.);
@@ -1579,7 +1619,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(this_syst + "/Cutflow_for_e_mujet", 3.0 , 1.0, 20, 0., 20.);
                 if (LeadLep->Pt() < el_set.Ele_Trigger_Safe_Pt_Cut) return;
                 FillHist(this_syst + "/Cutflow_for_e_mujet", 4.0 , 1.0,20, 0., 20.);
-                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 4.0 , 1.0, 13, 0., 13.);
+                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 4.0 , weight, 13, 0., 13.);
+                FillSignalCutflow(this_syst, false, 4.0, weight);
                 is_tmp_lead_el = true;
                 electron1_tight_charge = Tight_electrons[0]->TightCharge();
                 this_trigger_pass_boost = pass_trig_elec;
@@ -1624,7 +1665,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 is_tmp_lead_mu = true;
                 this_trigger_pass_boost = pass_trig_muon;
                 FillHist(this_syst + "/Check_is_tmp_lead_muon_ok", 1 , weight, 5, 0., 5.);
-                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 4.0 , 1.0, 13, 0., 13.);
+                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 4.0 , weight, 13, 0., 13.);
+                FillSignalCutflow(this_syst, false, 4.0, weight);
             }
             //checked ok
             if (this_trigger_pass_boost){
@@ -1634,7 +1676,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 if(is_tmp_lead_mu){
                 FillHist(this_syst + "/Cutflow_for_mu_ejet", 5.0 , 1.0, 20, 0., 20.);
                 }
-                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 5.0 , 1.0, 13, 0., 13.);
+                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 5.0 , weight, 13, 0., 13.);
+                FillSignalCutflow(this_syst, false, 5.0, weight);
                 FillHist(this_syst + "/Boost_cutflow_DY", 3 , weight,  20,-10,10.);
                 FillHist(this_syst + "/Boost_cutflow_FLV", 3 , weight, 20,-10,10.);
                 RVec<Lepton *> Loose_SF_leps = is_tmp_lead_el ? Loose_leps_el : Loose_leps_mu;
@@ -1963,7 +2006,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     FillHist(this_syst + "/Cutflow_for_mu_ejet", 7.0 , 1.0, 20, 0., 20.);
                     }
                     
-                    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 6.0 , 1.0, 13, 0., 13.);
+                    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 6.0 , weight, 13, 0., 13.);
+                    FillSignalCutflow(this_syst, false, 6.0, weight);
                     FillHist(this_syst + "/Boost_cutflow_FLV", 4 , weight, 20,-10,10.);
                     bool hasawaymergedfatjet = false;
                     FatJet Ncand;
@@ -1991,7 +2035,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                         if (is_tmp_lead_mu){
                         FillHist(this_syst + "/Cutflow_for_mu_ejet", 8.0 , 1.0, 20, 0., 20.);
                         }
-                        FillHist(this_syst + "/Cutflow_for_Boosted_SR", 7.0 , 1.0,13, 0., 13.);
+                        FillHist(this_syst + "/Cutflow_for_Boosted_SR", 7.0 , weight,13, 0., 13.);
+                        FillSignalCutflow(this_syst, false, 7.0, weight);
                         FillHist(this_syst + "/Boost_cutflow_FLV", 5 , weight, 20,-10,10.);
                         bool hassflooselepton(false);
                         bool hassflooseleptonoutfatjet (false);
@@ -2045,24 +2090,28 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                         }
                         // 여기 둘다 다 모아 놓고 플레이버가 안에 다른게 있으면 탈락 , 다 같으면 리딩만 골라야
                         //그래서 SF 인 경우 OF 인 경우 모두 같은 플레이버 들어있으니까 리딩만 골라야?
-                        // Veto tight lepton 
+                        // Veto tight lepton
                         int NExtraTightLepton(0);
                             for (unsigned int i=0 ; i< Tight_leps.size(); i ++) {
                                 if ( Tight_leps[i] == LeadLep || Tight_leps[i] == SFLooseLepton || Tight_leps[i] == OFLooseLepton ) continue;
+                                FillHist(this_syst + "/ExtraTightLepton_pt", Tight_leps.at(i)->Pt() , weight, 100, 0., 500.);
                                 NExtraTightLepton++;
                             }
-                        
+                        FillHist(this_syst + "/Num_of_ExtraTightLepton", NExtraTightLepton , weight, 10, 0., 10.);
                         bool hasnoextralep = (NExtraTightLepton == 0);
                         bool WRMassGT800 = ( WRCand.M() > 800.0 );
                         if (hasnoextralep ){
-                            FillHist(this_syst + "/Cutflow_for_Boosted_SR", 8.0 , 1.0, 13, 0., 13.);
+                            FillHist(this_syst + "/Cutflow_for_Boosted_SR", 8.0 , weight, 13, 0., 13.);
+                            FillSignalCutflow(this_syst, false, 8.0, weight);
                             // tight fatjet 밖 한개 , loose lepton same flavor 안에 
                             FillHist(this_syst + "/Boost_cutflow_FLV", 6 , weight, 20, -10., 10.);
                             if (hassflooselepton) {
-                                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 9.0 , 1.0, 13, 0., 13.);
+                                FillHist(this_syst + "/Cutflow_for_Boosted_SR", 9.0 , weight, 13, 0., 13.);
+                                FillSignalCutflow(this_syst, false, 9.0, weight);
                                 FillHist(this_syst + "/Boost_cutflow_FLV", 7 , weight, 20,-10,10.);
                                 if (!hasoflooselepton){
-                                    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 10.0 , 1.0, 13, 0., 13.);
+                                    FillHist(this_syst + "/Cutflow_for_Boosted_SR", 10.0 , weight, 13, 0., 13.);
+                                    FillSignalCutflow(this_syst, false, 10.0, weight);
                                     FillHist(this_syst + "/Boost_cutflow_FLV", 8 , weight, 20,-10,10.);
                         
                         //    if(tmp_IsLeadM){
@@ -2072,7 +2121,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                         //ForSF_muons.push_back( looseMuon );
                         //    }
                                     if ( (*LeadLep + *SFLooseLepton).M() >200.0 ) {
-                                        FillHist(this_syst + "/Cutflow_for_Boosted_SR", 11.0 , 1.0, 13, 0., 13.);
+                                        FillHist(this_syst + "/Cutflow_for_Boosted_SR", 11.0 , weight, 13, 0., 13.);
+                                        FillSignalCutflow(this_syst, false, 11.0, weight);
                                         //charge 
                                         float LeadLepCharge = LeadLep->Charge();
                                         float SFLooseLeptonCharge = SFLooseLepton->Charge();
@@ -2082,7 +2132,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             if(!IsDATA){
                                                 //SF
                                                 if(is_tmp_lead_el){
-                                                    FillHist (this_syst + "/Cutflow_for_Boosted_SR", 12.0 , 1.0, 13, 0., 13.);
+                                                    FillHist (this_syst + "/Cutflow_for_Boosted_SR", 12.0 , weight, 13, 0., 13.);
+                                                    FillSignalCutflow(this_syst, false, 12.0, weight);
                                                     
                                                     weight_function_map["E_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
                                                     return (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
@@ -2159,6 +2210,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                 }
                                                 if(is_tmp_lead_mu){
                                                     FillHist (this_syst + "/Cutflow_for_Boosted_SR", 12.0 , 1.0, 13, 0., 13.);
+                                                    FillSignalCutflow(this_syst, false, 12.0, 1.0);
                                                     
                                                     //temp_two_muon.clear();
                                                     //Muon * SFLooseLepton_mu = (Muon *)SFLooseLepton;
@@ -2219,6 +2271,17 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     Boost_SREEpvgood = ev.nPVsGood();
                                                     Boost_SREEpv = ev.nPV();
                                                     Boost_SREEjet_num    = (float)selected_jets.size();
+                                                    
+                                                    for (int i = 0; i < lhe.size(); i++) {
+                                                        float q1 = lhe[i].PdgId();
+                                                        float q2 = lhe[i].PdgId();
+                                                        if (i > 2) {
+                                                            if (abs(q1) < 7 && abs(q2) < 7) {
+                                                                FillHist( this_syst + "/Boosted_SR_EE_q", q1, weight, 14, -7., 7.);
+                                                                FillHist( this_syst + "/Boosted_SR_EE_q", q2, weight, 14, -7., 7.);
+                                                            }
+                                                        }
+                                                    }
                                                     //charge
                                                     if ( LeadLepCharge * SFLooseLeptonCharge > 0 ) {
                                                         is_Boosted_SR_EE_SS = true;
@@ -2287,6 +2350,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                         float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                         FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
                                                         cout<<"Muon TuneP RelPt: "<<rel<<endl;
+                                                    }
+                                                    for (int i = 0; i < lhe.size(); i++) {
+                                                        float q1 = lhe[i].PdgId();
+                                                        float q2 = lhe[i].PdgId();
+                                                        if (i > 2) {
+                                                            if (abs(q1) < 7 && abs(q2) < 7) {
+                                                                FillHist( this_syst + "/Boosted_SR_MM_q", q1, weight, 14, -7., 7.);
+                                                                FillHist( this_syst + "/Boosted_SR_MM_q", q2, weight, 14, -7., 7.);
+                                                            }
+                                                        }
                                                     }
                                                     //charge
                                                     if ( LeadLepCharge * SFLooseLeptonCharge > 0 ) {
@@ -3331,6 +3404,72 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     // Fill histograms for main variables # 1771 
     // end ## 1984
     
+
+void Reproduce20_002_copy::SetSignalFlags() {
+    sig_isSignal   = false;
+    sig_isOffshell = false;
+    sig_isOnshell  = false;
+    sig_isTb       = false;
+
+    if (IsDATA) return;
+
+    // (1) Signal tagging: any gen particle with |PID| in {9900012 (N_e), 9900014 (N_mu), 34 (W_R)}
+    for (const auto &g : gen_set.gens) {
+        int apid = abs(g.PID());
+        if (apid == 9900012 || apid == 9900014 || apid == 34) {
+            sig_isSignal = true;
+            break;
+        }
+    }
+
+    if (!sig_isSignal) return;
+
+    // (2) Off-shell / on-shell split by reconstructed WR(lljj) invariant mass at LHE level.
+    //     Use status==1 (outgoing) LHE leptons+quarks if any exist, otherwise sum all of them.
+    auto isLepOrQuark = [](int pid) {
+        int a = abs(pid);
+        return (a >= 1 && a <= 6) || a == 11 || a == 13 || a == 15;
+    };
+    bool hasStatus1 = false;
+    for (const auto &p : lhe_set.lhe_parts) {
+        if (isLepOrQuark(p.PdgId()) && p.Status() == 1) { hasStatus1 = true; break; }
+    }
+    Particle WRsys;
+    for (const auto &p : lhe_set.lhe_parts) {
+        if (!isLepOrQuark(p.PdgId())) continue;
+        if (hasStatus1 && p.Status() != 1) continue;
+        WRsys += p;
+    }
+    double wrMass = WRsys.M();
+
+    // WR2000 -> no off/on-shell split (threshold < 0); WR4000/6000/8000 -> 2000/4000/5000
+    double threshold = -1.;
+    if      (MCSample.BeginsWith("WR2000")) threshold = -1.;
+    else if (MCSample.BeginsWith("WR4000")) threshold = 2000.;
+    else if (MCSample.BeginsWith("WR6000")) threshold = 4000.;
+    else if (MCSample.BeginsWith("WR8000")) threshold = 5000.;
+
+    if (threshold > 0.) {
+        if (wrMass <= threshold) sig_isOffshell = true;
+        else                     sig_isOnshell  = true;
+    }
+
+    // (3) tb tagging: signal event with an LHE particle of |PdgId| in {5 (b), 6 (t)}
+    for (const auto &p : lhe_set.lhe_parts) {
+        int apid = abs(p.PdgId());
+        if (apid == 5 || apid == 6) { sig_isTb = true; break; }
+    }
+}
+
+void Reproduce20_002_copy::FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight) {
+    if (this_syst != "Central") return;
+    const TString base  = isResolved ? "/Cutflow_for_reseolved_SR" : "/Cutflow_for_Boosted_SR";
+    const int     nbins = isResolved ? 10  : 13;
+    const double  xmax  = isResolved ? 10. : 13.;
+    if (sig_isOffshell) FillHist(this_syst + base + "_offshell", binN, weight, nbins, 0., xmax);
+    if (sig_isOnshell)  FillHist(this_syst + base + "_onshell",  binN, weight, nbins, 0., xmax);
+    if (sig_isTb)       FillHist(this_syst + base + "_tb",       binN, weight, nbins, 0., xmax);
+}
 
 bool Reproduce20_002_copy::Electrons::isPassCustomTightID(const Electron& el, const Reproduce20_002_copy::Electrons& eset) const {
     if (fabs(el.scEta()) < 1.566) {

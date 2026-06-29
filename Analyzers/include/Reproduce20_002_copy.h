@@ -146,6 +146,18 @@ public:
         RVec<LHE> lhe_parts;
     }lhe_set;
 
+    // Signal categorization flags (set per event in executeEvent)
+    bool sig_isSignal   = false;
+    bool sig_isOffshell = false;
+    bool sig_isOnshell  = false;
+    bool sig_isTb       = false;
+
+    // Compute the signal / offshell / onshell / tb flags from gens, LHE and sample name
+    void SetSignalFlags();
+    // Fill the signal SR cutflow copies (_offshell / _onshell / _tb) next to the base cutflow.
+    // Only fills for the Central systematic.
+    void FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight);
+
     RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;
     RVec<Muon *> Clean_Fatjet_with_tight_muons(const RVec<FatJet> & fatjets, const RVec<Muon *> & tight_mus) ;

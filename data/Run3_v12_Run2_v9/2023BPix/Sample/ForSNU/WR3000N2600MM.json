@@ -1,0 +1,10 @@
+{
+    "name": "WR3000N2600MM",
+    "isMC": 1,
+    "PD": "WRtoNMutoMuMuJJ_MWR3000_N2600_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.001086,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": []
+}

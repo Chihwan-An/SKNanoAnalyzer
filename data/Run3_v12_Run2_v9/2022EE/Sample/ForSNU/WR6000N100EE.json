@@ -2,7 +2,7 @@
     "name": "WR6000N100EE",
     "isMC": 1,
     "PD": "WRtoNEltoElElJJ_MWR6000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
-    "xsec": 0.0001936,
+    "xsec": 0.0001742,
     "sumsign": 209341.0,
     "sumW": 209341.0,
     "nmc": 209341.0,

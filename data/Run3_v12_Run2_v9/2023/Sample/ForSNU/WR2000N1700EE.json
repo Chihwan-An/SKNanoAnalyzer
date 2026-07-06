@@ -2,7 +2,7 @@
     "name": "WR2000N1700EE",
     "isMC": 1,
     "PD": "WRtoNEltoElElJJ_MWR2000_N1700_TuneCP5_13p6TeV_madgraph-pythia8",
-    "xsec": 0.01762,
+    "xsec": 0.01585,
     "sumsign": 70000.0,
     "sumW": 70000.0,
     "nmc": 70000.0,

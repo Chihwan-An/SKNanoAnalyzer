@@ -2,7 +2,7 @@
     "name": "WR4000N900EE",
     "isMC": 1,
     "PD": "WRtoNEltoElElJJ_MWR4000_N900_TuneCP5_13p6TeV_madgraph-pythia8",
-    "xsec": 0.001779,
+    "xsec": 0.001494,
     "sumsign": 206112.0,
     "sumW": 206112.0,
     "nmc": 206112.0,

@@ -1,0 +1,15 @@
+{
+    "name": "WR3000N1500MM",
+    "isMC": 1,
+    "PD": "WRtoNMutoMuMuJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.007923,
+    "sumsign": 20000.0,
+    "sumW": 20000.0,
+    "nmc": 20000.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNMutoMuMuJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNMutoMuMuJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNMutoMuMuJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNMutoMuMuJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_3.root"
+    ]
+}

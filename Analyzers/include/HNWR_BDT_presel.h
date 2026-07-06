@@ -67,7 +67,14 @@ public:
     RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet>& fatjets, const RVec<Lepton*>& tight_leps);
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet>& jets, const RVec<Lepton*>& loose_leps);
 
+    // Region-aware jet<->fatjet cross-cleaning (priority order: lepton > preferred object).
+    // Resolved keeps AK4 jets and drops overlapping fatjets; boosted keeps fatjets and
+    // drops overlapping AK4 jets. Overlap is defined by dR < dR_JetFatJet (AK8 cone).
+    RVec<FatJet> Clean_Fatjet_with_jets(const RVec<FatJet>& fatjets, const RVec<Jet>& jets);
+    RVec<Jet> Clean_jet_with_fatjets(const RVec<Jet>& jets, const RVec<FatJet>& fatjets);
+
     float dR_Separation = 0.4;
+    float dR_JetFatJet = 0.8;
 };
 
 #endif

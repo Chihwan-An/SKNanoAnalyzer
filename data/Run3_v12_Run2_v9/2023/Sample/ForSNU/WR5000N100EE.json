@@ -1,0 +1,10 @@
+{
+    "name": "WR5000N100EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR5000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.0004937,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": []
+}

@@ -1,0 +1,10 @@
+{
+    "name": "WR2000N400MM",
+    "isMC": 1,
+    "PD": "WRtoNMutoMuMuJJ_MWR2000_N400_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.1448,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": []
+}

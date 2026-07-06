@@ -1,0 +1,12 @@
+{
+    "name": "WR3000N200EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.01381,
+    "sumsign": 5000.0,
+    "sumW": 5000.0,
+    "nmc": 5000.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_0.root"
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "name": "WR8000N200EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 3.213e-05,
+    "sumsign": 60000.0,
+    "sumW": 60000.0,
+    "nmc": 60000.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_5.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_6.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_7.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_8.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_9.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_10.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022EE/WRtoNEltoElElJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22EEwmLHEGS-Run3Summer22EENanoAODv12/Run3Summer22EENanoAODv12_11.root"
+    ]
+}

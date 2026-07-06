@@ -74,8 +74,12 @@ def main():
             if os.path.exists(fileJsonPath):
                 with open(fileJsonPath, 'r') as f:
                     jsonData = json.load(f)
+                oldPD = jsonData.get("PD")
                 jsonData["PD"] = sampleInfo["PD"]
                 jsonData["xsec"] = sampleInfo["xsec"]
+                paths = jsonData.get("path", [])
+                if oldPD != sampleInfo["PD"] or not paths or any(not os.path.exists(path) for path in paths):
+                    jsonData["path"] = parse_rootfiles_from(basePath)
             else:
                 jsonData = {
                     "name": alias,

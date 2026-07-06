@@ -2,7 +2,7 @@
     "name": "WR4000N100EE",
     "isMC": 1,
     "PD": "WRtoNEltoElElJJ_MWR4000_N100_TuneCP5_13p6TeV_madgraph-pythia8",
-    "xsec": 0.002389,
+    "xsec": 0.002074,
     "sumsign": 68000.0,
     "sumW": 68000.0,
     "nmc": 68000.0,

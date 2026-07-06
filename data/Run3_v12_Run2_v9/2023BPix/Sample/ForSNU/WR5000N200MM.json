@@ -1,0 +1,28 @@
+{
+    "name": "WR5000N200MM",
+    "isMC": 1,
+    "PD": "WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.0004518,
+    "sumsign": 85000.0,
+    "sumW": 85000.0,
+    "nmc": 85000.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_5.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_6.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_7.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_8.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_9.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_10.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_11.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_12.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_13.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_14.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_15.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNMutoMuMuJJ_MWR5000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_16.root"
+    ]
+}

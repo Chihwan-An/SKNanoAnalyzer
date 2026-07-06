@@ -1,0 +1,13 @@
+{
+    "name": "WR3000N1500EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.007923,
+    "sumsign": 10000.0,
+    "sumW": 10000.0,
+    "nmc": 10000.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023BPix/WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23BPixwmLHEGS-Run3Summer23BPixNanoAODv12/Run3Summer23BPixNanoAODv12_1.root"
+    ]
+}

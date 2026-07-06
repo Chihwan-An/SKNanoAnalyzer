@@ -1,0 +1,10 @@
+{
+    "name": "WR5000N3800MM",
+    "isMC": 1,
+    "PD": "WRtoNMutoMuMuJJ_MWR5000_N3800_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 5.585e-05,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
+    "path": []
+}

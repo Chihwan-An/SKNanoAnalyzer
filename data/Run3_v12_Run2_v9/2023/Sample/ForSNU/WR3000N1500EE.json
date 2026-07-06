@@ -1,0 +1,16 @@
+{
+    "name": "WR3000N1500EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.007923,
+    "sumsign": 8001.0,
+    "sumW": 8001.0,
+    "nmc": 8001.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR3000_N1500_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_4.root"
+    ]
+}

@@ -2,7 +2,7 @@
     "name": "WR6000N3700EE",
     "isMC": 1,
     "PD": "WRtoNEltoElElJJ_MWR6000_N3700_TuneCP5_13p6TeV_madgraph-pythia8",
-    "xsec": 3.222e-05,
+    "xsec": 2.659e-05,
     "sumsign": 35000.0,
     "sumW": 35000.0,
     "nmc": 35000.0,

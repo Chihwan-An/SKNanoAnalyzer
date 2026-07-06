@@ -121,11 +121,50 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     weight_function_map["JES_Variation"] = dummy_sf;
     weight_function_map["M_Iso_Weight"]  = dummy_sf;
 
+    // XSec(theory) weight targets
+    weight_function_map["ScaleWeight_muF"] = dummy_sf;
+    weight_function_map["ScaleWeight_muR"] = dummy_sf;
+    weight_function_map["PDF_Weight"]      = dummy_sf;
+    weight_function_map["AlphaS_Weight"]   = dummy_sf;
+
 
 
 
     weight_function_map["PU_Weight"] = [&](MyCorrection::variation var, TString source) {
         return myCorr->GetPUWeight(ev.nTrueInt(), var);
+    };
+
+    // --- XSec(theory) weight systematics ---
+    // Each function returns the absolute event weight for the given variation (nom == 1),
+    // so calculateWeight() forms Up/Down by nominal_weight / nom * up(down).
+    // muF: vary factorization scale, keep renormalization scale nominal.
+    weight_function_map["ScaleWeight_muF"] = [&](MyCorrection::variation var, TString source) -> float {
+        return GetScaleVariation(var, MyCorrection::variation::nom);
+    };
+    // muR: vary renormalization scale, keep factorization scale nominal.
+    weight_function_map["ScaleWeight_muR"] = [&](MyCorrection::variation var, TString source) -> float {
+        return GetScaleVariation(MyCorrection::variation::nom, var);
+    };
+    // PDF envelope: Hessian sum in quadrature over members 1..100 (LHEPdfWeight[0] is central == 1).
+    weight_function_map["PDF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        if (nLHEPdfWeight < 103) return 1.f;
+        const float w0 = LHEPdfWeight[0];
+        float sumSq = 0.f;
+        for (int i = 1; i <= 100; i++) {
+            const float dw = LHEPdfWeight[i] - w0;
+            sumSq += dw * dw;
+        }
+        const float deltaPDF = sqrt(sumSq);
+        if (var == MyCorrection::variation::up)   return w0 + deltaPDF;
+        if (var == MyCorrection::variation::down) return w0 - deltaPDF;
+        return 1.f;
+    };
+    // alpha_S: dedicated PDF members (101 = down, 102 = up).
+    weight_function_map["AlphaS_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        if (nLHEPdfWeight < 103) return 1.f;
+        if (var == MyCorrection::variation::up)   return LHEPdfWeight[102];
+        if (var == MyCorrection::variation::down) return LHEPdfWeight[101];
+        return 1.f;
     };
     
     bool debug1(false);

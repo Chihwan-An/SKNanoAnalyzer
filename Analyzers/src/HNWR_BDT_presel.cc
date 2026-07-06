@@ -24,12 +24,30 @@ void HNWR_BDT_presel::initializeAnalyzer() {
         systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM.yaml", MCSample, DataEra);
     }
 
-    // One resolved + one boosted tree per variation (Central has no suffix).
+    // One resolved + one boosted tree per variation (Central has no suffix), split
+    // by lepton flavor channel: same-flavor EE/MM for SR and CR_DY, opposite-flavor
+    // EM/ME for CR_FLV. For CR_FLV_boosted the tag records which flavor is the
+    // pT-leading lepton (so ME can fill); CR_FLV_resolved always requires the muon
+    // to pass the muon trigger regardless of pT order, so only the EM tree fills
+    // (the ME resolved tree is created but stays empty).
+    // d is a ROOT directory prefix like "Central/" or "JES_Up/": the tree name carries
+    // the directory, and WriteHist() places it there (same layout as the histograms).
+    // Only the SR needs a BDT ntuple. The CR (CR_DY / CR_FLV) is saved as
+    // per-systematic histograms instead (see executeEventFromParameter), so no CR trees.
+    auto makeTrees = [&](const TString& d) {
+        for (const TString &ch : {TString("EE"), TString("MM")}) {
+            NewTree(d + "SR_" + ch + "_BDTTree_resolved");
+            NewTree(d + "SR_" + ch + "_BDTTree_boosted");
+        }
+    };
+    // One tree set per object variation, grouped under a directory named after the
+    // variation (Central/, JES_Up/, JES_Down/, JER_Up/, JER_Down/). Weight systematics
+    // (Pileup, lepton SFs, XSec muF/muR/PDF/AlphaS) do NOT get their own trees -- they
+    // leave the BDT inputs unchanged, so the score is identical and they live as
+    // per-event weight branches inside the Central tree (see executeEventFromParameter).
     for (const auto &syst_dummy : *systHelper) {
         const TString sys = systHelper->getCurrentSysName();
-        const TString suffix = (sys == "Central") ? TString("") : ("_" + sys);
-        NewTree(TString("BDTTree_resolved") + suffix);
-        NewTree(TString("BDTTree_boosted") + suffix);
+        makeTrees(sys + "/");
     }
 
     mu_set.Muon_Trigger.clear();
@@ -67,7 +85,6 @@ void HNWR_BDT_presel::executeEvent() {
 void HNWR_BDT_presel::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
     const TString dir = this_syst;
-    const TString syst_suffix = (this_syst == "Central") ? TString("") : ("_" + this_syst);
 
     Event ev = GetEvent();
 
@@ -197,6 +214,14 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     RVec<Jet> selected_jets = SelectJets(jets, jet_set.Jet_ID[0], jet_set.Jet_MinPt, jet_set.Jet_MaxEta);
     sort(selected_jets.begin(), selected_jets.end(), PtComparing);
 
+    // Region-aware jet<->fatjet cross-cleaning (leptons already cleaned above, so they
+    // keep top priority). Build both topology variants up front:
+    //  - Resolved: AK4 jets take priority -> keep jets, drop fatjets overlapping a jet.
+    //  - Boosted:  fatjets take priority  -> keep fatjets, drop jets overlapping a fatjet.
+    // The right variant is selected once the topology is known (see below).
+    RVec<FatJet> fatjets_resolved      = Clean_Fatjet_with_jets(fatjets, selected_jets);
+    RVec<Jet>    selected_jets_boosted = Clean_jet_with_fatjets(selected_jets, fatjets);
+
     // SR definitions used for BDT ntuples:
     //
     // Common object/event requirements:
@@ -233,8 +258,422 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     // - SR selection and nElectron/nMuon counts remain on TIGHT leptons;
     //   nLooseElectron/nLooseMuon give the loose multiplicity.
 
-    // Filled below once the resolved/boosted category is known.
-    TString tree = TString("BDTTree_boosted") + syst_suffix;
+    // Set below once the region (SR/CR_DY/CR_FLV) and topology (resolved/boosted) are known.
+    TString tree;
+    auto isSameFlavorPair = [](const Lepton* lep1, const Lepton* lep2) {
+        if (!lep1 || !lep2) return false;
+        return (lep1->IsElectron() && lep2->IsElectron()) || (lep1->IsMuon() && lep2->IsMuon());
+    };
+    auto makeSameFlavorPair = [&](const Lepton* lep1, const Lepton* lep2, TLorentzVector& pair) {
+        if (!isSameFlavorPair(lep1, lep2)) return false;
+        pair = *lep1 + *lep2;
+        return true;
+    };
+    auto passLeadTrigger = [&](const Lepton* lep, int& outChannel) {
+        outChannel = -999;
+        if (!lep) return false;
+        if (lep->IsElectron()) {
+            if (lep->Pt() < el_set.Ele_Trigger_Safe_Pt_Cut) return false;
+            outChannel = 0;
+            return pass_trig_elec;
+        }
+        if (lep->IsMuon()) {
+            if (lep->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return false;
+            outChannel = 1;
+            return pass_trig_muon;
+        }
+        return false;
+    };
+    auto passResolveEMuTrigger = [&](const Lepton* lep, int& outChannel) {
+        outChannel = -999;
+        if (!lep) return false;
+        
+        if (lep->IsMuon()) {
+            if (lep->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return false;
+            outChannel = 1;
+            return pass_trig_muon;
+        }
+        return false;
+    };
+    // Resolved uses the jet-priority collection (selected_jets); boosted uses the
+    // fatjet-priority collection (selected_jets_boosted). The jet collection is passed
+    // explicitly so each topology evaluates the 4-object dR against the right jets.
+    const bool has2Jets_boosted = selected_jets_boosted.size() >= 2;
+    auto computeFourObjectDR = [&](const RVec<Jet>& jetcol, const Lepton* lep1, const Lepton* lep2,
+                                   bool& outLeadJetLep, bool& outSubLeadJetLep,
+                                   bool& outTwoLeptons, bool& outTwoJets) {
+        outLeadJetLep = false;
+        outSubLeadJetLep = false;
+        outTwoLeptons = false;
+        outTwoJets = false;
+        if (!lep1 || !lep2 || jetcol.size() < 2) return false;
+        outLeadJetLep = (jetcol[0].DeltaR(*lep1) > dR_Separation) && (jetcol[0].DeltaR(*lep2) > dR_Separation);
+        outSubLeadJetLep = (jetcol[1].DeltaR(*lep1) > dR_Separation) && (jetcol[1].DeltaR(*lep2) > dR_Separation);
+        outTwoLeptons = (lep1->DeltaR(*lep2) > dR_Separation);
+        outTwoJets = (jetcol[0].DeltaR(jetcol[1]) > dR_Separation);
+        return outLeadJetLep && outSubLeadJetLep && outTwoLeptons && outTwoJets;
+    };
+
+    Lepton* resolvedLead = nullptr;
+    Lepton* resolvedSubLead = nullptr;
+    bool isResolvedLeptonSelection = false;
+    int resolvedChannel = -999;
+    bool passResolvedTrigger = false;
+    if ((n_leptons == 2) && ((electrons.size() == 2 && muons.size() == 0) || (muons.size() == 2 && electrons.size() == 0))) {
+        resolvedLead = Tight_leps[0];
+        resolvedSubLead = Tight_leps[1];
+        isResolvedLeptonSelection = (resolvedLead->Pt() > 60.0) && (resolvedSubLead->Pt() > 53.0);
+        passResolvedTrigger = isResolvedLeptonSelection && passLeadTrigger(resolvedLead, resolvedChannel);
+    }
+
+    TLorentzVector resolvedDilepton;
+    const bool passResolvedMll = passResolvedTrigger && makeSameFlavorPair(resolvedLead, resolvedSubLead, resolvedDilepton) && (resolvedDilepton.M() > 200.0);
+    bool resolvedDRLeadJetLep = false;
+    bool resolvedDRSubLeadJetLep = false;
+    bool resolvedDRTwoLeptons = false;
+    bool resolvedDRTwoJets = false;
+    const bool passResolvedDRCandidate = computeFourObjectDR(selected_jets, resolvedLead, resolvedSubLead, resolvedDRLeadJetLep, resolvedDRSubLeadJetLep, resolvedDRTwoLeptons, resolvedDRTwoJets);
+    bool isResolvedCandidate = passResolvedMll && passResolvedDRCandidate;
+
+    Lepton* boostedLead = Tight_leps.empty() ? nullptr : Tight_leps[0];
+    RVec<Lepton*> boostedExtraLooseLeps;
+    if (boostedLead) {
+        for (unsigned int i = 0; i < Loose_leps.size(); i++) {
+            if (Loose_leps[i] == boostedLead) continue;
+            boostedExtraLooseLeps.push_back(Loose_leps[i]);
+        }
+    }
+    sort(boostedExtraLooseLeps.begin(), boostedExtraLooseLeps.end(), PtComparingPtr);
+    const int n_boosted_extra_loose_leptons = boostedExtraLooseLeps.size();
+    Lepton* boostedSubLead = nullptr;
+    TLorentzVector boostedDilepton;
+    bool hasBoostedDilepton = false;
+    if (boostedLead) {
+        for (unsigned int i = 0; i < boostedExtraLooseLeps.size(); i++) {
+            TLorentzVector candidateDilepton;
+            if (!makeSameFlavorPair(boostedLead, boostedExtraLooseLeps[i], candidateDilepton)) continue;
+            if (candidateDilepton.M() <= 200.0) continue;
+            boostedSubLead = boostedExtraLooseLeps[i];
+            boostedDilepton = candidateDilepton;
+            hasBoostedDilepton = true;
+            break;
+        }
+    }
+
+    int boostedChannel = -999;
+    const bool passBoostedLeptonSelection = boostedLead && (boostedLead->Pt() > 60.0) && (n_boosted_extra_loose_leptons >= 1);
+    const bool passBoostedTrigger = passBoostedLeptonSelection && passLeadTrigger(boostedLead, boostedChannel);
+    const bool passBoostedMll = passBoostedTrigger && hasBoostedDilepton;
+
+    bool boostedDRLeadJetLep = false;
+    bool boostedDRSubLeadJetLep = false;
+    bool boostedDRTwoLeptons = false;
+    bool boostedDRTwoJets = false;
+    const bool passBoostedResolvedDR = computeFourObjectDR(selected_jets_boosted, boostedLead, boostedSubLead, boostedDRLeadJetLep, boostedDRSubLeadJetLep, boostedDRTwoLeptons, boostedDRTwoJets);
+    const bool passBoostedDRFail = !has2Jets_boosted || !passBoostedResolvedDR;
+    bool isBoostedCandidate = (!isResolvedCandidate && passBoostedMll && passBoostedDRFail && fatjets.size() >= 1);
+
+    // --- CR_DY resolved: same-flavor, 60 < mll < 150 ---
+    const double lowMllMin = 60.0;
+    const double lowMllMax = 150.0;
+    auto isOppositeFlavorPair = [](const Lepton* lep1, const Lepton* lep2) {
+        if (!lep1 || !lep2) return false;
+        return (lep1->IsElectron() && lep2->IsMuon()) || (lep1->IsMuon() && lep2->IsElectron());
+    };
+    TLorentzVector resolvedDYDilepton;
+    bool isResolvedDYCR = false;
+    if (!isResolvedCandidate && passResolvedTrigger && passResolvedDRCandidate && resolvedLead && resolvedSubLead) {
+        if (makeSameFlavorPair(resolvedLead, resolvedSubLead, resolvedDYDilepton))
+            isResolvedDYCR = (resolvedDYDilepton.M() > lowMllMin) && (resolvedDYDilepton.M() < lowMllMax);
+    }
+
+    // --- CR_FLV resolved: opposite-flavor, mll > 200. The pt>60/pt>53 cuts still
+    // follow pT order (Tight_leps[0]/[1]) like every other region -> either lepton
+    // may be the pT-leading one. But trigger is judged on the muon specifically
+    // (there is exactly one, since electrons.size()==1 && muons.size()==1), not on
+    // whichever lepton happens to be pT-leading: the muon need not be the larger of
+    // the two, it just has to pass pt>=safe-cut and the muon trigger. Unlike
+    // boosted, this is NOT split by which lepton is pT-leading: resolvedFlavLead/
+    // SubLead are fixed as electron/muon so the flavor tag below always resolves to
+    // a single "EM" tree.
+    Lepton* resolvedFlavLead = nullptr;
+    Lepton* resolvedFlavSubLead = nullptr;
+    int resolvedFlavChannel = -999;
+    bool passResolvedFlavTrigger = false;
+    bool resolvedFlavDRLeadJetLep = false, resolvedFlavDRSubLeadJetLep = false;
+    bool resolvedFlavDRTwoLeptons = false, resolvedFlavDRTwoJets = false;
+    TLorentzVector resolvedFlavDilepton;
+    bool isResolvedFlavCR = false;
+    if (!isResolvedCandidate && !isResolvedDYCR && n_leptons == 2 && electrons.size() == 1 && muons.size() == 1) {
+        Lepton* flavPtLead = Tight_leps[0];
+        Lepton* flavPtSubLead = Tight_leps[1];
+        Electron* flavElectron = electrons[0];
+        Muon*     flavMuon     = muons[0];
+        const bool flav_pt_ok = (flavPtLead->Pt() > 60.0) && (flavPtSubLead->Pt() > 53.0);
+        passResolvedFlavTrigger = flav_pt_ok && passResolveEMuTrigger(flavMuon, resolvedFlavChannel);
+        if (passResolvedFlavTrigger) {
+            resolvedFlavLead = flavElectron;
+            resolvedFlavSubLead = flavMuon;
+            resolvedFlavDilepton = *resolvedFlavLead + *resolvedFlavSubLead;
+            const bool passFlavDR = computeFourObjectDR(selected_jets, resolvedFlavLead, resolvedFlavSubLead,
+                resolvedFlavDRLeadJetLep, resolvedFlavDRSubLeadJetLep,
+                resolvedFlavDRTwoLeptons, resolvedFlavDRTwoJets);
+            isResolvedFlavCR = (resolvedFlavDilepton.M() > 200.0) && passFlavDR;
+        }
+    }
+
+    // --- Boosted CR: DY (SF, low mll) and FLV (OF, high mll) ---
+    Lepton* boostedDYSubLead = nullptr;
+    Lepton* boostedFlavSubLead = nullptr;
+    TLorentzVector boostedDYDilepton;
+    TLorentzVector boostedFlavDilepton;
+    bool hasBoostedDYDilepton = false;
+    bool hasBoostedFlavDilepton = false;
+    if (boostedLead) {
+        for (unsigned int i = 0; i < boostedExtraLooseLeps.size(); i++) {
+            TLorentzVector cand = *boostedLead + *boostedExtraLooseLeps[i];
+            if (!hasBoostedDYDilepton && isSameFlavorPair(boostedLead, boostedExtraLooseLeps[i]) &&
+                cand.M() > lowMllMin && cand.M() < lowMllMax) {
+                boostedDYSubLead = boostedExtraLooseLeps[i];
+                boostedDYDilepton = cand;
+                hasBoostedDYDilepton = true;
+            }
+            if (!hasBoostedFlavDilepton && isOppositeFlavorPair(boostedLead, boostedExtraLooseLeps[i]) &&
+                cand.M() > 200.0) {
+                boostedFlavSubLead = boostedExtraLooseLeps[i];
+                boostedFlavDilepton = cand;
+                hasBoostedFlavDilepton = true;
+            }
+            if (hasBoostedDYDilepton && hasBoostedFlavDilepton) break;
+        }
+    }
+    bool boostedDYDRLeadJetLep = false, boostedDYDRSubLeadJetLep = false;
+    bool boostedDYDRTwoLeptons = false, boostedDYDRTwoJets = false;
+    const bool passBoostedDYResolvedDR = computeFourObjectDR(selected_jets_boosted, boostedLead, boostedDYSubLead,
+        boostedDYDRLeadJetLep, boostedDYDRSubLeadJetLep, boostedDYDRTwoLeptons, boostedDYDRTwoJets);
+    const bool passBoostedDYDRFail = !has2Jets_boosted || !passBoostedDYResolvedDR;
+    bool boostedFlavDRLeadJetLep = false, boostedFlavDRSubLeadJetLep = false;
+    bool boostedFlavDRTwoLeptons = false, boostedFlavDRTwoJets = false;
+    const bool passBoostedFlavResolvedDR = computeFourObjectDR(selected_jets_boosted, boostedLead, boostedFlavSubLead,
+        boostedFlavDRLeadJetLep, boostedFlavDRSubLeadJetLep, boostedFlavDRTwoLeptons, boostedFlavDRTwoJets);
+    const bool passBoostedFlavDRFail = !has2Jets_boosted || !passBoostedFlavResolvedDR;
+    const bool isBoostedDYCR = (!isResolvedCandidate && !isResolvedDYCR && !isResolvedFlavCR &&
+        passBoostedTrigger && hasBoostedDYDilepton && passBoostedDYDRFail && fatjets.size() >= 1);
+    const bool isBoostedFlavCR = (!isResolvedCandidate && !isResolvedDYCR && !isResolvedFlavCR &&
+        !isBoostedDYCR && passBoostedTrigger && hasBoostedFlavDilepton && passBoostedFlavDRFail && fatjets.size() >= 1);
+
+    if (!(isResolvedCandidate || isBoostedCandidate || isResolvedDYCR || isResolvedFlavCR || isBoostedDYCR || isBoostedFlavCR)) return;
+
+    // Determine region prefix and assign leptons/channel/tree
+    TString regionPrefix;
+    bool isResolved;
+    if (isResolvedCandidate || isBoostedCandidate) {
+        regionPrefix = "SR_";
+        isResolved = isResolvedCandidate;
+        LeadLep = isResolvedCandidate ? resolvedLead : boostedLead;
+        SubLeadLep = isResolvedCandidate ? resolvedSubLead : boostedSubLead;
+        channel = isResolvedCandidate ? resolvedChannel : boostedChannel;
+        this_trigger_pass = isResolvedCandidate ? passResolvedTrigger : passBoostedTrigger;
+    } else if (isResolvedDYCR || isBoostedDYCR) {
+        regionPrefix = "CR_DY_";
+        isResolved = isResolvedDYCR;
+        LeadLep = isResolvedDYCR ? resolvedLead : boostedLead;
+        SubLeadLep = isResolvedDYCR ? resolvedSubLead : boostedDYSubLead;
+        channel = isResolvedDYCR ? resolvedChannel : boostedChannel;
+        this_trigger_pass = isResolvedDYCR ? passResolvedTrigger : passBoostedTrigger;
+    } else {
+        regionPrefix = "CR_FLV_";
+        isResolved = isResolvedFlavCR;
+        LeadLep = isResolvedFlavCR ? resolvedFlavLead : boostedLead;
+        SubLeadLep = isResolvedFlavCR ? resolvedFlavSubLead : boostedFlavSubLead;
+        channel = isResolvedFlavCR ? resolvedFlavChannel : boostedChannel;
+        this_trigger_pass = isResolvedFlavCR ? passResolvedFlavTrigger : passBoostedTrigger;
+    }
+    if (!LeadLep || !SubLeadLep || !this_trigger_pass) return;
+
+    // Commit to the topology-cleaned collections for everything below (branch filling):
+    //  - Resolved -> AK4 jets kept, fatjets cleaned against jets (jet priority).
+    //  - Boosted  -> fatjets kept, AK4 jets cleaned against fatjets (fatjet priority).
+    if (isResolved) {
+        fatjets = fatjets_resolved;
+    } else {
+        selected_jets = selected_jets_boosted;
+    }
+    const bool has2Jets = selected_jets.size() >= 2;
+
+    // Flavor channel tag: EE/MM for same-flavor (SR, CR_DY), EM/ME for the
+    // opposite-flavor CR_FLV (ordered lead->sublead). For CR_FLV_resolved,
+    // resolvedFlavLead/SubLead are fixed to electron/muon above, so this always
+    // resolves to "EM"; for CR_FLV_boosted, LeadLep/SubLeadLep still follow the
+    // actual pT order, so both EM and ME can occur.
+    TString chTag;
+    if (LeadLep->IsElectron() && SubLeadLep->IsElectron())      chTag = "EE";
+    else if (LeadLep->IsMuon() && SubLeadLep->IsMuon())         chTag = "MM";
+    else if (LeadLep->IsElectron() && SubLeadLep->IsMuon())     chTag = "EM";
+    else                                                        chTag = "ME";
+    tree = dir + "/" + regionPrefix + chTag + "_" + (isResolved ? "BDTTree_resolved" : "BDTTree_boosted");
+    // Region + flavor + topology namespace for the monitoring/CR histograms,
+    // mirroring the tree name: e.g. SR_EE_resolved, CR_DY_MM_boosted, CR_FLV_EM_resolved.
+    const TString topoName = isResolved ? "resolved" : "boosted";
+    const TString regionChanCat = regionPrefix + chTag + "_" + topoName;
+    // --- Cutflow bin 5: any SR/CR candidate passed ---
+    FillHist(dir + "/Cutflow", 5.0, weight, 10, 0., 10.);
+    // --- Cutflow bin 6: resolved / bin 7: boosted (SR only) ---
+    if (isResolvedCandidate) FillHist(dir + "/Cutflow", 6.0, weight, 10, 0., 10.);
+    if (isBoostedCandidate)  FillHist(dir + "/Cutflow", 7.0, weight, 10, 0., 10.);
+    FillHist(dir + "/LeadFlavorChannel", channel, weight, 2, 0., 2.);
+
+    // ==========================================================================
+    //  WEIGHT SYSTEMATICS (stored as per-event weight branches, not extra trees)
+    //  Mirrors BDT_CR.cc's scale-factor weight functions and adds the XSec(theory)
+    //  weight variations (muF, muR, PDF, alpha_S). These leave the BDT inputs
+    //  unchanged, so the score is identical and no separate tree/evaluation is needed.
+    //  During the "Central" iteration calculateWeight() returns {Central + every
+    //  weight-syst Up/Down}; each is written below as a weight_<name> branch. For a
+    //  JES/JER object iteration it returns only that tree's SF-included nominal weight.
+    // ==========================================================================
+    // Leptons entering the scale factors: the two selected signal leptons.
+    RVec<Electron*> selectedElectronsForSF;
+    RVec<Muon*>     selectedMuonsForSF;
+    auto collectLeptonForSF = [&](Lepton* lep) {
+        if (!lep) return;
+        if (lep->IsElectron())  selectedElectronsForSF.push_back(static_cast<Electron*>(lep));
+        else if (lep->IsMuon()) selectedMuonsForSF.push_back(static_cast<Muon*>(lep));
+    };
+    collectLeptonForSF(LeadLep);
+    collectLeptonForSF(SubLeadLep);
+
+    std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
+    auto dummy_sf = [](MyCorrection::variation var, TString source) -> float { (void)var; (void)source; return 1.0f; };
+
+    weight_function_map["PU_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        return myCorr->GetPUWeight(ev.nTrueInt(), var);
+    };
+    weight_function_map["E_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        float sf = 1.0f;
+        for (const auto* el : selectedElectronsForSF) {
+            const float absEta = std::fabs(el->Eta());
+            float base = 1.0f, unc = 0.0f;
+            if (DataEra == "2023") {
+                if (absEta < 1.444)                      { base = 1.007f; unc = 0.004f; }
+                else if (absEta > 1.566 && absEta < 2.5) { base = 0.988f; unc = 0.005f; }
+            } else if (DataEra == "2023BPix") {
+                if (absEta < 1.444)                      { base = 1.009f; unc = 0.005f; }
+                else if (absEta > 1.566 && absEta < 2.5) { base = 0.988f; unc = 0.004f; }
+            }
+            if (var == MyCorrection::variation::up)   base += unc;
+            if (var == MyCorrection::variation::down) base -= unc;
+            sf *= base;
+        }
+        return sf;
+    };
+    weight_function_map["E_Reco_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        float sf = 1.0f;
+        for (const auto* el : selectedElectronsForSF)
+            sf *= myCorr->GetElectronRECOSF(std::fabs(el->Eta()), el->Pt(), el->Phi(), var);
+        return sf;
+    };
+    weight_function_map["E_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        if (!LeadLep->IsElectron() || DataEra == "2017") return 1.0f;
+        const Electron* leadElectron = static_cast<Electron*>(LeadLep);
+        const float absEta = std::fabs(leadElectron->Eta());
+        if (leadElectron->Pt() <= 130.) return 1.0f;
+        float sf = 1.0f, unc = 0.0f;
+        if (absEta < 1.444) {
+            if (DataEra == "2022")         { sf = 0.995f; unc = 0.004f; }
+            else if (DataEra == "2022EE")  { sf = 0.990f; unc = 0.007f; }
+            else if (DataEra == "2023")    { sf = 0.992f; unc = 0.006f; }
+            else if (DataEra == "2023BPix"){ sf = 0.993f; unc = 0.001f; }
+        } else if (absEta > 1.566 && absEta < 2.5) {
+            if (DataEra == "2022")         { sf = 0.991f; unc = 0.009f; }
+            else if (DataEra == "2022EE")  { sf = 0.981f; unc = 0.017f; }
+            else if (DataEra == "2023")    { sf = 0.979f; unc = 0.019f; }
+            else if (DataEra == "2023BPix"){ sf = 0.978f; unc = 0.019f; }
+        }
+        if (var == MyCorrection::variation::up)   sf += unc;
+        if (var == MyCorrection::variation::down) sf -= unc;
+        return sf;
+    };
+    weight_function_map["M_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        if (DataEra == "2017") return 1.0f;
+        float sf = 1.0f;
+        for (const auto* mu : selectedMuonsForSF)
+            sf *= myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *mu, var);
+        return sf;
+    };
+    weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        float sf = 1.0f;
+        for (const auto* mu : selectedMuonsForSF)
+            sf *= myCorr->GetMuonRECOSF(*mu, var);
+        return sf;
+    };
+    weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        if (!LeadLep->IsMuon() || DataEra == "2017" || selectedMuonsForSF.empty()) return 1.0f;
+        RVec<Muon*> trigMuons;
+        for (auto* mu : selectedMuonsForSF) trigMuons.push_back(mu);
+        return myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", trigMuons, var);
+    };
+    weight_function_map["M_Iso_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        if (DataEra == "2017") return 1.0f;
+        float sf = 1.0f;
+        for (const auto* mu : selectedMuonsForSF)
+            sf *= myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes", *mu, var);
+        return sf;
+    };
+    weight_function_map["JER_Variation"] = dummy_sf;
+    weight_function_map["JES_Variation"] = dummy_sf;
+
+    // XSec(theory) weight systematics (reuse AnalyzerCore::GetScaleVariation + LHE PDF weights).
+    // muF: vary factorization scale, keep renormalization scale nominal.
+    weight_function_map["ScaleWeight_muF"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        return GetScaleVariation(var, MyCorrection::variation::nom);
+    };
+    // muR: vary renormalization scale, keep factorization scale nominal.
+    weight_function_map["ScaleWeight_muR"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        return GetScaleVariation(MyCorrection::variation::nom, var);
+    };
+    // PDF envelope: Hessian sum in quadrature over members 1..100 (LHEPdfWeight[0] is central == 1).
+    weight_function_map["PDF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        if (nLHEPdfWeight < 103) return 1.0f;
+        const float w0 = LHEPdfWeight[0];
+        float sumSq = 0.0f;
+        for (int i = 1; i <= 100; i++) { const float dw = LHEPdfWeight[i] - w0; sumSq += dw * dw; }
+        const float deltaPDF = std::sqrt(sumSq);
+        if (var == MyCorrection::variation::up)   return w0 + deltaPDF;
+        if (var == MyCorrection::variation::down) return w0 - deltaPDF;
+        return 1.0f;
+    };
+    // alpha_S: dedicated PDF members (101 = down, 102 = up).
+    weight_function_map["AlphaS_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+        (void)source;
+        if (nLHEPdfWeight < 103) return 1.0f;
+        if (var == MyCorrection::variation::up)   return LHEPdfWeight[102];
+        if (var == MyCorrection::variation::down) return LHEPdfWeight[101];
+        return 1.0f;
+    };
+
+    std::unordered_map<std::string, float> weight_map;
+    if (!IsDATA) {
+        systHelper->assignWeightFunctionMap(weight_function_map);
+        weight_map = systHelper->calculateWeight();
+    }
+
+    // ==========================================================================
+    //  BRANCH FILLING
+    //  Everything above selects the event and fixes the region/topology/tree.
+    //  Everything below only computes derived quantities and fills the ntuple.
+    // ==========================================================================
     const float fMissing = -999.f;
     const int iMissing = -999;
     Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI, Event::MET_Syst::CENTRAL);
@@ -376,121 +815,6 @@ void HNWR_BDT_presel::executeEventFromParameter() {
         SetBranch(tree, prefix + "_pnetQCD", fatjet ? fatjet->GetTaggerResult(JetTagging::FatJetTaggingtype::ParticleNet, JetTagging::FatjetTaggingObject::QCD) : fMissing);
     };
 
-    auto isSameFlavorPair = [](const Lepton* lep1, const Lepton* lep2) {
-        if (!lep1 || !lep2) return false;
-        return (lep1->IsElectron() && lep2->IsElectron()) || (lep1->IsMuon() && lep2->IsMuon());
-    };
-    auto makeSameFlavorPair = [&](const Lepton* lep1, const Lepton* lep2, TLorentzVector& pair) {
-        if (!isSameFlavorPair(lep1, lep2)) return false;
-        pair = *lep1 + *lep2;
-        return true;
-    };
-    auto passLeadTrigger = [&](const Lepton* lep, int& outChannel) {
-        outChannel = -999;
-        if (!lep) return false;
-        if (lep->IsElectron()) {
-            if (lep->Pt() < el_set.Ele_Trigger_Safe_Pt_Cut) return false;
-            outChannel = 0;
-            return pass_trig_elec;
-        }
-        if (lep->IsMuon()) {
-            if (lep->Pt() < mu_set.Muon_Trigger_Safe_Pt_Cut) return false;
-            outChannel = 1;
-            return pass_trig_muon;
-        }
-        return false;
-    };
-
-    const bool has2Jets = selected_jets.size() >= 2;
-    auto computeFourObjectDR = [&](const Lepton* lep1, const Lepton* lep2,
-                                   bool& outLeadJetLep, bool& outSubLeadJetLep,
-                                   bool& outTwoLeptons, bool& outTwoJets) {
-        outLeadJetLep = false;
-        outSubLeadJetLep = false;
-        outTwoLeptons = false;
-        outTwoJets = false;
-        if (!lep1 || !lep2 || !has2Jets) return false;
-        outLeadJetLep = (selected_jets[0].DeltaR(*lep1) > dR_Separation) && (selected_jets[0].DeltaR(*lep2) > dR_Separation);
-        outSubLeadJetLep = (selected_jets[1].DeltaR(*lep1) > dR_Separation) && (selected_jets[1].DeltaR(*lep2) > dR_Separation);
-        outTwoLeptons = (lep1->DeltaR(*lep2) > dR_Separation);
-        outTwoJets = (selected_jets[0].DeltaR(selected_jets[1]) > dR_Separation);
-        return outLeadJetLep && outSubLeadJetLep && outTwoLeptons && outTwoJets;
-    };
-
-    Lepton* resolvedLead = nullptr;
-    Lepton* resolvedSubLead = nullptr;
-    bool isResolvedLeptonSelection = false;
-    int resolvedChannel = -999;
-    bool passResolvedTrigger = false;
-    if ((n_leptons == 2) && ((electrons.size() == 2 && muons.size() == 0) || (muons.size() == 2 && electrons.size() == 0))) {
-        resolvedLead = Tight_leps[0];
-        resolvedSubLead = Tight_leps[1];
-        isResolvedLeptonSelection = (resolvedLead->Pt() > 60.0) && (resolvedSubLead->Pt() > 53.0);
-        passResolvedTrigger = isResolvedLeptonSelection && passLeadTrigger(resolvedLead, resolvedChannel);
-    }
-
-    TLorentzVector resolvedDilepton;
-    const bool passResolvedMll = passResolvedTrigger && makeSameFlavorPair(resolvedLead, resolvedSubLead, resolvedDilepton) && (resolvedDilepton.M() > 200.0);
-    bool resolvedDRLeadJetLep = false;
-    bool resolvedDRSubLeadJetLep = false;
-    bool resolvedDRTwoLeptons = false;
-    bool resolvedDRTwoJets = false;
-    const bool passResolvedDRCandidate = computeFourObjectDR(resolvedLead, resolvedSubLead, resolvedDRLeadJetLep, resolvedDRSubLeadJetLep, resolvedDRTwoLeptons, resolvedDRTwoJets);
-    bool isResolvedCandidate = passResolvedMll && passResolvedDRCandidate;
-
-    Lepton* boostedLead = Tight_leps.empty() ? nullptr : Tight_leps[0];
-    RVec<Lepton*> boostedExtraLooseLeps;
-    if (boostedLead) {
-        for (unsigned int i = 0; i < Loose_leps.size(); i++) {
-            if (Loose_leps[i] == boostedLead) continue;
-            boostedExtraLooseLeps.push_back(Loose_leps[i]);
-        }
-    }
-    sort(boostedExtraLooseLeps.begin(), boostedExtraLooseLeps.end(), PtComparingPtr);
-    const int n_boosted_extra_loose_leptons = boostedExtraLooseLeps.size();
-    Lepton* boostedSubLead = nullptr;
-    TLorentzVector boostedDilepton;
-    bool hasBoostedDilepton = false;
-    if (boostedLead) {
-        for (unsigned int i = 0; i < boostedExtraLooseLeps.size(); i++) {
-            TLorentzVector candidateDilepton;
-            if (!makeSameFlavorPair(boostedLead, boostedExtraLooseLeps[i], candidateDilepton)) continue;
-            if (candidateDilepton.M() <= 200.0) continue;
-            boostedSubLead = boostedExtraLooseLeps[i];
-            boostedDilepton = candidateDilepton;
-            hasBoostedDilepton = true;
-            break;
-        }
-    }
-
-    int boostedChannel = -999;
-    const bool passBoostedLeptonSelection = boostedLead && (boostedLead->Pt() > 60.0) && (n_boosted_extra_loose_leptons >= 1);
-    const bool passBoostedTrigger = passBoostedLeptonSelection && passLeadTrigger(boostedLead, boostedChannel);
-    const bool passBoostedMll = passBoostedTrigger && hasBoostedDilepton;
-
-    bool boostedDRLeadJetLep = false;
-    bool boostedDRSubLeadJetLep = false;
-    bool boostedDRTwoLeptons = false;
-    bool boostedDRTwoJets = false;
-    const bool passBoostedResolvedDR = computeFourObjectDR(boostedLead, boostedSubLead, boostedDRLeadJetLep, boostedDRSubLeadJetLep, boostedDRTwoLeptons, boostedDRTwoJets);
-    const bool passBoostedDRFail = !has2Jets || !passBoostedResolvedDR;
-    bool isBoostedCandidate = (!isResolvedCandidate && passBoostedMll && passBoostedDRFail && fatjets.size() >= 1);
-    if (!(isResolvedCandidate || isBoostedCandidate)) return;
-
-    LeadLep = isResolvedCandidate ? resolvedLead : boostedLead;
-    SubLeadLep = isResolvedCandidate ? resolvedSubLead : boostedSubLead;
-    channel = isResolvedCandidate ? resolvedChannel : boostedChannel;
-    this_trigger_pass = isResolvedCandidate ? passResolvedTrigger : passBoostedTrigger;
-    if (!LeadLep || !SubLeadLep || !this_trigger_pass) return;
-
-    tree = TString(isResolvedCandidate ? "BDTTree_resolved" : "BDTTree_boosted") + syst_suffix;
-    // --- Cutflow bin 5: resolved || boosted candidate ---
-    FillHist(dir + "/Cutflow", 5.0, weight, 10, 0., 10.);
-    // --- Cutflow bin 6: resolved / bin 7: boosted ---
-    if (isResolvedCandidate) FillHist(dir + "/Cutflow", 6.0, weight, 10, 0., 10.);
-    if (isBoostedCandidate)  FillHist(dir + "/Cutflow", 7.0, weight, 10, 0., 10.);
-    FillHist(dir + "/LeadFlavorChannel", channel, weight, 2, 0., 2.);
-
     // --- Per-object lepton storage, split into two groups (both categories) ------
     // (1) Signal leptons: the two SELECTED leptons (LeadLep, SubLeadLep) stored by
     //     flavor as ele*/mu* (no generic lepN). They are same-flavor by construction,
@@ -568,12 +892,12 @@ void HNWR_BDT_presel::executeEventFromParameter() {
         if (ThirdLep) l3jj = *ThirdLep + jj;
     }
 
-    const bool passMllSR = isResolvedCandidate ? passResolvedMll : passBoostedMll;
+    const bool passMllSR = isResolvedCandidate ? passResolvedMll : (isBoostedCandidate ? passBoostedMll : false);
     bool dRLeadJetLep = false;
     bool dRSubLeadJetLep = false;
     bool dRTwoLeptons = false;
     bool dRTwoJets = false;
-    const bool passResolvedDR = computeFourObjectDR(LeadLep, SubLeadLep, dRLeadJetLep, dRSubLeadJetLep, dRTwoLeptons, dRTwoJets);
+    const bool passResolvedDR = computeFourObjectDR(selected_jets, LeadLep, SubLeadLep, dRLeadJetLep, dRSubLeadJetLep, dRTwoLeptons, dRTwoJets);
 
     float ht = 0.f;
     for (const auto& jet : selected_jets) ht += jet.Pt();
@@ -625,6 +949,17 @@ void HNWR_BDT_presel::executeEventFromParameter() {
         if (score > btagWP) nBJetMedium++;
     }
 
+    // Dilepton pair: computed from any-flavor combination so CR_FLV gets real mll values.
+    const TLorentzVector dilep = *LeadLep + *SubLeadLep;
+    const bool isSFpair = isSameFlavorPair(LeadLep, SubLeadLep);
+    const TLorentzVector dilepjj = has2Jets ? dilep + jj : TLorentzVector();
+    // Keep sfL1L2 alias so fillSameFlavorPair ("l1l2") still works (returns -999 for OF pairs).
+    TLorentzVector sfL1L2;
+    const bool hasSFL1L2 = makeSameFlavorPair(LeadLep, SubLeadLep, sfL1L2);
+    const TLorentzVector sfL1L2jj = hasSFL1L2 ? sfL1L2 + jj : TLorentzVector();
+
+    // BDT ntuple is filled for the SR only; the CR is stored as histograms below.
+    if (regionPrefix == "SR_") {
     SetBranch(tree, "passTrigMuon", pass_trig_muon);
     SetBranch(tree, "passTrigElectron", pass_trig_elec);
     SetBranch(tree, "nElectronRaw", static_cast<int>(nElectron));
@@ -649,6 +984,17 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     SetBranch(tree, "maxBTag", maxBTag);
     SetBranch(tree, "channel", channel);
     SetBranch(tree, "weight", weight);
+    // Weight systematics stored as per-event branches (MC only): weight_Central is the
+    // SF-included nominal, and each weight_<SystName>_Up/_Down is the full event weight
+    // with that one systematic varied -- Pileup / Electron{ID,Reco,Trig} /
+    // Muon{ID,Reco,Trig,Iso} and the XSec(theory) ScaleWeight_muF/muR, PDF, AlphaS.
+    // The BDT inputs are unchanged, so downstream evaluates the score once (on nominal
+    // features) and fills each variation's histogram with the matching weight branch.
+    // On a JES/JER object tree weight_map holds only that tree's SF-included nominal.
+    // The raw "weight" branch above (gen x lumi, no SF) is left unchanged.
+    for (const auto& [wname, wval] : weight_map) {
+        SetBranch(tree, TString("weight_") + wname.c_str(), weight * wval);
+    }
     SetBranch(tree, "passMllSR", passMllSR);
     SetBranch(tree, "passResolvedDR", passResolvedDR);
     SetBranch(tree, "passBoostedDRFail", passBoostedDRFail);
@@ -658,7 +1004,15 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     SetBranch(tree, "passDRTwoJets", dRTwoJets);
     SetBranch(tree, "isResolvedCandidate", isResolvedCandidate);
     SetBranch(tree, "isBoostedCandidate", isBoostedCandidate);
-    SetBranch(tree, "category", isResolvedCandidate ? 0 : 1);  // 0 = resolved, 1 = boosted
+    SetBranch(tree, "isResolvedDYCR", isResolvedDYCR);
+    SetBranch(tree, "isResolvedFlavCR", isResolvedFlavCR);
+    SetBranch(tree, "isBoostedDYCR", isBoostedDYCR);
+    SetBranch(tree, "isBoostedFlavCR", isBoostedFlavCR);
+    SetBranch(tree, "category", isResolved ? 0 : 1);  // 0 = resolved, 1 = boosted
+    // region: 0 = SR, 1 = CR_DY, 2 = CR_FLV
+    const int region_val = (regionPrefix == "SR_") ? 0 : (regionPrefix == "CR_DY_") ? 1 : 2;
+    SetBranch(tree, "region", region_val);
+    SetBranch(tree, "isSameFlavor", isSFpair);
 
     // ele*/mu* = the two SIGNAL leptons (LeadLep, SubLeadLep) by flavor; jets in the
     // same loop. The signal pair is same-flavor, so only one flavor's slots fill.
@@ -684,28 +1038,25 @@ void HNWR_BDT_presel::executeEventFromParameter() {
         fillMuon(Form("VL_extra_looseMu%d", i + 1), i < n_vl_extra_muons ? VL_extra_muons[i] : nullptr);
     }
 
-    TLorentzVector sfL1L2;
-    const bool hasSFL1L2 = makeSameFlavorPair(LeadLep, SubLeadLep, sfL1L2);
-    const TLorentzVector sfL1L2jj = hasSFL1L2 ? sfL1L2 + jj : TLorentzVector();
-
     fillSameFlavorPair("l1l2", LeadLep, SubLeadLep);
     fillSameFlavorPair("l1l3", LeadLep, ThirdLep);
     fillSameFlavorPair("l2l3", SubLeadLep, ThirdLep);
 
-    SetBranch(tree, "mll", hasSFL1L2 ? static_cast<float>(sfL1L2.M()) : fMissing);
-    SetBranch(tree, "ptll", hasSFL1L2 ? static_cast<float>(sfL1L2.Pt()) : fMissing);
-    SetBranch(tree, "etall", hasSFL1L2 ? static_cast<float>(sfL1L2.Eta()) : fMissing);
-    SetBranch(tree, "phill", hasSFL1L2 ? static_cast<float>(sfL1L2.Phi()) : fMissing);
-    SetBranch(tree, "dRll", hasSFL1L2 ? static_cast<float>(LeadLep->DeltaR(*SubLeadLep)) : fMissing);
-    SetBranch(tree, "dPhill", hasSFL1L2 ? static_cast<float>(std::fabs(LeadLep->DeltaPhi(*SubLeadLep))) : fMissing);
-    SetBranch(tree, "lepChargeProduct", hasSFL1L2 ? LeadLep->Charge() * SubLeadLep->Charge() : iMissing);
+    // mll/dRll etc. use any-flavor dilep so CR_FLV events are not -999.
+    SetBranch(tree, "mll", static_cast<float>(dilep.M()));
+    SetBranch(tree, "ptll", static_cast<float>(dilep.Pt()));
+    SetBranch(tree, "etall", static_cast<float>(dilep.Eta()));
+    SetBranch(tree, "phill", static_cast<float>(dilep.Phi()));
+    SetBranch(tree, "dRll", static_cast<float>(LeadLep->DeltaR(*SubLeadLep)));
+    SetBranch(tree, "dPhill", static_cast<float>(std::fabs(LeadLep->DeltaPhi(*SubLeadLep))));
+    SetBranch(tree, "lepChargeProduct", LeadLep->Charge() * SubLeadLep->Charge());
 
     SetBranch(tree, "mjj", has2Jets ? jj.M() : fMissing);
     SetBranch(tree, "ptjj", has2Jets ? jj.Pt() : fMissing);
     SetBranch(tree, "dRjj", has2Jets ? selected_jets[0].DeltaR(selected_jets[1]) : fMissing);
     SetBranch(tree, "dPhijj", has2Jets ? std::fabs(selected_jets[0].DeltaPhi(selected_jets[1])) : fMissing);
-    SetBranch(tree, "mlljj", (hasSFL1L2 && has2Jets) ? static_cast<float>(sfL1L2jj.M()) : fMissing);
-    SetBranch(tree, "ptlljj", (hasSFL1L2 && has2Jets) ? static_cast<float>(sfL1L2jj.Pt()) : fMissing);
+    SetBranch(tree, "mlljj", has2Jets ? static_cast<float>(dilepjj.M()) : fMissing);
+    SetBranch(tree, "ptlljj", has2Jets ? static_cast<float>(dilepjj.Pt()) : fMissing);
     SetBranch(tree, "ml1jj", has2Jets ? l1jj.M() : fMissing);
     SetBranch(tree, "ml2jj", has2Jets ? l2jj.M() : fMissing);
     SetBranch(tree, "ml3jj", (ThirdLep && has2Jets) ? l3jj.M() : fMissing);
@@ -754,6 +1105,36 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     fillLeptonFatJetBranches("l3", ThirdLep);
 
     FillTrees(tree);
+    } // end SR-only BDT ntuple
+
+    // --- CR histograms (CR_DY / CR_FLV): save mlljj, mll, HT, jet number ---
+    // Saved per systematic, one directory per variation (Central, Pileup_Up,
+    // ElectronID_Up, ..., ScaleWeight_muF_Up, PDF_Up, AlphaS_Up, and the JES/JER object
+    // variations), matching Reproduce20_002_copy: the weight-only systematics come from
+    // weight_map during the Central iteration, and JES/JER from their own object passes.
+    if (regionPrefix == "CR_DY_" || regionPrefix == "CR_FLV_") {
+        std::vector<std::pair<TString, float>> fill_targets;
+        if (IsDATA) {
+            fill_targets.push_back({dir, weight});
+        } else {
+            for (const auto& [sn, sf_val] : weight_map)
+                fill_targets.push_back({TString(sn.c_str()), weight * sf_val});
+        }
+        for (const auto& [syst_name, fw] : fill_targets) {
+            const TString crName = syst_name + "/" + regionChanCat;
+            if (isResolved) {
+                // Resolved: WR candidate mass = ll + jj
+                if (has2Jets) FillHist(crName + "/mlljj", dilepjj.M(), fw, 200, 0., 4000.);
+            } else {
+                // Boosted: WR candidate mass = lead lepton + leading fatjet
+                if (fatjets.size() >= 1)
+                    FillHist(crName + "/mlfatjet", (*LeadLep + fatjets[0]).M(), fw, 200, 0., 4000.);
+            }
+            FillHist(crName + "/mll", dilep.M(), fw, 200, 0., 2000.);
+            FillHist(crName + "/HT", ht, fw, 200, 0., 4000.);
+            FillHist(crName + "/N_Jet", selected_jets.size(), fw, 20, 0., 20.);
+        }
+    }
 
     /*
     ///         Event preselection       ///
@@ -813,12 +1194,14 @@ void HNWR_BDT_presel::executeEventFromParameter() {
 
 
 
-    // Basic kinematics of preselected events (sanity monitoring)
-    FillHist(dir + "/LeadLep_pt", LeadLep->Pt(), weight, 100, 0., 1000.);
-    FillHist(dir + "/SubLeadLep_pt", SubLeadLep->Pt(), weight, 100, 0., 1000.);
-    FillHist(dir + "/N_Jet", selected_jets.size(), weight, 10, 0., 10.);
-    FillHist(dir + "/N_FatJet", fatjets.size(), weight, 10, 0., 10.);
-    FillHist(dir + "/Mll", (*LeadLep + *SubLeadLep).M(), weight, 200, 0., 2000.);
+    // Basic kinematics of preselected events (sanity monitoring), namespaced by
+    // region + flavor + topology, e.g. Central/SR_EE_resolved/LeadLep_pt.
+    const TString monName = dir + "/" + regionChanCat;
+    FillHist(monName + "/LeadLep_pt", LeadLep->Pt(), weight, 100, 0., 1000.);
+    FillHist(monName + "/SubLeadLep_pt", SubLeadLep->Pt(), weight, 100, 0., 1000.);
+    FillHist(monName + "/N_Jet", selected_jets.size(), weight, 10, 0., 10.);
+    FillHist(monName + "/N_FatJet", fatjets.size(), weight, 10, 0., 10.);
+    FillHist(monName + "/Mll", (*LeadLep + *SubLeadLep).M(), weight, 200, 0., 2000.);
 }
 
 //================ Helper functions ================//
@@ -896,6 +1279,34 @@ RVec<Jet> HNWR_BDT_presel::Clean_jet_with_loose_leptons(const RVec<Jet>& jets, c
             if (jet.DeltaR(*loose_leps.at(j)) < 0.4) { isDRtoLepton = true; break; }
         }
         if (!isDRtoLepton) cleanedjets.push_back(jet);
+    }
+    return cleanedjets;
+}
+
+// Resolved priority: AK4 jets win, so drop any fatjet overlapping a selected jet.
+RVec<FatJet> HNWR_BDT_presel::Clean_Fatjet_with_jets(const RVec<FatJet>& fatjets, const RVec<Jet>& jets) {
+    RVec<FatJet> cleanedfatjets;
+    for (unsigned int i = 0; i < fatjets.size(); i++) {
+        const FatJet& fatjet = fatjets.at(i);
+        bool isDRtoJet = false;
+        for (unsigned int j = 0; j < jets.size(); j++) {
+            if (fatjet.DeltaR(jets.at(j)) < dR_JetFatJet) { isDRtoJet = true; break; }
+        }
+        if (!isDRtoJet) cleanedfatjets.push_back(fatjet);
+    }
+    return cleanedfatjets;
+}
+
+// Boosted priority: fatjets win, so drop any AK4 jet overlapping a selected fatjet.
+RVec<Jet> HNWR_BDT_presel::Clean_jet_with_fatjets(const RVec<Jet>& jets, const RVec<FatJet>& fatjets) {
+    RVec<Jet> cleanedjets;
+    for (unsigned int i = 0; i < jets.size(); i++) {
+        const Jet& jet = jets.at(i);
+        bool isDRtoFatJet = false;
+        for (unsigned int j = 0; j < fatjets.size(); j++) {
+            if (jet.DeltaR(fatjets.at(j)) < dR_JetFatJet) { isDRtoFatJet = true; break; }
+        }
+        if (!isDRtoFatJet) cleanedjets.push_back(jet);
     }
     return cleanedjets;
 }

@@ -1,0 +1,22 @@
+{
+    "name": "WR8000N200MM",
+    "isMC": 1,
+    "PD": "WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 3.213e-05,
+    "sumsign": 55000.0,
+    "sumW": 55000.0,
+    "nmc": 55000.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_5.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_6.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_7.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_8.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_9.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNMutoMuMuJJ_MWR8000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_10.root"
+    ]
+}

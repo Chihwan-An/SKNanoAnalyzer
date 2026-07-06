@@ -1,0 +1,19 @@
+{
+    "name": "WR3000N200EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.01381,
+    "sumsign": 35500.0,
+    "sumW": 35500.0,
+    "nmc": 35500.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_5.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_6.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2022/WRtoNEltoElElJJ_MWR3000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer22wmLHEGS-Run3Summer22NanoAODv12/Run3Summer22NanoAODv12_7.root"
+    ]
+}

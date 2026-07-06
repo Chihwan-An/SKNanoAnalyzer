@@ -1,0 +1,20 @@
+{
+    "name": "WR2000N200EE",
+    "isMC": 1,
+    "PD": "WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8",
+    "xsec": 0.1511,
+    "sumsign": 42693.0,
+    "sumW": 42693.0,
+    "nmc": 42693.0,
+    "path": [
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_0.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_1.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_2.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_3.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_4.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_5.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_6.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_7.root",
+        "/gv0/Users/achihwan/SKNano/Run3NanoAODv12/2023/WRtoNEltoElElJJ_MWR2000_N200_TuneCP5_13p6TeV_madgraph-pythia8/chain_Run3Summer23wmLHEGS-Run3Summer23NanoAODv12/Run3Summer23NanoAODv12_8.root"
+    ]
+}

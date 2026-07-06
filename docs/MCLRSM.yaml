@@ -40,6 +40,24 @@ systematics:
     target: "JES_Variation"
     evtLoopAgain: true
 
+  # XSec(theory) weight systematics: renormalization/factorization scale, PDF, alpha_S.
+  # Pure weight variations (evtLoopAgain: false) -> each becomes its own "<syst>_Up/_Down" directory.
+  - syst: "ScaleWeight_muF"
+    target: "ScaleWeight_muF"
+    evtLoopAgain: false
+
+  - syst: "ScaleWeight_muR"
+    target: "ScaleWeight_muR"
+    evtLoopAgain: false
+
+  - syst: "PDF"
+    target: "PDF_Weight"
+    evtLoopAgain: false
+
+  - syst: "AlphaS"
+    target: "AlphaS_Weight"
+    evtLoopAgain: false
+
 
 
 

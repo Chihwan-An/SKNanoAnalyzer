@@ -2,7 +2,7 @@
     "name": "WR6000N4100MM",
     "isMC": 1,
     "PD": "WRtoNMutoMuMuJJ_MWR6000_N4100_TuneCP5_13p6TeV_madgraph-pythia8",
-    "xsec": 2.452e-05,
+    "xsec": 2.055e-05,
     "sumsign": 70000.0,
     "sumW": 70000.0,
     "nmc": 70000.0,

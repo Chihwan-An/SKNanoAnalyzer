@@ -3,9 +3,9 @@
     "isMC": 1,
     "PD": "WtoLNu-4Jets_Bin-HT-1500to2500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
     "xsec": 0.565152704,
-    "sumsign": -1,
-    "sumW": -1,
-    "nmc": 0,
+    "sumsign": 10877512.0,
+    "sumW": 54885599.32884836,
+    "nmc": 10877512.0,
     "path": [
         "/gv0/Users/achihwan/SKNano/Run3NanoAODv15/WHT/WtoLNu-4Jets_Bin-HT-1500to2500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/150X_mcRun3_2024_realistic_v2-v2/2820000/00597763-7a29-43a8-803a-82bae77007bc.root",
         "/gv0/Users/achihwan/SKNano/Run3NanoAODv15/WHT/WtoLNu-4Jets_Bin-HT-1500to2500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8/NANOAODSIM/150X_mcRun3_2024_realistic_v2-v2/120000/068cbc20-8fb6-4b50-88ff-874959631569.root",

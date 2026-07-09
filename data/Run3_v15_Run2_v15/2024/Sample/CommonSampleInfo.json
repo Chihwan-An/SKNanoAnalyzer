@@ -19,177 +19,177 @@
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-400to800-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 8.720247789,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 16223572.0,
+        "sumsign": 16223572.0,
+        "sumW": 1160819435.5668411
     },
     "DYMLL50to120HT800to1500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-800to1500-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.898325608,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 2659044.0,
+        "sumsign": 2659044.0,
+        "sumW": 20932646.321234226
     },
     "DYMLL50to120HT1500to2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-1500to2500-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.065423511,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 1889567.0,
+        "sumsign": 1889567.0,
+        "sumW": 1084303.5956919193
     },
     "DYMLL50to120HT2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-2500-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.004370223,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 984539.0,
+        "sumsign": 984539.0,
+        "sumW": 37273.56312663108
     },
     "DYMLL120HT70to100": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-70to100-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 3.343509929,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 18785855.0,
+        "sumsign": 18785855.0,
+        "sumW": 273843518.52011967
     },
     "DYMLL120HT100to400": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-100to400-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 4.383709336,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 16286457.0,
+        "sumsign": 16286457.0,
+        "sumW": 503434151.98291016
     },
     "DYMLL120HT400to800": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-400to800-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.227254158,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 1775774.0,
+        "sumsign": 1775774.0,
+        "sumW": 3739594.3267149925
     },
     "DYMLL120HT800to1500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-800to1500-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.027079397,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 949421.0,
+        "sumsign": 949421.0,
+        "sumW": 241668.0318439901
     },
     "DYMLL120HT1500to2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-1500to2500-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.002199796,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 999402.0,
+        "sumsign": 999402.0,
+        "sumW": 19915.698334643617
     },
     "DYMLL120HT2500": {
         "isMC": 1,
         "PD": "DYto2L-4Jets_Bin-HT-2500-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.000157505,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 1026591.0,
+        "sumsign": 1026591.0,
+        "sumW": 1435.0619800965069
     },
     "WJetM0_120HT40to100": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-40to100-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 5533.390059,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 361395701.0,
+        "sumsign": 361395701.0,
+        "sumW": 7982193041334.104
     },
     "WJetM0_120HT100to400": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-100to400-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 2112.005673,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 292961212.0,
+        "sumsign": 292961212.0,
+        "sumW": 3901790179135.9717
     },
     "WJetM0_120HT400to800": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-400to800-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 75.34058516,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 85000870.0,
+        "sumsign": 85000870.0,
+        "sumW": 53353236007.894226
     },
     "WJetM0_120HT800to1500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-800to1500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 7.864421146,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 3679010.0,
+        "sumsign": 3679010.0,
+        "sumW": 254681232.74269104
     },
     "WJetM0_120HT1500to2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-1500to2500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.565152704,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 10877512.0,
+        "sumsign": 10877512.0,
+        "sumW": 54885599.32884836
     },
     "WJetM0_120HT2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-2500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.003960583,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 7409630.0,
+        "sumsign": 7409630.0,
+        "sumW": 2469411.7686142027
     },
     "WJetM120HT40to100": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-40to100-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 26.74341787,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 43791645.0,
+        "sumsign": 43791645.0,
+        "sumW": 4976994210.071297
     },
     "WJetM120HT100to400": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-100to400-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 13.23575511,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 15623295.0,
+        "sumsign": 15623295.0,
+        "sumW": 1441645630.5093842
     },
     "WJetM120HT400to800": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-400to800-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.657958536,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 4140105.0,
+        "sumsign": 4140105.0,
+        "sumW": 25681930.312277794
     },
     "WJetM120HT800to1500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-800to1500-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.078959798,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 7857949.0,
+        "sumsign": 7857949.0,
+        "sumW": 5902397.78850168
     },
     "WJetM120HT1500to2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-1500to2500-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 0.006395049,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 8455030.0,
+        "sumsign": 8455030.0,
+        "sumW": 499714.66121013835
     },
     "WJetM120HT2500": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-HT-2500-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 4.878923e-05,
-        "nmc": 0,
-        "sumsign": -1,
-        "sumW": -1
+        "nmc": 7425165.0,
+        "sumsign": 7425165.0,
+        "sumW": 31170.938619675115
     },
     "DYto2E_MLL10to50": {
         "isMC": 1,

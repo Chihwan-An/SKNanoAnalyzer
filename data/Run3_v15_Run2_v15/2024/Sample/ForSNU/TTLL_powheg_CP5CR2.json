@@ -5,7 +5,7 @@
     "xsec": -1,
     "sumsign": -1,
     "sumW": -1,
-    "nmc": -1,
+    "nmc": 0,
     "path": [
         "/gv0/DATA/SKNano/NanoAODv15/2024/TTto2L2Nu_TuneCP5CR2_13p6TeV_powheg-pythia8/crab_MC_2024_TTto2L2Nu_TuneCP5CR2_13p6TeV_powheg-pythia8/251121_123929/0000/tree_1.root",
         "/gv0/DATA/SKNano/NanoAODv15/2024/TTto2L2Nu_TuneCP5CR2_13p6TeV_powheg-pythia8/crab_MC_2024_TTto2L2Nu_TuneCP5CR2_13p6TeV_powheg-pythia8/251121_123929/0000/tree_2.root",

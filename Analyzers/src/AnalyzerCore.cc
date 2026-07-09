@@ -600,6 +600,7 @@ MuonViewCollection AnalyzerCore::GetAllMuonViews() {
   storage->genPartFlav.bind(&Muon_genPartFlav);
   storage->genPartIdx.bind(&Muon_genPartIdx);
   storage->jetIdx.bind(&Muon_jetIdx);
+  storage->tunepRelPt.bind(&Muon_tunepRelPt);
 
   const std::size_t n = storage->pt.size();
   storage->correctedPt.resize(n, 0.f);
@@ -610,37 +611,17 @@ MuonViewCollection AnalyzerCore::GetAllMuonViews() {
   if (n == 0)
     return MuonViewCollection(std::move(storage));
 
-  RVec<Gen> truth;
-  if (!IsDATA)
-    truth = GetAllGens();
-
+  // Use TuneP (Muon_tunepRelPt) instead of Rochester (RoccoR) for the muon
+  // momentum correction, matching SKNanoAnalyzer-v13's AnalyzerCore::GetAllMuons().
+  // No independent up/down variation is computed for TuneP (v13 leaves this
+  // disabled too), so momentumScaleUp/Down are set equal to the nominal here.
   for (std::size_t i = 0; i < n; ++i) {
-    Muon probe;
-    probe.SetPtEtaPhiM(storage->pt[i], storage->eta[i], storage->phi[i],
-                       storage->mass[i]);
-    probe.SetCharge(storage->charge[i]);
-
-    float roccor = 1.f;
-    float roccor_err = 0.f;
-    if (IsDATA) {
-      roccor = myCorr->GetMuonScaleSF(probe, MyCorrection::variation::nom);
-      roccor_err =
-          myCorr->GetMuonScaleSF(probe, MyCorrection::variation::up) - roccor;
-    } else {
-      Gen matched_gen = GetGenMatchedMuon(probe, truth);
-      float matched_pt = matched_gen.Pt();
-      roccor = myCorr->GetMuonScaleSF(probe, MyCorrection::variation::nom,
-                                      matched_pt);
-      roccor_err = myCorr->GetMuonScaleSF(probe, MyCorrection::variation::up,
-                                          matched_pt) -
-                   roccor;
-    }
-
-    const float miniAODPt = probe.Pt();
+    const float miniAODPt = storage->pt[i];
+    const float tunep = storage->tunepRelPt[i];
     storage->miniAODPt[i] = miniAODPt;
-    storage->momentumScaleUp[i] = miniAODPt * (roccor + roccor_err);
-    storage->momentumScaleDown[i] = miniAODPt * (roccor - roccor_err);
-    storage->correctedPt[i] = miniAODPt * roccor;
+    storage->correctedPt[i] = miniAODPt * tunep;
+    storage->momentumScaleUp[i] = storage->correctedPt[i];
+    storage->momentumScaleDown[i] = storage->correctedPt[i];
   }
 
   return MuonViewCollection(std::move(storage));

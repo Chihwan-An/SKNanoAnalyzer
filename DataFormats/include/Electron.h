@@ -217,6 +217,7 @@ private:
         mutable std::bitset<static_cast<std::size_t>(Property::Count)> loaded;
     };
 
+    mutable std::bitset<static_cast<std::size_t>(Property::Count)> cachedProperties_;
     mutable std::shared_ptr<LazyPayload> lazy_;
 
     // uncertainties

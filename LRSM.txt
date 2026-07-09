@@ -1,0 +1,14 @@
+#DYto2E*
+#DYto2Mu*
+#WtoLNu*
+DYMLL*
+WJet*
+TTLJ_powheg
+TTLL_powheg
+ST_*
+ttZtoLL*
+WW*
+ZZ*
+WZ*
+Muon*
+EGamma*

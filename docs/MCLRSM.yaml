@@ -1,0 +1,64 @@
+systematics:
+
+  - syst: "Pileup"
+    target: "PU_Weight"
+    evtLoopAgain: false
+
+  - syst: "ElectronID"
+    target: "E_Id_Weight"
+    evtLoopAgain: false
+  
+  - syst: "ElectronReco"
+    target: "E_Reco_Weight"
+    evtLoopAgain: false
+
+  - syst: "ElectronTrig"
+    target: "E_Trig_Weight"
+    evtLoopAgain: false
+
+  - syst: "MuonID"
+    target: "M_Id_Weight"
+    evtLoopAgain: false
+
+  - syst: "MuonReco"
+    target: "M_Reco_Weight"
+    evtLoopAgain: false
+  
+  - syst: "MuonTrig"
+    target: "M_Trig_Weight"
+    evtLoopAgain: false
+  
+  - syst: "MuonIso"
+    target: "M_Iso_Weight"
+    evtLoopAgain: false
+
+  - syst: "JER"
+    target: "JER_Variation"
+    evtLoopAgain: true
+
+  - syst: "JES"
+    target: "JES_Variation"
+    evtLoopAgain: true
+
+  # XSec(theory) weight systematics: renormalization/factorization scale, PDF, alpha_S.
+  # Pure weight variations (evtLoopAgain: false) -> each becomes its own "<syst>_Up/_Down" directory.
+  - syst: "ScaleWeight_muF"
+    target: "ScaleWeight_muF"
+    evtLoopAgain: false
+
+  - syst: "ScaleWeight_muR"
+    target: "ScaleWeight_muR"
+    evtLoopAgain: false
+
+  - syst: "PDF"
+    target: "PDF_Weight"
+    evtLoopAgain: false
+
+  - syst: "AlphaS"
+    target: "AlphaS_Weight"
+    evtLoopAgain: false
+
+
+
+
+  

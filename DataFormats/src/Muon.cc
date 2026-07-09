@@ -281,7 +281,10 @@ void Muon::SetBIDBit(BooleanID id, bool idbit) {
 void Muon::SetWIDBit(WorkingPointID id, unsigned char wp) {
     switch (id) {
         case WorkingPointID::HIGHPT:
-            j_highPtId = static_cast<unsigned char>(wp + 1);
+            // NanoAOD Muon_highPtId is already 1 = tracker high-pT, 2 = global high-pT;
+            // POG_*_HIGH_PT checks compare against these raw values, so store as-is.
+            // (+1 mapping is only for the isolation-style WPs whose NanoAOD codes start at 1=Loose.)
+            j_highPtId = static_cast<unsigned char>(wp);
             markLoaded(Property::HighPtId);
             break;
         case WorkingPointID::MINIISO:

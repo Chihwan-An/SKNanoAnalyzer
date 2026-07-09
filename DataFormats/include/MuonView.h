@@ -55,6 +55,7 @@ struct MuonSoA {
     ColumnView<unsigned char> genPartFlav;
     ColumnView<short> genPartIdx;
     ColumnView<short> jetIdx;
+    ColumnView<float> tunepRelPt;
 
     std::vector<float> correctedPt;
     std::vector<float> miniAODPt;

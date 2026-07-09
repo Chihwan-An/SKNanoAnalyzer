@@ -122,17 +122,11 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
 
   // Please use ####### as placeholder
   if (!IsData) {
-    JME_JER_GT["2024"] =
-        "Summer23BPixPrompt23_RunD_JRV1_MC_######_AK4PFPuppi"; // this is
-                                                               // because real
-                                                               // content of
-                                                               // file is this
-    JME_JES_GT["2024"] = "Summer24Prompt24_V2_MC_######_AK4PFPuppi";
+    JME_JER_GT["2024"] = "Summer24Prompt24_JRV1_MC_######_AK4PFPuppi";
+    JME_JES_GT["2024"] = "Summer24Prompt24_V3_MC_######_AK4PFPuppi";
   } else {
-    // JME_JER_GT["2024"] =
-    // "Summer23BPixPrompt23_RunD_JRV1_DATA_######_AK4PFPuppi"; // this is
-    // because real content of file is this
-    JME_JES_GT["2024"] = "Summer24Prompt24_V2_DATA_######_AK4PFPuppi";
+    // JER not used for data
+    JME_JES_GT["2024"] = "Summer24Prompt24_V3_DATA_######_AK4PFPuppi";
   }
 
   JME_vetomap_keys["2024"] = "Summer24Prompt24_RunBCDEFGHI_V1";
@@ -1451,16 +1445,22 @@ float MyCorrection::GetJER(const float eta, const float pt,
 float MyCorrection::GetJERSF(const float eta, const float pt,
                              const variation syst,
                              const TString &source) const {
-  correction::Correction::Ref cset = nullptr;
+  // The jsonPOG-integration JER "...ScaleFactor..." correction only takes
+  // (JetEta, JetPt) - it has no built-in systematic dimension. Up/down
+  // variations instead come from the sibling "...SFUncertainty..." correction,
+  // combined the same way GetJESUncertaintySF() combines JES uncertainties.
   string cset_string = JME_JER_GT.at(GetEra().Data());
   cset_string.replace(cset_string.find("######"), 6, "ScaleFactor");
-  cset = cset_jerc->at(cset_string);
-  if (Run == 3) {
-    return safeEvaluate(cset, "GetJERSF", {eta, pt, getSystString_JME(syst)});
-  } else if (Run == 2) {
-    return safeEvaluate(cset, "GetJERSF", {eta, getSystString_JME(syst)});
-  }
-  return 1.;
+  correction::Correction::Ref cset = cset_jerc->at(cset_string);
+  const float nominal = safeEvaluate(cset, "GetJERSF", {eta, pt});
+  if (syst == variation::nom)
+    return nominal;
+
+  string unc_cset_string = JME_JER_GT.at(GetEra().Data());
+  unc_cset_string.replace(unc_cset_string.find("######"), 6, "SFUncertainty");
+  correction::Correction::Ref unc_cset = cset_jerc->at(unc_cset_string);
+  const float unc = safeEvaluate(unc_cset, "GetJERSF", {eta, pt});
+  return (syst == variation::up) ? nominal + unc : nominal - unc;
 }
 
 // JESC

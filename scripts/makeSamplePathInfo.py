@@ -35,8 +35,21 @@ elif args.era == "2023BPix":
 elif args.era == "2024":
     YEAR = "2024"
     BASEPATH = os.environ["SKNANO_RUN3_NANOAODPATH"]
+    # HT-binned DY/W samples live here, under group dirs (DYHT/, WHT/) rather than an era dir
+    PRIVATEPATH = "/gv0/Users/achihwan/SKNano/Run3NanoAODv15"
 else:
     raise ValueError(f"Unknown era: {args.era}")
+
+
+def find_sample_dir(pd):
+    candidates = [os.path.join(BASEPATH, args.era, pd)]
+    if args.era == "2024":
+        candidates.append(os.path.join(PRIVATEPATH, pd))
+        candidates.extend(glob.glob(os.path.join(PRIVATEPATH, "*", pd)))
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    return candidates[0]
 
 def parse_rootfiles_from(basePath):
     if not os.path.exists(basePath):
@@ -73,7 +86,10 @@ def main():
         # Check if the sample is MC or data
         isMC = sampleInfo["isMC"]
         if isMC:
-            basePath = os.path.join(BASEPATH, args.era, sampleInfo["PD"])
+            basePath = find_sample_dir(sampleInfo["PD"])
+            if not os.path.exists(basePath):
+                print(f"  skip {alias}: no {basePath}")
+                continue
             fileJsonPath = os.path.join(os.environ['SKNANO_DATA'], args.era, 'Sample', 'ForSNU', alias+'.json')
             jsonData = {
                 "name": alias,

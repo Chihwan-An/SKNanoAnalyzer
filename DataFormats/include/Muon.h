@@ -13,12 +13,13 @@
 class AnalyzerCore;
 
 // Need update
-// - TuneP object
 // - momentum scale
-// - rochester correction
 // - chi2
 // - truth matching info
 // - Analysis dependent IDs
+//
+// Pt() is TuneP-corrected (Muon_tunepRelPt), not Rochester (RoccoR) corrected;
+// see AnalyzerCore::GetAllMuonViews().
 
 class Muon: public Lepton {
 public:

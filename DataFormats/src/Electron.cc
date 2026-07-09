@@ -6,6 +6,7 @@ ClassImp(Electron)
 
 Electron::Electron() {
     this->SetLeptonFlavour(ELECTRON);
+    cachedProperties_.reset();
     // uncertainties
     j_energyErr = -999.;
     j_dEsigmaUp = -999.;
@@ -62,7 +63,7 @@ void Electron::AttachLazyPayload(void *context, EnsureCallback callback, int ind
     lazy_->context = context;
     lazy_->callback = callback;
     lazy_->index = index;
-    lazy_->loaded.reset();
+    lazy_->loaded = cachedProperties_;
 }
 
 void Electron::DetachLazyPayload() const {
@@ -70,17 +71,18 @@ void Electron::DetachLazyPayload() const {
 }
 
 void Electron::ensure(Property property) const {
-    if (!lazy_) return;
     const auto bit = static_cast<std::size_t>(property);
-    if (lazy_->loaded.test(bit)) return;
-    if (!lazy_->callback) return;
+    if (cachedProperties_.test(bit)) return;
+    if (!lazy_ || !lazy_->callback) return;
     lazy_->callback(lazy_->context, const_cast<Electron &>(*this), property);
-    lazy_->loaded.set(bit);
+    markLoaded(property);
 }
 
 void Electron::markLoaded(Property property) const {
-    if (!lazy_) return;
-    lazy_->loaded.set(static_cast<std::size_t>(property));
+    const auto bit = static_cast<std::size_t>(property);
+    cachedProperties_.set(bit);
+    if (lazy_)
+        lazy_->loaded.set(bit);
 }
 
 void Electron::SetBIDBit(BooleanID id, bool idbit) {

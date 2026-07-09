@@ -19,6 +19,9 @@ public:
     // Trigger settings
     TString IsoMuTriggerName;
     float TriggerSafePtCut;
+
+    TString IsoEleTriggerName;
+    float EleTriggerSafePtCut;
     
     // Object ID settings
     RVec<Muon::MuonID> MuonIDs;
@@ -28,7 +31,6 @@ public:
     // Physics objects
     RVec<Muon> AllMuons;
     RVec<Jet> AllJets;
-    RVec<FatJet> AllFatJets;
     
     RVec<Muon> selectedMuons;
     float dilepton_mass;
@@ -36,7 +38,7 @@ public:
     // Analysis cuts
     struct AnalysisCuts {
         float muon_pt_lead = 28.0;
-        float muon_pt_sublead = 10.0;
+        float muon_pt_sublead = 15.0;
         float muon_eta = 2.4;
     } cuts;
     
@@ -45,7 +47,7 @@ public:
     
     
     // Helper functions
-    RVec<Muon> SelectMuons(const RVec<Muon>& muons);
+    // RVec<Muon> SelectMuons(const RVec<Muon>& muons);
 
 };
 

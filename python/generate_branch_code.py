@@ -30,6 +30,35 @@ VIEW_NAME = "generated_input_columns.inc"
 BUNDLE_NAME = "generated_loader_api.inc"
 
 
+def discover_companion_inputs(
+    json_path: Path,
+    overlay: Path | None,
+    addons: List[Path],
+) -> Tuple[Path | None, List[Path]]:
+    """Find optional schema metadata without exposing it to the build system."""
+    if overlay is None:
+        candidate = json_path.parent / "branch_overlay.json"
+        overlay = candidate if candidate.is_file() else None
+
+    if not addons:
+        addon_dir = json_path.parent / "custom"
+        if addon_dir.is_dir():
+            addons = sorted(addon_dir.glob("*.json"))
+
+    return overlay, addons
+
+
+def write_depfile(depfile: Path, outputs: List[Path], inputs: List[Path]) -> None:
+    def escape(path: Path) -> str:
+        return str(path.resolve()).replace("\\", "\\\\").replace(" ", "\\ ")
+
+    depfile.parent.mkdir(parents=True, exist_ok=True)
+    targets = " ".join(escape(path) for path in outputs)
+    dependencies = " ".join(escape(path) for path in inputs)
+    depfile.write_text(f"{targets}: {dependencies}\n")
+    print(f"[generate_branch_code] wrote {depfile}")
+
+
 def merge_addons(
     base_events: Dict[str, Dict[str, Dict[str, str]]],
     addons: List[dict],
@@ -460,12 +489,16 @@ def main() -> None:
     parser.add_argument("--overlay", type=Path,
                         help="Reviewed metadata for generated input views")
     parser.add_argument("--out-dir", type=Path, help="Dir for generated files")
+    parser.add_argument("--depfile", type=Path,
+                        help="Optional Make/Ninja dependency file")
     args = parser.parse_args()
 
-    base_dir = os.environ.get("SKNANO_DATA")
+    base_dir = Path(os.environ.get("SKNANO_DATA", Path.cwd()))
     json_path = args.json or discover_json(base_dir)
     out_dir = args.out_dir or json_path.parent
     out_dir.mkdir(parents=True, exist_ok=True)
+    overlay_path, addon_paths = discover_companion_inputs(
+        json_path, args.overlay, args.addon)
 
     with json_path.open() as jf:
         payload = json.load(jf)
@@ -475,7 +508,7 @@ def main() -> None:
         raise ValueError("JSON missing 'Events Content'")
 
     addons = []
-    for addon_path in args.addon:
+    for addon_path in addon_paths:
         with addon_path.open() as addon_file:
             addons.append(json.load(addon_file))
     events, addon_view_specs = merge_addons(canonical_events, addons)
@@ -483,26 +516,39 @@ def main() -> None:
     decls, regs, resets = build_blocks(events)
 
     overlay = {}
-    if args.overlay:
-        with args.overlay.open() as overlay_file:
+    if overlay_path:
+        with overlay_path.open() as overlay_file:
             overlay = json.load(overlay_file)
     # Standard views stay tied to the canonical NanoAOD schema.  Addon fields
     # are exposed only through their optional row-view APIs below.
     views = build_view_blocks(canonical_events, overlay)
     views.extend(build_addon_view_blocks(addon_view_specs))
 
-    write_file(out_dir / HEADER_NAME, decls)
-    write_file(out_dir / REGISTER_NAME, regs)
-    write_file(out_dir / RESET_NAME, resets)
-    write_file(out_dir / VIEW_NAME, views)
+    outputs = [
+        out_dir / HEADER_NAME,
+        out_dir / REGISTER_NAME,
+        out_dir / RESET_NAME,
+        out_dir / VIEW_NAME,
+        out_dir / BUNDLE_NAME,
+    ]
+    write_file(outputs[0], decls)
+    write_file(outputs[1], regs)
+    write_file(outputs[2], resets)
+    write_file(outputs[3], views)
     # Keep declarations and their generated API in one include generation.
     # The quoted includes resolve relative to this bundle, preventing an old
     # source-tree declaration file from mixing with a new build-tree API.
-    write_file(out_dir / BUNDLE_NAME, [
+    write_file(outputs[4], [
         f'#include "{HEADER_NAME}"',
         "public:",
         f'#include "{VIEW_NAME}"',
     ])
+    if args.depfile:
+        inputs = [json_path]
+        if overlay_path:
+            inputs.append(overlay_path)
+        inputs.extend(addon_paths)
+        write_depfile(args.depfile, outputs, inputs)
 
 
 if __name__ == "__main__":

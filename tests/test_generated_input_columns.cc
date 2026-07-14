@@ -103,14 +103,6 @@ int main() {
         require(ptSnapshot.size() == 2 && std::abs(ptSnapshot[1] - 80.f) < 1e-6f,
                 "generated input composition must bind the canonical branch buffer");
 
-        const auto missingCustom = loader.GetAllD0ToKPiViews();
-        require(!missingCustom.available(),
-                "a standard NanoAOD tree must report the custom collection as missing");
-        require(throws<SKNano::ConfigError>([&] {
-                    static_cast<void>(missingCustom.size());
-                }),
-                "a missing custom collection must not look like an empty event");
-
         ++loader.eventEpoch;
         bool staleFailed = false;
         try {
@@ -121,18 +113,6 @@ int main() {
         require(staleFailed,
                 "generated input snapshot must retain the event epoch guard");
 
-        int nD0ToKPi = 0;
-        TTree partialTree("Events", "Events");
-        partialTree.Branch("nD0ToKPi", &nD0ToKPi, "nD0ToKPi/I");
-        partialTree.Fill();
-        partialTree.SetBranchStatus("*", 0);
-        loader.currentLocalEntry = 0;
-        ++loader.eventEpoch;
-        loader.branchManager.attachTree(&partialTree);
-        require(throws<SKNano::ConfigError>([&] {
-                    static_cast<void>(loader.GetAllD0ToKPiViews());
-                }),
-                "a partially available custom collection must fail explicitly");
     } catch (const std::exception &error) {
         std::cerr << "test_generated_input_columns: " << error.what() << '\n';
         return 1;

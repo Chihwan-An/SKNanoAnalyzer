@@ -1,10 +1,9 @@
 #ifndef GENVIEW_H
 #define GENVIEW_H
 
-#include <memory>
 #include <cstddef>
-#include <vector>
 
+#include "EventRange.h"
 #include "TLorentzVector.h"
 #include "ViewColumns.h"
 
@@ -24,8 +23,8 @@ struct GenSoA {
 class GenView {
 public:
     GenView() = default;
-    GenView(std::shared_ptr<const GenSoA> storage, std::size_t index)
-        : store(std::move(storage)), idx(index) {}
+    GenView(const GenSoA *storage, std::size_t index)
+        : store(storage), idx(index) {}
 
     bool valid() const { return static_cast<bool>(store) && idx < store->size(); }
 
@@ -34,47 +33,38 @@ public:
     float Phi() const { return store->phi[idx]; }
     float Mass() const { return store->mass[idx]; }
     int PdgId() const { return store->pdgId[idx]; }
+    int PID() const { return PdgId(); }
     int Status() const { return store->status[idx]; }
     int MotherIndex() const { return static_cast<int>(store->motherIdx[idx]); }
     unsigned short StatusFlags() const { return store->statusFlags[idx]; }
+    bool isPrompt() const { return StatusFlags() & (1U << 0); }
+    bool isDecayedLeptonHadron() const { return StatusFlags() & (1U << 1); }
+    bool isTauDecayProduct() const { return StatusFlags() & (1U << 2); }
+    bool isPromptTauDecayProduct() const { return StatusFlags() & (1U << 3); }
+    bool isDirectTauDecayProduct() const { return StatusFlags() & (1U << 4); }
+    bool isDirectPromptTauDecayProduct() const { return StatusFlags() & (1U << 5); }
+    bool isDirectHadronDecayProduct() const { return StatusFlags() & (1U << 6); }
+    bool isHardProcess() const { return StatusFlags() & (1U << 7); }
+    bool fromHardProcess() const { return StatusFlags() & (1U << 8); }
+    bool isHardProcessTauDecayProduct() const { return StatusFlags() & (1U << 9); }
+    bool isDirectHardProcessTauDecayProduct() const { return StatusFlags() & (1U << 10); }
+    bool fromHardProcessBeforeFSR() const { return StatusFlags() & (1U << 11); }
+    bool isFirstCopy() const { return StatusFlags() & (1U << 12); }
+    bool isLastCopy() const { return StatusFlags() & (1U << 13); }
+    bool isLastCopyBeforeFSR() const { return StatusFlags() & (1U << 14); }
 
     TLorentzVector P4() const {
         TLorentzVector v;
         v.SetPtEtaPhiM(Pt(), Eta(), Phi(), Mass());
         return v;
     }
+    float DeltaR(const GenView &other) const { return P4().DeltaR(other.P4()); }
 
 private:
-    std::shared_ptr<const GenSoA> store;
+    const GenSoA *store = nullptr;
     std::size_t idx = 0;
 };
 
-class GenViewCollection {
-public:
-    GenViewCollection() = default;
-    explicit GenViewCollection(std::shared_ptr<GenSoA> payload)
-        : storage_(std::move(payload)) {
-        if (storage_) {
-            const std::size_t n = storage_->size();
-            views.reserve(n);
-            for (std::size_t i = 0; i < n; ++i) {
-                views.emplace_back(storage_, i);
-            }
-        }
-    }
-
-    const GenView &operator[](std::size_t index) const { return views[index]; }
-    std::size_t size() const { return views.size(); }
-    bool empty() const { return views.empty(); }
-
-    auto begin() const { return views.begin(); }
-    auto end() const { return views.end(); }
-
-    const std::shared_ptr<GenSoA> &storage() const { return storage_; }
-
-private:
-    std::shared_ptr<GenSoA> storage_;
-    std::vector<GenView> views;
-};
+using GenViewCollection = EventRange<GenSoA, GenView>;
 
 #endif // GENVIEW_H

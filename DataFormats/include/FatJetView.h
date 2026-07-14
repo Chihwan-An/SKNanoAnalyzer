@@ -1,0 +1,220 @@
+#ifndef FATJETVIEW_H
+#define FATJETVIEW_H
+
+#include <array>
+#include <cstddef>
+#include <iterator>
+
+#include "AnalysisException.h"
+#include "EventRange.h"
+#include "JetTaggingParameter.h"
+#include "TLorentzVector.h"
+#include "ViewColumns.h"
+
+struct FatJetSoA {
+    static constexpr std::size_t taggerCount = 4;
+    static constexpr std::size_t scoreCount =
+        static_cast<std::size_t>(JetTagging::FatJetTaggerScoreType::MassCorrX2p) + 1;
+
+    ColumnView<float> pt;
+    ColumnView<float> eta;
+    ColumnView<float> phi;
+    ColumnView<float> mass;
+    ColumnView<float> area;
+    ColumnView<float> rawFactor;
+    ColumnView<float> chEmEF;
+    ColumnView<float> chHEF;
+    ColumnView<float> hfEmEF;
+    ColumnView<float> hfHEF;
+    ColumnView<float> muEF;
+    ColumnView<float> neEmEF;
+    ColumnView<float> neHEF;
+    ColumnView<short> chMultiplicity;
+    ColumnView<short> neMultiplicity;
+    ColumnView<unsigned char> nConstituents;
+    ColumnView<short> genJetAK8Idx;
+    ColumnView<short> subJetIdx1;
+    ColumnView<short> subJetIdx2;
+    ColumnView<unsigned char> hadronFlavour;
+    ColumnView<float> softDropMass;
+    ColumnView<float> tau1;
+    ColumnView<float> tau2;
+    ColumnView<float> tau3;
+    ColumnView<float> n2b1;
+    ColumnView<float> n3b1;
+    ColumnView<float> lsf3;
+
+    std::array<std::array<ColumnView<float>, scoreCount>, taggerCount> scores;
+
+    ColumnView<int> constituentJetIdx;
+    ColumnView<int> constituentPFCandIdx;
+    ColumnView<float> pfCandPt;
+    ColumnView<float> pfCandEta;
+    ColumnView<float> pfCandPhi;
+    ColumnView<float> pfCandMass;
+    ColumnView<int> pfCandPdgId;
+    ColumnView<float> pfCandPuppiWeight;
+
+    std::size_t size() const { return pt.size(); }
+    ColumnView<float> &score(JetTagging::FatJetTagger tagger,
+                             JetTagging::FatJetTaggerScoreType type) {
+        return scores[static_cast<std::size_t>(tagger)]
+                     [static_cast<std::size_t>(type)];
+    }
+    const ColumnView<float> &score(JetTagging::FatJetTagger tagger,
+                                   JetTagging::FatJetTaggerScoreType type) const {
+        return scores[static_cast<std::size_t>(tagger)]
+                     [static_cast<std::size_t>(type)];
+    }
+};
+
+class FatJetConstituentView {
+public:
+    FatJetConstituentView() = default;
+    FatJetConstituentView(const FatJetSoA *storage, std::size_t pfIndex)
+        : store_(storage), pfIndex_(pfIndex) {}
+
+    float Pt() const { return store_->pfCandPt[pfIndex_]; }
+    float Eta() const { return store_->pfCandEta[pfIndex_]; }
+    float Phi() const { return store_->pfCandPhi[pfIndex_]; }
+    float M() const { return store_->pfCandMass[pfIndex_]; }
+    int PdgId() const { return store_->pfCandPdgId[pfIndex_]; }
+    float PUPPIWeight() const {
+        return store_->pfCandPuppiWeight.available()
+                   ? store_->pfCandPuppiWeight[pfIndex_]
+                   : 1.f;
+    }
+    TLorentzVector P4() const {
+        TLorentzVector value;
+        value.SetPtEtaPhiM(Pt(), Eta(), Phi(), M());
+        return value;
+    }
+
+private:
+    const FatJetSoA *store_ = nullptr;
+    std::size_t pfIndex_ = 0;
+};
+
+class FatJetConstituentRange {
+public:
+    FatJetConstituentRange() = default;
+    FatJetConstituentRange(const FatJetSoA *storage, std::size_t jetIndex)
+        : store_(storage), jetIndex_(jetIndex) {}
+
+    std::size_t size() const {
+        std::size_t count = 0;
+        const std::size_t associationCount = store_->constituentJetIdx.size();
+        for (std::size_t i = 0; i < associationCount; ++i)
+            if (store_->constituentJetIdx[i] == static_cast<int>(jetIndex_))
+                ++count;
+        return count;
+    }
+    bool empty() const { return size() == 0; }
+
+    FatJetConstituentView operator[](std::size_t position) const {
+        const std::size_t associationCount = store_->constituentJetIdx.size();
+        std::size_t selected = 0;
+        for (std::size_t i = 0; i < associationCount; ++i) {
+            if (store_->constituentJetIdx[i] != static_cast<int>(jetIndex_))
+                continue;
+            if (selected++ != position)
+                continue;
+            const int pfIndex = store_->constituentPFCandIdx[i];
+            if (pfIndex < 0 || static_cast<std::size_t>(pfIndex) >= store_->pfCandPt.size())
+                throw SKNano::LogicError("[FatJetConstituentRange] invalid PFCand index");
+            return FatJetConstituentView(store_, static_cast<std::size_t>(pfIndex));
+        }
+        throw SKNano::LogicError("[FatJetConstituentRange] index out of range");
+    }
+
+    class const_iterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = FatJetConstituentView;
+        using difference_type = std::ptrdiff_t;
+        using reference = value_type;
+        using pointer = void;
+        const_iterator() = default;
+        const_iterator(const FatJetConstituentRange *range, std::size_t position)
+            : range_(range), position_(position) {}
+        value_type operator*() const { return (*range_)[position_]; }
+        const_iterator &operator++() { ++position_; return *this; }
+        bool operator==(const const_iterator &other) const {
+            return range_ == other.range_ && position_ == other.position_;
+        }
+        bool operator!=(const const_iterator &other) const { return !(*this == other); }
+    private:
+        const FatJetConstituentRange *range_ = nullptr;
+        std::size_t position_ = 0;
+    };
+    const_iterator begin() const { return const_iterator(this, 0); }
+    const_iterator end() const { return const_iterator(this, size()); }
+
+private:
+    const FatJetSoA *store_ = nullptr;
+    std::size_t jetIndex_ = 0;
+};
+
+class FatJetView {
+public:
+    enum class ID { NOCUT, TIGHT, TIGHTLEPVETO };
+
+    FatJetView() = default;
+    FatJetView(const FatJetSoA *storage, std::size_t index)
+        : store_(storage), index_(index) {}
+
+    bool valid() const { return store_ && index_ < store_->size(); }
+    float Pt() const { return store_->pt[index_]; }
+    float Eta() const { return store_->eta[index_]; }
+    float Phi() const { return store_->phi[index_]; }
+    float M() const { return store_->mass[index_]; }
+    float Area() const { return store_->area[index_]; }
+    float RawFactor() const { return store_->rawFactor[index_]; }
+    float chEmEF() const { return store_->chEmEF[index_]; }
+    float chHEF() const { return store_->chHEF[index_]; }
+    float hfEmEF() const { return store_->hfEmEF[index_]; }
+    float hfHEF() const { return store_->hfHEF[index_]; }
+    float muEF() const { return store_->muEF[index_]; }
+    float neEmEF() const { return store_->neEmEF[index_]; }
+    float neHEF() const { return store_->neHEF[index_]; }
+    short chMultiplicity() const { return store_->chMultiplicity[index_]; }
+    short neMultiplicity() const { return store_->neMultiplicity[index_]; }
+    unsigned char nConstituents() const { return store_->nConstituents[index_]; }
+    short GenJetAK8Idx() const { return store_->genJetAK8Idx[index_]; }
+    short SubJetIdx1() const { return store_->subJetIdx1[index_]; }
+    short SubJetIdx2() const { return store_->subJetIdx2[index_]; }
+    unsigned char hadronFlavour() const { return store_->hadronFlavour[index_]; }
+    float SDMass() const { return store_->softDropMass[index_]; }
+    float Tau1() const { return store_->tau1[index_]; }
+    float Tau2() const { return store_->tau2[index_]; }
+    float Tau3() const { return store_->tau3[index_]; }
+    float N2b1() const { return store_->n2b1[index_]; }
+    float N3b1() const { return store_->n3b1[index_]; }
+    float LSF3() const { return store_->lsf3[index_]; }
+    std::size_t OriginalIndex() const { return index_; }
+
+    float GetTaggerResult(JetTagging::FatJetTagger tagger,
+                          JetTagging::FatJetTaggerScoreType type) const {
+        const auto &column = store_->score(tagger, type);
+        if (!column.available())
+            throw SKNano::LogicError(
+                "[FatJetView::GetTaggerResult] score is unavailable for this tagger");
+        return column[index_];
+    }
+    FatJetConstituentRange PFConstituents() const {
+        return FatJetConstituentRange(store_, index_);
+    }
+    TLorentzVector P4() const {
+        TLorentzVector value;
+        value.SetPtEtaPhiM(Pt(), Eta(), Phi(), M());
+        return value;
+    }
+
+private:
+    const FatJetSoA *store_ = nullptr;
+    std::size_t index_ = 0;
+};
+
+using FatJetViewCollection = EventRange<FatJetSoA, FatJetView>;
+
+#endif // FATJETVIEW_H

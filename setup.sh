@@ -82,8 +82,12 @@ elif [ $PACKAGE = "mamba" ]; then
     else
         # Only add micromamba to PATH if it's not already in PATH
         if ! command -v micromamba &> /dev/null; then
-            export PATH="$HOME/micromamba/bin:${PATH}"
-            export MAMBA_ROOT_PREFIX="$HOME/micromamba"
+            if [[ -n "${MAMBA_EXE:-}" && -x "${MAMBA_EXE}" ]]; then
+                export PATH="$(dirname "${MAMBA_EXE}"):${PATH}"
+            else
+                export PATH="$HOME/micromamba/bin:${PATH}"
+                export MAMBA_ROOT_PREFIX="$HOME/micromamba"
+            fi
         fi
     fi
 

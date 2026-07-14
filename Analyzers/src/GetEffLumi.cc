@@ -23,13 +23,13 @@ void GetEffLumi::executeEvent() {
     {
       weight = MCweight(false,false);
       weight_sign = MCweight(true,false);
-      FillHist("NEvents", 0, 1, 1, 0., 1.);
-      FillHist("sumW", 0, weight, 1, 0., 1.);
-      FillHist("sumSign", 0, weight_sign, 1, 0., 1.);
+      Hists().Fill("NEvents", 0, 1, 1, 0., 1.);
+      Hists().Fill("sumW", 0, weight, 1, 0., 1.);
+      Hists().Fill("sumSign", 0, weight_sign, 1, 0., 1.);
     }
   else{
-    if(myCorr->IsGoldenLumi(RunNumber, luminosityBlock)) FillHist("NEvents", 0, 1, 1, 0., 1.);
-    FillHist("NEvents_GoldenAndNotGolden", 0, 1, 1, 0., 1.);
+    if(myCorr->IsGoldenLumi(RunNumber, luminosityBlock)) Hists().Fill("NEvents", 0, 1, 1, 0., 1.);
+    Hists().Fill("NEvents_GoldenAndNotGolden", 0, 1, 1, 0., 1.);
   }
 
 

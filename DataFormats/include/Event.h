@@ -4,12 +4,15 @@
 #include "Particle.h"
 #include "TString.h"
 #include "TObject.h"
-#include "MyCorrection.h"
-#include "Triggerinfo.h"
+#include "AnalysisException.h"
+#include "TriggerDecision.h"
+#include "Variation.h"
 using namespace std;
+#include <cstdint>
 #include <map>
+#include <string>
 
-using TriggerMap_t = std::map<TString, std::unique_ptr<TriggerInfo>>;
+using TriggerDecisionMap_t = SKNano::TriggerDecisionMap;
 
 class Event: public TObject {
 public:
@@ -40,7 +43,8 @@ public:
     inline float nTrueInt() const { return j_nTrueInt; }
     void SetnPVsGood(int nPVsGood) { j_nPVsGood = nPVsGood;}
     inline int nPVsGood() const { return j_nPVsGood; }
-    void SetTrigger(const TriggerMap_t& map);
+    void SetTrigger(const TriggerDecisionMap_t& map);
+    void SetTriggerProvider(const SKNano::TriggerDecisionProvider *provider);
     void setRho(float rho) { j_fixedGridRhoFastjetAll = rho; }
     inline float GetRho() const { return j_fixedGridRhoFastjetAll; }
     //void SetTrigger(RVec<TString> HLT_TriggerName) { j_HLT_TriggerName = HLT_TriggerName; }
@@ -52,7 +56,7 @@ public:
     bool IsPDForTrigger(TString trig, TString PD);
 
     void SetMET(RVec<float> MET_pt, RVec<float> MET_phi);
-    Particle GetMETVector(Event::MET_Type MET_type, MyCorrection::variation syst = MyCorrection::variation::nom, Event::MET_Syst source = MET_Syst::CENTRAL) const;
+    Particle GetMETVector(Event::MET_Type MET_type, SKNano::Variation syst = SKNano::Variation::nom, Event::MET_Syst source = MET_Syst::CENTRAL) const;
 
     void SetGenMET(float GenMet_pt, float GenMet_phi) { j_GenMETVector.SetPtEtaPhiM(GenMet_pt, 0, GenMet_phi, 0); }
     Particle GetGenMETVector() const { return j_GenMETVector; }
@@ -65,8 +69,12 @@ public:
     int GetYear() const { return j_DataYear; }
 
 private:
+    void AssertCurrentTriggerProvider() const;
+
     int j_run, j_lumi, j_event;
-    const TriggerMap_t* j_HLTmap = nullptr;
+    const TriggerDecisionMap_t* j_HLTmap = nullptr; //!
+    const SKNano::TriggerDecisionProvider *j_triggerProvider = nullptr; //!
+    std::uint64_t j_triggerProviderEpoch = 0; //!
     int j_nPV;
     int j_nPVsGood;
     float j_nTrueInt;

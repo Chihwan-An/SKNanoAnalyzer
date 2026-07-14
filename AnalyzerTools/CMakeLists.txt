@@ -63,7 +63,7 @@ add_library(AnalyzerTools SHARED
 target_include_directories(AnalyzerTools PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../DataFormats/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../Analyzers/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../SKNanoCore/include>
     $<BUILD_INTERFACE:${ROOT_INCLUDE_DIRS}>
     $<BUILD_INTERFACE:$ENV{LHAPDF_INCLUDE_DIR}>
     $<BUILD_INTERFACE:$ENV{CORRECTION_INCLUDE_DIR}>
@@ -77,6 +77,7 @@ target_link_libraries(AnalyzerTools PUBLIC
     ZLIB::ZLIB
     ${LHAPDF_LIBRARY}
     ${CORRECTION_LIBRARY}
+    SKNanoCore
     DataFormats
     yaml-cpp::yaml-cpp
     MLHelper

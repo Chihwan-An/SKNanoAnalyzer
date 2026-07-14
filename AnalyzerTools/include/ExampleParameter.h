@@ -2,6 +2,7 @@
 #define ExampleParameter_h
 
 #include "AnalyzerParameter.h"
+#include "AnalysisException.h"
 
 class ExampleParameter : public AnalyzerParameter {
 public:
@@ -36,8 +37,7 @@ public:
                 case ElectronResUp: return "ElectronResUp";
                 case ElectronResDown: return "ElectronResDown";
                 default:
-                    cerr << "[ExampleParameter::SYST::toString] Unknown systematics" << endl;
-                    exit(ENODATA);
+                    throw SKNano::LogicError("[ExampleParameter::SYST::toString] Unknown systematics");
             }
         }
     };

@@ -42,7 +42,7 @@ enum class variation
 
 ### Avoid to use Magic Number or Magic Literal
 Please avoid to use string as key, Since it will make a confusion to which key should be passed to function. 
-I recommend to use `enum class` for the key. For example, in [`Electron.h`](../DataFormats/include/Electron.h), I defined
+I recommend to use `enum class` for the key. For example, in [`LeptonIDEnums.h`](../DataFormats/include/LeptonIDEnums.h), the electron IDs are defined as
 ```cpp
   enum class ElectronID {
       NOCUT,

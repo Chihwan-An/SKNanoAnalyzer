@@ -5,25 +5,29 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <memory>
+#include <sstream>
 using namespace std;
 
+#include "AnalysisException.h"
 #include "TString.h"
 #include "TRandom3.h"
 #include "TMath.h"
 #include "correction.h"
 #include "RoccoR.h"
-#include "Jet.h"
 #include "JetView.h"
 #include "JetTaggingParameter.h"
-#include "Gen.h"
 #include "GenView.h"
-#include "Muon.h"
-#include "Electron.h"
-#include "FatJet.h"
+#include "MuonView.h"
+#include "ElectronView.h"
+#include "FatJetView.h"
+#include "Particle.h"
 #include "GoldenJsonParser.h"
+#include "Variation.h"
+#include "CorrectionBatch.h"
 
 #include "MLHelper.h"
 #include "TString.h"
@@ -32,10 +36,17 @@ using correction::CorrectionSet;
 
 class MyCorrection {
 public:
-    enum class variation {
-        nom,
-        up,
-        down
+    using variation = SKNano::Variation;
+
+    struct MuonScaleAndError {
+        float scale = 1.f;
+        float error = 0.f;
+    };
+
+    struct JERSFSet {
+        float nom = 1.f;
+        float up = 1.f;
+        float down = 1.f;
     };
 
     enum class POG {
@@ -59,28 +70,41 @@ public:
     bool IsGoldenLumi(const unsigned int runNumber, const unsigned int lumiSection) const;
 
     // Muon
-    float GetMuonScaleSF(const Muon &muon, const variation syst = variation::nom, const float matched_pt=0) const;
-    float GetMuonRECOSF(const Muon &muon, const variation syst = variation::nom) const;
-    float GetMuonRECOSF(const RVec<Muon> &muons, const variation syst = variation::nom) const;
-    inline float GetMuonISOSF(const TString &Muon_ISO_SF_Key, const Muon &muon, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_ISO_SF_Key, muon, syst); }
-    inline float GetMuonISOSF(const TString &Muon_ISO_SF_Key, const RVec<Muon> &muons, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_ISO_SF_Key, muons, syst); }
-    float GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon, const variation syst = variation::nom) const;
-    float GetMuonIDSF(const TString &Muon_ID_SF_Key, const RVec<Muon> &muons, const variation syst = variation::nom) const;
+    MuonScaleAndError GetMuonScaleAndError(int charge, float pt, float eta,
+                                           float phi, int trackerLayers,
+                                           float matchedPt = 0.f) const;
+    float GetMuonRECOSF(const MuonView &muon, const variation syst = variation::nom) const;
+    float GetMuonRECOSF(const MuonViewCollection &muons, const variation syst = variation::nom) const;
+    float GetMuonIDSF(const TString &key, const MuonView &muon,
+                      variation syst = variation::nom) const;
+    float GetMuonIDSF(const TString &key, const MuonViewCollection &muons,
+                      const std::vector<std::size_t> &indices,
+                      variation syst = variation::nom) const;
+    float GetMuonIDSF(const TString &key, const MuonViewCollection &muons,
+                      variation syst = variation::nom) const;
+    inline float GetMuonISOSF(const TString &key,
+                              const MuonViewCollection &muons,
+                              variation syst = variation::nom,
+                              const TString &source = "") const {
+      static_cast<void>(source);
+      return GetMuonIDSF(key, muons, syst);
+    }
 
     // electron
     float GetElectronScaleUnc(const float scEta, const unsigned char seedGain, const unsigned int runNumber, const float r9, const float pt, const variation syst = variation::nom) const;
-    float GetElectronSmearUnc(const Electron &electron, const variation syst = variation::nom, const unsigned int seed=999) const;
     float GetElectronRECOSF(const float abseta, const float pt, const float phi, const variation syst = variation::nom) const;
-    float GetElectronRECOSF(const RVec<Electron> &electrons, const variation syst = variation::nom) const;
+    float GetElectronRECOSF(const ElectronView &electron, const variation syst = variation::nom) const;
+    float GetElectronRECOSF(const ElectronViewCollection &electrons, const variation syst = variation::nom) const;
     float GetElectronIDSF(const TString &Electron_ID_SF_Key, const float abseta, const float pt, const float phi, const variation syst = variation::nom) const;
-    float GetElectronIDSF(const TString &Electron_ID_SF_Key, const RVec<Electron> &electrons, const variation syst = variation::nom) const;
+    float GetElectronIDSF(const TString &key, const ElectronView &electron, const variation syst = variation::nom) const;
+    float GetElectronIDSF(const TString &key, const ElectronViewCollection &electrons, const variation syst = variation::nom) const;
     // photon
 
     // Trigger
     // Single lepton trigger from POG
     float GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key, const float abseta, const float pt, const bool isData, const variation syst = variation::nom) const;
-    float GetMuonTriggerSF(const TString &Muon_Trigger_Eff_Key, const RVec<Muon> &muons, const variation syst = variation::nom) const;
-    float GetMuonTriggerSF(const TString &Muon_Trigger_Eff_Key, const Muon muon, const variation syst = variation::nom) const;
+    float GetMuonTriggerSF(const TString &key, const MuonView &muon, const variation syst = variation::nom) const;
+    float GetMuonTriggerSF(const TString &key, const MuonViewCollection &muons, const variation syst = variation::nom) const;
     float GetElectronTriggerEff(const TString &Electron_ID_SF_Key, const float eta, const float pt, const float phi, const bool isDATA, const variation syst = variation::nom) const;
     inline float GetElectronTriggerDataEff(const TString &Electron_ID_SF_Key, const float eta, const float pt, const float phi, const variation syst = variation::nom) {
         return GetElectronTriggerEff(Electron_ID_SF_Key, eta, pt, phi, true, syst);
@@ -89,16 +113,6 @@ public:
         return GetElectronTriggerEff(Electron_ID_SF_Key, eta, pt, phi, false, syst);
     };
     float GetElectronTriggerSF(const TString &Electron_Trigger_SF_Key, const float eta, const float pt, const float phi, const variation syst = variation::nom) const;
-
-    // double lepton triggers
-    float GetTriggerEff(const Muon &muon, const TString &trigger_leg_key, const bool isData, const variation syst=variation::nom) const;
-    float GetTriggerEff(const Electron &electron, const TString &trigger_leg_key, const bool isData, const variation syst=variation::nom) const;
-    float GetDblMuTriggerEff(const RVec<Muon> &muons, const bool isDATA, const variation syst=variation::nom) const;
-    float GetDblMuTriggerSF(const RVec<Muon> &muons, const variation syst=variation::nom) const;
-    float GetEMuTriggerEff(const RVec<Electron> &electrons, const RVec<Muon> &muons, const bool isDATA, const variation syst=variation::nom) const;
-    float GetEMuTriggerSF(const RVec<Electron> &electrons, const RVec<Muon> &muons, const variation syst=variation::nom) const;
-    float GetPairwiseFilterEff(const TString &filter_name, const bool isData) const;
-
 
     // PUWeights
     float GetPUWeight(const float nTrueInt, const variation syst = variation::nom, const TString &source = "") const;
@@ -110,33 +124,30 @@ public:
     float GetBTaggingWP() const;
     float GetBTaggingWP(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerWP wp) const;
     float GetBTaggingEff(const float eta, const float pt, const int flav, JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerWP wp, const variation syst = variation::nom);
-    float GetBTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFlavTagger tagger, const JetTagging::JetFlavTaggerWP wp, const JetTagging::JetTaggingSFMethod method = JetTagging::JetTaggingSFMethod::mujets, const variation syst = variation::nom, const TString &source = "total");
-    float GetBTaggingR(const RVec<Jet> &jets, const JetTagging::JetFlavTagger tagger, std::string &processName, const variation syst = variation::nom, const TString &source = "total") const;
-    inline float GetBTaggingSF(const RVec<Jet> &jets, const JetTagging::JetTaggingSFMethod method = JetTagging::JetTaggingSFMethod::mujets, const variation syst = variation::nom, const TString &source = "total") { return GetBTaggingSF(jets, global_tagger, global_wp, method, syst, source); }
-    inline float GetBTaggingR(const RVec<Jet> &jets, std::string &processName, const variation syst = variation::nom, const TString &source = "total") const { return GetBTaggingR(jets, global_tagger, processName, syst, source); }
 
     // ctagging
     pair<float, float> GetCTaggingWP() const;
     pair<float, float> GetCTaggingWP(JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerWP wp) const;
     float GetCTaggingEff(const float eta, const float pt, const int flav, JetTagging::JetFlavTagger tagger, JetTagging::JetFlavTaggerWP wp, const variation syst = variation::nom);
-    float GetCTaggingSF(const RVec<Jet> &jets, const JetTagging::JetFlavTagger tagger, const JetTagging::JetFlavTaggerWP wp, const JetTagging::JetTaggingSFMethod method, const variation syst, const TString &source = "total");
     float GetCTaggingR(const float npvs, const float HT, const JetTagging::JetFlavTagger tagger, const TString &processName = "", const TString &ttBarCategory = "total", const TString &syst_str = "") const;
-    inline float GetCTaggingSF(const RVec<Jet> &jets, const JetTagging::JetTaggingSFMethod method = JetTagging::JetTaggingSFMethod::mujets, const variation syst = variation::nom, const TString &source = "total") { return GetCTaggingSF(jets, global_tagger, global_wp, method, syst, source); }
-
-    // PileUp Jet ID
-    float GetPileupJetIDSF(const RVec<Jet> &jets, const unordered_map<int, int> &matched_idx, const TString &wp, const variation syst=variation::nom);
 
     // Jet ID
-    bool PassJetID(const Jet &jet, const Jet::JetID &id) const;
-    bool PassJetID(const JetView &jet, const Jet::JetID &id) const;
-    bool PassFatJetID(const FatJet &fatjet, const FatJet::FatJetID &id) const;
+    bool PassJetID(const JetView &jet, const JetView::JetID &id) const;
+    bool PassFatJetID(const FatJetView &fatjet, FatJetView::ID id) const;
 
     // JERC
     float GetJER(const float eta, const float pt, const float rho) const;
     float GetJERSF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    JERSFSet GetJERSFSet(const float eta, const float pt, const TString &source = "total") const;
     float GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
     float GetJESUncertaintySF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     float GetJESUncertainty(const float eta, const float pt, const TString &source = "total") const;
+    void EvaluateJetCorrectionBatch(
+        const SKNano::JetCorrectionBatchInput &input,
+        SKNano::JetCorrectionBatchOutput &output,
+        SKNano::CorrectionLaneMask jerLanes = {},
+        SKNano::CorrectionLaneMask jesLanes = {},
+        const TString &jesSource = "total") const;
     // jerc_fatjet
     
     // jetvetomap
@@ -158,20 +169,19 @@ public:
                               const string &function_name,
                               const vector<correction::Variable::Type> &args) const {
         if (!cset) {
-            cerr << "[MyCorrection::" << function_name << "] Error: Correction set is null" << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::ConfigError("[MyCorrection::" + function_name + "] Correction set is null");
         }
         
         try {
             return cset->evaluate(args);
         } catch (const std::exception &e) {
-            cerr << "[MyCorrection::" << function_name << "] Error during evaluation: " << e.what() << endl;
-            cerr << "[MyCorrection::" << function_name << "] Arguments (" << args.size() << "): ";
+            std::ostringstream oss;
+            oss << "[MyCorrection::" << function_name << "] Error during evaluation: "
+                << e.what() << "; arguments (" << args.size() << "): ";
             for (const auto &arg : args) {
-                std::visit([](const auto &value) { cerr << value << " "; }, arg);
+                std::visit([&oss](const auto &value) { oss << value << " "; }, arg);
             }
-            cerr << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::CorrectionError(oss.str());
         }
     }
 
@@ -181,20 +191,19 @@ public:
                               const string &function_name,
                               const vector<correction::Variable::Type> &args) const {
         if (!cset) {
-            cerr << "[MyCorrection::" << function_name << "] Error: CompoundCorrection set is null" << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::ConfigError("[MyCorrection::" + function_name + "] CompoundCorrection set is null");
         }
         
         try {
             return cset->evaluate(args);
         } catch (const std::exception &e) {
-            cerr << "[MyCorrection::" << function_name << "] Error during evaluation: " << e.what() << endl;
-            cerr << "[MyCorrection::" << function_name << "] Arguments (" << args.size() << "): ";
+            std::ostringstream oss;
+            oss << "[MyCorrection::" << function_name << "] Error during evaluation: "
+                << e.what() << "; arguments (" << args.size() << "): ";
             for (const auto &arg : args) {
-                std::visit([](const auto &value) { cerr << value << " "; }, arg);
+                std::visit([&oss](const auto &value) { oss << value << " "; }, arg);
             }
-            cerr << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::CorrectionError(oss.str());
         }
     }
 
@@ -318,6 +327,13 @@ private:
         return find(inputs.begin(), inputs.end(), key) != inputs.end();
     }
 
+    const correction::Correction::Ref &getJERPtResolutionCorrection() const;
+    const correction::Correction::Ref &getJERScaleFactorCorrection() const;
+    const correction::Correction::Ref &getJERSFUncertaintyCorrection() const;
+    const correction::Correction::Ref &getJESUncertaintyCorrection(const string &source) const;
+    float safeEvaluate2D(const correction::Correction::Ref &cset, const string &function_name, float x, float y) const;
+    float safeEvaluate3D(const correction::Correction::Ref &cset, const string &function_name, float x, float y, float z) const;
+
     JetTagging::JetFlavTaggerWP global_wp;
     JetTagging::JetFlavTagger global_tagger;
     string global_wpStr;
@@ -376,6 +392,22 @@ private:
     unordered_map<string, string> JME_vetomap_keys;
     unordered_map<string, string> JME_PILEUP_keys;
     unordered_map<string, string> JME_MET_keys;
+
+    mutable correction::Correction::Ref cachedJERPtResolution;
+    mutable correction::Correction::Ref cachedJERScaleFactor;
+    mutable correction::Correction::Ref cachedJERSFUncertainty;
+    mutable unordered_map<string, correction::Correction::Ref> cachedJESUncertaintyCorrections;
+    // Immutable for a configured era/data mode.  The first JEC request binds
+    // the correctionlib refs once instead of doing string construction and
+    // CorrectionSet lookups for every jet.
+    mutable bool preparedJESValid = false;
+    mutable string preparedJESEra;
+    mutable bool preparedJESIsData = false;
+    mutable correction::CompoundCorrection::Ref preparedJESCompound;
+    mutable correction::Correction::Ref preparedJESL1;
+    mutable correction::Correction::Ref preparedJESL2;
+    mutable correction::Correction::Ref preparedJESL3;
+    mutable correction::Correction::Ref preparedJESResidual;
     
     RoccoR rc;
     unique_ptr<GoldenJsonParser> golden_json_parser;

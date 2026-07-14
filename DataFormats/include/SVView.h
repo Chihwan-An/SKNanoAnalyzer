@@ -2,9 +2,8 @@
 #define SVVIEW_H
 
 #include <cstddef>
-#include <memory>
-#include <vector>
 
+#include "EventRange.h"
 #include "TLorentzVector.h"
 #include "ViewColumns.h"
 
@@ -32,8 +31,8 @@ struct SVSoA {
 class SVView {
 public:
     SVView() = default;
-    SVView(std::shared_ptr<const SVSoA> storage, std::size_t index)
-        : store(std::move(storage)), idx(index) {}
+    SVView(const SVSoA *storage, std::size_t index)
+        : store(storage), idx(index) {}
 
     bool valid() const { return static_cast<bool>(store) && idx < store->size(); }
 
@@ -61,36 +60,10 @@ public:
     }
 
 private:
-    std::shared_ptr<const SVSoA> store;
+    const SVSoA *store = nullptr;
     std::size_t idx = 0;
 };
 
-class SVViewCollection {
-public:
-    SVViewCollection() = default;
-    explicit SVViewCollection(std::shared_ptr<SVSoA> storage)
-        : payload(std::move(storage)) {
-        if (payload) {
-            const std::size_t n = payload->size();
-            views.reserve(n);
-            for (std::size_t i = 0; i < n; ++i) {
-                views.emplace_back(payload, i);
-            }
-        }
-    }
-
-    const SVView &operator[](std::size_t index) const { return views[index]; }
-    std::size_t size() const { return views.size(); }
-    bool empty() const { return views.empty(); }
-
-    auto begin() const { return views.begin(); }
-    auto end() const { return views.end(); }
-
-    const std::shared_ptr<SVSoA> &storage() const { return payload; }
-
-private:
-    std::shared_ptr<SVSoA> payload;
-    std::vector<SVView> views;
-};
+using SVViewCollection = EventRange<SVSoA, SVView>;
 
 #endif // SVVIEW_H

@@ -115,8 +115,8 @@ void ModellingPatch::executeEvent() {
   ++acc.nMC;
   acc.sumSign += sign;
 
-  FillHist(sub + "/NEvents", 0.f, 1.f, 1, 0., 1.);
-  FillHist(sub + "/sumSign", 0.f, sign, 1, 0., 1.);
+  Hists().Fill(sub + "/NEvents", 0.f, 1.f, 1, 0., 1.);
+  Hists().Fill(sub + "/sumSign", 0.f, sign, 1, 0., 1.);
 
   if (nScale > 0 && LHEScaleWeight.valid()) {
     const auto &scales = LHEScaleWeight.values();
@@ -124,7 +124,7 @@ void ModellingPatch::executeEvent() {
     for (int i = 0; i < limit; ++i) {
       const double val = sign * static_cast<double>(scales[i]);
       acc.sumScaleVariation[i] += val;
-      FillHist(sub + "/sumScaleVariation", static_cast<float>(i), val, nScale,
+      Hists().Fill(sub + "/sumScaleVariation", static_cast<float>(i), val, nScale,
                0.f, nScale);
     }
   }
@@ -135,7 +135,7 @@ void ModellingPatch::executeEvent() {
     for (int i = 0; i < limit; ++i) {
       const double val = sign * static_cast<double>(ps[i]);
       acc.sumPSVariation[i] += val;
-      FillHist(sub + "/sumPSVariation", static_cast<float>(i), val, nPS, 0,
+      Hists().Fill(sub + "/sumPSVariation", static_cast<float>(i), val, nPS, 0,
                nPS);
     }
   }
@@ -162,9 +162,9 @@ void ModellingPatch::executeEvent() {
     acc.sum_hdamp_down += sign * hdamp_down;
     acc.sum_minnlo += sign * minnlo;
 
-    FillHist(sub + "/sum_hdamp_up", 0.f, sign * hdamp_up, 1, 0., 1.);
-    FillHist(sub + "/sum_hdamp_down", 0.f, sign * hdamp_down, 1, 0., 1.);
-    FillHist(sub + "/sum_minnlo", 0.f, sign * minnlo, 1, 0., 1.);
+    Hists().Fill(sub + "/sum_hdamp_up", 0.f, sign * hdamp_up, 1, 0., 1.);
+    Hists().Fill(sub + "/sum_hdamp_down", 0.f, sign * hdamp_down, 1, 0., 1.);
+    Hists().Fill(sub + "/sum_minnlo", 0.f, sign * minnlo, 1, 0., 1.);
 
     // b-fragmentation
     double bfrag_nom = 1.0;
@@ -203,7 +203,7 @@ void ModellingPatch::executeEvent() {
 
     acc.sum_bfrag_nom += sign * bfrag_nom;
     acc.sum_bfrag_up += sign * bfrag_up;
-    FillHist(sub + "/sum_bfrag_nom", 0.f, sign * bfrag_nom, 1, 0., 1.);
-    FillHist(sub + "/sum_bfrag_up", 0.f, sign * bfrag_up, 1, 0., 1.);
+    Hists().Fill(sub + "/sum_bfrag_nom", 0.f, sign * bfrag_nom, 1, 0., 1.);
+    Hists().Fill(sub + "/sum_bfrag_up", 0.f, sign * bfrag_up, 1, 0., 1.);
   }
 }

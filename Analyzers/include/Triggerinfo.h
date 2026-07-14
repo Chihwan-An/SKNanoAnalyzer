@@ -8,7 +8,9 @@
 #include "TString.h"
 
 struct TriggerInfo {
-    std::unique_ptr<BranchScalar<Bool_t>> hlt;
+    // Owned by BranchManager.  This may point at a generated HLT wrapper or
+    // a dynamic wrapper, but never creates a second SetAddress for a branch.
+    BranchScalar<Bool_t> *hlt = nullptr;
     float lumi = 0.f;
     bool alwaysTrue = false;
 };

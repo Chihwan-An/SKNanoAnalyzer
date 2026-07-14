@@ -8,12 +8,12 @@ public:
     void initializeAnalyzer();
     void executeEvent();
 
-    RVec<LHE> LHEObjects;
-    RVec<Gen> GenObjects;
-    RVec<GenJet> GenJetObjects;
-    RVec<GenDressedLepton> GenDressedLeptonObjects;
-    RVec<GenIsolatedPhoton> GenIsolatedPhotonObjects;
-    RVec<GenVisTau> GenVisTauObjects;
+    LHEViewCollection LHEObjects;
+    GenViewCollection GenObjects;
+    GenJetViewCollection GenJetObjects;
+    GenDressedLeptonViewCollection GenDressedLeptonObjects;
+    GenIsolatedPhotonViewCollection GenIsolatedPhotonObjects;
+    GenVisTauViewCollection GenVisTauObjects;
 
     GeneratorBase();
     ~GeneratorBase();

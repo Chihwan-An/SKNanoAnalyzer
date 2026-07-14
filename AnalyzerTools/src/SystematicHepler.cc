@@ -1,5 +1,6 @@
 #include "SystematicHelper.h"
 #include <yaml-cpp/yaml.h>
+#include <memory>
 
 namespace {
 
@@ -18,7 +19,57 @@ std::string strip_variation_suffix(const std::string &syst_name) {
     return syst_name;
 }
 
+struct NominalWeightPlan {
+    std::vector<std::string> targets;
+    std::vector<float> factors;
+    std::unique_ptr<SKNano::StableWeightProductPlan<float>> stableProduct;
+    std::unordered_map<std::string, std::size_t> index;
+    float product = 1.f;
+};
+
+NominalWeightPlan make_nominal_weight_plan(
+    const std::vector<SystematicHelper::SYST> &systematics,
+    const std::unordered_map<std::string, float> &nominal) {
+    NominalWeightPlan plan;
+    for (const auto &systematic : systematics) {
+        if (plan.index.count(systematic.target))
+            continue;
+        const auto found = nominal.find(systematic.target);
+        if (found == nominal.end())
+            throw SKNano::LogicError(
+                "[SystematicHelper] missing nominal weight for target " +
+                systematic.target);
+        plan.index.emplace(systematic.target, plan.targets.size());
+        plan.targets.push_back(systematic.target);
+        plan.factors.push_back(found->second);
+        plan.product *= found->second;
+    }
+    plan.stableProduct =
+        std::make_unique<SKNano::StableWeightProductPlan<float>>(plan.factors);
+    return plan;
+}
+
+float product_excluding(const NominalWeightPlan &plan,
+                        const std::unordered_set<std::string> &excluded) {
+    std::vector<std::size_t> indices;
+    for (std::size_t index = 0; index < plan.targets.size(); ++index)
+        if (excluded.count(plan.targets[index]))
+            indices.push_back(index);
+    return plan.stableProduct->productExcluding(indices);
+}
+
 } // namespace
+
+SystematicHelper::CompiledVariationPlan
+SystematicHelper::compileVariationPlan() const {
+    CompiledVariationPlan compiled;
+    compiled.lanes = systematics_evtLoopAgain;
+    compiled.plan.lanes.reserve(compiled.lanes.size());
+    for (std::size_t index = 0; index < compiled.lanes.size(); ++index)
+        compiled.plan.lanes.emplace_back(
+            SKNano::SystematicId(static_cast<std::uint32_t>(index)));
+    return compiled;
+}
 
 SystematicHelper::SystematicHelper(std::string yaml_path,
     TString sample,
@@ -204,8 +255,7 @@ void SystematicHelper::checkBadSystematics()
 
     if (badSysts)
     {
-        throw std::runtime_error("Bad systematics found");
-        exit(1);
+        throw SKNano::ConfigError("Bad systematics found");
     }
 }
 
@@ -288,8 +338,7 @@ void SystematicHelper::assignWeightFunctionMap(const unordered_map<std::string, 
         {
             if (weight_variant.index() != 1)
             {
-                std::cerr << "Weight function for " << syst.syst << " is not a one-sided weight function" << std::endl;
-                exit(1);
+                throw SKNano::ConfigError("Weight function for " + syst.syst + " is not a one-sided weight function");
             }
             weight_functions_onesided[syst.target] = std::get<std::function<float()>>(weight_variant);
         };
@@ -298,8 +347,7 @@ void SystematicHelper::assignWeightFunctionMap(const unordered_map<std::string, 
         {
             if (weight_variant.index() != 0)
             {
-                std::cerr << "Weight function for " << syst.syst << " is not a two-sided weight function" << std::endl;
-                exit(1);
+                throw SKNano::ConfigError("Weight function for " + syst.syst + " is not a two-sided weight function");
             }
             weight_functions[syst.target] = std::get<std::function<float(MyCorrection::variation, TString)>>(weight_variant);
         };
@@ -308,13 +356,13 @@ void SystematicHelper::assignWeightFunctionMap(const unordered_map<std::string, 
     }
     if (syst_no_weight_function.size() > 0)
     {
-        std::cerr << "Weight function for " << std::endl;
+        std::string missing = "Weight function for ";
         for (const auto &syst : syst_no_weight_function)
         {
-            std::cerr << syst << std::endl;
+            missing += syst + " ";
         }
-        std::cerr << "are not assigned" << std::endl;
-        exit(1);
+        missing += "are not assigned";
+        throw SKNano::ConfigError(missing);
     }
     weight_functions_assigned = true;
 }
@@ -323,8 +371,7 @@ std::unordered_map<std::string, float> SystematicHelper::calculateWeight(bool dr
 {
     if(!weight_functions_assigned && !dry_run)
     {
-        std::cerr << "Weight functions are not assigned" << std::endl;
-        exit(1);
+        throw SKNano::ConfigError("Weight functions are not assigned");
     }
     for (const auto &syst : systematics)
     {
@@ -380,14 +427,9 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case
 {
     std::vector<string> all_weight_systs;
     unordered_map<std::string, float> weights;
-    float nominal_weight = 1.;
-    unordered_set<std::string> all_weight_targets;
-
-    for (const auto &syst : systematics)
-        all_weight_targets.insert(syst.target);
-
-    for (const auto &target : all_weight_targets)
-        nominal_weight *= weight_map_nominal[target];
+    const auto nominalPlan =
+        make_nominal_weight_plan(systematics, weight_map_nominal);
+    const float nominal_weight = nominalPlan.product;
 
     for (const auto &syst : systematics)
     {
@@ -399,8 +441,7 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case
     for (const auto &correlation : correlations)
     {
         const auto &member_ptrs = correlation.second.member_ptrs;
-        float weight_up = nominal_weight;
-        float weight_down = nominal_weight;
+        std::unordered_set<std::string> replacedTargets;
         // If current Iter_obj is Central and correlation include systematic that has dedicated sample of require evtLoopAgain, skip.
         // that correlation set will be calculated in that situation
         bool correlation_should_be_skipped = false;
@@ -413,15 +454,14 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case
                 correlation_should_be_skipped = true;
                 break;
             }
+            replacedTargets.insert(sources_in_table->target);
         }
-        
+        float weight_up = product_excluding(nominalPlan, replacedTargets);
+        float weight_down = weight_up;
         for (const auto *sources_in_table : member_ptrs)
         {
             if (!sources_in_table)
                 continue;
-            const std::string &this_target = sources_in_table->target;
-            weight_up = safe_divide(weight_up, weight_map_nominal[this_target]);
-            weight_down = safe_divide(weight_down, weight_map_nominal[this_target]);
             weight_up *= weight_map_up[sources_in_table->syst];
             weight_down *= weight_map_down[sources_in_table->syst];
             auto it = find(all_weight_systs.begin(), all_weight_systs.end(), sources_in_table->syst);
@@ -438,8 +478,6 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case
     // systematic that not in correlation table
     for (const auto &syst_name : all_weight_systs)
     {
-        float weight_up = nominal_weight;
-        float weight_down = nominal_weight;
         SystematicHelper::SYST *syst_ptr = findSystematic(syst_name);
         if (!syst_ptr)
             continue;
@@ -448,10 +486,11 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case
             continue;
         }
         const std::string &this_target = syst_ptr->target;
-        weight_up = safe_divide(weight_up, weight_map_nominal[this_target]);
-        weight_down = safe_divide(weight_down, weight_map_nominal[this_target]);
-        weight_up *= weight_map_up[syst_ptr->syst];
-        weight_down *= weight_map_down[syst_ptr->syst];
+        const auto targetIndex = nominalPlan.index.at(this_target);
+        const float weight_up = nominalPlan.stableProduct->productExcluding(targetIndex) *
+                                weight_map_up[syst_ptr->syst];
+        const float weight_down = nominalPlan.stableProduct->productExcluding(targetIndex) *
+                                  weight_map_down[syst_ptr->syst];
         weights[syst_ptr->syst + variation_prefix[MyCorrection::variation::up]] = weight_up;
         weights[syst_ptr->syst + variation_prefix[MyCorrection::variation::down]] = weight_down;
     }
@@ -480,9 +519,8 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_non_central_
     bool Iter_obj_in_correlation = false;
     CORRELATION this_correlation;
     unordered_map<std::string, float> weights;
-    unordered_set<std::string> all_weight_targets;
-    for (const auto &syst : systematics)
-        all_weight_targets.insert(syst.target);
+    const auto nominalPlan =
+        make_nominal_weight_plan(systematics, weight_map_nominal);
     for (const auto &correlation : correlations)
     {
         if (correlation.second.rep_name == current_Iter_obj.syst_name)
@@ -502,49 +540,26 @@ unordered_map<std::string, float> SystematicHelper::calculateWeight_non_central_
         }
     }
 
-    weights[current_Iter_obj.iter_name] = 1.;
-    for (const auto &target : all_weight_targets)
-    {
-        weights[current_Iter_obj.iter_name] *= weight_map_nominal[target];
-    }
+    weights[current_Iter_obj.iter_name] = nominalPlan.product;
     if (!Iter_obj_in_correlation)
         return weights;
     else
     {
 
-        switch (current_Iter_obj.variation)
-        {
-        case MyCorrection::variation::up:
-            if (this_correlation.rep_ptr)
-            {
-                weights[current_Iter_obj.iter_name]  = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[this_correlation.rep_ptr->target]);
-                weights[current_Iter_obj.iter_name] *= weight_map_up[this_correlation.rep_ptr->syst];
-            }
-            for (const auto *syst : this_correlation.child_ptrs)
-            {
-                if (!syst)
-                    continue;
-                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name] ,weight_map_nominal[syst->target]);
-                weights[current_Iter_obj.iter_name] *= weight_map_up[syst->syst];
-            }
-            break;
-        case MyCorrection::variation::down:
-            if (this_correlation.rep_ptr)
-            {
-                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[this_correlation.rep_ptr->target]);
-                weights[current_Iter_obj.iter_name] *= weight_map_down[this_correlation.rep_ptr->syst];
-            }
-            for (const auto *syst : this_correlation.child_ptrs)
-            {
-                if (!syst)
-                    continue;
-                weights[current_Iter_obj.iter_name] = safe_divide(weights[current_Iter_obj.iter_name], weight_map_nominal[syst->target]);
-                weights[current_Iter_obj.iter_name] *= weight_map_down[syst->syst];
-            }
-            break;
-        default:
-            break;
+        std::unordered_set<std::string> replacedTargets;
+        for (const auto *systematic : this_correlation.member_ptrs)
+            if (systematic)
+                replacedTargets.insert(systematic->target);
+        float variedWeight = product_excluding(nominalPlan, replacedTargets);
+        for (const auto *systematic : this_correlation.member_ptrs) {
+            if (!systematic)
+                continue;
+            if (current_Iter_obj.variation == MyCorrection::variation::up)
+                variedWeight *= weight_map_up[systematic->syst];
+            else if (current_Iter_obj.variation == MyCorrection::variation::down)
+                variedWeight *= weight_map_down[systematic->syst];
         }
+        weights[current_Iter_obj.iter_name] = variedWeight;
     }
     return weights;
 }

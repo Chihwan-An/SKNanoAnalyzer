@@ -6,5 +6,6 @@ micromamba activate Nano
 
 cd [WORKDIR]
 hadd -f -j 8 [TARGET] output/hists_*.root
+cp [PROVENANCE] [TARGET_PROVENANCE]
 rm output/hists_*.root
 exit $?

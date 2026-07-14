@@ -2,6 +2,7 @@
 #define Lepton_h
 
 #include "Particle.h"
+#include "AnalysisException.h"
 
 class Lepton: public Particle {
 public:
@@ -53,8 +54,7 @@ public:
     inline bool IsPtConeAvailable() const {return j_ptcone > 0;}
     inline float PtCone() const {
         if (!IsPtConeAvailable()) {
-            cerr << "[Lepton::PtCone] pt-cone not set" << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::EventDataError("[Lepton::PtCone] pt-cone not set");
         }
         return j_ptcone;
     }

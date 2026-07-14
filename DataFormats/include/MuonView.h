@@ -3,9 +3,10 @@
 
 #include <cmath>
 #include <cstddef>
-#include <memory>
+#include <functional>
 #include <vector>
 
+#include "EventRange.h"
 #include "TLorentzVector.h"
 #include "TString.h"
 #include "LeptonIDEnums.h"
@@ -60,8 +61,30 @@ struct MuonSoA {
     std::vector<float> miniAODPt;
     std::vector<float> momentumScaleUp;
     std::vector<float> momentumScaleDown;
+    std::function<void()> populateMomentum;
+    mutable bool momentumReady = false;
+    mutable bool momentumComputing = false;
 
-    std::size_t size() const { return correctedPt.size(); }
+    std::size_t size() const { return pt.size(); }
+    std::size_t rawSize() const { return size(); }
+    void ensureMomentum() const {
+        if (momentumReady)
+            return;
+        if (momentumComputing)
+            throw SKNano::LogicError("[MuonSoA] recursive momentum computation");
+        if (!populateMomentum)
+            throw SKNano::LogicError("[MuonSoA] momentum provider is not bound");
+        momentumComputing = true;
+        try {
+            populateMomentum();
+            momentumComputing = false;
+        } catch (...) {
+            momentumComputing = false;
+            throw;
+        }
+        if (!momentumReady)
+            throw SKNano::LogicError("[MuonSoA] momentum provider did not publish a lane");
+    }
 };
 
 class MuonView {
@@ -70,20 +93,20 @@ public:
     using MuonID = LeptonID::MuonID;
 
     MuonView() = default;
-    MuonView(std::shared_ptr<const MuonSoA> data, std::size_t index)
-        : store(std::move(data)), idx(index) {}
+    MuonView(const MuonSoA *data, std::size_t index)
+        : store(data), idx(index) {}
 
-    bool valid() const { return static_cast<bool>(store) && idx < store->size(); }
+    bool valid() const { return store && idx < store->rawSize(); }
 
-    float Pt() const { return store->correctedPt[idx]; }
+    float Pt() const { assertCurrentEvent(); return store->correctedPt[idx]; }
     float Eta() const { return store->eta[idx]; }
     float Phi() const { return store->phi[idx]; }
     float M() const { return store->mass[idx]; }
     int Charge() const { return store->charge[idx]; }
 
-    float MiniAODPt() const { return store->miniAODPt[idx]; }
-    float MomentumScaleUp() const { return store->momentumScaleUp[idx]; }
-    float MomentumScaleDown() const { return store->momentumScaleDown[idx]; }
+    float MiniAODPt() const { assertCurrentEvent(); return store->miniAODPt[idx]; }
+    float MomentumScaleUp() const { assertCurrentEvent(); return store->momentumScaleUp[idx]; }
+    float MomentumScaleDown() const { assertCurrentEvent(); return store->momentumScaleDown[idx]; }
 
     float TkRelIso() const { return store->tkRelIso[idx]; }
     float PfRelIso03() const { return store->pfRelIso03[idx]; }
@@ -102,8 +125,12 @@ public:
     float MvaPrompt() const { return store->mvaPrompt[idx]; }
     float SoftMvaRun3() const { return store->softMvaRun3[idx]; }
 
-    unsigned char GenPartFlav() const { return store->genPartFlav[idx]; }
-    short GenPartIdx() const { return store->genPartIdx[idx]; }
+    unsigned char GenPartFlav() const {
+        return store->genPartFlav.available() ? store->genPartFlav[idx] : 0;
+    }
+    short GenPartIdx() const {
+        return store->genPartIdx.available() ? store->genPartIdx[idx] : -999;
+    }
     short JetIdx() const { return store->jetIdx[idx]; }
 
     TLorentzVector P4() const {
@@ -134,26 +161,14 @@ private:
     bool Pass_HcToWATight() const;
     bool Pass_HcToWALoose() const;
 
-    std::shared_ptr<const MuonSoA> store;
+    void assertCurrentEvent() const {
+        static_cast<void>(store->rawSize());
+        store->ensureMomentum();
+    }
+    const MuonSoA *store = nullptr;
     std::size_t idx = 0;
 };
 
-class MuonViewCollection {
-public:
-    MuonViewCollection() = default;
-    explicit MuonViewCollection(std::shared_ptr<MuonSoA> data);
-
-    const MuonView &operator[](std::size_t index) const { return views[index]; }
-    std::size_t size() const { return views.size(); }
-
-    auto begin() const { return views.begin(); }
-    auto end() const { return views.end(); }
-
-    const std::shared_ptr<MuonSoA> &storage() const { return payload; }
-
-private:
-    std::shared_ptr<MuonSoA> payload;
-    std::vector<MuonView> views;
-};
+using MuonViewCollection = EventRange<MuonSoA, MuonView>;
 
 #endif // MUONVIEW_H

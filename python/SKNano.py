@@ -9,11 +9,27 @@ import datetime
 import json
 import re
 import sys
+import socket
+import subprocess
+import tarfile
+import hashlib
 from pathlib import Path
 
 from htcondor import dags
 from tqdm.rich import tqdm
 from tqdm import TqdmExperimentalWarning
+
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich import box
+
+    _RICH_AVAILABLE = True
+    console = Console()
+except Exception:
+    _RICH_AVAILABLE = False
+    console = None
 
 HERE = Path(__file__).resolve()
 REPO_ROOT = HERE.parents[1]  # .../SKNANOAnalyzer_NanoV15
@@ -21,6 +37,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from templates.job_dict import main_job, hadd_job, final_job
+from python.sample_paths import resolve_sample_paths
 
 dag = dags.DAG()
 warnings.simplefilter("ignore", TqdmExperimentalWarning)
@@ -42,6 +59,73 @@ TOKEN = os.environ['TOKEN_TELEGRAMBOT']
 chat_id = os.environ['USER_CHATID']
 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}"
 SKIMMING_MODE = False
+SOURCE_SNAPSHOT_DIRNAME = "source_snapshot"
+SOURCE_ARCHIVE_DIRNAME = "code_archive"
+METADATA_SNAPSHOT_DIRNAME = os.path.join("metadata", "data_snapshot")
+RUN_MANIFEST_NAME = "run_manifest.json"
+SOURCE_SNAPSHOT_ENTRIES = [
+    "Analyzers",
+    "AnalyzerTools",
+    "DataFormats",
+    "PyAnalyzers",
+    "SKNanoCore",
+    "python",
+    "templates",
+    "scripts",
+    "docs",
+    "ModellingPatch",
+    "CMakeLists.txt",
+    "README.md",
+    "setup.sh",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "Nano.yml",
+    ".gitignore",
+    ".gitmodules",
+]
+SOURCE_SNAPSHOT_IGNORE_NAMES = {
+    ".git",
+    ".cache",
+    ".venv",
+    ".vscode",
+    "__pycache__",
+    "build",
+    "install",
+    "external",
+    "notebooks",
+    "tmp",
+    "cache",
+    "logs",
+    "dag",
+    "dags",
+    "output",
+    "shards",
+    "bvC_Bscore_beff70",
+}
+SOURCE_SNAPSHOT_IGNORE_SUFFIXES = (
+    ".root",
+    ".tar",
+    ".tar.gz",
+    ".tgz",
+    ".tar.xz",
+    ".zip",
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".so",
+    ".pcm",
+    ".o",
+    ".pyc",
+    ".pkl",
+    ".npz",
+    ".npy",
+    ".h5",
+    ".hdf5",
+    ".parquet",
+)
+MAX_SOURCE_SNAPSHOT_FILE_BYTES = 20 * 1024 * 1024
 
 ##############################
 #Load commonSampleInfo.json at start
@@ -87,6 +171,209 @@ def getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName, userflags=None):
         out_base = os.path.join(SKNANO_RUN3_NANOAODPATH ,era,'MC' if isMC else 'DATA','Skim',os.environ['USER'],suffix,'' if isMC else f'Period{period}', 'tree.root') if SKIMMING_MODE else 'output/hists.root'
 
     return out_base, suffix
+
+def getFinalOutputPath(era, sample, argparser, userflags):
+    if SKIMMING_MODE:
+        out_base, _ = getSkimmingOutBaseAndSuffix(era, sample, argparser.Analyzer, userflags)
+        out_dir = os.path.dirname(out_base)
+        isMC, _ = isMCandGetPeriod(sample)
+        if isMC:
+            return os.path.join(os.path.dirname(out_dir), out_dir.split('/')[-1].replace('Temp_', ''))
+        target_dir = os.path.join(
+            os.path.dirname(os.path.dirname(out_dir)),
+            os.path.dirname(out_dir).split("/")[-1].replace('Temp_', '')
+        )
+        return target_dir
+
+    analyzer_name = argparser.Analyzer
+    if len(userflags) > 0:
+        analyzer_name += f"/{'_'.join(userflags)}"
+    return os.path.join(SKNANO_OUTPUT, analyzer_name, era, sample + '.root')
+
+def sourceSnapshotIgnore(src, names):
+    ignored = []
+    for name in names:
+        path = os.path.join(src, name)
+        if name in SOURCE_SNAPSHOT_IGNORE_NAMES:
+            ignored.append(name)
+            continue
+        if name.endswith(SOURCE_SNAPSHOT_IGNORE_SUFFIXES):
+            ignored.append(name)
+            continue
+        if os.path.isfile(path):
+            try:
+                if os.path.getsize(path) > MAX_SOURCE_SNAPSHOT_FILE_BYTES:
+                    ignored.append(name)
+            except OSError:
+                ignored.append(name)
+    return ignored
+
+def sanitizeArchiveToken(value, fallback="unknown"):
+    value = value or fallback
+    value = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._-")
+    return value or fallback
+
+def sha256File(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+def makeSourceArchive(master_dir, snapshot_dir, git_info):
+    archive_dir = os.path.join(master_dir, SOURCE_ARCHIVE_DIRNAME)
+    os.makedirs(archive_dir, exist_ok=True)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    branch = sanitizeArchiveToken(git_info.get("branch", "unknown"))
+    commit = sanitizeArchiveToken((git_info.get("commit") or "unknown")[:12])
+    dirty_tag = "_dirty" if git_info.get("dirty") else ""
+    archive_name = f"SKNanoAnalyzer_{timestamp}_{branch}_{commit}{dirty_tag}.tar.gz"
+    archive_path = os.path.join(archive_dir, archive_name)
+
+    with tarfile.open(archive_path, "w:gz") as tar:
+        tar.add(snapshot_dir, arcname=Path(SKNANO_HOME).name)
+
+    return {
+        "path": archive_path,
+        "format": "tar.gz",
+        "sha256": sha256File(archive_path),
+        "size_bytes": os.path.getsize(archive_path),
+    }
+
+def makeSourceSnapshot(master_dir):
+    snapshot_dir = os.path.join(master_dir, SOURCE_SNAPSHOT_DIRNAME)
+    os.makedirs(snapshot_dir, exist_ok=True)
+    copied = []
+    skipped = []
+    for entry in SOURCE_SNAPSHOT_ENTRIES:
+        source = os.path.join(SKNANO_HOME, entry)
+        target = os.path.join(snapshot_dir, entry)
+        if not os.path.exists(source):
+            skipped.append(entry)
+            continue
+        if os.path.isdir(source):
+            shutil.copytree(source, target, ignore=sourceSnapshotIgnore, dirs_exist_ok=True)
+        else:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copy2(source, target)
+        copied.append(entry)
+    git_info = getGitInfo()
+    archive = makeSourceArchive(master_dir, snapshot_dir, git_info)
+    return {
+        'path': snapshot_dir,
+        'copied': copied,
+        'skipped': skipped,
+        'max_file_bytes': MAX_SOURCE_SNAPSHOT_FILE_BYTES,
+        'archive': archive,
+        'git': git_info,
+    }
+
+def getGitInfo():
+    def run_git(args):
+        try:
+            return subprocess.run(
+                ["git"] + args,
+                cwd=SKNANO_HOME,
+                check=True,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            ).stdout.strip()
+        except Exception:
+            return ""
+
+    status = run_git(["status", "--short"])
+    return {
+        'commit': run_git(["rev-parse", "HEAD"]),
+        'branch': run_git(["rev-parse", "--abbrev-ref", "HEAD"]),
+        'status_short': status.splitlines(),
+        'dirty': bool(status),
+    }
+
+def copyMetadataSnapshotFile(master_dir, source_path):
+    if not source_path or not os.path.exists(source_path):
+        return None
+    relpath = os.path.relpath(source_path, SKNANO_DATA)
+    target = os.path.join(master_dir, METADATA_SNAPSHOT_DIRNAME, relpath)
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    shutil.copy2(source_path, target)
+    return target
+
+def snapshotSampleMetadata(master_dir, era, sample, sample_json_path):
+    copied = []
+    common_info = os.path.join(SKNANO_DATA, era, 'Sample', 'CommonSampleInfo.json')
+    copied_path = copyMetadataSnapshotFile(master_dir, common_info)
+    if copied_path:
+        copied.append(copied_path)
+
+    copied_path = copyMetadataSnapshotFile(master_dir, sample_json_path)
+    if copied_path:
+        copied.append(copied_path)
+
+    if sample.startswith("Skim_"):
+        skim_info = os.path.join(SKNANO_DATA, era, 'Sample', 'Skim', 'skimTreeInfo.json')
+        copied_path = copyMetadataSnapshotFile(master_dir, skim_info)
+        if copied_path:
+            copied.append(copied_path)
+    return copied
+
+def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot, submit_result=None):
+    manifest_path = os.path.join(master_dir, RUN_MANIFEST_NAME)
+    manifest = {
+        'schema_version': 1,
+        'created_at': datetime.datetime.now().isoformat(timespec='seconds'),
+        'user': username,
+        'host': socket.gethostname(),
+        'cwd': os.getcwd(),
+        'argv': sys.argv,
+        'master_dir': master_dir,
+        'environment': {
+            'SKNANO_HOME': SKNANO_HOME,
+            'SKNANO_DATA': SKNANO_DATA,
+            'SKNANO_INSTALLDIR': SKNANO_INSTALLDIR,
+            'SKNANO_OUTPUT': SKNANO_OUTPUT,
+            'SKNANO_RUNLOG': SKNANO_RUNLOG,
+            'SINGULARITY_IMAGE': os.environ.get('SINGULARITY_IMAGE', ''),
+        },
+        'git': getGitInfo(),
+        'source_snapshot': source_snapshot,
+        'options': {
+            'Analyzer': argparser.Analyzer,
+            'InputSample': argparser.InputSample,
+            'Era': argparser.Era,
+            'Run': argparser.Run,
+            'Period': argparser.Period,
+            'Userflags': userflags,
+            'NJobs': argparser.NJobs,
+            'Reduction': argparser.Reduction,
+            'NMax': argparser.NMax,
+            'Memory': argparser.Memory,
+            'ncpu': argparser.ncpu,
+            'BatchName': argparser.BatchName,
+            'python': argparser.python,
+            'skimming_mode': SKIMMING_MODE,
+            'failure_policy': argparser.FailurePolicy,
+            'max_event_errors': argparser.MaxEventErrors,
+            'no_exec': argparser.no_exec,
+        },
+        'samples': [
+            {
+                'era': item['era'],
+                'sample': item['sample'],
+                'jobs': item['totalNumberofJobs'],
+                'working_dir': item['working_dir'],
+                'output': getFinalOutputPath(item['era'], item['sample'], argparser, userflags),
+                'metadata_snapshot_files': item.get('metadata_snapshot_files', []),
+            }
+            for item in dag_list
+        ],
+        'submit': submit_result or {},
+    }
+    with open(manifest_path, 'w') as f:
+        json.dump(manifest, f, indent=2, sort_keys=True)
+        f.write("\n")
+    return manifest_path
 
 def getEraList(eras, runs):
     if runs == 'None':
@@ -230,6 +517,10 @@ def setParser():
     parser.add_argument('--ncpu', dest='ncpu', default=1, type=int) 
     parser.add_argument('--batchname', dest='BatchName', default="")
     parser.add_argument('--skimming_mode', action='store_true', default=False, help="Enable this option when anlyzer is skimmer.")
+    parser.add_argument('--failure-policy', dest='FailurePolicy', default='fail-fast',
+    choices=['fail-fast', 'skip-event'], help="Event failure handling policy. Default: fail-fast")
+    parser.add_argument('--max-event-errors', dest='MaxEventErrors', default=1, type=int,
+    help="Maximum event-local errors before failing a job. Use -1 for unlimited. Default: 1")
     parser.add_argument('--no_exec', action='store_true', default=False, help="only produce working area, not submitting to the condor pool")
     
     #Note: this option will change the behavior of the script. output directory will be changed to Your GV0, hadd will be disabled, and will create the info json of skimmed tree   
@@ -300,11 +591,15 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
     if sample.startswith("Skim_"):
         SkimInfo = skimInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
         sampleInfo = sampleInfoJsons[era][SkimInfo['PD']]
-        samplePaths = json.load(open(os.path.join(SKNANO_DATA,era,'Sample','Skim',sample+'.json')))['path']
+        sample_json_path = os.path.join(SKNANO_DATA,era,'Sample','Skim',sample+'.json')
+        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
+        metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
         sample = SkimInfo['PD']
     else:
         sampleInfo = sampleInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
-        samplePaths = json.load(open(os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json')))['path']
+        sample_json_path = os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json')
+        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
+        metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
         
     samplePaths = jobFileDivider(samplePaths, njobs)
 
@@ -356,6 +651,8 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
 
             # Set output path
             job_content = job_content.replace("[output]", output)
+            job_content = job_content.replace("[failure_policy]", argparse.FailurePolicy)
+            job_content = job_content.replace("[max_event_errors]", str(argparse.MaxEventErrors))
             job_filename = os.path.join(working_dir, f"job_{i+1}.py")
             with open(job_filename, 'w') as f:
                 f.write(job_content)
@@ -402,11 +699,13 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
 
             # Set output path
             job_content = job_content.replace("[output]", output)
+            job_content = job_content.replace("[failure_policy]", argparse.FailurePolicy)
+            job_content = job_content.replace("[max_event_errors]", str(argparse.MaxEventErrors))
             job_filename = os.path.join(working_dir, f"job_{i+1}.cc")
             with open(job_filename, 'w') as f:
                 f.write(job_content)
             
-    return working_dir, totalNumberOfJobs
+    return working_dir, totalNumberOfJobs, metadata_snapshot_files
             
 def makeMainAnalyzerJobs(working_dir,abs_MasterDirectoryName,totalNumberOfJobs, argparse):
     nmax = argparse.NMax
@@ -424,14 +723,19 @@ def makeMainAnalyzerJobs(working_dir,abs_MasterDirectoryName,totalNumberOfJobs, 
     libpath = [x for x in libpath if x != SKNANO_LIB]
     libpath = [os.path.join(abs_MasterDirectoryName,'lib')]+libpath
     libpath = ":".join(libpath)
-    if 'ROOT_INCLUDE_PATH' not in os.environ:
-        inclpath = ""
-    else:
-        inclpath = os.environ['ROOT_INCLUDE_PATH']
-    inclpath = inclpath.split(":")
-    inclpath = [x for x in inclpath if SKNANO_INSTALLDIR.split("/")[-1] not in x]
-    inclpath = inclpath + [os.path.join(abs_MasterDirectoryName,'include')]
-    inclpath = inclpath[-1] if len(inclpath) == 2 else ":".join(inclpath)
+    install_include = os.path.join(abs_MasterDirectoryName, 'include')
+    original_home = os.path.abspath(SKNANO_HOME)
+    original_install = os.path.abspath(SKNANO_INSTALLDIR)
+    incl_entries = [install_include]
+    for entry in os.environ.get('ROOT_INCLUDE_PATH', '').split(":"):
+        if not entry:
+            continue
+        abs_entry = os.path.abspath(entry)
+        if abs_entry.startswith(original_home) or abs_entry.startswith(original_install):
+            continue
+        if entry not in incl_entries:
+            incl_entries.append(entry)
+    inclpath = ":".join(incl_entries)
     
     run_template = "run.python.sh" if argparse.python else "run.sh"
     template_path = os.path.join(SKNANO_HOME, "templates", run_template)
@@ -445,8 +749,17 @@ def makeMainAnalyzerJobs(working_dir,abs_MasterDirectoryName,totalNumberOfJobs, 
     mamba_root_prefix = "/opt/conda" if singularity_image else os.environ['MAMBA_ROOT_PREFIX']
     run_content = run_content.replace("[MAMBA_BIN_PATH]", os.path.join(mamba_root_prefix, "bin"))
     run_content = run_content.replace("[MAMBA_ROOT_PREFIX]", mamba_root_prefix)
-    run_content = run_content.replace("[SKNANO_HOME]", SKNANO_HOME)
+    snapshot_home = os.path.join(abs_MasterDirectoryName, SOURCE_SNAPSHOT_DIRNAME)
+    lhapdf_include_dir = os.environ.get('LHAPDF_INCLUDE_DIR', os.path.join(SKNANO_HOME, 'external', 'lhapdf', 'redhat', 'include'))
+    lhapdf_lib_dir = os.environ.get('LHAPDF_LIB_DIR', os.path.join(SKNANO_HOME, 'external', 'lhapdf', 'redhat', 'lib'))
+    lhapdf_bin_dir = os.path.join(os.path.dirname(os.path.dirname(lhapdf_lib_dir)), 'bin')
+    run_content = run_content.replace("[SKNANO_HOME]", snapshot_home)
     run_content = run_content.replace("[SKNANO_DATA]", SKNANO_DATA)
+    run_content = run_content.replace("[LHAPDF_BIN_DIR]", lhapdf_bin_dir)
+    run_content = run_content.replace("[LHAPDF_INCLUDE_DIR]", lhapdf_include_dir)
+    run_content = run_content.replace("[LHAPDF_LIB_DIR]", lhapdf_lib_dir)
+    run_content = run_content.replace("[JSONPOG_REPO_PATH]", os.environ.get('JSONPOG_REPO_PATH', os.path.join(SKNANO_HOME, 'CMS_corrections')))
+    run_content = run_content.replace("[ROCCOR_PATH]", os.environ.get('ROCCOR_PATH', os.path.join(SKNANO_HOME, 'external', 'RoccoR')))
     run_content = run_content.replace("[WORKDIR]", working_dir)
     run_content = run_content.replace("[SKNANO_RUNLOG_LIB]", os.path.join(abs_MasterDirectoryName, 'lib'))
     run_content = run_content.replace("[ROOT_INCLUDE_PATH]", inclpath)
@@ -479,6 +792,8 @@ def makeHaddJobs(working_dir,argparser,sample):
         hadd_content = f.read()
     hadd_content = hadd_content.replace("[WORKDIR]", working_dir)
     hadd_content = hadd_content.replace("[TARGET]", hadd_target)
+    hadd_content = hadd_content.replace("[PROVENANCE]", os.path.join(os.path.dirname(os.path.dirname(working_dir)), RUN_MANIFEST_NAME))
+    hadd_content = hadd_content.replace("[TARGET_PROVENANCE]", hadd_target + ".provenance.json")
     with open(os.path.join(working_dir,"hadd.sh"),'w') as f:
         f.write(hadd_content)
         
@@ -501,10 +816,13 @@ def makeSkimPostProcsJobs(working_dir,sample, argparser,era):
     isMC, period = isMCandGetPeriod(sample)
     out_base, suffix = getSkimmingOutBaseAndSuffix(era, sample, AnalyzerName, userflags) 
     out_base = os.path.dirname(out_base)
+    manifest_path = os.path.join(os.path.dirname(os.path.dirname(working_dir)), RUN_MANIFEST_NAME)
     if isMC:
+        target_dir = os.path.join(os.path.dirname(out_base),out_base.split('/')[-1].replace('Temp_',''))
         with open(os.path.join(working_dir,"postproc.sh"),'w') as f:
             f.writelines("#!/bin/bash\n")
-            f.writelines(f"mv {out_base} {os.path.join(os.path.dirname(out_base),out_base.split('/')[-1].replace('Temp_',''))}\n")
+            f.writelines(f"mv {out_base} {target_dir}\n")
+            f.writelines(f"cp {manifest_path} {os.path.join(target_dir, 'provenance.json')}\n")
             f.writelines(f"cd $SKNANO_PYTHON\n")
             f.writelines(f"python3 sampleManager.py --era {era} --makeSkimTreeInfo --skimTreeFolder {os.path.dirname(out_base)} --skimTreeSuffix {skim_suffix} --skimTreeOrigPD {sample}\n")
     else:
@@ -514,6 +832,7 @@ def makeSkimPostProcsJobs(working_dir,sample, argparser,era):
         with open(os.path.join(working_dir,"postproc.sh"),'w') as f:
             f.writelines("#!/bin/bash\n")
             f.writelines(f"mv {out_base} {target_dir}\n")
+            f.writelines(f"cp {manifest_path} {os.path.join(target_dir, 'provenance.json')}\n")
             f.writelines(f"cd $SKNANO_PYTHON\n")
             f.writelines(f"python3 sampleManager.py --era {era} --makeSkimTreeInfo --skimTreeFolder {os.path.dirname(target_dir)} --skimTreeSuffix {skim_suffix} --skimTreeOrigPD {sample}\n")
             f.writelines(f"""if [ -z "$(ls -A {os.path.dirname(out_base)})" ]; then\n""")
@@ -554,6 +873,87 @@ def getEachAnalyzerToPostDag(kwarg):
     }
     
     return (analyzer_layer,hadd_layer)
+
+def renderSubmissionSummary(dag_list, master_dir, argparser, userflags, submit_result):
+    total_samples = len(dag_list)
+    total_jobs = sum(item['totalNumberofJobs'] for item in dag_list)
+    eras = sorted({item['era'] for item in dag_list})
+    cluster_id = submit_result.get('cluster_id') if submit_result else None
+    dag_file = submit_result.get('dag_file') if submit_result else None
+    status = "Prepared only (--no_exec)" if argparser.no_exec else f"Submitted cluster {cluster_id}"
+
+    if not _RICH_AVAILABLE:
+        print("\nSKNano submission summary")
+        print(f"  Status: {status}")
+        print(f"  Analyzer: {argparser.Analyzer}")
+        print(f"  Eras: {', '.join(eras) if eras else '-'}")
+        print(f"  Samples: {total_samples}")
+        print(f"  Analyzer jobs: {total_jobs}")
+        print(f"  Master directory: {master_dir}")
+        if dag_file:
+            print(f"  Final DAG: {dag_file}")
+        if submit_result and submit_result.get('manifest_path'):
+            print(f"  Manifest: {submit_result['manifest_path']}")
+        if submit_result and submit_result.get('source_snapshot'):
+            source_snapshot = submit_result['source_snapshot']
+            print(f"  Source snapshot: {source_snapshot.get('path', '')}")
+            if source_snapshot.get('archive'):
+                print(f"  Source archive: {source_snapshot['archive'].get('path', '')}")
+        return
+
+    overview = Table.grid(padding=(0, 2))
+    overview.add_column(style="bold cyan", no_wrap=True)
+    overview.add_column()
+    overview.add_row("Status", status)
+    overview.add_row("Analyzer", argparser.Analyzer)
+    overview.add_row("Mode", "python" if argparser.python else "C++ ROOT macro")
+    overview.add_row("Skimming", str(SKIMMING_MODE))
+    overview.add_row("Eras", ", ".join(eras) if eras else "-")
+    overview.add_row("Samples", str(total_samples))
+    overview.add_row("Analyzer jobs", str(total_jobs))
+    overview.add_row("Concurrency", f"{argparser.NMax} per user")
+    overview.add_row("Memory", f"{argparser.Memory} MB base")
+    overview.add_row("CPUs/job", str(argparser.ncpu))
+    overview.add_row("Failure policy", f"{argparser.FailurePolicy}, max errors={argparser.MaxEventErrors}")
+    overview.add_row("Master dir", master_dir)
+    if dag_file:
+        overview.add_row("Final DAG", dag_file)
+    if submit_result and submit_result.get('manifest_path'):
+        overview.add_row("Manifest", submit_result['manifest_path'])
+    if submit_result and submit_result.get('source_snapshot'):
+        source_snapshot = submit_result['source_snapshot']
+        overview.add_row("Source snapshot", source_snapshot.get('path', ''))
+        if source_snapshot.get('archive'):
+            overview.add_row("Source archive", source_snapshot['archive'].get('path', ''))
+
+    console.print()
+    console.print(Panel(overview, title="SKNano Submission Summary", border_style="green"))
+
+    sample_table = Table(box=box.SIMPLE_HEAVY, show_lines=False)
+    sample_table.add_column("Era", style="cyan", no_wrap=True)
+    sample_table.add_column("Sample", style="bold")
+    sample_table.add_column("Jobs", justify="right", style="magenta")
+    sample_table.add_column("Output", overflow="fold")
+    sample_table.add_column("Workdir", overflow="fold", style="dim")
+
+    max_rows = 30
+    for item in dag_list[:max_rows]:
+        sample_table.add_row(
+            item['era'],
+            item['sample'],
+            str(item['totalNumberofJobs']),
+            getFinalOutputPath(item['era'], item['sample'], argparser, userflags),
+            item['working_dir'],
+        )
+    if len(dag_list) > max_rows:
+        sample_table.add_row(
+            "...",
+            f"{len(dag_list) - max_rows} more samples",
+            "",
+            "",
+            "",
+        )
+    console.print(sample_table)
         
 def getFinalDag(hadd_layer_dicts,skim_postproc_layers,master_dir,argparser):
     batchname = argparser.BatchName
@@ -642,11 +1042,22 @@ def getFinalDag(hadd_layer_dicts,skim_postproc_layers,master_dir,argparser):
     print(finaldag.describe())
     finalDag_file = dags.write_dag(finaldag,dag_dir,'finaldag.dag')
 
-    if not args.no_exec:
-        os.chdir(dag_dir)
-        finalDag_submit = htcondor.Submit.from_dag(str(finalDag_file),{"force":1,"include_env":','.join(list(os.environ.keys())),"batch-name":batchname}) 
-        cluster_id = htcondor.Schedd().submit(finalDag_submit).cluster()
-        print(f"DAGMan job cluster is {cluster_id}")
+    cluster_id = None
+    if not argparser.no_exec:
+        submit_cwd = os.getcwd()
+        try:
+            os.chdir(dag_dir)
+            finalDag_submit = htcondor.Submit.from_dag(str(finalDag_file),{"force":1,"include_env":','.join(list(os.environ.keys())),"batch-name":batchname})
+            cluster_id = htcondor.Schedd().submit(finalDag_submit).cluster()
+            print(f"DAGMan job cluster is {cluster_id}")
+        finally:
+            os.chdir(submit_cwd)
+
+    return {
+        'cluster_id': cluster_id,
+        'dag_dir': dag_dir,
+        'dag_file': str(finalDag_file),
+    }
 
     
 if __name__ == '__main__':
@@ -673,6 +1084,7 @@ if __name__ == '__main__':
     userflags = getUserFlagsList(args.Userflags)
     timestamp, string_JobStartTime = getTimeStamp()
     _, abs_MasterDirectoryName= getMasterDirectoryName(timestamp, args.Analyzer, userflags)
+    source_snapshot = makeSourceSnapshot(abs_MasterDirectoryName)
     InputSamplelist = getInputSampleList(args.InputSample)
     period_filter = parsePeriodFilter(args.Period)
     exclude_regexes = getExcludeRegexList(args.ExcludeSample)
@@ -690,7 +1102,7 @@ if __name__ == '__main__':
                 if not any(regex.search(sample) for regex in exclude_regexes)
             ]
         for isample, sample in enumerate(InputSamplelist_era):
-            working_dir, totalNumberofJobs = jobProducer(era, sample, args, abs_MasterDirectoryName, userflags, isample, len(InputSamplelist_era))
+            working_dir, totalNumberofJobs, metadata_snapshot_files = jobProducer(era, sample, args, abs_MasterDirectoryName, userflags, isample, len(InputSamplelist_era))
             if totalNumberofJobs == None:
                 continue
             analyzer_sub_dict = makeMainAnalyzerJobs(working_dir,abs_MasterDirectoryName,totalNumberofJobs,args)
@@ -700,13 +1112,21 @@ if __name__ == '__main__':
                 hadd_sub_dict = makeHaddJobs(working_dir,args,sample)
             
             if SKIMMING_MODE:
-                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':postproc_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}"})
+                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':postproc_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
             else:
-                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':hadd_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}"})
+                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':hadd_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
             if dag_list is not None:
                 if SKIMMING_MODE:
                     postproc_layers.append(getEachAnalyzerToPostDag(dag_list[-1]))
                 else:
                     hadd_layers.append(getEachAnalyzerToPostDag(dag_list[-1]))
             
-    getFinalDag(hadd_layers, postproc_layers,abs_MasterDirectoryName, args)
+    if len(dag_list) == 0:
+        print('\033[91m'+"ERROR: no samples matched the requested selection"+'\033[0m')
+        sys.exit(1)
+
+    writeRunManifest(abs_MasterDirectoryName, args, userflags, dag_list, source_snapshot)
+    submit_result = getFinalDag(hadd_layers, postproc_layers, abs_MasterDirectoryName, args)
+    submit_result['source_snapshot'] = source_snapshot
+    submit_result['manifest_path'] = writeRunManifest(abs_MasterDirectoryName, args, userflags, dag_list, source_snapshot, submit_result)
+    renderSubmissionSummary(dag_list, abs_MasterDirectoryName, args, userflags, submit_result)

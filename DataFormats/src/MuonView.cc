@@ -1,15 +1,5 @@
 #include "MuonView.h"
 
-MuonViewCollection::MuonViewCollection(std::shared_ptr<MuonSoA> data)
-    : payload(std::move(data)) {
-    if (payload) {
-        views.reserve(payload->size());
-        for (std::size_t i = 0; i < payload->size(); ++i) {
-            views.emplace_back(payload, i);
-        }
-    }
-}
-
 bool MuonView::PassID(MuonID id) const {
     switch (id) {
     case MuonID::NOCUT:

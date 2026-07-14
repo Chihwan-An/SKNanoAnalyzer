@@ -3,9 +3,11 @@
 
 #include <cmath>
 #include <cstddef>
-#include <memory>
+#include <functional>
+#include <stdexcept>
 #include <vector>
 
+#include "EventRange.h"
 #include "TLorentzVector.h"
 #include "TString.h"
 #include "LeptonIDEnums.h"
@@ -59,16 +61,32 @@ struct ElectronSoA {
     ColumnView<float> scEta;
     ColumnView<float> deltaEtaSC;
 
-    std::vector<float> rho;
-    std::vector<float> dEsigmaUp;
-    std::vector<float> dEsigmaDown;
-    std::vector<float> ecalPFClusterIso;
-    std::vector<float> hcalPFClusterIso;
-    std::vector<float> deltaEtaSeed;
-    std::vector<float> deltaPhiSC;
-    std::vector<float> deltaPhiSeed;
+    std::function<float()> readRho;
+    mutable float rho = 0.f;
+    mutable bool rhoReady = false;
+    mutable bool rhoComputing = false;
 
     std::size_t size() const { return pt.size(); }
+
+    float getRho() const {
+        static_cast<void>(pt.size());
+        if (rhoReady)
+            return rho;
+        if (rhoComputing)
+            throw std::logic_error("recursive Electron rho population");
+        if (!readRho)
+            return 0.f;
+        rhoComputing = true;
+        try {
+            rho = readRho();
+            rhoReady = true;
+            rhoComputing = false;
+            return rho;
+        } catch (...) {
+            rhoComputing = false;
+            throw;
+        }
+    }
 };
 
 class ElectronView {
@@ -78,8 +96,8 @@ public:
     using EtaRegion = LeptonID::ElectronEtaRegion;
 
     ElectronView() = default;
-    ElectronView(std::shared_ptr<const ElectronSoA> storage, std::size_t index)
-        : store(std::move(storage)), idx(index) {}
+    ElectronView(const ElectronSoA *storage, std::size_t index)
+        : store(storage), idx(index) {}
 
     bool valid() const { return static_cast<bool>(store) && idx < store->size(); }
 
@@ -118,20 +136,24 @@ public:
     float MvaIso() const { return store->mvaIso[idx]; }
     float MvaNoIso() const { return store->mvaNoIso[idx]; }
     CutBasedWP CutBased() const { return static_cast<CutBasedWP>(store->cutBased[idx]); }
-    unsigned char GenPartFlav() const { return store->genPartFlav[idx]; }
-    short GenPartIdx() const { return store->genPartIdx[idx]; }
+    unsigned char GenPartFlav() const {
+        return store->genPartFlav.available() ? store->genPartFlav[idx] : 0;
+    }
+    short GenPartIdx() const {
+        return store->genPartIdx.available() ? store->genPartIdx[idx] : -1;
+    }
     short JetIdx() const { return store->jetIdx[idx]; }
     float ScEta() const { return store->scEta[idx]; }
     std::size_t rawIndex() const { return idx; }
     float deltaEtaInSC() const { return store->deltaEtaSC[idx]; }
-    float deltaEtaInSeed() const { return idx < store->deltaEtaSeed.size() ? store->deltaEtaSeed[idx] : 0.f; }
-    float deltaPhiInSC() const { return idx < store->deltaPhiSC.size() ? store->deltaPhiSC[idx] : 0.f; }
-    float deltaPhiInSeed() const { return idx < store->deltaPhiSeed.size() ? store->deltaPhiSeed[idx] : 0.f; }
-    float ecalPFClusterIso() const { return idx < store->ecalPFClusterIso.size() ? store->ecalPFClusterIso[idx] : -999.f; }
-    float hcalPFClusterIso() const { return idx < store->hcalPFClusterIso.size() ? store->hcalPFClusterIso[idx] : -999.f; }
-    float Rho() const { return idx < store->rho.size() ? store->rho[idx] : 0.f; }
-    float dEsigmaUp() const { return idx < store->dEsigmaUp.size() ? store->dEsigmaUp[idx] : -999.f; }
-    float dEsigmaDown() const { return idx < store->dEsigmaDown.size() ? store->dEsigmaDown[idx] : -999.f; }
+    float deltaEtaInSeed() const { assertCurrentEvent(); return -999.f; }
+    float deltaPhiInSC() const { assertCurrentEvent(); return -999.f; }
+    float deltaPhiInSeed() const { assertCurrentEvent(); return -999.f; }
+    float ecalPFClusterIso() const { assertCurrentEvent(); return -999.f; }
+    float hcalPFClusterIso() const { assertCurrentEvent(); return -999.f; }
+    float Rho() const { assertCurrentEvent(); return store->getRho(); }
+    float dEsigmaUp() const { assertCurrentEvent(); return -999.f; }
+    float dEsigmaDown() const { assertCurrentEvent(); return -999.f; }
 
     EtaRegion etaRegion() const;
 
@@ -151,27 +173,18 @@ private:
     bool Pass_HcToWALooseRun2() const;
     bool Pass_HcToWALooseRun3() const;
 
-    std::shared_ptr<const ElectronSoA> store;
+    void assertCurrentEvent() const { static_cast<void>(store->size()); }
+    const ElectronSoA *store = nullptr;
     std::size_t idx = 0;
 };
 
-class ElectronViewCollection {
+class ElectronViewCollection : public EventRange<ElectronSoA, ElectronView> {
 public:
+    using Base = EventRange<ElectronSoA, ElectronView>;
+    using Base::Base;
     ElectronViewCollection() = default;
-    explicit ElectronViewCollection(std::shared_ptr<ElectronSoA> storage, bool skipCrack = true);
-
-    const ElectronView &operator[](std::size_t index) const { return views[index]; }
-    std::size_t size() const { return views.size(); }
-    bool empty() const { return views.empty(); }
-
-    auto begin() const { return views.begin(); }
-    auto end() const { return views.end(); }
-
-    const std::shared_ptr<ElectronSoA> &storage() const { return storage_; }
-
-private:
-    std::shared_ptr<ElectronSoA> storage_;
-    std::vector<ElectronView> views;
+    explicit ElectronViewCollection(std::shared_ptr<ElectronSoA> storage,
+                                    bool skipCrack);
 };
 
 #endif // ELECTRONVIEW_H

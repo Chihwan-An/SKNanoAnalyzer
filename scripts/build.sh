@@ -63,8 +63,8 @@ done
 
 echo "@@@@ Prepare to build SKNanoAnalyzer in ${SKNANO_BUILDDIR}"
 if [ "${clean_build}" -eq 1 ]; then
-    echo "@@@@ Clean build requested – removing ${SKNANO_BUILDDIR} and ${SKNANO_LIB}"
-    rm -rf "${SKNANO_BUILDDIR}" "${SKNANO_LIB}"
+    echo "@@@@ Clean build requested – removing ${SKNANO_BUILDDIR} and ${SKNANO_INSTALLDIR}"
+    rm -rf "${SKNANO_BUILDDIR}" "${SKNANO_INSTALLDIR}"
 else
     echo "@@@@ Incremental build – reusing existing artifacts"
 fi
@@ -90,8 +90,8 @@ base_cxxflags="${base_cxxflags//-fopt-info-vec-missed[^ ]*/}"
 base_cflags="${base_cflags//-fopt-info-vec-missed[^ ]*/}"
 base_cxxflags="${base_cxxflags//-fopt-info-vec-optimized[^ ]*/}"
 base_cflags="${base_cflags//-fopt-info-vec-optimized[^ ]*/}"
-export CXXFLAGS="${base_cxxflags} -fopt-info-vec-missed=${opt_info_dir}/cxx-vec-missed.txt -fopt-info-vec-optimized=${opt_info_dir}/cxx-vec-optimized.txt"
-export CFLAGS="${base_cflags} -fopt-info-vec-missed=${opt_info_dir}/c-vec-missed.txt -fopt-info-vec-optimized=${opt_info_dir}/c-vec-optimized.txt"
+export CXXFLAGS="${base_cxxflags} -fopt-info-vec-all=${opt_info_dir}/cxx-vectorization.txt"
+export CFLAGS="${base_cflags} -fopt-info-vec-all=${opt_info_dir}/c-vectorization.txt"
 
 if [ "${use_asan}" -eq 1 ]; then
     asan_flags="-fsanitize=address -fno-omit-frame-pointer"
@@ -103,6 +103,10 @@ fi
 
 cmake_args=(
     -DCMAKE_INSTALL_PREFIX="${SKNANO_INSTALLDIR}"
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}"
+    -DCMAKE_C_FLAGS="${CFLAGS}"
+    -DCMAKE_EXE_LINKER_FLAGS="${LDFLAGS:-}"
+    -DCMAKE_SHARED_LINKER_FLAGS="${LDFLAGS:-}"
     "${CORRECTION_ARGS[@]}"
     -DCMAKE_PREFIX_PATH="${LIBTORCH_INSTALL_DIR}"
     -DCMAKE_BUILD_TYPE="${build_type}"
@@ -118,13 +122,8 @@ cmake_cmd+=("${cmake_args[@]}" "${SKNANO_HOME}")
 printf '@@@@ %s\n' "${cmake_cmd[*]}"
 "${cmake_cmd[@]}"
 
-if [ "${use_ninja}" -eq 1 ]; then
-    build_cmd=(ninja -j "${jobs}")
-    install_cmd=(ninja -j "${jobs}" install)
-else
-    build_cmd=(make -j"${jobs}")
-    install_cmd=(make -j"${jobs}" install)
-fi
+build_cmd=(cmake --build . --parallel "${jobs}")
+install_cmd=(cmake --build . --target install --parallel "${jobs}")
 
 printf '@@@@ %s\n' "${build_cmd[*]}"
 "${build_cmd[@]}"

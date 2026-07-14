@@ -1,5 +1,6 @@
 build/*
 install/*
+compile_commands.json
 test/*
 test.root
 LocalRuns/**
@@ -18,8 +19,31 @@ external/**
 SKFlatAnalyzer
 HSNanoAnalyzer
 SKNanoOutput
+SKNanoRunlog*
 Run*NanoAOD*
 .cache/** 
+.venv/**
+perf.data*
+**/.tmp*.root
+
+# Local analysis products
+*.csv
+*.pdf
+*.png
+*.zip
+*.ipynb
+*.log
+*.out
+*.err
+*.npz
+*.sub
+*.dag
+*.metrics
+*.keys.json
+*_summary.json
+Nano.yml
+TTLJ_test.json
+jet_jerc.json
 
 #Temporary Added to my personal temp files
 DataCOPY/** 

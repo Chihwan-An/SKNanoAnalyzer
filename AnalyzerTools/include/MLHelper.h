@@ -2,6 +2,8 @@
 #ifndef MLHELPER_H
 #define MLHELPER_H
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <memory>
@@ -20,6 +22,13 @@ using VariousArray = std::variant<FloatArray, IntArray, BoolArray>;
 class MLHelper
 {
 public:
+    enum class TensorDType { Float32, Int32, Bool };
+    struct TensorView {
+        TensorDType dtype = TensorDType::Float32;
+        const void *data = nullptr;
+        std::size_t size = 0;
+        std::vector<std::int64_t> shape;
+    };
     // Enumeration for model types
     enum class ModelType
     {
@@ -44,6 +53,9 @@ public:
     void Load_ONNX_Model(const std::string &modelPath);
     // Run model methods
     std::unordered_map<std::string, FloatArray> Run_ONNX_Model(const std::unordered_map<std::string, VariousArray> &inputDataMap, const std::unordered_map<std::string, IntArray> &inputDataShapeMap);
+    std::vector<FloatArray> RunPrepared(const std::vector<TensorView> &inputs);
+    const FloatArrays &RunPreparedView(const std::vector<TensorView> &inputs);
+    std::size_t PreparedBindingRebuilds() const;
     // FloatArrays Run_TorchScript_Model(const FloatArray &inputData);
 
     // Getter for the model type

@@ -1,6 +1,7 @@
 [submodule "external/RoccoR"]
 	path = external/RoccoR
 	url = ssh://git@gitlab.cern.ch:7999/hyseo/RoccoR.git
+	ignore = untracked
 [submodule "external/jsonpog-integration"]
 	path = external/jsonpog-integration
 	url = ssh://git@gitlab.cern.ch:7999/choij/jsonpog-integration.git

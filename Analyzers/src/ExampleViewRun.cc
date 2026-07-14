@@ -43,20 +43,20 @@ void ExampleViewRun::executeEvent() {
         return;
 
     const float muonPtCut = std::max(TriggerSafePtCut, 20.f);
-    std::vector<std::size_t> mediumMuons = SelectMuonIndices(muons, Muon::MuonID::POG_MEDIUM, muonPtCut, 2.4f);
+    std::vector<std::size_t> mediumMuons = SelectMuonIndices(muons, MuonView::MuonID::POG_MEDIUM, muonPtCut, 2.4f);
 
     std::sort(mediumMuons.begin(), mediumMuons.end(), [&](std::size_t a, std::size_t b) {
         return muons[a].Pt() > muons[b].Pt();
     });
 
-    FillHist("ViewExample/NMuon", static_cast<float>(mediumMuons.size()), baseWeight, 6, 0., 6.);
+    Hists().Fill("ViewExample/NMuon", static_cast<float>(mediumMuons.size()), baseWeight, 6, 0., 6.);
     if (mediumMuons.size() < 2)
         return;
 
     const auto &lead = muons[mediumMuons[0]];
     const auto &sublead = muons[mediumMuons[1]];
     TLorentzVector dimu = lead.P4() + sublead.P4();
-    FillHist("ViewExample/DimuonMass", dimu.M(), baseWeight, 120, 60., 120.);
+    Hists().Fill("ViewExample/DimuonMass", dimu.M(), baseWeight, 120, 60., 120.);
 
     JetViewCollection jets = GetAllJetViews();
     std::size_t tightJetCount = 0;
@@ -68,5 +68,5 @@ void ExampleViewRun::executeEvent() {
             continue;
         ++tightJetCount;
     }
-    FillHist("ViewExample/JetMultiplicity", static_cast<float>(tightJetCount), baseWeight, 10, 0., 10.);
+    Hists().Fill("ViewExample/JetMultiplicity", static_cast<float>(tightJetCount), baseWeight, 10, 0., 10.);
 }

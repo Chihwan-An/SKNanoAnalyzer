@@ -14,7 +14,7 @@ void ExampleRun::initializeAnalyzer() {
 
   // Dimuon Z-peak with two muon IDs
   // "RVec<TString> MuonIDs;" is defined in Analyzers/include/ExampleRun.h
-  MuonIDs = {Muon::MuonID::POG_MEDIUM, Muon::MuonID::POG_TIGHT};
+  MuonIDs = {MuonView::MuonID::POG_MEDIUM, MuonView::MuonID::POG_TIGHT};
   MuonIDSFKeys = {"NUM_MediumID_DEN_TrackerMuons",
                   "NUM_TightID_DEN_TrackerMuons"};
 
@@ -44,9 +44,8 @@ void ExampleRun::initializeAnalyzer() {
     IsoMuTriggerName = "HLT_IsoMu24";
     TriggerSafePtCut = 26.;
   } else {
-    cerr << "[ExampleRun::initializeAnalyzer] DataEra is not set properly"
-         << endl;
-    exit(EXIT_FAILURE);
+    throw SKNano::ConfigError(
+        "[ExampleRun::initializeAnalyzer] DataEra is not set properly");
   }
 
   cout << "[ExampleRun::initializeAnalyzer] IsoMuTriggerName = "
@@ -110,18 +109,9 @@ void ExampleRun::executeEvent() {
   //==== Example 1
   //==== Dimuon Z-peak events with two muon IDs, with systematics
 
-  // *IMPORTANT TO SAVE CPU TIME*
-  // Every GetMuon() funtion first collect ALL NANOAOD muons with GetAllMuons(),
-  // and then check ID booleans. GetAllMuons not only loops over all NANOAOD
-  // muons, but also actually CONSTRUCT muon objects for each muons. We are now
-  // running systematics, and you don't want to do this for every systematic
-  // sources So, I defined "RVec<Muon> AllMuons;" in
-  // Analyzers/include/ExampleRun.h, and save muons objects at the very
-  // beginning of executeEvent(). Later, do "SelectMuons(AllMuons, ID, pt, eta)"
-  // to get muons with ID cuts
-  // AllMuons = GetAllMuons();
+  // Acquire the event-scoped range once. Branches and derived momentum lanes
+  // are populated automatically when an accessor first demands them.
   AllMuonViews = GetAllMuonViews();
-  // AllJets = GetAllJets();
 
   // No prefire weight for Run3?
   weight_Prefire = 1.; // 조사해보기
@@ -136,12 +126,12 @@ void ExampleRun::executeEvent() {
   if (RunNewPDF && !IsDATA) {
     // cout << "[ExampleRun::executeEvent] PDF reweight = " << GetPDFReweight()
     // << endl;
-    FillHist("NewPDF_PDFReweight", GetPDFReweight(), 1., 2000, 0.90, 1.10);
+    Hists().Fill("NewPDF_PDFReweight", GetPDFReweight(), 1., 2000, 0.90, 1.10);
     // cout << "[ExampleRun::executeEvent] PDF reweight for error set (NErrorSet
     // = "<<pdfReweight->NErrorSet<< ") :" << endl;
     for (int i = 0; i < pdfReweight->NErrorSet; i++) {
       // cout << "[ExampleRun::executeEvent]   " << GetPDFReweight(i) << endl;
-      FillHist("NewPDF_PDFErrorSet/PDFReweight_Member_" + TString::Itoa(i, 10),
+      Hists().Fill("NewPDF_PDFErrorSet/PDFReweight_Member_" + TString::Itoa(i, 10),
                GetPDFReweight(i), 1., 2000, 0.90, 1.10);
     }
   }
@@ -155,7 +145,7 @@ void ExampleRun::executeEvent() {
 void ExampleRun::executeEventFromParameter() {
   // Assign systematic sources, In this example, only muon ID scale factors are
   // considered
-  Muon::MuonID this_muon_id;
+  MuonView::MuonID this_muon_id;
   TString this_muon_id_sf_key;
 
   const TString this_syst = systHelper->getCurrentSysName();
@@ -182,7 +172,7 @@ void ExampleRun::executeEventFromParameter() {
       weight_function_map;
 
   // No cut
-  FillHist(this_syst + "/NoCut", 0., 1., 1, 0., 1.);
+  Hists().Fill(this_syst + "/NoCut", 0., 1., 1, 0., 1.);
 
   // No MET filter for NanoAODv12?
   Event ev = GetEvent();
@@ -190,23 +180,18 @@ void ExampleRun::executeEventFromParameter() {
   if (!(ev.PassTrigger(IsoMuTriggerName)))
     return;
 
-  // Copy All objects
-  //RVec<Muon> this_AllMuons = AllMuons;
-  // RVec<Jet> this_AllJets = AllJets;
-
-  // apply ID selections using this_AllXXX
-  //RVec<Muon> muons = SelectMuons(this_AllMuons, this_muon_id, 20., 2.4);
-  // RVec<Jet> jets = SelectJets(this_AllJets, param.Jet_ID, 30., 2.4);
+  // Selections keep raw event indices; no input object is copied.
   std::vector<size_t> SelectedMuonIndices =
       SelectMuonIndices(AllMuonViews, this_muon_id, 20., 2.4);
   if (SelectedMuonIndices.size() != 2)
     return;
 
-  RVec<Muon> muons = MaterializeMuons(AllMuonViews, SelectedMuonIndices);
-
   // sort in pt-order
   // 1) leptons : after scaling/smearing, pt ordring can differ from NANOAOD
-  sort(muons.begin(), muons.end(), PtComparing);
+  sort(SelectedMuonIndices.begin(), SelectedMuonIndices.end(),
+       [&](std::size_t left, std::size_t right) {
+         return AllMuonViews[left].Pt() > AllMuonViews[right].Pt();
+       });
   // jets : similar, but also when applying new JEC, ordering is changes. This
   // is important if you use leading jets
   // sort(jets.begin(), jets.end(), PtComparing);
@@ -223,10 +208,12 @@ void ExampleRun::executeEventFromParameter() {
   //if (muons.size() != 2)
   //  return;
   // leading muon has to pass trigger-safe cut
-  if (muons.at(0).Pt() <= TriggerSafePtCut)
+  const auto leadingMuon = AllMuonViews[SelectedMuonIndices[0]];
+  const auto subleadingMuon = AllMuonViews[SelectedMuonIndices[1]];
+  if (leadingMuon.Pt() <= TriggerSafePtCut)
     return;
   // On-Z
-  Particle ZCand = muons.at(0) + muons.at(1);
+  const TLorentzVector ZCand = leadingMuon.P4() + subleadingMuon.P4();
   if (!(fabs(ZCand.M() - 91.2) < 15.))
     return;
 
@@ -234,7 +221,8 @@ void ExampleRun::executeEventFromParameter() {
   std::function<float(MyCorrection::variation, TString)> mu_id_lambda =
       [&](MyCorrection::variation syst, TString source) {
         (void)source;
-        return myCorr->GetMuonIDSF(this_muon_id_sf_key, muons, syst);
+        return myCorr->GetMuonIDSF(this_muon_id_sf_key, AllMuonViews,
+                                   SelectedMuonIndices, syst);
       };
   weight_function_map["Muon_ID"] = mu_id_lambda;
   systHelper->assignWeightFunctionMap(weight_function_map);
@@ -250,13 +238,13 @@ void ExampleRun::executeEventFromParameter() {
     unordered_map<std::string, float> weight_map =
         systHelper->calculateWeight();
     for (const auto &w : weight_map) {
-      FillHist(this_syst + "/ZCand_Mass_" + w.first, ZCand.M(),
+      Hists().Fill(this_syst + "/ZCand_Mass_" + w.first, ZCand.M(),
       1.f,
                //default_weight * w.second,
                 50, 70., 110.);
     }
   } else {
-    FillHist(this_syst + "/ZCand_Mass_" + this_syst, ZCand.M(), weight, 50, 70.,
+    Hists().Fill(this_syst + "/ZCand_Mass_" + this_syst, ZCand.M(), weight, 50, 70.,
              110.);
   }
 }

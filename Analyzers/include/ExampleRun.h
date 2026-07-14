@@ -20,10 +20,8 @@ public:
     float TriggerSafePtCut;
 
     RVec<TString> MuonIDSFKeys;
-    RVec<Muon::MuonID> MuonIDs;
-    RVec<Muon> AllMuons;
+    RVec<MuonView::MuonID> MuonIDs;
     MuonViewCollection AllMuonViews;
-    RVec<Jet> AllJets;
     Event ev;
 
     float weight_Prefire;
@@ -35,4 +33,3 @@ public:
 };
 
 #endif
-

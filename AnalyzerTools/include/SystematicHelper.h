@@ -7,6 +7,7 @@
 #include <functional>
 #include "ROOT/RVec.hxx"
 #include "MyCorrection.h"
+#include "VariationKernel.h"
 #include <variant>
 
 using namespace ROOT::VecOps;
@@ -64,6 +65,11 @@ public:
             syst_source = obj.syst_source;
             variation = obj.variation;
         }
+    };
+
+    struct CompiledVariationPlan {
+        SKNano::VariationPlan plan;
+        std::vector<Iter_obj> lanes;
     };
 
     SystematicHelper(std::string yaml_path, TString sample, TString Era);
@@ -127,16 +133,8 @@ public:
     std::vector<std::string> get_targets_from_name(const std::string &syst_name);
     std::vector<std::string> get_sources_from_name(const std::string &syst_name);
     MyCorrection::variation get_variation_from_name(const std::string &syst_name);
+    CompiledVariationPlan compileVariationPlan() const;
     std::unordered_map<std::string, float> calculateWeight(bool dry_run = false);
-    inline float safe_divide(float numerator, float denominator)
-    {
-        if (abs(denominator) < 1e-8)
-        {
-            return numerator;
-        }
-        return numerator / denominator;
-    }
-
 private:
     std::string central_name = "Central";
     void checkBadSystematics();

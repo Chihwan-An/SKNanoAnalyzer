@@ -10,34 +10,35 @@ void Vcb_FH::CreateTrainingTree()
     Clear();
     RVec<TString> keeps = {};
     RVec<TString> drops = {"*"};
-    NewTree("Training_Tree", keeps, drops);
-    GetTree("Training_Tree")->Branch("Jet_Px", &Jet_Px);
-    GetTree("Training_Tree")->Branch("Jet_Py", &Jet_Py);
-    GetTree("Training_Tree")->Branch("Jet_Pz", &Jet_Pz);
-    GetTree("Training_Tree")->Branch("Jet_E", &Jet_E);
-    GetTree("Training_Tree")->Branch("Jet_M", &Jet_M);
-    GetTree("Training_Tree")->Branch("Jet_BvsC", &Jet_BvsC);
-    GetTree("Training_Tree")->Branch("Jet_CvsB", &Jet_CvsB);
-    GetTree("Training_Tree")->Branch("Jet_CvsL", &Jet_CvsL);
-    GetTree("Training_Tree")->Branch("Jet_QvsG", &Jet_QvsG);
-    GetTree("Training_Tree")->Branch("Jet_HFvLF", &Jet_HFvLF);
-    GetTree("Training_Tree")->Branch("Jet_BvC", &Jet_BvC);
-    GetTree("Training_Tree")->Branch("Jet_Category", &Jet_Category);
-    GetTree("Training_Tree")->Branch("Jet_B_WP", &Jet_B_WP);
-    GetTree("Training_Tree")->Branch("Jet_C_WP", &Jet_C_WP);
-    GetTree("Training_Tree")->Branch("Jet_isTTbarJet", &Jet_isTTbarJet);
-    GetTree("Training_Tree")->Branch("Jet_ttbarJet_idx", &Jet_ttbarJet_idx);
-    GetTree("Training_Tree")->Branch("Jet_Pt", &Jet_Pt);
-    GetTree("Training_Tree")->Branch("Jet_Eta", &Jet_Eta);
-    GetTree("Training_Tree")->Branch("Jet_Phi", &Jet_Phi);
-    GetTree("Training_Tree")->Branch("edge_index_0", &edge_index0);
-    GetTree("Training_Tree")->Branch("edge_index_1", &edge_index1);
-    GetTree("Training_Tree")->Branch("deltaR", &deltaR);
-    GetTree("Training_Tree")->Branch("invM", &invM);
-    GetTree("Training_Tree")->Branch("cosTheta", &cosTheta);
+    BookTree("Training_Tree", keeps, drops);
+    OutputTree("Training_Tree").Branch("Jet_Px", Jet_Px);
+    OutputTree("Training_Tree").Branch("Jet_Py", Jet_Py);
+    OutputTree("Training_Tree").Branch("Jet_Pz", Jet_Pz);
+    OutputTree("Training_Tree").Branch("Jet_E", Jet_E);
+    OutputTree("Training_Tree").Branch("Jet_M", Jet_M);
+    OutputTree("Training_Tree").Branch("Jet_BvsC", Jet_BvsC);
+    OutputTree("Training_Tree").Branch("Jet_CvsB", Jet_CvsB);
+    OutputTree("Training_Tree").Branch("Jet_CvsL", Jet_CvsL);
+    OutputTree("Training_Tree").Branch("Jet_QvsG", Jet_QvsG);
+    OutputTree("Training_Tree").Branch("Jet_HFvLF", Jet_HFvLF);
+    OutputTree("Training_Tree").Branch("Jet_BvC", Jet_BvC);
+    OutputTree("Training_Tree").Branch("Jet_Category", Jet_Category);
+    OutputTree("Training_Tree").Branch("Jet_B_WP", Jet_B_WP);
+    OutputTree("Training_Tree").Branch("Jet_C_WP", Jet_C_WP);
+    OutputTree("Training_Tree").Branch("Jet_isTTbarJet", Jet_isTTbarJet);
+    OutputTree("Training_Tree").Branch("Jet_ttbarJet_idx", Jet_ttbarJet_idx);
+    OutputTree("Training_Tree").Branch("Jet_Pt", Jet_Pt);
+    OutputTree("Training_Tree").Branch("Jet_Eta", Jet_Eta);
+    OutputTree("Training_Tree").Branch("Jet_Phi", Jet_Phi);
+    OutputTree("Training_Tree").Branch("edge_index_0", edge_index0);
+    OutputTree("Training_Tree").Branch("edge_index_1", edge_index1);
+    OutputTree("Training_Tree").Branch("deltaR", deltaR);
+    OutputTree("Training_Tree").Branch("invM", invM);
+    OutputTree("Training_Tree").Branch("cosTheta", cosTheta);
 }
 
-RVec<RVec<unsigned int>> Vcb_FH::GetPermutations(const RVec<Jet> &jets)
+RVec<RVec<unsigned int>>
+Vcb_FH::GetPermutations(const SelectedJetViewCollection &jets)
 {
     RVec<RVec<unsigned int>> permutations;
     std::vector<unsigned int> b_tagged_idx;
@@ -119,7 +120,6 @@ bool Vcb_FH::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
     auto jetIndices = SelectJetIndices(AllJetViews, Jet_ID, SL_Jet_Pt_cut, Jet_Eta_cut);
     if (jetIndices.size() < 6)
         return false;
-    Jets = MaterializeJets(AllJetViews, jetIndices);
     MyCorrection::variation jesVar = MyCorrection::variation::nom;
     MyCorrection::variation jerVar = MyCorrection::variation::nom;
     const std::string systTarget = systHelper->getCurrentIterSysTarget();
@@ -150,28 +150,42 @@ bool Vcb_FH::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
 
     if (doJetPropagation)
         PropagateJetSystToMET(AllJetViews, MET, jesVar, jerVar);
-    Jets = SelectJets(Jets, Jet_ID, SL_Jet_Pt_cut, Jet_Eta_cut);
+    jetIndices = SelectJetIndices(AllJetViews, Jet_ID, SL_Jet_Pt_cut,
+                                  Jet_Eta_cut, jesVar, jerVar);
 
-    Muons_Veto = SelectMuons(AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
-    Muons_Veto = SelectMuons(Muons_Veto, Muon_Veto_Iso, Muon_Veto_Pt, Muon_Veto_Eta);
-    Electrons_Veto = SelectElectrons(AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt, Electron_Veto_Eta);
-    Muons = SelectMuons(AllMuonViews, Muon_Tight_ID, Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-    Muons = SelectMuons(Muons, Muon_Tight_Iso, Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-    Electrons = SelectElectrons(AllElectronViews, Electron_Tight_ID, Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
-    Jets = JetsVetoLeptonInside(Jets, Electrons_Veto, Muons_Veto, Jet_Veto_DR);
-    Jets = SelectJets(Jets, Jet_PUID, SL_Jet_Pt_cut, Jet_Eta_cut);
-    std::sort(Jets.begin(), Jets.end(), PtComparing);
+    auto muonVetoIndices = SelectMuonIndices(
+        AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
+    muonVetoIndices = SelectMuonIndices(
+        AllMuonViews, muonVetoIndices, Muon_Veto_Iso, Muon_Veto_Pt,
+        Muon_Veto_Eta);
+    const auto electronVetoIndices = SelectElectronIndices(
+        AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt,
+        Electron_Veto_Eta);
+    auto muonIndices = SelectMuonIndices(
+        AllMuonViews, Muon_Tight_ID, Muon_Tight_Pt[DataEra.Data()],
+        Muon_Tight_Eta);
+    muonIndices = SelectMuonIndices(
+        AllMuonViews, muonIndices, Muon_Tight_Iso,
+        Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
+    const auto electronIndices = SelectElectronIndices(
+        AllElectronViews, Electron_Tight_ID,
+        Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
+    Muons_Veto =
+        MuonViewCollection(AllMuonViews.storage(), muonVetoIndices);
+    Electrons_Veto = ElectronViewCollection(AllElectronViews.storage(),
+                                             electronVetoIndices);
+    Muons = MuonViewCollection(AllMuonViews.storage(), muonIndices);
+    Electrons =
+        ElectronViewCollection(AllElectronViews.storage(), electronIndices);
+    jetIndices = JetsVetoLeptonInside(
+        AllJetViews, jetIndices, AllElectronViews, electronVetoIndices,
+        AllMuonViews, muonVetoIndices, Jet_Veto_DR);
+    jetIndices = SelectJetIndices(AllJetViews, jetIndices, Jet_PUID,
+                                  SL_Jet_Pt_cut, Jet_Eta_cut, jesVar, jerVar);
+    Jets = SelectJetViews(AllJetViews, jetIndices, jesVar, jerVar);
     HT = GetHT(Jets);
     n_jets = Jets.size();
-    std::vector<std::size_t> selectedJetIndices;
-    selectedJetIndices.reserve(Jets.size());
-    for (const auto &jet : Jets)
-    {
-        const int idx = jet.OriginalIndex();
-        if (idx >= 0)
-            selectedJetIndices.push_back(static_cast<std::size_t>(idx));
-    }
-    UpdateAllJetTaggingCaches(AllJetViews, selectedJetIndices);
+    UpdateAllJetTaggingCaches(AllJetViews, Jets.indices());
 
     if (n_jets < 6)
         return false;
@@ -213,127 +227,127 @@ void Vcb_FH::FillKinematicFitterResult(const TString &histPrefix, float weight)
     Particle fittedW2 = best_KF_result.fitted_w21 + best_KF_result.fitted_w22;
     Particle fittedTop1 = best_KF_result.fitted_b1 + fittedW1;
     Particle fittedTop2 = best_KF_result.fitted_b2 + fittedW2;
-    Particle W1 = Jets[best_KF_result.best_w11_idx] + Jets[best_KF_result.best_w12_idx];
-    Particle W2 = Jets[best_KF_result.best_w21_idx] + Jets[best_KF_result.best_w22_idx];
-    Particle Top1 = Jets[best_KF_result.best_b1_idx] + W1;
-    Particle Top2 = Jets[best_KF_result.best_b2_idx] + W2;
+    Particle W1(Jets[best_KF_result.best_w11_idx].P4() + Jets[best_KF_result.best_w12_idx].P4());
+    Particle W2(Jets[best_KF_result.best_w21_idx].P4() + Jets[best_KF_result.best_w22_idx].P4());
+    Particle Top1(Jets[best_KF_result.best_b1_idx].P4() + W1);
+    Particle Top2(Jets[best_KF_result.best_b2_idx].P4() + W2);
 
-    FillHist(histPrefix + "/" + "Top1Mass", Top1.M(), weight, 100, 0., 500.);
-    FillHist(histPrefix + "/" + "Top2Mass", Top2.M(), weight, 100, 0., 500.);
-    FillHist(histPrefix + "/" + "W1Mass", W1.M(), weight, 100, 50., 150.);
-    FillHist(histPrefix + "/" + "W2Mass", W2.M(), weight, 100, 50., 150.);
-    FillHist(histPrefix + "/" + "FittedTop1Mass", fittedTop1.M(), weight, 100, 100., 300.);
-    FillHist(histPrefix + "/" + "FittedTop2Mass", fittedTop2.M(), weight, 100, 100., 300.);
-    FillHist(histPrefix + "/" + "FittedW1Mass", fittedW1.M(), weight, 100, 60., 100.);
-    FillHist(histPrefix + "/" + "FittedW2Mass", fittedW2.M(), weight, 100, 60., 100.);
-    FillHist(histPrefix + "/" + "Top_bb_dR", Jets[best_KF_result.best_b1_idx].DeltaR(Jets[best_KF_result.best_b2_idx]), weight, 100, 0., 5.);
-    FillHist(histPrefix + "/" + "Chi2", best_KF_result.chi2, weight, 600, 0., 300.);
+    Hists().Fill(histPrefix + "/" + "Top1Mass", Top1.M(), weight, 100, 0., 500.);
+    Hists().Fill(histPrefix + "/" + "Top2Mass", Top2.M(), weight, 100, 0., 500.);
+    Hists().Fill(histPrefix + "/" + "W1Mass", W1.M(), weight, 100, 50., 150.);
+    Hists().Fill(histPrefix + "/" + "W2Mass", W2.M(), weight, 100, 50., 150.);
+    Hists().Fill(histPrefix + "/" + "FittedTop1Mass", fittedTop1.M(), weight, 100, 100., 300.);
+    Hists().Fill(histPrefix + "/" + "FittedTop2Mass", fittedTop2.M(), weight, 100, 100., 300.);
+    Hists().Fill(histPrefix + "/" + "FittedW1Mass", fittedW1.M(), weight, 100, 60., 100.);
+    Hists().Fill(histPrefix + "/" + "FittedW2Mass", fittedW2.M(), weight, 100, 60., 100.);
+    Hists().Fill(histPrefix + "/" + "Top_bb_dR", Jets[best_KF_result.best_b1_idx].DeltaR(Jets[best_KF_result.best_b2_idx]), weight, 100, 0., 5.);
+    Hists().Fill(histPrefix + "/" + "Chi2", best_KF_result.chi2, weight, 600, 0., 300.);
 }
 
 void Vcb_FH::FillTrainingTree()
 {
     ttbar_jet_indices = FindTTbarJetIndices();
-    SetBranch("Training_Tree", "MET", MET.Pt());
-    SetBranch("Training_Tree", "HT", HT);
-    SetBranch("Training_Tree", "n_jets", n_jets);
-    SetBranch("Training_Tree", "n_b_tagged_jets", n_b_tagged_jets);
-    SetBranch("Training_Tree", "n_c_tagged_jets", n_c_tagged_jets);
-    SetBranch("Training_Tree", "find_all_jets", find_all_jets);
+    OutputTree("Training_Tree").Set( "MET", MET.Pt());
+    OutputTree("Training_Tree").Set( "HT", HT);
+    OutputTree("Training_Tree").Set( "n_jets", n_jets);
+    OutputTree("Training_Tree").Set( "n_b_tagged_jets", n_b_tagged_jets);
+    OutputTree("Training_Tree").Set( "n_c_tagged_jets", n_c_tagged_jets);
+    OutputTree("Training_Tree").Set( "find_all_jets", find_all_jets);
     float weight = MCNormalization();
     weight *= systHelper->calculateWeight()["Jet_En_Down"];
-    SetBranch("Training_Tree", "weight", weight);
+    OutputTree("Training_Tree").Set( "weight", weight);
 
     if (find_all_jets)
     {
-        Particle W1Cand = Jets[ttbar_jet_indices[2]] + Jets[ttbar_jet_indices[3]];
-        Particle W2Cand = Jets[ttbar_jet_indices[4]] + Jets[ttbar_jet_indices[5]];
-        Particle Top1Cand = Jets[ttbar_jet_indices[0]] + W1Cand;
-        Particle Top2Cand = Jets[ttbar_jet_indices[1]] + W2Cand;
+        Particle W1Cand(Jets[ttbar_jet_indices[2]].P4() + Jets[ttbar_jet_indices[3]].P4());
+        Particle W2Cand(Jets[ttbar_jet_indices[4]].P4() + Jets[ttbar_jet_indices[5]].P4());
+        Particle Top1Cand(Jets[ttbar_jet_indices[0]].P4() + W1Cand);
+        Particle Top2Cand(Jets[ttbar_jet_indices[1]].P4() + W2Cand);
         Particle ttCand = Top1Cand + Top2Cand;
-        SetBranch("Training_Tree", "Top1Mass", Top1Cand.M());
-        SetBranch("Training_Tree", "Top2Mass", Top2Cand.M());
-        SetBranch("Training_Tree", "W1Mass", W1Cand.M());
-        SetBranch("Training_Tree", "W2Mass", W2Cand.M());
-        SetBranch("Training_Tree", "Top1Pt", Top1Cand.Pt());
-        SetBranch("Training_Tree", "Top2Pt", Top2Cand.Pt());
-        SetBranch("Training_Tree", "W1Pt", W1Cand.Pt());
-        SetBranch("Training_Tree", "W2Pt", W2Cand.Pt());
-        SetBranch("Training_Tree", "Top1Eta", Top1Cand.Eta());
-        SetBranch("Training_Tree", "Top2Eta", Top2Cand.Eta());
-        SetBranch("Training_Tree", "W1Eta", W1Cand.Eta());
-        SetBranch("Training_Tree", "W2Eta", W2Cand.Eta());
-        SetBranch("Training_Tree", "Top1Phi", Top1Cand.Phi());
-        SetBranch("Training_Tree", "Top2Phi", Top2Cand.Phi());
-        SetBranch("Training_Tree", "W1Phi", W1Cand.Phi());
-        SetBranch("Training_Tree", "W2Phi", W2Cand.Phi());
-        SetBranch("Training_Tree", "ttbarMass", ttCand.M());
-        SetBranch("Training_Tree", "ttbarPt", ttCand.Pt());
-        SetBranch("Training_Tree", "ttbarEta", ttCand.Eta());
-        SetBranch("Training_Tree", "ttbarPhi", ttCand.Phi());
+        OutputTree("Training_Tree").Set( "Top1Mass", Top1Cand.M());
+        OutputTree("Training_Tree").Set( "Top2Mass", Top2Cand.M());
+        OutputTree("Training_Tree").Set( "W1Mass", W1Cand.M());
+        OutputTree("Training_Tree").Set( "W2Mass", W2Cand.M());
+        OutputTree("Training_Tree").Set( "Top1Pt", Top1Cand.Pt());
+        OutputTree("Training_Tree").Set( "Top2Pt", Top2Cand.Pt());
+        OutputTree("Training_Tree").Set( "W1Pt", W1Cand.Pt());
+        OutputTree("Training_Tree").Set( "W2Pt", W2Cand.Pt());
+        OutputTree("Training_Tree").Set( "Top1Eta", Top1Cand.Eta());
+        OutputTree("Training_Tree").Set( "Top2Eta", Top2Cand.Eta());
+        OutputTree("Training_Tree").Set( "W1Eta", W1Cand.Eta());
+        OutputTree("Training_Tree").Set( "W2Eta", W2Cand.Eta());
+        OutputTree("Training_Tree").Set( "Top1Phi", Top1Cand.Phi());
+        OutputTree("Training_Tree").Set( "Top2Phi", Top2Cand.Phi());
+        OutputTree("Training_Tree").Set( "W1Phi", W1Cand.Phi());
+        OutputTree("Training_Tree").Set( "W2Phi", W2Cand.Phi());
+        OutputTree("Training_Tree").Set( "ttbarMass", ttCand.M());
+        OutputTree("Training_Tree").Set( "ttbarPt", ttCand.Pt());
+        OutputTree("Training_Tree").Set( "ttbarEta", ttCand.Eta());
+        OutputTree("Training_Tree").Set( "ttbarPhi", ttCand.Phi());
     }
     else
     {
-        SetBranch("Training_Tree", "Top1Mass", -999.);
-        SetBranch("Training_Tree", "Top2Mass", -999.);
-        SetBranch("Training_Tree", "W1Mass", -999.);
-        SetBranch("Training_Tree", "W2Mass", -999.);
-        SetBranch("Training_Tree", "Top1Pt", -999.);
-        SetBranch("Training_Tree", "Top2Pt", -999.);
-        SetBranch("Training_Tree", "W1Pt", -999.);
-        SetBranch("Training_Tree", "W2Pt", -999.);
-        SetBranch("Training_Tree", "Top1Eta", -999.);
-        SetBranch("Training_Tree", "Top2Eta", -999.);
-        SetBranch("Training_Tree", "W1Eta", -999.);
-        SetBranch("Training_Tree", "W2Eta", -999.);
-        SetBranch("Training_Tree", "Top1Phi", -999.);
-        SetBranch("Training_Tree", "Top2Phi", -999.);
-        SetBranch("Training_Tree", "W1Phi", -999.);
-        SetBranch("Training_Tree", "W2Phi", -999.);
-        SetBranch("Training_Tree", "ttbarMass", -999.);
-        SetBranch("Training_Tree", "ttbarPt", -999.);
-        SetBranch("Training_Tree", "ttbarEta", -999.);
-        SetBranch("Training_Tree", "ttbarPhi", -999.);
+        OutputTree("Training_Tree").Set( "Top1Mass", -999.);
+        OutputTree("Training_Tree").Set( "Top2Mass", -999.);
+        OutputTree("Training_Tree").Set( "W1Mass", -999.);
+        OutputTree("Training_Tree").Set( "W2Mass", -999.);
+        OutputTree("Training_Tree").Set( "Top1Pt", -999.);
+        OutputTree("Training_Tree").Set( "Top2Pt", -999.);
+        OutputTree("Training_Tree").Set( "W1Pt", -999.);
+        OutputTree("Training_Tree").Set( "W2Pt", -999.);
+        OutputTree("Training_Tree").Set( "Top1Eta", -999.);
+        OutputTree("Training_Tree").Set( "Top2Eta", -999.);
+        OutputTree("Training_Tree").Set( "W1Eta", -999.);
+        OutputTree("Training_Tree").Set( "W2Eta", -999.);
+        OutputTree("Training_Tree").Set( "Top1Phi", -999.);
+        OutputTree("Training_Tree").Set( "Top2Phi", -999.);
+        OutputTree("Training_Tree").Set( "W1Phi", -999.);
+        OutputTree("Training_Tree").Set( "W2Phi", -999.);
+        OutputTree("Training_Tree").Set( "ttbarMass", -999.);
+        OutputTree("Training_Tree").Set( "ttbarPt", -999.);
+        OutputTree("Training_Tree").Set( "ttbarEta", -999.);
+        OutputTree("Training_Tree").Set( "ttbarPhi", -999.);
     }
 
     // for (size_t i = 0; i <= 10; i++)
     // {
     //     if(i < n_jets){
-    //         SetBranch("Training_Tree", "Jet_Pt_" + std::to_string(i), Jets[i].Pt());
-    //         SetBranch("Training_Tree", "Jet_Eta_" + std::to_string(i), Jets[i].Eta());
-    //         SetBranch("Training_Tree", "Jet_Phi_" + std::to_string(i), Jets[i].Phi());
-    //         SetBranch("Training_Tree", "Jet_M_" + std::to_string(i), Jets[i].M());
-    //         SetBranch("Training_Tree", "Jet_BvsC_" + std::to_string(i), JetBScore(Jets[i]));
-    //         SetBranch("Training_Tree", "Jet_CvsB_" + std::to_string(i), JetCvBScore(Jets[i]));
-    //         SetBranch("Training_Tree", "Jet_CvsL_" + std::to_string(i), JetCvLScore(Jets[i]));
-    //         SetBranch("Training_Tree", "Jet_QvsG_" + std::to_string(i), JetQvGScore(Jets[i]));
+    //         OutputTree("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), Jets[i].Pt());
+    //         OutputTree("Training_Tree").Set( "Jet_Eta_" + std::to_string(i), Jets[i].Eta());
+    //         OutputTree("Training_Tree").Set( "Jet_Phi_" + std::to_string(i), Jets[i].Phi());
+    //         OutputTree("Training_Tree").Set( "Jet_M_" + std::to_string(i), Jets[i].M());
+    //         OutputTree("Training_Tree").Set( "Jet_BvsC_" + std::to_string(i), JetBScore(Jets[i]));
+    //         OutputTree("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i), JetCvBScore(Jets[i]));
+    //         OutputTree("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i), JetCvLScore(Jets[i]));
+    //         OutputTree("Training_Tree").Set( "Jet_QvsG_" + std::to_string(i), JetQvGScore(Jets[i]));
     //         //Tagging WP
-    //         SetBranch("Training_Tree", "Jet_B_WP_" + std::to_string(i), GetPassedBTaggingWP(Jets[i]));
-    //         SetBranch("Training_Tree", "Jet_C_WP_" + std::to_string(i), GetPassedCTaggingWP(Jets[i]));
+    //         OutputTree("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i), GetPassedBTaggingWP(Jets[i]));
+    //         OutputTree("Training_Tree").Set( "Jet_C_WP_" + std::to_string(i), GetPassedCTaggingWP(Jets[i]));
 
     // auto it = find(ttbar_jet_indices.begin(), ttbar_jet_indices.end(), i);
     // if(it != ttbar_jet_indices.end()){
-    //     SetBranch("Training_Tree", "Jet_isTTbarJet_" + std::to_string(i), int(1));
-    //     SetBranch("Training_Tree", "Jet_ttbarJet_idx_" + std::to_string(i), int(it - ttbar_jet_indices.begin()));
+    //     OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(1));
+    //     OutputTree("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(it - ttbar_jet_indices.begin()));
     // }
     // else{
-    //     SetBranch("Training_Tree", "Jet_isTTbarJet_" + std::to_string(i), int(0));
-    //     SetBranch("Training_Tree", "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
+    //     OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(0));
+    //     OutputTree("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
     // }
 
     //     }
     //     else{
-    //         SetBranch("Training_Tree", "Jet_Pt_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_Eta_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_Phi_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_M_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_BvsC_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_CvsB_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_CvsL_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_QvsG_" + std::to_string(i), -999.);
-    //         SetBranch("Training_Tree", "Jet_isTTbarJet_" + std::to_string(i), int(-999));
-    //         SetBranch("Training_Tree", "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
-    //         SetBranch("Training_Tree", "Jet_B_WP_" + std::to_string(i), -999);
-    //         SetBranch("Training_Tree", "Jet_C_WP_" + std::to_string(i), -999);
+    //         OutputTree("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_Eta_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_Phi_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_M_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_BvsC_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_QvsG_" + std::to_string(i), -999.);
+    //         OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(-999));
+    //         OutputTree("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
+    //         OutputTree("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i), -999);
+    //         OutputTree("Training_Tree").Set( "Jet_C_WP_" + std::to_string(i), -999);
     //     }
     // }
 
@@ -406,7 +420,7 @@ void Vcb_FH::FillTrainingTree()
             edge_index1.push_back(j);
             // undirected graph
             float this_deltaR = Jets[i].DeltaR(Jets[j]);
-            float this_invM = (Jets[i] + Jets[j]).M();
+            float this_invM = (Jets[i].P4() + Jets[j].P4()).M();
             TVector3 v1 = Jets[i].Vect();
             TVector3 v2 = Jets[j].Vect();
             float this_cosTheta = TMath::Cos(v1.Angle(v2));
@@ -416,13 +430,13 @@ void Vcb_FH::FillTrainingTree()
         }
     }
 
-    SetBranch("Training_Tree", "KF_b1_idx", best_KF_result.best_b1_idx);
-    SetBranch("Training_Tree", "KF_b2_idx", best_KF_result.best_b2_idx);
-    SetBranch("Training_Tree", "KF_w11_idx", best_KF_result.best_w11_idx);
-    SetBranch("Training_Tree", "KF_w12_idx", best_KF_result.best_w12_idx);
-    SetBranch("Training_Tree", "KF_w21_idx", best_KF_result.best_w21_idx);
-    SetBranch("Training_Tree", "KF_w22_idx", best_KF_result.best_w22_idx);
-    SetBranch("Training_Tree", "KF_chi2", best_KF_result.chi2);
+    OutputTree("Training_Tree").Set( "KF_b1_idx", best_KF_result.best_b1_idx);
+    OutputTree("Training_Tree").Set( "KF_b2_idx", best_KF_result.best_b2_idx);
+    OutputTree("Training_Tree").Set( "KF_w11_idx", best_KF_result.best_w11_idx);
+    OutputTree("Training_Tree").Set( "KF_w12_idx", best_KF_result.best_w12_idx);
+    OutputTree("Training_Tree").Set( "KF_w21_idx", best_KF_result.best_w21_idx);
+    OutputTree("Training_Tree").Set( "KF_w22_idx", best_KF_result.best_w22_idx);
+    OutputTree("Training_Tree").Set( "KF_chi2", best_KF_result.chi2);
 
     int answer;
     if (IsDATA)
@@ -439,9 +453,9 @@ void Vcb_FH::FillTrainingTree()
     }
     else
         answer = category_for_training_SL["Others"];
-    SetBranch("Training_Tree", "y", answer);
+    OutputTree("Training_Tree").Set( "y", answer);
 
-    FillTrees();
+    OutputTree("Training_Tree").Fill();
 }
 
 RVec<int> Vcb_FH::FindTTbarJetIndices()
@@ -601,7 +615,7 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
     tt_decay_code = abs(pid_wp1) * 1000 + abs(pid_wp2) * 100 + abs(pid_wm1) * 10 + abs(pid_wm2);
 
     // (Optional) Fill a histogram for passing these Gen-level selections
-    FillHist("FindTT_FullHad_CutFlow", 0, 1.f, 10, 0., 10.);
+    Hists().Fill("FindTT_FullHad_CutFlow", 0, 1.f, 10, 0., 10.);
 
     // ------------------------------------------------------------------
     // 3) Put these 6 quarks into a container in a known order
@@ -613,7 +627,7 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
     //   3 => W+ q2,
     //   4 => W- q1,
     //   5 => W- q2
-    RVec<Gen> relevant_gens(6);
+    RVec<GenView> relevant_gens(6);
     relevant_gens[0] = AllGens[idx_b_from_t_plus];
     relevant_gens[1] = AllGens[idx_b_from_t_minus];
     relevant_gens[2] = AllGens[idx_wplus_dau1];
@@ -626,7 +640,8 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
     // ------------------------------------------------------------------
     // Build a map from PID -> vector of (indexInRelevantGens, Gen object)
     // so that each quark tries to match to GenJets of the same partonFlavour.
-    std::unordered_map<int, RVec<std::pair<size_t, Gen>>> map_pid_to_genIdxObj;
+    std::unordered_map<int, RVec<std::pair<size_t, GenView>>>
+        map_pid_to_genIdxObj;
     for (size_t iG = 0; iG < relevant_gens.size(); iG++)
     {
         int pid = relevant_gens[iG].PID();
@@ -656,7 +671,7 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
         auto &idxGenPairs = kv.second; // each element is { iG, GenObject }
 
         // Gather candidate GenJets that have the same partonFlavour as target_pid
-        RVec<GenJet> candidateGenJets;
+        RVec<GenJetView> candidateGenJets;
         RVec<int> candidateGJIndices;
         for (size_t j = 0; j < AllGenJets.size(); j++)
         {
@@ -676,13 +691,14 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
         }
 
         // Prepare only the Gen objects that share that PID
-        RVec<Gen> these_gens;
+        RVec<GenView> these_gens;
         these_gens.reserve(idxGenPairs.size());
         for (auto &p : idxGenPairs)
             these_gens.push_back(p.second);
 
         // Perform deltaR matching
-        auto result_map = deltaRMatching(these_gens, candidateGenJets, 0.4);
+        auto result_map =
+            deltaRMatchingViews(these_gens, candidateGenJets, 0.4);
 
         // Store the results
         // result_map[iGenInGroup] -> iJetInCandidate (or -1 if none matched)
@@ -710,13 +726,13 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
         }
     }
     if (matched_all_genJets)
-        FillHist("FindTT_FullHad_CutFlow", 1, 1.f, 10, 0., 10.);
+        Hists().Fill("FindTT_FullHad_CutFlow", 1, 1.f, 10, 0., 10.);
 
     // ------------------------------------------------------------------
     // 5) Match the GenJets to Reco Jets
     // ------------------------------------------------------------------
     // Build a subset of GenJets that *were* matched
-    RVec<GenJet> matchedGenJets;
+    RVec<GenJetView> matchedGenJets;
     RVec<size_t> matchedGenIndices; // which of the 6 quarks did it come from
     for (size_t iG = 0; iG < relevant_gens.size(); iG++)
     {
@@ -730,7 +746,8 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
 
     // Perform the GenJet -> RecoJet matching
     // e.g.  GenJetMatching(yourRecoJets, matchedGenJets, evt.GetRho(), dR=0.4, pTdiff=INFINITY)
-    auto recoMatchMap = GenJetMatching(Jets, matchedGenJets, ev.GetRho(), 0.4, INFINITY);
+    auto recoMatchMap =
+        GenJetMatchingViews(Jets, matchedGenJets, ev.GetRho(), 0.4, INFINITY);
 
     // Invert that map so we can see for the i-th GenJet in matchedGenJets which RecoJet was matched
     std::unordered_map<int, int> map_genJetIdx_inSubset_to_recoJetIdx;
@@ -764,7 +781,7 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
     }
 
     if (find_all_jets)
-        FillHist("FindTT_FullHad_CutFlow", 2, 1.f, 10, 0., 10.);
+        Hists().Fill("FindTT_FullHad_CutFlow", 2, 1.f, 10, 0., 10.);
 
     // ------------------------------------------------------------------
     // 6) (Optional) Fill some Gen-level/Reco-level histograms
@@ -772,36 +789,40 @@ RVec<int> Vcb_FH::FindTTbarJetIndices()
     if (find_all_jets)
     {
         // Reconstruct top from (b_t + W+ quarks)
-        Particle Wplus_gen = AllGens[idx_wplus_dau1] + AllGens[idx_wplus_dau2];
-        Particle TopPlus_gen = Wplus_gen + AllGens[idx_b_from_t_plus];
+        TLorentzVector Wplus_gen =
+            AllGens[idx_wplus_dau1].P4() + AllGens[idx_wplus_dau2].P4();
+        TLorentzVector TopPlus_gen =
+            Wplus_gen + AllGens[idx_b_from_t_plus].P4();
 
         // Reconstruct tbar from (b_tbar + W- quarks)
-        Particle Wminus_gen = AllGens[idx_wminus_dau1] + AllGens[idx_wminus_dau2];
-        Particle TopMinus_gen = Wminus_gen + AllGens[idx_b_from_t_minus];
+        TLorentzVector Wminus_gen =
+            AllGens[idx_wminus_dau1].P4() + AllGens[idx_wminus_dau2].P4();
+        TLorentzVector TopMinus_gen =
+            Wminus_gen + AllGens[idx_b_from_t_minus].P4();
 
         // Similarly, you can reconstruct from Reco-level Jets:
-        Particle Wplus_reco = Jets[ttbar_jet_indices[2]] + Jets[ttbar_jet_indices[3]];
-        Particle TopPlus_reco = Wplus_reco + Jets[ttbar_jet_indices[0]];
+        Particle Wplus_reco(Jets[ttbar_jet_indices[2]].P4() + Jets[ttbar_jet_indices[3]].P4());
+        Particle TopPlus_reco(Wplus_reco + Jets[ttbar_jet_indices[0]].P4());
 
-        Particle Wminus_reco = Jets[ttbar_jet_indices[4]] + Jets[ttbar_jet_indices[5]];
-        Particle TopMinus_reco = Wminus_reco + Jets[ttbar_jet_indices[1]];
+        Particle Wminus_reco(Jets[ttbar_jet_indices[4]].P4() + Jets[ttbar_jet_indices[5]].P4());
+        Particle TopMinus_reco(Wminus_reco + Jets[ttbar_jet_indices[1]].P4());
 
         // Example histograms
-        FillHist("genLevel_TopPlusMass", TopPlus_gen.M(), 1.f, 100, 100., 300.);
-        FillHist("genLevel_TopMinusMass", TopMinus_gen.M(), 1.f, 100, 100., 300.);
-        FillHist("genLevel_WplusMass", Wplus_gen.M(), 1.f, 100, 50., 110.);
-        FillHist("genLevel_WminusMass", Wminus_gen.M(), 1.f, 100, 50., 110.);
+        Hists().Fill("genLevel_TopPlusMass", TopPlus_gen.M(), 1.f, 100, 100., 300.);
+        Hists().Fill("genLevel_TopMinusMass", TopMinus_gen.M(), 1.f, 100, 100., 300.);
+        Hists().Fill("genLevel_WplusMass", Wplus_gen.M(), 1.f, 100, 50., 110.);
+        Hists().Fill("genLevel_WminusMass", Wminus_gen.M(), 1.f, 100, 50., 110.);
 
-        FillHist("recoLevel_TopPlusMass", TopPlus_reco.M(), 1.f, 100, 100., 300.);
-        FillHist("recoLevel_TopMinusMass", TopMinus_reco.M(), 1.f, 100, 100., 300.);
-        FillHist("recoLevel_WplusMass", Wplus_reco.M(), 1.f, 100, 50., 110.);
-        FillHist("recoLevel_WminusMass", Wminus_reco.M(), 1.f, 100, 50., 110.);
+        Hists().Fill("recoLevel_TopPlusMass", TopPlus_reco.M(), 1.f, 100, 100., 300.);
+        Hists().Fill("recoLevel_TopMinusMass", TopMinus_reco.M(), 1.f, 100, 100., 300.);
+        Hists().Fill("recoLevel_WplusMass", Wplus_reco.M(), 1.f, 100, 50., 110.);
+        Hists().Fill("recoLevel_WminusMass", Wminus_reco.M(), 1.f, 100, 50., 110.);
     }
 
     return ttbar_jet_indices;
 }
 
-void Vcb_FH::GetKineMaticFitterResult(const RVec<Jet> &jets)
+void Vcb_FH::GetKineMaticFitterResult(const SelectedJetViewCollection &jets)
 {
     RVec<RVec<unsigned int>> possible_permutations = GetPermutations(jets);
     best_KF_result.chi2 = 9999.;
@@ -832,7 +853,7 @@ void Vcb_FH::GetKineMaticFitterResult(const RVec<Jet> &jets)
     }
 }
 
-tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> Vcb_FH::FitKinFitter(const RVec<Jet> &jets, const RVec<unsigned int> &permutation)
+tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> Vcb_FH::FitKinFitter(const SelectedJetViewCollection &jets, const RVec<unsigned int> &permutation)
 {
     // Initialize the fitter with smart pointers
     std::unique_ptr<TKinFitter> fitter = std::make_unique<TKinFitter>("fitter", "fitter");
@@ -1037,10 +1058,10 @@ void Vcb_FH::InferONNX()
         }
     }
 
-    Particle w1 = Jets[t1q1_assignment] + Jets[t1q2_assignment];
-    Particle w2 = Jets[t2q1_assignment] + Jets[t2q2_assignment];
-    Particle t1 = Jets[t1b_assignment] + w1;
-    Particle t2 = Jets[t2b_assignment] + w2;
+    Particle w1(Jets[t1q1_assignment].P4() + Jets[t1q2_assignment].P4());
+    Particle w2(Jets[t2q1_assignment].P4() + Jets[t2q2_assignment].P4());
+    Particle t1(Jets[t1b_assignment].P4() + w1);
+    Particle t2(Jets[t2b_assignment].P4() + w2);
 
     assignment[0] = t1b_assignment;
     assignment[1] = t2b_assignment;
@@ -1098,24 +1119,24 @@ bool Vcb_FH::FillONNXRecoInfo(const TString &histPrefix, float weight)
         if (IsDATA)
         {
             if (class_score[2] <= cut)
-                FillHist("FH/QCDCUT/Central/data_obs/CUT_" + std::to_string(i), 0.f, 1.f, 1, 0., 1.);
+                Hists().Fill("FH/QCDCUT/Central/data_obs/CUT_" + std::to_string(i), 0.f, 1.f, 1, 0., 1.);
         }
         else if (systHelper->getCurrentSysName() == "Central")
         {
             if (class_score[2] <= cut)
-                FillHist("FH/QCDCUT/Central/" + sample_postfix + "/CUT_" + std::to_string(i), 0.f, weight, 1, 0., 1.);
+                Hists().Fill("FH/QCDCUT/Central/" + sample_postfix + "/CUT_" + std::to_string(i), 0.f, weight, 1, 0., 1.);
         }
     }
     // if (find_all_jets)
     // {
-    //     FillHist(histPrefix + "/" + "CorrectAssignment_Tot", n_jets, n_b_tagged_jets, 1., 6, 4., 10., 4, 2, 6);
+    //     Hists().Fill(histPrefix + "/" + "CorrectAssignment_Tot", n_jets, n_b_tagged_jets, 1., 6, 4., 10., 4, 2, 6);
     //     bool isCorrect = true;
     //     //check if the assignment is correct. w1 and w2 can be swapped
     //     //if (assignment[0] != ttbar_jet_indices[0]) isCorrect = false;
     //     //if (assignment[1] != ttbar_jet_indices[1]) isCorrect = false;
     //     if ((assignment[2] != ttbar_jet_indices[2] || assignment[3] != ttbar_jet_indices[3]) && (assignment[2] != ttbar_jet_indices[3] || assignment[3] != ttbar_jet_indices[2])) isCorrect = false;
-    //     if (isCorrect) FillHist(histPrefix + "/" + "CorrectAssignment", n_jets, n_b_tagged_jets, 1., 6, 4., 10., 4, 2, 6);
-    //     else FillHist(histPrefix + "/" + "WrongAssignment", n_jets, n_b_tagged_jets, 1., 6, 4., 10., 4, 2, 6);
+    //     if (isCorrect) Hists().Fill(histPrefix + "/" + "CorrectAssignment", n_jets, n_b_tagged_jets, 1., 6, 4., 10., 4, 2, 6);
+    //     else Hists().Fill(histPrefix + "/" + "WrongAssignment", n_jets, n_b_tagged_jets, 1., 6, 4., 10., 4, 2, 6);
     // }
     if (JetBScore(Jets[assignment[2]]) > JetBScore(Jets[assignment[3]]))
     {
@@ -1138,39 +1159,39 @@ bool Vcb_FH::FillONNXRecoInfo(const TString &histPrefix, float weight)
         std::swap(assignment[2], assignment[4]);
         std::swap(assignment[0], assignment[1]);
     }
-    Particle w1 = Jets[assignment[2]] + Jets[assignment[3]];
-    Particle w2 = Jets[assignment[4]] + Jets[assignment[5]];
-    Particle t1 = Jets[assignment[0]] + w1;
-    Particle t2 = Jets[assignment[1]] + w2;
+    Particle w1(Jets[assignment[2]].P4() + Jets[assignment[3]].P4());
+    Particle w2(Jets[assignment[4]].P4() + Jets[assignment[5]].P4());
+    Particle t1(Jets[assignment[0]].P4() + w1);
+    Particle t2(Jets[assignment[1]].P4() + w2);
     float W11_BvsC = JetBScore(Jets[assignment[2]]);
     float W12_BvsC = JetBScore(Jets[assignment[3]]);
     float W21_BvsC = JetBScore(Jets[assignment[4]]);
     float W22_BvsC = JetBScore(Jets[assignment[5]]);
 
-    FillHist(histPrefix + "/" + "Reco_HadWMass1", w1.M(), weight, 100, 30., 130.);
-    FillHist(histPrefix + "/" + "Reco_HadTopMass1", t1.M(), weight, 100, 100., 300.);
-    FillHist(histPrefix + "/" + "Reco_HadWMass2", w2.M(), weight, 100, 30., 130.);
-    FillHist(histPrefix + "/" + "Reco_HadTopMass2", t2.M(), weight, 100, 100., 300.);
-    FillHist(histPrefix + "/" + "Reco_W11JetPt", Jets[assignment[2]].Pt(), weight, 100, 0., 200.);
-    FillHist(histPrefix + "/" + "Reco_W12JetPt", Jets[assignment[3]].Pt(), weight, 100, 0., 200.);
-    FillHist(histPrefix + "/" + "Reco_W21JetPt", Jets[assignment[4]].Pt(), weight, 100, 0., 200.);
-    FillHist(histPrefix + "/" + "Reco_W22JetPt", Jets[assignment[5]].Pt(), weight, 100, 0., 200.);
-    FillHist(histPrefix + "/" + "Reco_W11BvsC", W11_BvsC, weight, 100, 0., 1.);
-    FillHist(histPrefix + "/" + "Reco_W12BvsC", W12_BvsC, weight, 100, 0., 1.);
-    FillHist(histPrefix + "/" + "Reco_W21BvsC", W21_BvsC, weight, 100, 0., 1.);
-    FillHist(histPrefix + "/" + "Reco_W22BvsC", W22_BvsC, weight, 100, 0., 1.);
-    FillHist(histPrefix + "/" + "Reco_t1bJetPt", Jets[assignment[0]].Pt(), weight, 100, 0., 200.);
-    FillHist(histPrefix + "/" + "Reco_t2bJetPt", Jets[assignment[1]].Pt(), weight, 100, 0., 200.);
-    FillHist(histPrefix + "/" + "Reco_t1bBvsC", JetBScore(Jets[assignment[0]]), weight, 100, 0., 1.);
-    FillHist(histPrefix + "/" + "Reco_t2bBvsC", JetBScore(Jets[assignment[1]]), weight, 100, 0., 1.);
+    Hists().Fill(histPrefix + "/" + "Reco_HadWMass1", w1.M(), weight, 100, 30., 130.);
+    Hists().Fill(histPrefix + "/" + "Reco_HadTopMass1", t1.M(), weight, 100, 100., 300.);
+    Hists().Fill(histPrefix + "/" + "Reco_HadWMass2", w2.M(), weight, 100, 30., 130.);
+    Hists().Fill(histPrefix + "/" + "Reco_HadTopMass2", t2.M(), weight, 100, 100., 300.);
+    Hists().Fill(histPrefix + "/" + "Reco_W11JetPt", Jets[assignment[2]].Pt(), weight, 100, 0., 200.);
+    Hists().Fill(histPrefix + "/" + "Reco_W12JetPt", Jets[assignment[3]].Pt(), weight, 100, 0., 200.);
+    Hists().Fill(histPrefix + "/" + "Reco_W21JetPt", Jets[assignment[4]].Pt(), weight, 100, 0., 200.);
+    Hists().Fill(histPrefix + "/" + "Reco_W22JetPt", Jets[assignment[5]].Pt(), weight, 100, 0., 200.);
+    Hists().Fill(histPrefix + "/" + "Reco_W11BvsC", W11_BvsC, weight, 100, 0., 1.);
+    Hists().Fill(histPrefix + "/" + "Reco_W12BvsC", W12_BvsC, weight, 100, 0., 1.);
+    Hists().Fill(histPrefix + "/" + "Reco_W21BvsC", W21_BvsC, weight, 100, 0., 1.);
+    Hists().Fill(histPrefix + "/" + "Reco_W22BvsC", W22_BvsC, weight, 100, 0., 1.);
+    Hists().Fill(histPrefix + "/" + "Reco_t1bJetPt", Jets[assignment[0]].Pt(), weight, 100, 0., 200.);
+    Hists().Fill(histPrefix + "/" + "Reco_t2bJetPt", Jets[assignment[1]].Pt(), weight, 100, 0., 200.);
+    Hists().Fill(histPrefix + "/" + "Reco_t1bBvsC", JetBScore(Jets[assignment[0]]), weight, 100, 0., 1.);
+    Hists().Fill(histPrefix + "/" + "Reco_t2bBvsC", JetBScore(Jets[assignment[1]]), weight, 100, 0., 1.);
 
-    FillHist(histPrefix + "/" + "Reco_BvsCAdded", W21_BvsC + W22_BvsC, weight, 100, 0., 2.);
+    Hists().Fill(histPrefix + "/" + "Reco_BvsCAdded", W21_BvsC + W22_BvsC, weight, 100, 0., 2.);
     int unrolledIdx = Unroller(Jets[assignment[4]], Jets[assignment[5]]);
-    FillHist(histPrefix + "/" + "Reco_W1Bvsc_W2Bvsc_Unrolled", unrolledIdx, weight, 16, 0., 16.);
+    Hists().Fill(histPrefix + "/" + "Reco_W1Bvsc_W2Bvsc_Unrolled", unrolledIdx, weight, 16, 0., 16.);
     std::vector<float> class_score_bin = {0., 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95};
-    FillHist(histPrefix + "/" + "Class_Category", static_cast<float>(class_label), weight, 3, 0., 3.);
-    FillHist(histPrefix + "/" + "Class_Score0", static_cast<float>(class_score[0]), weight, class_score_bin.size() - 1, class_score_bin.data());
-    FillHist(histPrefix + "/" + "Class_Score1", static_cast<float>(class_score[1]), weight, class_score_bin.size() - 1, class_score_bin.data());
-    FillHist(histPrefix + "/" + "Class_Score2", static_cast<float>(class_score[2]), weight, class_score_bin.size() - 1, class_score_bin.data());
+    Hists().Fill(histPrefix + "/" + "Class_Category", static_cast<float>(class_label), weight, 3, 0., 3.);
+    Hists().Fill(histPrefix + "/" + "Class_Score0", static_cast<float>(class_score[0]), weight, class_score_bin.size() - 1, class_score_bin.data());
+    Hists().Fill(histPrefix + "/" + "Class_Score1", static_cast<float>(class_score[1]), weight, class_score_bin.size() - 1, class_score_bin.data());
+    Hists().Fill(histPrefix + "/" + "Class_Score2", static_cast<float>(class_score[2]), weight, class_score_bin.size() - 1, class_score_bin.data());
     return true;
 }

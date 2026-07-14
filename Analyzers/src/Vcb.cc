@@ -1,7 +1,6 @@
 #include "Vcb.h"
 #include "BranchManager.h"
 #include "GenView.h"
-#include "Muon.h"
 #include "OtJsonLutBank.h"
 #include "TBranch.h"
 #include "TEntryList.h"
@@ -505,7 +504,8 @@ Vcb::HFvLF_BvC_from_components(double probudg, double SvUDG, double CvL,
   return UParTScore::hf_bvc_from_prob3(p);
 }
 
-std::pair<double, double> Vcb::HFvLF_BvC_from_ParT(const Jet &j) const {
+std::pair<double, double>
+Vcb::HFvLF_BvC_from_ParT(const SelectedJetView &j) const {
   using Tagger = JetTagging::JetFlavTagger;
   using Score = JetTagging::JetFlavTaggerScoreType;
 
@@ -535,11 +535,13 @@ Vcb::Cat Vcb::classify_from_storage(const JetSoA &store,
 }
 
 void Vcb::initializeAnalyzer() {
-  rle_bucket_compute_checksum();
+  const bool baseline_only = HasFlag("BaselineOnly");
+  if (!baseline_only)
+    rle_bucket_compute_checksum();
   SetChannel();
   string SKNANO_HOME = std::getenv("SKNANO_HOME");
   string TABNET_TRAINING_DIR = "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/tabnet/input_cat";
-  if (!IsDATA) {
+  if (!IsDATA && !baseline_only) {
     TString json_path = SKNANO_HOME + "/ModellingPatch/" + MCSample.Data() +
                         "_" + DataEra.Data() + "_summary.json";
     load_modelling_json(json_path);
@@ -575,27 +577,29 @@ void Vcb::initializeAnalyzer() {
     // myMLHelper =
     // std::make_unique<MLHelper>("/data6/Users/yeonjoon/SKNanoAnalyzer/data/spanet_run3.onnx",
     // MLHelper::ModelType::ONNX);
-    myMLHelper_CLASSIF_folds.reserve(4);
-    myMLHelper_RECO_folds.reserve(4);
-    for (int i = 0; i < 4; ++i) {
-      myMLHelper_CLASSIF_folds.push_back(std::make_unique<MLHelper>(
-          "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/"
-          "spanet/input_cat/classif/spanet_fold" +
-              std::to_string(i) + ".onnx",
-          MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
-    }
-    for (int i = 0; i < 4; ++i) {
-      myMLHelper_RECO_folds.push_back(std::make_unique<MLHelper>(
-          "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/"
-          "spanet/input_cat/reco/spanet_fold" +
-              std::to_string(i) + ".onnx",
-          MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
-    }
-    for (int i = 0; i < 4; ++i) {
-      myMLHelper_TabNet_folds.push_back(std::make_unique<MLHelper>(
-          TABNET_TRAINING_DIR + "/tabnet_fold" + std::to_string(i) +
-              ".onnx",
-          MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
+    if (!baseline_only) {
+      myMLHelper_CLASSIF_folds.reserve(4);
+      myMLHelper_RECO_folds.reserve(4);
+      for (int i = 0; i < 4; ++i) {
+        myMLHelper_CLASSIF_folds.push_back(std::make_unique<MLHelper>(
+            "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/"
+            "spanet/input_cat/classif/spanet_fold" +
+                std::to_string(i) + ".onnx",
+            MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
+      }
+      for (int i = 0; i < 4; ++i) {
+        myMLHelper_RECO_folds.push_back(std::make_unique<MLHelper>(
+            "/data6/Users/yeonjoon/CMSSW_15_0_10/src/PhysicsTools/NanoTTH/data/"
+            "spanet/input_cat/reco/spanet_fold" +
+                std::to_string(i) + ".onnx",
+            MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
+      }
+      for (int i = 0; i < 4; ++i) {
+        myMLHelper_TabNet_folds.push_back(std::make_unique<MLHelper>(
+            TABNET_TRAINING_DIR + "/tabnet_fold" + std::to_string(i) +
+                ".onnx",
+            MLHelper::ModelType::ONNX)); // 생성자 인자 있을 경우
+      }
     }
   } else if (channel == Channel::MM || channel == Channel::ME ||
              channel == Channel::EE) {
@@ -619,9 +623,10 @@ void Vcb::initializeAnalyzer() {
         "spanet_FH_2022EE.onnx",
         MLHelper::ModelType::ONNX);
   }
-  if (IsDATA) {
+  if (IsDATA || baseline_only) {
     systHelper = std::make_unique<SystematicHelper>(
-        SKNANO_HOME + "/AnalyzerTools/noSyst.yaml", DataStream, DataEra);
+        SKNANO_HOME + "/AnalyzerTools/noSyst.yaml",
+        IsDATA ? DataStream : MCSample, DataEra);
   } else {
 
     systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME +
@@ -630,8 +635,10 @@ void Vcb::initializeAnalyzer() {
                                                     MCSample, DataEra);
   }
 
-  CreateTrainingTree();
-  CreateTemplateTrainingTree();
+  if (!baseline_only) {
+    CreateTrainingTree();
+    CreateTemplateTrainingTree();
+  }
 }
 
 void Vcb::SetChannel() {
@@ -694,9 +701,7 @@ void Vcb::rle_bucket_compute_checksum() {
 
     uint32_t b = rle_bucket(run, lumi, event, nbuckets);
     if (b >= nbuckets) {
-      std::cerr << "Out-of-range bucket: b=" << b << " nbuckets=" << nbuckets
-                << '\n';
-      std::abort();
+      throw SKNano::LogicError("Out-of-range rle_bucket result");
     }
 
     acc = mix_checksum(acc, b);
@@ -710,7 +715,7 @@ void Vcb::rle_bucket_compute_checksum() {
               << std::dec << std::endl;
 }
 
-int Vcb::Unroller(RVec<Jet> &jets) {
+int Vcb::Unroller(const SelectedJetViewCollection &jets) {
   if (jets.size() < 4)
     return -1;
 
@@ -739,8 +744,8 @@ int Vcb::Unroller(RVec<Jet> &jets) {
   if (leadingIndices[2] == invalidIndex || leadingIndices[3] == invalidIndex)
     return -1;
 
-  const Jet &third_leading_BvsC_jet = jets[leadingIndices[2]];
-  const Jet &fourth_leading_BvsC_jet = jets[leadingIndices[3]];
+  const auto third_leading_BvsC_jet = jets[leadingIndices[2]];
+  const auto fourth_leading_BvsC_jet = jets[leadingIndices[3]];
 
   int third_leading_BvsC_jet_PassedBTaggingWP =
       GetPassedBTaggingWP(third_leading_BvsC_jet);
@@ -759,7 +764,8 @@ int Vcb::Unroller(RVec<Jet> &jets) {
   return unrolled;
 }
 
-int Vcb::Unroller(Jet &jet1, Jet &jet2) {
+int Vcb::Unroller(const SelectedJetView &jet1,
+                  const SelectedJetView &jet2) {
   int jet1_Cat = static_cast<int>(JetCategory(jet1));
   int jet2_Cat = static_cast<int>(JetCategory(jet2));
   int unrolled = jet1_Cat + jet2_Cat * 12;
@@ -776,7 +782,7 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
     name.assign(base);
     name.push_back('/');
     name.append(suffix);
-    FillHist(name, value, w, nbin, xmin, xmax);
+    Hists().Fill(name, value, w, nbin, xmin, xmax);
   };
 
   auto fill2d = [&](std::string_view suffix, float x, float y, float w,
@@ -785,7 +791,7 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
     name.assign(base);
     name.push_back('/');
     name.append(suffix);
-    FillHist(name, x, y, w, nbinx, xmin, xmax, nbiny, ymin, ymax);
+    Hists().Fill(name, x, y, w, nbinx, xmin, xmax, nbiny, ymin, ymax);
   };
 
   // temp
@@ -809,47 +815,47 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
 
     name.assign(base);
     name.append("/Jet_Pt_").append(idx);
-    FillHist(name, Jets[i].Pt(), weight, 50, 0.f, 500.f);
+    Hists().Fill(name, Jets[i].Pt(), weight, 50, 0.f, 500.f);
 
     name.assign(base);
     name.append("/Jet_Eta_").append(idx);
-    FillHist(name, Jets[i].Eta(), weight, 50, -2.5, 2.5);
+    Hists().Fill(name, Jets[i].Eta(), weight, 50, -2.5, 2.5);
 
     name.assign(base);
     name.append("/Jet_Phi_").append(idx);
-    FillHist(name, Jets[i].Phi(), weight, 50, -3.14, 3.14);
+    Hists().Fill(name, Jets[i].Phi(), weight, 50, -3.14, 3.14);
 
     name.assign(base);
     name.append("/Jet_Category_").append(idx);
-    FillHist(name, jetCategory, weight, 12, 0.f, 12.f);
+    Hists().Fill(name, jetCategory, weight, 12, 0.f, 12.f);
 
     name.assign(base);
     name.append("/Jet_HFvLF_").append(idx);
-    FillHist(name, JetHFvLFScore(Jets[i]), weight, 50, 0.f, 1.f);
+    Hists().Fill(name, JetHFvLFScore(Jets[i]), weight, 50, 0.f, 1.f);
 
     name.assign(base);
     name.append("/Jet_BvC_").append(idx);
-    FillHist(name, JetBvCScore(Jets[i]), weight, 50, 0.f, 1.f);
+    Hists().Fill(name, JetBvCScore(Jets[i]), weight, 50, 0.f, 1.f);
 
     name.assign(base);
     name.append("/Jet_newprobb_").append(idx);
-    FillHist(name, JetProbBScore(Jets[i]), weight, 50, 0.f, 1.f);
+    Hists().Fill(name, JetProbBScore(Jets[i]), weight, 50, 0.f, 1.f);
 
     name.assign(base);
     name.append("/Jet_newprobc_").append(idx);
-    FillHist(name, JetProbCScore(Jets[i]), weight, 50, 0.f, 1.f);
+    Hists().Fill(name, JetProbCScore(Jets[i]), weight, 50, 0.f, 1.f);
 
     name.assign(base);
     name.append("/Jet_newproblight_").append(idx);
-    FillHist(name, JetProbLScore(Jets[i]), weight, 50, 0.f, 1.f);
+    Hists().Fill(name, JetProbLScore(Jets[i]), weight, 50, 0.f, 1.f);
 
     name.assign(base);
     name.append("/Jet_ILRdim1_").append(idx);
-    FillHist(name, JetILRdim1Score(Jets[i]), weight, 50, -6.f, 6.f);
+    Hists().Fill(name, JetILRdim1Score(Jets[i]), weight, 50, -6.f, 6.f);
 
     name.assign(base);
     name.append("/Jet_ILRdim2_").append(idx);
-    FillHist(name, JetILRdim2Score(Jets[i]), weight, 50, -6.f, 6.f);
+    Hists().Fill(name, JetILRdim2Score(Jets[i]), weight, 50, -6.f, 6.f);
   }
 
   for (size_t i = 0; i < leptons.size(); i++) {
@@ -857,15 +863,15 @@ void Vcb::FillHistogramsAtThisPoint(std::string_view histPrefix, float weight) {
 
     name.assign(base);
     name.append("/Lepton_Pt_").append(idx);
-    FillHist(name, leptons[i].Pt(), weight, 50, 0.f, 500.f);
+    Hists().Fill(name, leptons[i].Pt(), weight, 50, 0.f, 500.f);
 
     name.assign(base);
     name.append("/Lepton_Eta_").append(idx);
-    FillHist(name, leptons[i].Eta(), weight, 50, -2.5, 2.5);
+    Hists().Fill(name, leptons[i].Eta(), weight, 50, -2.5, 2.5);
 
     name.assign(base);
     name.append("/Lepton_Phi_").append(idx);
-    FillHist(name, leptons[i].Phi(), weight, 50, -3.14, 3.14);
+    Hists().Fill(name, leptons[i].Phi(), weight, 50, -3.14, 3.14);
   }
 
   if (leptons.size() == 2) {
@@ -1010,7 +1016,7 @@ void Vcb::ComputeParTScores(
   }
 }
 
-Vcb::Cat Vcb::JetCategory(const Jet &jet) const {
+Vcb::Cat Vcb::JetCategory(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetCategoryAll.size())
@@ -1018,7 +1024,7 @@ Vcb::Cat Vcb::JetCategory(const Jet &jet) const {
   return jetCategoryAll[static_cast<std::size_t>(originalIdx)];
 }
 
-float Vcb::JetHFvLFScore(const Jet &jet) const {
+float Vcb::JetHFvLFScore(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetHFvLFAll.size())
@@ -1026,7 +1032,7 @@ float Vcb::JetHFvLFScore(const Jet &jet) const {
   return jetHFvLFAll[static_cast<std::size_t>(originalIdx)];
 }
 
-float Vcb::JetBvCScore(const Jet &jet) const {
+float Vcb::JetBvCScore(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetBvCAll.size())
@@ -1034,7 +1040,7 @@ float Vcb::JetBvCScore(const Jet &jet) const {
   return jetBvCAll[static_cast<std::size_t>(originalIdx)];
 }
 
-float Vcb::JetProbBScore(const Jet &jet) const {
+float Vcb::JetProbBScore(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetProbBAll.size())
@@ -1042,7 +1048,7 @@ float Vcb::JetProbBScore(const Jet &jet) const {
   return jetProbBAll[static_cast<std::size_t>(originalIdx)];
 }
 
-float Vcb::JetProbCScore(const Jet &jet) const {
+float Vcb::JetProbCScore(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetProbCAll.size())
@@ -1050,7 +1056,7 @@ float Vcb::JetProbCScore(const Jet &jet) const {
   return jetProbCAll[static_cast<std::size_t>(originalIdx)];
 }
 
-float Vcb::JetProbLScore(const Jet &jet) const {
+float Vcb::JetProbLScore(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetProbLAll.size())
@@ -1058,7 +1064,7 @@ float Vcb::JetProbLScore(const Jet &jet) const {
   return jetProbLAll[static_cast<std::size_t>(originalIdx)];
 }
 
-float Vcb::JetILRdim1Score(const Jet &jet) const {
+float Vcb::JetILRdim1Score(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetILRdim1All.size())
@@ -1066,7 +1072,7 @@ float Vcb::JetILRdim1Score(const Jet &jet) const {
   return jetILRdim1All[static_cast<std::size_t>(originalIdx)];
 }
 
-float Vcb::JetILRdim2Score(const Jet &jet) const {
+float Vcb::JetILRdim2Score(const SelectedJetView &jet) const {
   const int originalIdx = jet.OriginalIndex();
   if (originalIdx < 0 ||
       static_cast<std::size_t>(originalIdx) >= jetILRdim2All.size())
@@ -1074,7 +1080,7 @@ float Vcb::JetILRdim2Score(const Jet &jet) const {
   return jetILRdim2All[static_cast<std::size_t>(originalIdx)];
 }
 
-short Vcb::GetPassedBTaggingWP(const Jet &jet) {
+short Vcb::GetPassedBTaggingWP(const SelectedJetView &jet) {
   const Cat category = JetCategory(jet);
   switch (category) {
   case Vcb::Cat::B4:
@@ -1092,7 +1098,7 @@ short Vcb::GetPassedBTaggingWP(const Jet &jet) {
   }
 }
 
-short Vcb::GetPassedCTaggingWP(const Jet &jet) {
+short Vcb::GetPassedCTaggingWP(const SelectedJetView &jet) {
   const Cat category = JetCategory(jet);
   switch (category) {
   case Vcb::Cat::C4:
@@ -1111,15 +1117,20 @@ short Vcb::GetPassedCTaggingWP(const Jet &jet) {
 }
 
 void Vcb::executeEvent() {
-  AllMuonViews = GetAllMuonViews();
-  AllElectronViews = GetAllElectronViews();
-  AllJetViews = GetAllJetViews();
-  AllGenViews = GetAllGenViews();
-  AllGens = GetAllGens();
-  AllGenJets = GetAllGenJets();
+  // Header-only rejection must precede object/Gen/JEC/JER materialisation.
   ev = GetEvent();
   if (!myCorr->IsGoldenLumi(RunNumber, luminosityBlock)) {
     return;
+  }
+
+  {
+    auto phase = MeasurePerformancePhase("object_view");
+    AllMuonViews = GetAllMuonViews();
+    AllElectronViews = GetAllElectronViews();
+    AllJetViews = GetAllJetViews();
+    AllGenViews = GetAllGenViews();
+    AllGens = AllGenViews;
+    AllGenJets = GetAllGenJetViews();
   }
 
   if (HasFlag("Skim")) {
@@ -1131,9 +1142,17 @@ void Vcb::executeEvent() {
     Clear();
     for (const auto &syst_dummy : *systHelper) {
       UpdateActiveOtLutForCurrentSystematic();
-      if (!PassBaseLineSelection(false, false))
+      bool passed = false;
+      {
+        auto phase = MeasurePerformancePhase("selection");
+        passed = PassBaseLineSelection(false, false);
+      }
+      if (!passed)
         continue;
-      InferONNX();
+      {
+        auto phase = MeasurePerformancePhase("onnx");
+        InferONNX();
+      }
       if (systHelper->getCurrentIterSysTarget().find("Central") !=
           std::string::npos) {
         const auto weight_map = systHelper->calculateWeight(false);
@@ -1148,7 +1167,12 @@ void Vcb::executeEvent() {
     Clear();
     for (const auto &syst_dummy : *systHelper) {
       UpdateActiveOtLutForCurrentSystematic();
-      if (!PassBaseLineSelection(false, true))
+      bool passed = false;
+      {
+        auto phase = MeasurePerformancePhase("selection");
+        passed = PassBaseLineSelection(false, true);
+      }
+      if (!passed)
         continue;
       if (systHelper->getCurrentIterSysTarget().find("Central") !=
           std::string::npos) {
@@ -1161,11 +1185,14 @@ void Vcb::executeEvent() {
   if (!CheckChannel()) {
     throw std::runtime_error("Invalid channel flag for this analyzer");
   }
-  for (const auto &syst_dummy : *systHelper) {
-    leptons.clear();
-    executeEventFromParameter();
-    if (HasFlag("spurious"))
-      break;
+  {
+    auto phase = MeasurePerformancePhase("systematic");
+    for (const auto &syst_dummy : *systHelper) {
+      leptons.clear();
+      executeEventFromParameter();
+      if (HasFlag("spurious"))
+        break;
+    }
   }
 }
 
@@ -1401,34 +1428,37 @@ array<size_t, 4> Vcb::GetTopAndAntiTopIndices(const GenViewCollection &gens) {
 
     if (pdg == 6) { // top
       if (isFirstCopy) {
-        assert(FirstCopyTopIndex == npos &&
-               "Multiple first-copy tops found in event");
+        if (FirstCopyTopIndex != npos)
+          throw SKNano::EventDataError("Multiple first-copy tops found in event");
         FirstCopyTopIndex = idx;
       }
       if (isLastCopy) {
-        assert(LastCopyTopIndex == npos &&
-               "Multiple last-copy tops found in event");
+        if (LastCopyTopIndex != npos)
+          throw SKNano::EventDataError("Multiple last-copy tops found in event");
         LastCopyTopIndex = idx;
       }
     } else if (pdg == -6) { // anti-top
       if (isFirstCopy) {
-        assert(FirstCopyAntiTopIndex == npos &&
-               "Multiple first-copy antitops found in event");
+        if (FirstCopyAntiTopIndex != npos)
+          throw SKNano::EventDataError("Multiple first-copy antitops found in event");
         FirstCopyAntiTopIndex = idx;
       }
       if (isLastCopy) {
-        assert(LastCopyAntiTopIndex == npos &&
-               "Multiple last-copy antitops found in event");
+        if (LastCopyAntiTopIndex != npos)
+          throw SKNano::EventDataError("Multiple last-copy antitops found in event");
         LastCopyAntiTopIndex = idx;
       }
     }
   }
 
-  assert(FirstCopyTopIndex != npos && "No first-copy top found in event");
-  assert(FirstCopyAntiTopIndex != npos &&
-         "No first-copy antitop found in event");
-  assert(LastCopyTopIndex != npos && "No last-copy top found in event");
-  assert(LastCopyAntiTopIndex != npos && "No last-copy antitop found in event");
+  if (FirstCopyTopIndex == npos)
+    throw SKNano::EventDataError("No first-copy top found in event");
+  if (FirstCopyAntiTopIndex == npos)
+    throw SKNano::EventDataError("No first-copy antitop found in event");
+  if (LastCopyTopIndex == npos)
+    throw SKNano::EventDataError("No last-copy top found in event");
+  if (LastCopyAntiTopIndex == npos)
+    throw SKNano::EventDataError("No last-copy antitop found in event");
 
   return {FirstCopyTopIndex, FirstCopyAntiTopIndex, LastCopyTopIndex,
           LastCopyAntiTopIndex};
@@ -1447,7 +1477,7 @@ void Vcb::Clear() {
   n_hadronFlav_c_jets = 0;
   find_all_jets = false;
   leptons.clear();
-  Jets.clear();
+  Jets = SelectedJetViewCollection();
   MET = Particle();
   ttbj = false;
   ttbb = false;
@@ -1463,7 +1493,12 @@ void Vcb::executeEventFromParameter() {
   if (HasFlag("OutputTrees"))
     output_type = OUTPUT_TYPE::TREE;
 
-  if (!PassBaseLineSelection())
+  bool passed = false;
+  {
+    auto phase = MeasurePerformancePhase("selection");
+    passed = PassBaseLineSelection();
+  }
+  if (!passed)
     return;
 
   const std::string channel_str = GetChannelString(channel).Data();
@@ -1478,15 +1513,31 @@ void Vcb::executeEventFromParameter() {
   if (MCSample.Contains("TT") && !MCSample.Contains("Vcb")) {
     sample_postfix += GetTTHFPostFix(); // TTbb/TTcc/… 후미
   }
+
+  // Fast path used by the Python front-end: selection, corrections and the
+  // event loop stay in C++, while ML inference and systematic lanes are
+  // intentionally omitted.  Qualifying the base implementation also avoids
+  // the Vcb_SL Wcb-NN histogram extension.
+  if (HasFlag("BaselineOnly")) {
+    auto phase = MeasurePerformancePhase("histogram_tree");
+    const std::string output_path =
+        base_path + "Central/" + (IsDATA ? "data_obs" : sample_postfix);
+    Vcb::FillHistogramsAtThisPoint(output_path,
+                                   IsDATA ? 1.f : MCNormalization());
+    return;
+  }
+
   if (output_type == OUTPUT_TYPE::HISTOGRAMS) {
-     InferONNX();
-     InferTabNet();
+    auto phase = MeasurePerformancePhase("onnx");
+    InferONNX();
+    InferTabNet();
   }
 
   // -------------------------
   // DATA: Inclusive/Central/data_obs 만 채움
   // -------------------------
   if (IsDATA) {
+    auto phase = MeasurePerformancePhase("histogram_tree");
     if (output_type == OUTPUT_TYPE::HISTOGRAMS) {
       FillHistogramsAtThisPoint(base_path + "Central/data_obs", 1.f);
       FillONNXRecoInfo(base_path + "Central/data_obs", 1.f);
@@ -1499,24 +1550,12 @@ void Vcb::executeEventFromParameter() {
     return;
   }
 
-  // -------------------------
-  // MC: 프리북(0 weight) → 가중치 채움
-  // -------------------------
-  // 1) 프리북: 시스템틱 키 전부에 대해 0으로 한 번씩 채워서 히스토그램 생성
-  if (output_type == OUTPUT_TYPE::HISTOGRAMS) {
-    const auto prebook_weights =
-        systHelper->calculateWeight(true); // skeleton only
-    // Central이 calculateWeight(true)에 없을 수 있으니 명시적으로 한 번 프리북
-    FillHistogramsAtThisPoint(base_path + "Central/" + sample_postfix, 0.f);
-    for (const auto &kv : prebook_weights) {
-      const std::string &syst = kv.first;
-      FillHistogramsAtThisPoint(base_path + syst + "/" + sample_postfix, 0.f);
-    }
-  }
-
-  // 2) 실제 채움: normalization × 각 시스템틱 가중치
+  // Histogram creation is lazy and idempotent in FillHist.  Do not use a
+  // zero-weight Fill as a booking mechanism: ROOT still increments fEntries.
+  // Actual fills below are therefore the only event-level histogram updates.
   const float normalization = MCNormalization();
   const auto weight_map = systHelper->calculateWeight(false);
+  auto phase = MeasurePerformancePhase("histogram_tree");
   if (output_type == OUTPUT_TYPE::TREE) {
     FillTreeAtThisPoint(current_iter_prefix + Sample_Shorthand[MCSample.Data()],
                         normalization, weight_map);
@@ -1557,7 +1596,8 @@ RVec<int> Vcb::FindTTbarJetIndices() {
 
 void Vcb::FillKinematicFitterResult(const TString &histPrefix, float weight) {}
 
-RVec<RVec<unsigned int>> Vcb::GetPermutations(const RVec<Jet> &jets) {
+RVec<RVec<unsigned int>>
+Vcb::GetPermutations(const SelectedJetViewCollection &jets) {
   RVec<RVec<unsigned int>> iamnothing;
   return iamnothing;
 }

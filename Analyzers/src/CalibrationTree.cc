@@ -1,15 +1,11 @@
 #include "CalibrationTree.h"
 #include "BranchManager.h"
 #include "GenView.h"
-#include "Jet.h"
 #include "JetTaggingParameter.h"
-#include "Muon.h"
 #include "MyCorrection.h"
 #include "Particle.h"
-#include "TBranch.h"
 #include "TEntryList.h"
 #include "TEntryListArray.h"
-#include "TLeaf.h"
 #include "TKinFitter.h"
 #include "TObjArray.h"
 #include "UParTScoreUtils.h"
@@ -17,7 +13,9 @@
 #include <RtypesCore.h>
 #include <TLorentzVector.h>
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -49,30 +47,34 @@ float CalibrationTree::Calc_Each_Chi2(TAbsFitParticle *ptr) {
   return chi2;
 }
 
-CalibrationTree::KinFitterResult CalibrationTree::Chi2Prefit(const Jet &had_t_b, const Jet &lep_t_b,
-                                        const Jet &had_w_1, const Jet &had_w_2,
+CalibrationTree::KinFitterResult CalibrationTree::Chi2Prefit(const SelectedJetView &had_t_b, const SelectedJetView &lep_t_b,
+                                        const SelectedJetView &had_w_1, const SelectedJetView &had_w_2,
                                         const Particle &neutrino,
                                         const Lepton &lepton){
 
   KinFitterResult result;
   result.status = 0;
-  double chi2_thad = ((had_t_b + had_w_1 + had_w_2).M() - T_MASS)/T_WIDTH;
-  double chi2_tlep = ((lep_t_b + lepton + neutrino).M() - T_MASS)/T_WIDTH;
-  double chi2_whad = ((had_w_1 + had_w_2).M() - W_MASS)/W_WIDTH;
+  double chi2_thad = ((had_t_b.P4() + had_w_1.P4() + had_w_2.P4()).M() - T_MASS)/T_WIDTH;
+  double chi2_tlep = ((lep_t_b.P4() + lepton + neutrino).M() - T_MASS)/T_WIDTH;
+  double chi2_whad = ((had_w_1.P4() + had_w_2.P4()).M() - W_MASS)/W_WIDTH;
   result.chi2_thad = chi2_thad*chi2_thad;
   result.chi2_tlep = chi2_tlep*chi2_tlep;
   result.chi2_whad = chi2_whad*chi2_whad;
   result.chi2_wlep = 0.;
+  result.fit_chi2 =
+      result.chi2_thad + result.chi2_tlep + result.chi2_whad +
+      result.chi2_wlep;
   return result;
 }
 
 
 
 CalibrationTree::KinFitterResult CalibrationTree::FitKinFitterTTSemilep(
-    const Jet &had_t_b, const Jet &lep_t_b, const Jet &had_w_1,
-    const Jet &had_w_2, Particle &neutrino, Lepton &lepton) {
+    const SelectedJetView &had_t_b, const SelectedJetView &lep_t_b, const SelectedJetView &had_w_1,
+    const SelectedJetView &had_w_2, Particle &neutrino, Lepton &lepton) {
   KinFitterResult result;
   result.status = -999;
+  result.fit_chi2 = 9999.;
   result.chi2_thad = 9999.;
   result.chi2_tlep = 9999.;
   result.chi2_whad = 9999.;
@@ -82,7 +84,7 @@ CalibrationTree::KinFitterResult CalibrationTree::FitKinFitterTTSemilep(
       std::make_unique<TKinFitter>("ttSemilepFitter", "ttSemilepFitter");
   fitter->reset();
   fitter->setVerbosity(0);
-  fitter->setMaxNbIter(5000);
+  fitter->setMaxNbIter(HasFlag("TTSemilepFullKinFitIter") ? 5000 : 500);
   fitter->setMaxDeltaS(1e-2);
   fitter->setMaxF(1e-2);
 
@@ -151,10 +153,14 @@ CalibrationTree::KinFitterResult CalibrationTree::FitKinFitterTTSemilep(
       "py", "py", TFitConstraintEp::component::pY, 0.);
   px_balance->addParticle(had_t_b_fit.get());
   px_balance->addParticle(lep_t_b_fit.get());
+  px_balance->addParticle(had_w1_fit.get());
+  px_balance->addParticle(had_w2_fit.get());
   px_balance->addParticle(lep.get());
   px_balance->addParticle(neu.get());
   py_balance->addParticle(had_t_b_fit.get());
   py_balance->addParticle(lep_t_b_fit.get());
+  py_balance->addParticle(had_w1_fit.get());
+  py_balance->addParticle(had_w2_fit.get());
   py_balance->addParticle(lep.get());
   py_balance->addParticle(neu.get());
   // --------------- fitter에 등록 ---------------
@@ -173,6 +179,7 @@ CalibrationTree::KinFitterResult CalibrationTree::FitKinFitterTTSemilep(
   // 피팅 수행
   fitter->fit();
   result.status = fitter->getStatus();
+  result.fit_chi2 = fitter->getS();
   result.chi2_whad = Calc_Each_Chi2(mHadW.get(), W_MASS, W_WIDTH);
   result.chi2_wlep = Calc_Each_Chi2(mLepW.get(), W_MASS, W_WIDTH);
   result.chi2_thad = Calc_Each_Chi2(mHadT.get(), T_MASS, T_WIDTH);
@@ -182,7 +189,7 @@ CalibrationTree::KinFitterResult CalibrationTree::FitKinFitterTTSemilep(
 
 // status, chi2, fitted_b, fitted_lep, fitted_neu
 std::tuple<int, double, TLorentzVector, TLorentzVector, TLorentzVector>
-CalibrationTree::FitKinFitterLepTop(const Jet &bjet, Particle &neutrino,
+CalibrationTree::FitKinFitterLepTop(const SelectedJetView &bjet, Particle &neutrino,
                                     Lepton &lepton) {
   // Fitter 설정
   std::unique_ptr<TKinFitter> fitter =
@@ -318,14 +325,25 @@ void CalibrationTree::initializeAnalyzer() {
     if (fChain->GetTreeNumber() < 0) {
       fChain->LoadTree(0);
     }
+    static constexpr std::array<std::string_view, 10> branchNames = {
+        "Jet_btagMyUParTAK4B",       "Jet_btagMyUParTAK4CvB",
+        "Jet_btagMyUParTAK4CvL",     "Jet_btagMyUParTAK4CvNotB",
+        "Jet_btagMyUParTAK4SvCB",    "Jet_btagMyUParTAK4SvUDG",
+        "Jet_btagMyUParTAK4UDG",     "Jet_btagMyUParTAK4HFvLF",
+        "Jet_btagMyUParTAK4BvC",     "Jet_btagMyUParTAK4QvG"};
+    for (const auto name : branchNames) {
+      const std::string key(name);
+      myUParTColumns.emplace(
+          key, GetColumnHandle<float>(key, ColumnRequirement::Optional));
+    }
     useMyUParTBranches =
-        (fChain->GetBranch("Jet_btagMyUParTAK4B") != nullptr) &&
-        (fChain->GetBranch("Jet_btagMyUParTAK4CvB") != nullptr) &&
-        (fChain->GetBranch("Jet_btagMyUParTAK4CvL") != nullptr) &&
-        (fChain->GetBranch("Jet_btagMyUParTAK4CvNotB") != nullptr) &&
-        (fChain->GetBranch("Jet_btagMyUParTAK4SvCB") != nullptr) &&
-        (fChain->GetBranch("Jet_btagMyUParTAK4SvUDG") != nullptr) &&
-        (fChain->GetBranch("Jet_btagMyUParTAK4UDG") != nullptr);
+        myUParTColumns.at("Jet_btagMyUParTAK4B").available() &&
+        myUParTColumns.at("Jet_btagMyUParTAK4CvB").available() &&
+        myUParTColumns.at("Jet_btagMyUParTAK4CvL").available() &&
+        myUParTColumns.at("Jet_btagMyUParTAK4CvNotB").available() &&
+        myUParTColumns.at("Jet_btagMyUParTAK4SvCB").available() &&
+        myUParTColumns.at("Jet_btagMyUParTAK4SvUDG").available() &&
+        myUParTColumns.at("Jet_btagMyUParTAK4UDG").available();
     if (useMyUParTBranches) {
       std::cout << "[CalibrationTree] MyUParT input branches detected. "
                    "Using MyUParT scores for output tree."
@@ -562,50 +580,24 @@ bool CalibrationTree::PassEventPreselectionBeforeSystematics() {
 float CalibrationTree::ReadMyUParTValue(std::string_view branchName,
                                         std::size_t jetIndex) {
   constexpr float kInvalidScore = -1.f;
-  if (!fChain || currentLocalEntry < 0) {
+  if (currentLocalEntry < 0) {
     return kInvalidScore;
-  }
-
-  if (myUParTCacheTreeNumber != currentTreeNumber) {
-    myUParTBranchCache.clear();
-    myUParTCacheTreeNumber = currentTreeNumber;
   }
 
   const std::string key(branchName);
-  TBranch *branch = nullptr;
-  const auto it = myUParTBranchCache.find(key);
-  if (it == myUParTBranchCache.end()) {
-    branch = fChain->GetBranch(key.c_str());
-    if (branch) {
-      // BranchManager starts with all branches disabled; direct branch reads need
-      // explicit activation to fetch valid payload.
-      fChain->SetBranchStatus(key.c_str(), 1);
-    }
-    myUParTBranchCache.emplace(key, branch);
-  } else {
-    branch = it->second;
-  }
-
-  if (!branch) {
+  const auto it = myUParTColumns.find(key);
+  if (it == myUParTColumns.end() || !it->second.available()) {
     return kInvalidScore;
   }
-
-  branch->GetEntry(currentLocalEntry);
-  TLeaf *leaf = branch->GetLeaf(key.c_str());
-  if (!leaf) {
+  const auto &column = it->second;
+  if (jetIndex >= column.size()) {
     return kInvalidScore;
   }
-
-  const int nValues = leaf->GetLen();
-  if (jetIndex >= static_cast<std::size_t>(nValues)) {
-    return kInvalidScore;
-  }
-
-  const double value = leaf->GetValue(static_cast<int>(jetIndex));
+  const float value = column[jetIndex];
   if (!std::isfinite(value)) {
     return kInvalidScore;
   }
-  return static_cast<float>(value);
+  return value;
 }
 
 void CalibrationTree::FillHistogramsAtThisPoint(std::string_view histPrefix,
@@ -619,7 +611,7 @@ void CalibrationTree::FillHistogramsAtThisPoint(std::string_view histPrefix,
     name.assign(base);
     name.push_back('/');
     name.append(suffix);
-    FillHist(name, value, w, nbin, xmin, xmax);
+    Hists().Fill(name, value, w, nbin, xmin, xmax);
   };
 
   auto fill2d = [&](std::string_view suffix, float x, float y, float w,
@@ -628,14 +620,14 @@ void CalibrationTree::FillHistogramsAtThisPoint(std::string_view histPrefix,
     name.assign(base);
     name.push_back('/');
     name.append(suffix);
-    FillHist(name, x, y, w, nbinx, xmin, xmax, nbiny, ymin, ymax);
+    Hists().Fill(name, x, y, w, nbinx, xmin, xmax, nbiny, ymin, ymax);
   };
 
   fill1d("MET_Pt", MET.Pt(), weight, 100, 0, 200);
   fill1d("MET_Phi", MET.Phi(), weight, 64, -3.2, 3.2);
 
   for (size_t idx = 0; idx < Jets.size(); ++idx) {
-    const Jet &jet = Jets[idx];
+    const SelectedJetView jet = Jets[idx];
     const short hardflav = IsDATA ? -1 : abs(jet.hadronFlavour());
     fill1d("Jet_" + to_string(idx) + "_Pt", jet.Pt(), weight, 100, 0, 200);
     fill1d("Jet_" + to_string(idx) + "_Eta", jet.Eta(), weight, 50, -2.5, 2.5);
@@ -713,8 +705,33 @@ void CalibrationTree::FillHistogramsAtThisPoint(std::string_view histPrefix,
     fill1d("Jet_" + to_string(idx) + "_hadronFlavour",
            static_cast<float>(hardflav), weight, 7, -1.f, 6.f);
   }
+
+  if (channel == Channel::TTSemilep) {
+    fill1d("TTSL_FitStatus", static_cast<float>(ttsl_fit_status), weight, 21,
+           -10.5f, 10.5f);
+    fill1d("TTSL_LogFitChi2", ttsl_log_fit_chi2, weight, 100, -10.f, 10.f);
+    fill1d("TTSL_FitChi2", ttsl_fit_chi2, weight, 100, 0.f, 500.f);
+    fill1d("TTSL_PrefitChi2", ttsl_prefit_chi2, weight, 100, 0.f, 500.f);
+    fill1d("TTSL_PrefitMW", ttsl_prefit_mw, weight, 100, 0.f, 200.f);
+    fill1d("TTSL_DeltaChi2", ttsl_delta_chi2, weight, 100, 0.f, 500.f);
+    fill1d("TTSL_BestCombIdx", static_cast<float>(ttsl_best_comb_idx), weight,
+           12, -0.5f, 11.5f);
+    fill1d("TTSL_NValidCombs", static_cast<float>(ttsl_n_valid_combs), weight,
+           13, -0.5f, 12.5f);
+    fill1d("TTSL_NPrefitCandidates",
+           static_cast<float>(ttsl_n_prefit_candidates), weight, 25, -0.5f,
+           24.5f);
+    fill1d("TTSL_NFitCandidates",
+           static_cast<float>(ttsl_n_fit_candidates), weight, 25, -0.5f,
+           24.5f);
+    fill1d("TTSL_METPtBeforeJetSyst", ttsl_met_pt_before_jet_syst, weight, 100,
+           0.f, 200.f);
+    fill1d("TTSL_METPtAfterJetSyst", ttsl_met_pt_after_jet_syst, weight, 100,
+           0.f, 200.f);
+  }
+
   for (size_t idx = 0; idx < Electrons.size(); ++idx) {
-    const Electron &ele = Electrons[idx];
+    const ElectronView ele = Electrons[idx];
     fill1d("Electron_" + to_string(idx) + "_Pt", ele.Pt(), weight, 100, 0, 500);
     fill1d("Electron_" + to_string(idx) + "_Eta", ele.Eta(), weight, 50, -2.5,
            2.5);
@@ -723,13 +740,13 @@ void CalibrationTree::FillHistogramsAtThisPoint(std::string_view histPrefix,
   }
 
   for (size_t idx = 0; idx < Muons.size(); ++idx) {
-    const Muon &mu = Muons[idx];
+    const MuonView mu = Muons[idx];
     fill1d("Muon_" + to_string(idx) + "_Pt", mu.Pt(), weight, 100, 0, 500);
     fill1d("Muon_" + to_string(idx) + "_Eta", mu.Eta(), weight, 50, -2.5, 2.5);
     fill1d("Muon_" + to_string(idx) + "_Phi", mu.Phi(), weight, 64, -3.2, 3.2);
   }
   if (Muons.size() >= 2) {
-    TLorentzVector ZCand = Muons[0] + Muons[1];
+    TLorentzVector ZCand = Muons[0].P4() + Muons[1].P4();
     fill1d("Dimuon_Mass", ZCand.M(), weight, 100, 70, 110);
   }
 
@@ -842,20 +859,44 @@ void CalibrationTree::FillTreeAtThisPoint(
     const std::unordered_map<std::string, float> &weight_map) {
 
   const std::string &tree_name = CachedTreeName(treePrefix);
-  NewTree(tree_name, {}, {"*"});
-  SetBranch(tree_name, "log_chi2", log_chi2);
-  SetBranch(tree_name, "mmuj0", mmuj0);
-  SetBranch(tree_name, "mmuj1", mmuj1);
-  SetBranch(tree_name, "melj0", melj0);
-  SetBranch(tree_name, "melj1", melj1);
-  SetBranch(tree_name, "log_chi2_had_t", std::log(best_KF_result.chi2_thad));
-  SetBranch(tree_name, "log_chi2_lep_t", std::log(best_KF_result.chi2_tlep));
-  SetBranch(tree_name, "log_chi2_had_w", std::log(best_KF_result.chi2_whad));
-  SetBranch(tree_name, "log_chi2_lep_w", std::log(best_KF_result.chi2_wlep));
-  SetBranch(tree_name, "log_chi2", std::log(best_KF_result.chi2_tlep +
-                                         best_KF_result.chi2_thad +
-                                         best_KF_result.chi2_whad +
-                                         best_KF_result.chi2_wlep));
+  BookTree(tree_name, {}, {"*"});
+  auto safe_log = [](double value) {
+    return value > 0. ? static_cast<float>(std::log(value)) : -9999.f;
+  };
+
+  OutputTree(tree_name).Set( "log_chi2", log_chi2);
+  OutputTree(tree_name).Set( "ttsl_fit_status", ttsl_fit_status);
+  OutputTree(tree_name).Set( "ttsl_fit_chi2", ttsl_fit_chi2);
+  OutputTree(tree_name).Set( "ttsl_log_fit_chi2", ttsl_log_fit_chi2);
+  OutputTree(tree_name).Set( "ttsl_second_fit_chi2", ttsl_second_fit_chi2);
+  OutputTree(tree_name).Set( "ttsl_delta_chi2", ttsl_delta_chi2);
+  OutputTree(tree_name).Set( "ttsl_prefit_chi2", ttsl_prefit_chi2);
+  OutputTree(tree_name).Set( "ttsl_prefit_mw", ttsl_prefit_mw);
+  OutputTree(tree_name).Set( "ttsl_best_comb_idx", ttsl_best_comb_idx);
+  OutputTree(tree_name).Set( "ttsl_second_comb_idx", ttsl_second_comb_idx);
+  OutputTree(tree_name).Set( "ttsl_best_nu_idx", ttsl_best_nu_idx);
+  OutputTree(tree_name).Set( "ttsl_n_valid_combs", ttsl_n_valid_combs);
+  OutputTree(tree_name).Set( "ttsl_n_prefit_candidates",
+            ttsl_n_prefit_candidates);
+  OutputTree(tree_name).Set( "ttsl_n_fit_candidates", ttsl_n_fit_candidates);
+  OutputTree(tree_name).Set( "ttsl_met_propagated", ttsl_met_propagated);
+  OutputTree(tree_name).Set( "ttsl_met_pt_before_jet_syst",
+            ttsl_met_pt_before_jet_syst);
+  OutputTree(tree_name).Set( "ttsl_met_pt_after_jet_syst",
+            ttsl_met_pt_after_jet_syst);
+  OutputTree(tree_name).Set( "mmuj0", mmuj0);
+  OutputTree(tree_name).Set( "mmuj1", mmuj1);
+  OutputTree(tree_name).Set( "melj0", melj0);
+  OutputTree(tree_name).Set( "melj1", melj1);
+  OutputTree(tree_name).Set( "log_chi2_had_t",
+            safe_log(best_KF_result.chi2_thad));
+  OutputTree(tree_name).Set( "log_chi2_lep_t",
+            safe_log(best_KF_result.chi2_tlep));
+  OutputTree(tree_name).Set( "log_chi2_had_w",
+            safe_log(best_KF_result.chi2_whad));
+  OutputTree(tree_name).Set( "log_chi2_lep_w",
+            safe_log(best_KF_result.chi2_wlep));
+  OutputTree(tree_name).Set( "log_chi2", log_chi2);
   const auto valid_score = [](float v) { return v >= 0.f && v <= 1.f; };
   using JetTagger = JetTagging::JetFlavTagger;
   using JetScore = JetTagging::JetFlavTaggerScoreType;
@@ -868,7 +909,7 @@ void CalibrationTree::FillTreeAtThisPoint(
     suffix.append(tagger_name);
     suffix.push_back('_');
     suffix.append(score_name);
-    SetBranch(tree_name, CachedJetBranchName(jet_idx, suffix),
+    OutputTree(tree_name).Set( CachedJetBranchName(jet_idx, suffix),
               Jets[jet_idx].GetTaggerResult(tagger, score));
   };
 
@@ -891,7 +932,7 @@ void CalibrationTree::FillTreeAtThisPoint(
   };
 
   for (size_t i = 0; i < Jets.size(); ++i) {
-    SetBranch(tree_name, CachedJetBranchName(i, "Pt"), Jets[i].Pt());
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "Pt"), Jets[i].Pt());
     set_v15_jet_tagger_scores(i);
 
     if (useMyUParTBranches) {
@@ -914,25 +955,25 @@ void CalibrationTree::FillTreeAtThisPoint(
       const float my_bvc = ReadMyUParTValue("Jet_btagMyUParTAK4BvC", source_idx);
       const float my_qvg = ReadMyUParTValue("Jet_btagMyUParTAK4QvG", source_idx);
 
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_B"), my_b);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_CvB"), my_cvb);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_CvL"), my_cvl);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_CvNotB"), my_cvnotb);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_SvCB"), my_svcb);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_SvUDG"), my_svudg);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_probUDG"), my_udg);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_probB"), -1.f);
-      SetBranch(tree_name, CachedJetBranchName(i, "UParT_probBB"), -1.f);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_B"), my_b);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_CvB"), my_cvb);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_CvL"), my_cvl);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_CvNotB"), my_cvnotb);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_SvCB"), my_svcb);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_SvUDG"), my_svudg);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_QvG"), my_qvg);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_probUDG"), my_udg);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_HFvLF"), my_hfvlf);
-      SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_BvC"), my_bvc);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_B"), my_b);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvB"), my_cvb);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvL"), my_cvl);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvNotB"), my_cvnotb);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_SvCB"), my_svcb);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_SvUDG"), my_svudg);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_probUDG"), my_udg);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_probB"), -1.f);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_probBB"), -1.f);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_B"), my_b);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvB"), my_cvb);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvL"), my_cvl);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvNotB"), my_cvnotb);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvCB"), my_svcb);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvUDG"), my_svudg);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_QvG"), my_qvg);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_probUDG"), my_udg);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_HFvLF"), my_hfvlf);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_BvC"), my_bvc);
 
       float hf = my_hfvlf;
       float bvc = my_bvc;
@@ -958,60 +999,54 @@ void CalibrationTree::FillTreeAtThisPoint(
         cat = static_cast<int>(UParTScore::classify_from_scores(hf, bvc));
       }
 
-      SetBranch(tree_name, CachedJetBranchName(i, "prob3_B"), pb);
-      SetBranch(tree_name, CachedJetBranchName(i, "prob3_C"), pc);
-      SetBranch(tree_name, CachedJetBranchName(i, "prob3_L"), pl);
-      SetBranch(tree_name, CachedJetBranchName(i, "HFvLF"), hf);
-      SetBranch(tree_name, CachedJetBranchName(i, "BvC"), bvc);
-      SetBranch(tree_name, CachedJetBranchName(i, "Cat"), cat);
-      SetBranch(tree_name, CachedJetBranchName(i, "hadronFlavour"),
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_B"), pb);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_C"), pc);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_L"), pl);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "HFvLF"), hf);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "BvC"), bvc);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "Cat"), cat);
+      OutputTree(tree_name).Set( CachedJetBranchName(i, "hadronFlavour"),
                 IsDATA ? -1 : abs(Jets[i].hadronFlavour()));
       continue;
     }
 
-    SetBranch(tree_name, CachedJetBranchName(i, "UParT_B"),
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_B"),
               Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                       JetTagging::JetFlavTaggerScoreType::B));
-    SetBranch(tree_name, CachedJetBranchName(i, "UParT_CvB"),
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvB"),
               Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                       JetTagging::JetFlavTaggerScoreType::CvB));
-    SetBranch(tree_name, CachedJetBranchName(i, "UParT_CvL"),
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvL"),
               Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                       JetTagging::JetFlavTaggerScoreType::CvL));
-    SetBranch(
-        tree_name, CachedJetBranchName(i, "UParT_CvNotB"),
+    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_CvNotB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::CvNotB));
-    SetBranch(
-        tree_name, CachedJetBranchName(i, "UParT_SvCB"),
+    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_SvCB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::SvCB));
-    SetBranch(
-        tree_name, CachedJetBranchName(i, "UParT_SvUDG"),
+    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_SvUDG"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::SvUDG));
-    SetBranch(
-        tree_name, CachedJetBranchName(i, "UParT_probUDG"),
+    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_probUDG"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::probUDG));
-    SetBranch(
-        tree_name, CachedJetBranchName(i, "UParT_probB"),
+    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_probB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::probB));
-    SetBranch(
-        tree_name, CachedJetBranchName(i, "UParT_probBB"),
+    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_probBB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::probBB));
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_B"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_CvB"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_CvL"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_CvNotB"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_SvCB"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_SvUDG"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_QvG"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_probUDG"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_HFvLF"), -1.f);
-    SetBranch(tree_name, CachedJetBranchName(i, "MyUParT_BvC"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_B"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvB"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvL"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvNotB"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvCB"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvUDG"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_QvG"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_probUDG"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_HFvLF"), -1.f);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_BvC"), -1.f);
 
     const float probudg =
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
@@ -1043,64 +1078,64 @@ void CalibrationTree::FillTreeAtThisPoint(
       pl = static_cast<float>(p.pl);
       cat = static_cast<int>(UParTScore::classify_from_scores(hf, bvc));
     }
-    SetBranch(tree_name, CachedJetBranchName(i, "prob3_B"), pb);
-    SetBranch(tree_name, CachedJetBranchName(i, "prob3_C"), pc);
-    SetBranch(tree_name, CachedJetBranchName(i, "prob3_L"), pl);
-    SetBranch(tree_name, CachedJetBranchName(i, "HFvLF"), hf);
-    SetBranch(tree_name, CachedJetBranchName(i, "BvC"), bvc);
-    SetBranch(tree_name, CachedJetBranchName(i, "Cat"), cat);
-    SetBranch(tree_name, CachedJetBranchName(i, "hadronFlavour"),
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_B"), pb);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_C"), pc);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_L"), pl);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "HFvLF"), hf);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "BvC"), bvc);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "Cat"), cat);
+    OutputTree(tree_name).Set( CachedJetBranchName(i, "hadronFlavour"),
               IsDATA ? -1 : abs(Jets[i].hadronFlavour()));
   }
 
   if (channel == Channel::WCharm_Mu || channel == Channel::WCharm_El) {
-    SetBranch(tree_name, "WCharm_Jet0_nElectrons", wcharm_jet0_nelectrons);
-    SetBranch(tree_name, "WCharm_Jet0_nMuons", wcharm_jet0_nmuons);
-    SetBranch(tree_name, "WCharm_Jet0_nSoftMuons", wcharm_jet0_nsoftmuons);
-    SetBranch(tree_name, "WCharm_Jet0_nSVs", wcharm_jet0_nsv);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_idx", wcharm_sv0_idx);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_idx", wcharm_sv1_idx);
+    OutputTree(tree_name).Set( "WCharm_Jet0_nElectrons", wcharm_jet0_nelectrons);
+    OutputTree(tree_name).Set( "WCharm_Jet0_nMuons", wcharm_jet0_nmuons);
+    OutputTree(tree_name).Set( "WCharm_Jet0_nSoftMuons", wcharm_jet0_nsoftmuons);
+    OutputTree(tree_name).Set( "WCharm_Jet0_nSVs", wcharm_jet0_nsv);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_idx", wcharm_sv0_idx);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_idx", wcharm_sv1_idx);
 
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Pt", wcharm_sv0_pt);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Eta", wcharm_sv0_eta);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Phi", wcharm_sv0_phi);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Mass", wcharm_sv0_mass);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Charge", wcharm_sv0_charge);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Chi2", wcharm_sv0_chi2);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Ndof", wcharm_sv0_ndof);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_NTracks", wcharm_sv0_ntracks);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Dlen", wcharm_sv0_dlen);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_DlenSig", wcharm_sv0_dlenSig);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Dxy", wcharm_sv0_dxy);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_DxySig", wcharm_sv0_dxySig);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_PAngle", wcharm_sv0_pAngle);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_X", wcharm_sv0_x);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Y", wcharm_sv0_y);
-    SetBranch(tree_name, "WCharm_Jet0_SV0_Z", wcharm_sv0_z);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Pt", wcharm_sv0_pt);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Eta", wcharm_sv0_eta);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Phi", wcharm_sv0_phi);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Mass", wcharm_sv0_mass);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Charge", wcharm_sv0_charge);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Chi2", wcharm_sv0_chi2);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Ndof", wcharm_sv0_ndof);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_NTracks", wcharm_sv0_ntracks);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Dlen", wcharm_sv0_dlen);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_DlenSig", wcharm_sv0_dlenSig);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Dxy", wcharm_sv0_dxy);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_DxySig", wcharm_sv0_dxySig);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_PAngle", wcharm_sv0_pAngle);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_X", wcharm_sv0_x);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Y", wcharm_sv0_y);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Z", wcharm_sv0_z);
 
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Pt", wcharm_sv1_pt);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Eta", wcharm_sv1_eta);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Phi", wcharm_sv1_phi);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Mass", wcharm_sv1_mass);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Charge", wcharm_sv1_charge);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Chi2", wcharm_sv1_chi2);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Ndof", wcharm_sv1_ndof);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_NTracks", wcharm_sv1_ntracks);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Dlen", wcharm_sv1_dlen);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_DlenSig", wcharm_sv1_dlenSig);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Dxy", wcharm_sv1_dxy);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_DxySig", wcharm_sv1_dxySig);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_PAngle", wcharm_sv1_pAngle);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_X", wcharm_sv1_x);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Y", wcharm_sv1_y);
-    SetBranch(tree_name, "WCharm_Jet0_SV1_Z", wcharm_sv1_z);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Pt", wcharm_sv1_pt);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Eta", wcharm_sv1_eta);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Phi", wcharm_sv1_phi);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Mass", wcharm_sv1_mass);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Charge", wcharm_sv1_charge);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Chi2", wcharm_sv1_chi2);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Ndof", wcharm_sv1_ndof);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_NTracks", wcharm_sv1_ntracks);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Dlen", wcharm_sv1_dlen);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_DlenSig", wcharm_sv1_dlenSig);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Dxy", wcharm_sv1_dxy);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_DxySig", wcharm_sv1_dxySig);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_PAngle", wcharm_sv1_pAngle);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_X", wcharm_sv1_x);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Y", wcharm_sv1_y);
+    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Z", wcharm_sv1_z);
   }
 
   for (const auto &kv : weight_map) {
-    SetBranch(tree_name, "weight_" + kv.first, kv.second);
+    OutputTree(tree_name).Set( "weight_" + kv.first, kv.second);
   }
-  SetBranch(tree_name, "MCNormalization", MCNormalizationWeight);
-  FillTrees(tree_name);
+  OutputTree(tree_name).Set( "MCNormalization", MCNormalizationWeight);
+  OutputTree(tree_name).Fill();
 }
 
 void CalibrationTree::executeEvent() {
@@ -1147,11 +1182,8 @@ void CalibrationTree::SkimTree() {
   if (DataEra == "2022EE") {
     const float max_eta = std::numeric_limits<float>::infinity();
     auto eep_veto_indices =
-        SelectJetIndices(AllJetViews, Jet::JetID::NOCUT, 30.f, max_eta);
-    RVec<Jet> eep_veto_jets;
-    eep_veto_jets.reserve(eep_veto_indices.size());
-    for (auto idx : eep_veto_indices)
-      eep_veto_jets.emplace_back(MaterializeJet(AllJetViews, idx));
+        SelectJetIndices(AllJetViews, JetView::JetID::NOCUT, 30.f, max_eta);
+    static_cast<void>(eep_veto_indices);
   }
   if (!PassMetFilter(AllJetViews, ev))
     return;
@@ -1165,7 +1197,7 @@ void CalibrationTree::SkimTree() {
   std::vector<std::size_t> electron_veto_indices = SelectElectronIndices(
       AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt, Electron_Veto_Eta);
 
-  auto select_tight_muons = [&](Muon::MuonID id, bool require_iso) {
+  auto select_tight_muons = [&](MuonView::MuonID id, bool require_iso) {
     std::vector<std::size_t> indices = SelectMuonIndices(
         AllMuonViews, id, Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
     if (require_iso) {
@@ -1176,7 +1208,7 @@ void CalibrationTree::SkimTree() {
     return indices;
   };
 
-  auto select_tight_electrons = [&](Electron::ElectronID id) {
+  auto select_tight_electrons = [&](ElectronView::ElectronID id) {
     return SelectElectronIndices(AllElectronViews, id,
                                  Electron_Tight_Pt[DataEra.Data()],
                                  Electron_Tight_Eta);
@@ -1193,13 +1225,13 @@ void CalibrationTree::SkimTree() {
   };
 
   const std::vector<std::size_t> mu_tight_pog =
-      select_tight_muons(Muon::MuonID::POG_TIGHT, true);
+      select_tight_muons(MuonView::MuonID::POG_TIGHT, true);
   const std::vector<std::size_t> mu_tight_prompt =
-      select_tight_muons(Muon::MuonID::POG_PROMPTMVA_WP0p64, false);
+      select_tight_muons(MuonView::MuonID::POG_PROMPTMVA_WP0p64, false);
   const std::vector<std::size_t> el_tight_wp80 =
-      select_tight_electrons(Electron::ElectronID::POG_MVAISO_WP80);
+      select_tight_electrons(ElectronView::ElectronID::POG_MVAISO_WP80);
   const std::vector<std::size_t> el_tight_prompt =
-      select_tight_electrons(Electron::ElectronID::POG_PROMPTMVA_MEDIUM);
+      select_tight_electrons(ElectronView::ElectronID::POG_PROMPTMVA_MEDIUM);
 
   auto pass_mu_case = [&](const std::vector<std::size_t> &mu_tight,
                           const std::vector<std::size_t> &el_tight) {
@@ -1434,14 +1466,30 @@ void CalibrationTree::Clear() {
   n_hadronFlav_b_jets = 0;
   n_hadronFlav_c_jets = 0;
   leptons.clear();
-  Muons.clear();
-  Muons_Veto.clear();
-  Electrons.clear();
-  Electrons_Veto.clear();
+  Muons = MuonViewCollection();
+  Muons_Veto = MuonViewCollection();
+  Electrons = ElectronViewCollection();
+  Electrons_Veto = ElectronViewCollection();
   lepton = Lepton();
-  Jets.clear();
+  Jets = SelectedJetViewCollection();
   MET = Particle();
   log_chi2 = -9999.f;
+  ttsl_fit_status = -9999;
+  ttsl_best_comb_idx = -1;
+  ttsl_second_comb_idx = -1;
+  ttsl_best_nu_idx = -1;
+  ttsl_n_valid_combs = 0;
+  ttsl_n_prefit_candidates = 0;
+  ttsl_n_fit_candidates = 0;
+  ttsl_met_propagated = 0;
+  ttsl_fit_chi2 = -9999.f;
+  ttsl_log_fit_chi2 = -9999.f;
+  ttsl_second_fit_chi2 = -9999.f;
+  ttsl_delta_chi2 = -9999.f;
+  ttsl_prefit_chi2 = -9999.f;
+  ttsl_prefit_mw = -9999.f;
+  ttsl_met_pt_before_jet_syst = -9999.f;
+  ttsl_met_pt_after_jet_syst = -9999.f;
   mmuj0 = -9999.f;
   mmuj1 = -9999.f;
   melj0 = -9999.f;
@@ -1665,10 +1713,8 @@ bool CalibrationTree::PassTTDilepBaselineSelection() {
   if ((AllMuonViews[tight_muon_indices[0]].Charge() *
        AllElectronViews[tight_electron_indices[0]].Charge()) > 0)
     return false;
-  Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
-  Electrons = MaterializeElectrons(AllElectronViews, tight_electron_indices);
-
-  std::sort(Jets.begin(), Jets.end(), PtComparing);
+  Muons = SelectMuonViews(AllMuonViews, tight_muon_indices);
+  Electrons = SelectElectronViews(AllElectronViews, tight_electron_indices);
 
   MyCorrection::variation jesVar = MyCorrection::variation::nom;
   MyCorrection::variation jerVar = MyCorrection::variation::nom;
@@ -1704,19 +1750,18 @@ bool CalibrationTree::PassTTDilepBaselineSelection() {
                                      tight_muon_indices, 0.4);
   if (jet_indices.size() != 2)
     return false;
-  Particle emu = Muons[0] + Electrons[0];
+  Particle emu(Muons[0].P4() + Electrons[0].P4());
   float mt_emumet = std::sqrt(2.f * emu.Pt() * MET.Pt() *
                               (1.f - std::cos(emu.DeltaPhi(MET))));
   if (mt_emumet < 100.f)
     return false;
-  Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
-  std::sort(Jets.begin(), Jets.end(), PtComparing);
+  Jets = SelectJetViews(AllJetViews, jet_indices, jesVar, jerVar);
 
 
-  mmuj0 = (Muons[0] + Jets[0]).M();
-  mmuj1 = (Muons[0] + Jets[1]).M();
-  melj0 = (Electrons[0] + Jets[0]).M();
-  melj1 = (Electrons[0] + Jets[1]).M();
+  mmuj0 = (Muons[0].P4() + Jets[0].P4()).M();
+  mmuj1 = (Muons[0].P4() + Jets[1].P4()).M();
+  melj0 = (Electrons[0].P4() + Jets[0].P4()).M();
+  melj1 = (Electrons[0].P4() + Jets[1].P4()).M();
 
   // constexpr float kMinJetCut   = 128.0f;  // t_minjet
   // constexpr float kMiniMaxCut  = 127.4f;  // thr_minimax
@@ -1734,141 +1779,6 @@ bool CalibrationTree::PassTTDilepBaselineSelection() {
 
   return true;
 }
-
-// bool CalibrationTree::PassTTDilepBaselineSelection() {
-//   if(IsDATA && DataStream.Contains("EGamma")) {
-//     if (!ev.PassTrigger(El_Trigger[DataEra.Data()]))
-//       return false;
-//     if (ev.PassTrigger(Mu_Trigger[DataEra.Data()]))
-//       return false;
-//   }
-//   else{
-//     if (!(ev.PassTrigger(Mu_Trigger[DataEra.Data()]) ||
-//           ev.PassTrigger(El_Trigger[DataEra.Data()])))
-//       return false;
-//   }
-//   if (!PassJetVetoMap(AllJetViews))
-//     return false;
-//   if (!PassMetFilter(AllJetViews, ev))
-//     return false;
-//   std::vector<size_t> loose_muon_indices = SelectMuonIndices(
-//       AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
-//   loose_muon_indices =
-//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Veto_Iso,
-//                         Muon_Veto_Pt, Muon_Veto_Eta);
-//   std::vector<size_t> tight_muon_indices =
-//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Tight_ID,
-//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-//   tight_muon_indices =
-//       SelectMuonIndices(AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
-//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-//   std::vector<size_t> loose_electron_indices = SelectElectronIndices(
-//       AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt,
-//       Electron_Veto_Eta);
-//   std::vector<size_t> tight_electron_indices = SelectElectronIndices(
-//       AllElectronViews, loose_electron_indices, Electron_Tight_ID,
-//       Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
-//   if (!(tight_muon_indices.size() == 1 && tight_electron_indices.size() == 1
-//   &&
-//         loose_muon_indices.size() == 1 && loose_electron_indices.size() ==
-//         1))
-//     return false;
-//   if ((AllMuonViews[tight_muon_indices[0]].Charge() *
-//        AllElectronViews[tight_electron_indices[0]].Charge()) > 0)
-//     return false;
-//   Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
-//   Electrons = MaterializeElectrons(AllElectronViews, tight_electron_indices);
-
-//   MET = ev.GetMETVector(Event::MET_Type::PUPPI);
-//   std::sort(Jets.begin(), Jets.end(), PtComparing);
-
-//   TLorentzVector p4_nominal(0, 0, 0, 0);
-//   TLorentzVector p4_shifted(0, 0, 0, 0);
-//   for (const auto &jetView : AllJetViews) {
-//     TLorentzVector v;
-//     v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(),
-//     jetView.Mass()); p4_nominal += v;
-//   }
-
-//   if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
-//       std::string::npos) {
-//     const bool doBreakdown = HasFlag("doBreakdown");
-//     const TString srcT = systHelper->getCurrentIterSysSource();
-//     if (doBreakdown) {
-//       if (srcT.EqualTo("total", TString::kIgnoreCase))
-//         return false;
-//       ApplyJetScaleVariation(AllJetViews, srcT);
-//     } else {
-//       if (!srcT.EqualTo("total", TString::kIgnoreCase))
-//         return false;
-//       ApplyJetScaleVariation(AllJetViews, "total");
-//     }
-
-//     if (systHelper->getCurrentIterVariation() == MyCorrection::variation::up)
-//     {
-//       for (const auto &jetView : AllJetViews) {
-//         TLorentzVector v;
-//         v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
-//                        jetView.JesMassUp());
-//         p4_shifted += v;
-//       }
-//     } else if (systHelper->getCurrentIterVariation() ==
-//                MyCorrection::variation::down) {
-//       for (const auto &jetView : AllJetViews) {
-//         TLorentzVector v;
-//         v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
-//                        jetView.JesMassDown());
-//         p4_shifted += v;
-//       }
-//     }
-//   } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
-//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
-//                           systHelper->getCurrentIterVariation(),
-//                           Event::MET_Syst::JER);
-//     p4_shifted = p4_nominal;
-//   } else if (systHelper->getCurrentIterSysTarget() == "UE") {
-//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
-//                           systHelper->getCurrentIterVariation(),
-//                           Event::MET_Syst::UE);
-//     p4_shifted = p4_nominal;
-//   } else {
-//     for (const auto &jetView : AllJetViews) {
-//       TLorentzVector v;
-//       v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(),
-//       jetView.Phi(),
-//                      jetView.SmearedMassNominal());
-//       p4_shifted += v;
-//     }
-//   }
-
-//   {
-//     TLorentzVector delta = p4_shifted - p4_nominal;
-//     MET.SetXYZM(MET.Px() - delta.Px(), MET.Py() - delta.Py(), 0., 0.);
-//   }
-//   if (MET.Pt() < 40.)
-//     return false;
-//   MyCorrection::variation jesVar = MyCorrection::variation::nom;
-//   MyCorrection::variation jerVar = MyCorrection::variation::nom;
-//   if (!IsDATA) {
-//     if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
-//         std::string::npos) {
-//       jesVar = systHelper->getCurrentIterVariation();
-//     } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
-//       jerVar = systHelper->getCurrentIterVariation();
-//     }
-//   }
-//   std::vector<size_t> jet_indices = SelectJetIndices(
-//       AllJetViews, Jet_ID, 25., 2.5, jesVar, jerVar);
-//   jet_indices = JetsVetoLeptonInside(AllJetViews, jet_indices,
-//   AllElectronViews,
-//                                      tight_electron_indices, AllMuonViews,
-//                                      tight_muon_indices, 0.4);
-//   if (jet_indices.size() != 2)
-//     return false;
-//   Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
-//   std::sort(Jets.begin(), Jets.end(), PtComparing);
-//   return true;
-// }
 
 bool CalibrationTree::PassWCharmBaselineSelection() {
   const bool kRequireJetSoftMuon = false;
@@ -1888,7 +1798,7 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
 
   Lepton primary_lepton;
   bool primary_is_mu = false;
-  Muon primary_muon;
+  MuonView primary_muon;
   bool has_primary_muon = false;
 
   if (channel == Channel::WCharm_Mu) {
@@ -1901,10 +1811,10 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
           loose_electron_indices.empty()))
       return false;
 
-    Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
+    Muons = SelectMuonViews(AllMuonViews, tight_muon_indices);
     primary_muon = Muons[0];
     has_primary_muon = true;
-    primary_lepton = static_cast<Lepton &>(Muons[0]);
+    primary_lepton = MakeLeptonSnapshot(Muons[0]);
     primary_is_mu = true;
   } else if (channel == Channel::WCharm_El) {
     if (!ev.PassTrigger(El_Trigger[DataEra.Data()]))
@@ -1916,8 +1826,8 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
           loose_electron_indices.size() == 1))
       return false;
 
-    Electrons = MaterializeElectrons(AllElectronViews, tight_electron_indices);
-    primary_lepton = static_cast<Lepton &>(Electrons[0]);
+    Electrons = SelectElectronViews(AllElectronViews, tight_electron_indices);
+    primary_lepton = MakeLeptonSnapshot(Electrons[0]);
   } else {
     return false;
   }
@@ -1961,8 +1871,7 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
   if (jet_indices.size() != 1)
     return false;
 
-  Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
-  std::sort(Jets.begin(), Jets.end(), PtComparing);
+  Jets = SelectJetViews(AllJetViews, jet_indices, jesVar, jerVar);
 
   EnsureSVViews();
   {
@@ -2022,11 +1931,11 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
 
   if (kRequireJetSoftMuon) {
     std::vector<size_t> soft_muon_indices = SelectMuonIndices(
-        AllMuonViews, Muon::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
+        AllMuonViews, MuonView::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
 
     std::vector<size_t> soft_muon_indices_iso =
         SelectMuonIndices(AllMuonViews, soft_muon_indices,
-                          Muon::MuonID::POG_PFISO_LOOSE, 5.f, Muon_Tight_Eta);
+                          MuonView::MuonID::POG_PFISO_LOOSE, 5.f, Muon_Tight_Eta);
 
     std::vector<size_t> soft_muon_indices_noniso;
     soft_muon_indices_noniso.reserve(soft_muon_indices.size());
@@ -2100,11 +2009,11 @@ bool CalibrationTree::PassWCharmBaselineSelection() {
     if (wcharm_jet_muEF_plus_neEmEF > max_muEF_plus_neEmEF)
       return false;
 
-    Muon soft_muon = MaterializeMuons(AllMuonViews, {unique_softmu_idx})[0];
+    const MuonView soft_muon = AllMuonViews[unique_softmu_idx];
     wcharm_soft_mu_pt = soft_muon.Pt();
 
     if (primary_is_mu && has_primary_muon) {
-      Particle dimuon = primary_muon + soft_muon;
+      Particle dimuon(primary_muon.P4() + soft_muon.P4());
       wcharm_dimuon_mass = dimuon.M();
       if (wcharm_dimuon_mass < 12.f ||
           (wcharm_dimuon_mass > 80.f && wcharm_dimuon_mass < 100.f))
@@ -2172,9 +2081,8 @@ bool CalibrationTree::PassDYLightBaselineSelection() {
   if ((AllMuonViews[tight_muon_indices[0]].Charge() *
        AllMuonViews[tight_muon_indices[1]].Charge()) > 0)
     return false;
-  Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
-  std::sort(Muons.begin(), Muons.end(), PtComparing);
-  Particle ZCand = Muons[0] + Muons[1];
+  Muons = SelectMuonViews(AllMuonViews, tight_muon_indices);
+  Particle ZCand(Muons[0].P4() + Muons[1].P4());
   if (ZCand.M() < 81. || ZCand.M() > 101.)
     return false;
 
@@ -2210,8 +2118,7 @@ bool CalibrationTree::PassDYLightBaselineSelection() {
                                      tight_muon_indices, 0.4);
   if (jet_indices.size() != 1)
     return false;
-  Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
-  std::sort(Jets.begin(), Jets.end(), PtComparing);
+  Jets = SelectJetViews(AllJetViews, jet_indices, jesVar, jerVar);
   if (ZCand.Pt() / Jets[0].Pt() < 0.75 || ZCand.Pt() / Jets[0].Pt() > 1.25)
     return false;
   if (ZCand.DeltaPhi(Jets[0]) < 2.f)
@@ -2244,10 +2151,9 @@ bool CalibrationTree::PassDYCharmBaselineSelection() {
           AllMuonViews[tight_muon_indices[1]].Charge() > 0)
     return false;
 
-  Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
-  std::sort(Muons.begin(), Muons.end(), PtComparing);
+  Muons = SelectMuonViews(AllMuonViews, tight_muon_indices);
 
-  Particle ZCand = Muons[0] + Muons[1];
+  Particle ZCand(Muons[0].P4() + Muons[1].P4());
   if (ZCand.M() < 81. || ZCand.M() > 101.) return false;
 
   // (optional but usually helpful for Z+jets)
@@ -2291,16 +2197,15 @@ bool CalibrationTree::PassDYCharmBaselineSelection() {
   // g->cc: extra jets가 있으면 topology가 흐려지므로 "정확히 2 jets" 유지
   if (jet_indices.size() != 2) return false;
 
-  RVec<Jet> candidate_jets =
-      MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
-  std::sort(candidate_jets.begin(), candidate_jets.end(), PtComparing);
+  SelectedJetViewCollection candidate_jets =
+      SelectJetViews(AllJetViews, jet_indices, jesVar, jerVar);
 
   // 3) Tag definition: soft muon in jet (WCharm-style, non-iso)
   std::vector<size_t> soft_muon_indices = SelectMuonIndices(
-      AllMuonViews, Muon::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
+      AllMuonViews, MuonView::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
   std::vector<size_t> soft_muon_indices_iso =
       SelectMuonIndices(AllMuonViews, soft_muon_indices,
-                        Muon::MuonID::POG_PFISO_LOOSE, 5.f, Muon_Tight_Eta);
+                        MuonView::MuonID::POG_PFISO_LOOSE, 5.f, Muon_Tight_Eta);
 
   std::vector<size_t> soft_muon_indices_noniso;
   soft_muon_indices_noniso.reserve(soft_muon_indices.size());
@@ -2352,7 +2257,7 @@ bool CalibrationTree::PassDYCharmBaselineSelection() {
     }
   }
 
-  auto pass_wcharm_softmu_jet_quality = [&](const Jet &jet) -> bool {
+  auto pass_wcharm_softmu_jet_quality = [&](const SelectedJetView &jet) -> bool {
     const float muEF = jet.muEF();
     const float neEmEF = jet.neEmEF();
     const float muEF_plus_neEmEF = muEF + neEmEF;
@@ -2399,15 +2304,15 @@ bool CalibrationTree::PassDYCharmBaselineSelection() {
     probe_idx = 1 - tag_idx;
   }
 
-  const Jet &TagJet   = candidate_jets[tag_idx];
-  const Jet &ProbeJet = candidate_jets[probe_idx];
+  const SelectedJetView TagJet = candidate_jets[tag_idx];
+  const SelectedJetView ProbeJet = candidate_jets[probe_idx];
 
   // 5) SOTA-ish g->cc topology (DY + g(->cc))
   // Idea:
   //   - two jets close: g splitting -> small ΔR(j,j)
   //   - Z recoils against dijet system: Δφ(Z, jj) ~ pi and pT balance
   //   - splitting tends to give low m_jj, and not-too-crazy pT asymmetry
-  Particle JJ = TagJet + ProbeJet;
+  Particle JJ(TagJet.P4() + ProbeJet.P4());
 
   const float dR_jj = TagJet.DeltaR(ProbeJet);
   const float dphi_Z_JJ = ZCand.DeltaPhi(JJ);
@@ -2452,8 +2357,7 @@ bool CalibrationTree::PassDYCharmBaselineSelection() {
   dycharm_ptasym_jj = asym;
 
   // 7) Store: PROBE jet only for tree
-  Jets.clear();
-  Jets.push_back(ProbeJet);
+  Jets = candidate_jets.selectPositions({probe_idx});
 
   // (optional) Muons도 이미 저장하고 있으니 그대로
   return true;
@@ -2538,12 +2442,11 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
   if (jet_indices.size() < 2)
     return false;
 
-  RVec<Jet> jets =
-      MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
-  std::sort(jets.begin(), jets.end(), PtComparing);
+  SelectedJetViewCollection jets =
+      SelectJetViews(AllJetViews, jet_indices, jesVar, jerVar);
 
-  const Jet &j1 = jets[0];
-  const Jet &j2 = jets[1];
+  const SelectedJetView j1 = jets[0];
+  const SelectedJetView j2 = jets[1];
 
   // ============================================================
   // 2) 2->2 enforcing topology cuts (SOTA-ish)
@@ -2554,7 +2457,7 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
 
   // y* cut (rapidity boost)
   // NOTE: use Rapidity() (preferred) if available; else Eta() fallback.
-  auto jet_y = [](const Jet &j) -> float {
+  auto jet_y = [](const SelectedJetView &j) -> float {
     return j.Eta();         // fallback
   };
   const float y1 = jet_y(j1);
@@ -2575,8 +2478,8 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
         SelectJetIndices(AllJetViews, Jet_ID, j3_pt_min, j3_eta_max, jesVar, jerVar);
 
     // remove the leading two jets from consideration by ΔR matching (robust to index mismatch)
-    RVec<Jet> alljets =
-        MaterializeJets(AllJetViews, jets_for_j3, jesVar, jerVar);
+    SelectedJetViewCollection alljets =
+        SelectJetViews(AllJetViews, jets_for_j3, jesVar, jerVar);
 
     float pt3 = 0.f;
     for (const auto &j : alljets) {
@@ -2596,10 +2499,10 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
   // 3) Tag definition: soft muon in jet (WCharm-style, non-iso)
   // ============================================================
   std::vector<size_t> soft_muon_indices = SelectMuonIndices(
-      AllMuonViews, Muon::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
+      AllMuonViews, MuonView::MuonID::POG_TIGHT, 5.f, Muon_Tight_Eta);
   std::vector<size_t> soft_muon_indices_iso =
       SelectMuonIndices(AllMuonViews, soft_muon_indices,
-                        Muon::MuonID::POG_PFISO_LOOSE, 5.f, Muon_Tight_Eta);
+                        MuonView::MuonID::POG_PFISO_LOOSE, 5.f, Muon_Tight_Eta);
 
   std::vector<size_t> soft_muon_indices_noniso;
   soft_muon_indices_noniso.reserve(soft_muon_indices.size());
@@ -2651,7 +2554,7 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
     }
   }
 
-  auto pass_wcharm_softmu_jet_quality = [&](const Jet &jet) -> bool {
+  auto pass_wcharm_softmu_jet_quality = [&](const SelectedJetView &jet) -> bool {
     const float muEF = jet.muEF();
     const float neEmEF = jet.neEmEF();
     const float muEF_plus_neEmEF = muEF + neEmEF;
@@ -2697,8 +2600,8 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
     probe_idx = 1 - tag_idx;
   }
 
-  const Jet &TagJet   = jets[tag_idx];
-  const Jet &ProbeJet = jets[probe_idx];
+  const SelectedJetView TagJet = jets[tag_idx];
+  const SelectedJetView ProbeJet = jets[probe_idx];
 
   // ============================================================
   // 4) Cache kinematics for histograms (keep tag/probe)
@@ -2712,7 +2615,7 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
   qcdcharm_probe_eta = ProbeJet.Eta();
   qcdcharm_probe_phi = ProbeJet.Phi();
   qcdcharm_probe_hadronFlavour = ProbeJet.hadronFlavour();
-  const Particle JJ = TagJet + ProbeJet;
+  const Particle JJ(TagJet.P4() + ProbeJet.P4());
   qcdcharm_jj_pt = JJ.Pt();
   qcdcharm_jj_mass = JJ.M();
   qcdcharm_dR_jj = TagJet.DeltaR(ProbeJet);
@@ -2723,8 +2626,7 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
   // ============================================================
   // 5) Store PROBE jet only (tree requirement)
   // ============================================================
-  Jets.clear();
-  Jets.push_back(ProbeJet);
+  Jets = jets.selectPositions({probe_idx});
 
   // (optional) keep tag jet for closure/purity studies
   // TagJets.clear();
@@ -2732,169 +2634,6 @@ bool CalibrationTree::PassQCDCharmDijetSelection() {
 
   return true;
 }
-
-
-// bool CalibrationTree::PassDYLightBaselineSelection() {
-//   if (!(ev.PassTrigger(Mu_Trigger[DataEra.Data()])))
-//     return false;
-//   if (!PassJetVetoMap(AllJetViews))
-//     return false;
-//   if (!PassMetFilter(AllJetViews, ev))
-//     return false;
-//   std::vector<size_t> loose_muon_indices = SelectMuonIndices(
-//       AllMuonViews, Muon_Veto_ID, Muon_Veto_Pt, Muon_Veto_Eta);
-//   loose_muon_indices =
-//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Veto_Iso,
-//                         Muon_Veto_Pt, Muon_Veto_Eta);
-//   std::vector<size_t> tight_muon_indices =
-//       SelectMuonIndices(AllMuonViews, loose_muon_indices, Muon_Tight_ID,
-//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-//   tight_muon_indices =
-//       SelectMuonIndices(AllMuonViews, tight_muon_indices, Muon_Tight_Iso,
-//                         Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
-//   std::vector<size_t> loose_electron_indices = SelectElectronIndices(
-//       AllElectronViews, Electron_Veto_ID, Electron_Veto_Pt,
-//       Electron_Veto_Eta);
-//   std::vector<size_t> tight_electron_indices = SelectElectronIndices(
-//       AllElectronViews, loose_electron_indices, Electron_Tight_ID,
-//       Electron_Tight_Pt[DataEra.Data()], Electron_Tight_Eta);
-//   if (!(tight_muon_indices.size() == 2 && tight_electron_indices.size() == 0
-//   &&
-//         loose_muon_indices.size() == 2 && loose_electron_indices.size() ==
-//         0))
-//     return false;
-//   if ((AllMuonViews[tight_muon_indices[0]].Charge() *
-//        AllMuonViews[tight_muon_indices[1]].Charge()) > 0)
-//     return false;
-//   Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
-//   std::sort(Muons.begin(), Muons.end(), PtComparing);
-//   Particle ZCand = Muons[0] + Muons[1];
-//   if (ZCand.M() < 81. || ZCand.M() > 101.)
-//     return false;
-
-//   MET = ev.GetMETVector(Event::MET_Type::PUPPI);
-
-//   TLorentzVector p4_nominal(0, 0, 0, 0);
-//   TLorentzVector p4_shifted(0, 0, 0, 0);
-//   for (const auto &jetView : AllJetViews) {
-//     TLorentzVector v;
-//     v.SetPtEtaPhiM(jetView.Pt(), jetView.Eta(), jetView.Phi(),
-//     jetView.Mass()); p4_nominal += v;
-//   }
-
-//   if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
-//       std::string::npos) {
-//     const bool doBreakdown = HasFlag("doBreakdown");
-//     const TString srcT = systHelper->getCurrentIterSysSource();
-//     if (doBreakdown) {
-//       if (srcT.EqualTo("total", TString::kIgnoreCase))
-//         return false;
-//       ApplyJetScaleVariation(AllJetViews, srcT);
-//     } else {
-//       if (!srcT.EqualTo("total", TString::kIgnoreCase))
-//         return false;
-//       ApplyJetScaleVariation(AllJetViews, "total");
-//     }
-
-//     if (systHelper->getCurrentIterVariation() == MyCorrection::variation::up)
-//     {
-//       for (const auto &jetView : AllJetViews) {
-//         TLorentzVector v;
-//         v.SetPtEtaPhiM(jetView.JesPtUp(), jetView.Eta(), jetView.Phi(),
-//                        jetView.JesMassUp());
-//         p4_shifted += v;
-//       }
-//     } else if (systHelper->getCurrentIterVariation() ==
-//                MyCorrection::variation::down) {
-//       for (const auto &jetView : AllJetViews) {
-//         TLorentzVector v;
-//         v.SetPtEtaPhiM(jetView.JesPtDown(), jetView.Eta(), jetView.Phi(),
-//                        jetView.JesMassDown());
-//         p4_shifted += v;
-//       }
-//     }
-//   } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
-//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
-//                           systHelper->getCurrentIterVariation(),
-//                           Event::MET_Syst::JER);
-//     p4_shifted = p4_nominal;
-//   } else if (systHelper->getCurrentIterSysTarget() == "UE") {
-//     MET = ev.GetMETVector(Event::MET_Type::PUPPI,
-//                           systHelper->getCurrentIterVariation(),
-//                           Event::MET_Syst::UE);
-//     p4_shifted = p4_nominal;
-//   } else {
-//     for (const auto &jetView : AllJetViews) {
-//       TLorentzVector v;
-//       v.SetPtEtaPhiM(jetView.SmearedPtNominal(), jetView.Eta(),
-//       jetView.Phi(),
-//                      jetView.SmearedMassNominal());
-//       p4_shifted += v;
-//     }
-//   }
-
-//   {
-//     TLorentzVector delta = p4_shifted - p4_nominal;
-//     MET.SetXYZM(MET.Px() - delta.Px(), MET.Py() - delta.Py(), 0., 0.);
-//   }
-//   MyCorrection::variation jesVar = MyCorrection::variation::nom;
-//   MyCorrection::variation jerVar = MyCorrection::variation::nom;
-//   if (!IsDATA) {
-//     if (systHelper->getCurrentIterSysTarget().find("Jet_En") !=
-//         std::string::npos) {
-//       jesVar = systHelper->getCurrentIterVariation();
-//     } else if (systHelper->getCurrentIterSysTarget() == "Jet_Res") {
-//       jerVar = systHelper->getCurrentIterVariation();
-//     }
-//   }
-//   std::vector<size_t> jet_indices = SelectJetIndices(
-//       AllJetViews, Jet_ID, 25., 2.5, jesVar, jerVar);
-//   jet_indices = JetsVetoLeptonInside(AllJetViews, jet_indices,
-//   AllElectronViews,
-//                                      tight_electron_indices, AllMuonViews,
-//                                      tight_muon_indices, 0.4);
-//   if (jet_indices.size() != 2)
-//     return false;
-//   RVec<Jet> Jets_tnp = MaterializeJets(AllJetViews, jet_indices, jesVar,
-//   jerVar); Particle gluon = Jets_tnp[0] + Jets_tnp[1];
-//   std::sort(Jets_tnp.begin(), Jets_tnp.end(), PtComparing);
-//   if (ZCand.Pt() / gluon.Pt() < 0.75 || ZCand.Pt() / gluon.Pt() > 1.25)
-//     return false;
-//   if (ZCand.DeltaPhi(gluon) < 2.f)
-//     return false;
-//   std::vector<float> jet_cvnotb
-//   {Jets_tnp[0].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
-//   JetTagging::JetFlavTaggerScoreType::CvNotB),
-//   Jets_tnp[1].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
-//   JetTagging::JetFlavTaggerScoreType::CvNotB)}; const float wp = 0.1;
-//   std::vector<size_t> pass_cvnotb_indices;
-//   for (size_t i=0; i<jet_cvnotb.size(); ++i) {
-//     if (jet_cvnotb[i] < wp)
-//       pass_cvnotb_indices.push_back(i);
-//   }
-//   if (pass_cvnotb_indices.size() == 0)
-//     return false;
-//   else if (pass_cvnotb_indices.size() == 1){
-//     //push back the jet which not pass cvnotb
-//     size_t idx = (pass_cvnotb_indices[0] == 0) ? 1 : 0;
-//     Jets.push_back(Jets_tnp[idx]);
-//   }
-//   else if (pass_cvnotb_indices.size() == 2){
-//     //randomly pick one jet
-//     size_t idx = rand() % 2;;
-//     Jets.push_back(Jets_tnp[idx]);
-//   }
-
-//   size_t probjet_hadflav = Jets[0].hadronFlavour();
-//   std::string probjet_hadflav_str =
-//       (probjet_hadflav == 5)   ? "b"
-//       : (probjet_hadflav == 4) ? "c"
-//                              : "light";
-//   FillHist("DYLight_ProbJet_CvNotB_HadFlav_" + probjet_hadflav_str,
-//            jet_cvnotb[Jets_tnp[0] == Jets[0] ? 0 : 1], 1.f, 50, 0, 1);
-//   return true;
-// }
-
 
 
 bool CalibrationTree::PassTTSemilepBaselineSelection() {
@@ -2909,25 +2648,58 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
   // Important:
   //   Do not apply tagger-score cuts to the selected W jets here, otherwise
   //   the CvsB / BvsL score distributions will be sculpted.
+  //
+  // This version:
+  //   - does NOT run the constrained kinematic fitter;
+  //   - uses only cheap prefit topology variables;
+  //   - scans all 4-jet ttbar semileptonic assignments;
+  //   - chooses the W-pair without using tagger scores;
+  //   - requires b-tag only on the two topology-assigned b-side jets;
+  //   - keeps only the selected two W jets in Jets.
   // --------------------------------------------------------------------------
 
   constexpr float kJetPtMin = 25.0f;
   constexpr float kJetEtaMax = 2.5f;
   constexpr float kLeptonJetDR = 0.4f;
 
-  constexpr bool  kRequireExactly4Jets = true;
+  constexpr bool kRequireExactly4Jets = true;
 
-  // Fit-quality cuts.
-  constexpr float kMaxLogChi2 = 5.5f;   // previous loose value was 5.5
-
-  // Prefit W mass window on the two jets assigned to hadronic W.
+  // Loose prefit W mass window on the two jets assigned to hadronic W.
   constexpr bool  kApplyPrefitWMassWindow = true;
   constexpr float kMinPrefitWMass = 50.0f;
   constexpr float kMaxPrefitWMass = 110.0f;
 
-  // Ambiguity cut. Keep disabled for nominal; useful for diagnostic variations.
+  // Cheap topology-assignment score cut.
+  // Keep disabled for nominal unless data/MC closure is validated.
+  constexpr bool  kApplyTopologyScoreCut = false;
+  constexpr float kMaxTopologyScore = 30.0f;
+
+  // Ambiguity cut on distinct W-pair hypotheses.
+  // Keep disabled for nominal.
   constexpr bool  kApplyDeltaChi2Cut = false;
   constexpr float kMinDeltaChi2 = 5.0f;
+
+  // Tag-side b-tag requirement.
+  //
+  // Important:
+  //   This is applied only after the topology assignment.
+  //   It is applied only to best_comb[0], best_comb[1].
+  //   It is never applied to best_comb[2], best_comb[3].
+  //
+  // Recommended nominal:
+  //   one b-side jet Medium, the other at least Loose.
+  constexpr bool kRequireTagSideBTag = true;
+  constexpr bool kRequireOneMediumOneLoose = true;
+
+  // Reconstruction targets and effective resolutions.
+  // These are ranking-scale parameters, not natural widths.
+  constexpr float kRecoWMass = 80.379f;
+  constexpr float kRecoTopMass = 172.5f;
+
+  constexpr float kSigmaRecoW = 12.0f;
+  constexpr float kSigmaRecoHadTop = 23.0f;
+  constexpr float kSigmaRecoLepTop = 30.0f;
+  constexpr float kSigmaRecoTopBalance = 35.0f;
 
   // --------------------------------------------------------------------------
   // Trigger / event cleaning
@@ -2963,7 +2735,10 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
         loose_electron_indices.size() == 0))
     return false;
 
-  Muons = MaterializeMuons(AllMuonViews, tight_muon_indices);
+  Muons = SelectMuonViews(AllMuonViews, tight_muon_indices);
+
+  if (Muons.empty())
+    return false;
 
   // --------------------------------------------------------------------------
   // JES/JER/MET systematic handling
@@ -2978,8 +2753,14 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
       systHelper->getCurrentIterVariation();
 
   MET = ev.GetMETVector(Event::MET_Type::PUPPI);
+  ttsl_met_pt_before_jet_syst = MET.Pt();
 
   bool doJetPropagation = true;
+  ttsl_met_propagated = 0;
+
+  const bool skipJetMETPropagation =
+      HasFlag("TTSemilepNoJetMETPropagation") ||
+      HasFlag("NoJetMETPropagation");
 
   if (systTarget.find("Jet_En") != std::string::npos) {
     const bool doBreakdown = HasFlag("doBreakdown");
@@ -3001,8 +2782,12 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
     doJetPropagation = false;
   }
 
-  if (doJetPropagation)
+  if (doJetPropagation && !skipJetMETPropagation) {
     PropagateJetSystToMET(AllJetViews, MET, jesVar, jerVar);
+    ttsl_met_propagated = 1;
+  }
+
+  ttsl_met_pt_after_jet_syst = MET.Pt();
 
   // --------------------------------------------------------------------------
   // Jet selection
@@ -3014,12 +2799,12 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
 
   jet_indices =
       JetsVetoLeptonInside(AllJetViews,
-                            jet_indices,
-                            AllElectronViews,
-                            tight_electron_indices,
-                            AllMuonViews,
-                            tight_muon_indices,
-                            kLeptonJetDR);
+                           jet_indices,
+                           AllElectronViews,
+                           tight_electron_indices,
+                           AllMuonViews,
+                           tight_muon_indices,
+                           kLeptonJetDR);
 
   if (kRequireExactly4Jets) {
     if (jet_indices.size() != 4)
@@ -3029,15 +2814,27 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
       return false;
   }
 
-  Jets = MaterializeJets(AllJetViews, jet_indices, jesVar, jerVar);
-  std::sort(Jets.begin(), Jets.end(), PtComparing);
+  Jets = SelectJetViews(AllJetViews, jet_indices, jesVar, jerVar);
 
-  // For the nominal exactly-4-jet region, this table assigns:
+  if (Jets.size() < 4)
+    return false;
+
+  // This function is designed for exactly-4-jet topology.
+  // If kRequireExactly4Jets is false, only the leading four selected jets
+  // are used by the assignment table below.
+  if (kRequireExactly4Jets && Jets.size() != 4)
+    return false;
+
+  // --------------------------------------------------------------------------
+  // Assignment table.
   //
-  //   comb[0], comb[1] : b candidates
-  //   comb[2], comb[3] : hadronic W candidates
+  // comb[0] : hadronic-b candidate
+  // comb[1] : leptonic-b candidate
+  // comb[2], comb[3] : hadronic-W candidates
   //
   // No tagger score is used in this assignment.
+  // --------------------------------------------------------------------------
+
   constexpr std::array<std::array<std::size_t, 4>, 12> comb_lut = {
       {{0, 1, 2, 3},
        {0, 2, 1, 3},
@@ -3053,11 +2850,14 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
        {3, 2, 0, 1}}};
 
   // --------------------------------------------------------------------------
-  // Neutrino pz solutions
+  // Neutrino pz solutions.
+  //
+  // Cheap analytic reconstruction only. No constrained fitter.
   // --------------------------------------------------------------------------
 
+  lepton = MakeLeptonSnapshot(Muons[0]);
   std::variant<float, std::pair<float, float>> neutrinoPz =
-      SolveNeutrinoPz(Muons[0], MET);
+      SolveNeutrinoPz(lepton, MET);
 
   std::vector<Particle> neutrino_solutions;
   neutrino_solutions.reserve(2);
@@ -3094,127 +2894,214 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
     neutrino_solutions.push_back(neutrino_p4_2);
   }
 
+  if (neutrino_solutions.empty())
+    return false;
+
   // --------------------------------------------------------------------------
-  // Scan all jet assignments and neutrino solutions.
+  // Cheap topology-based assignment.
   //
-  // We first keep the best neutrino solution per distinct jet-combination.
-  // Then we choose the best and second-best distinct jet-combinations.
+  // Score:
   //
-  // This is better than taking the second-best global fit directly, because
-  // otherwise the second-best candidate may just be the same jet assignment
-  // with the alternative neutrino pz solution.
+  //   score =
+  //     ((m_jj        - mW) / sigmaW)^2
+  //   + ((m_bjj       - mt) / sigmaHadTop)^2
+  //   + ((m_blnu      - mt) / sigmaLepTop)^2
+  //   + 0.5 * ((m_bjj - m_blnu) / sigmaTopBalance)^2
+  //
+  // This score is used to rank W-pair hypotheses.
+  // It is not a constrained-fitter chi2.
   // --------------------------------------------------------------------------
 
   best_KF_result.clear();
 
+  ttsl_n_prefit_candidates = 0;
+  ttsl_n_fit_candidates = 0;  // no fitter is run
+  ttsl_n_valid_combs = 0;
+
   constexpr std::size_t nComb = comb_lut.size();
+  constexpr std::size_t kMaxNeutrinoSolutions = 2;
 
-  std::array<float, nComb> best_chi2_by_comb;
-  std::array<bool, nComb>  comb_has_valid_fit;
-  std::array<KinFitterResult, nComb> best_fit_by_comb;
-  std::array<std::size_t, nComb> best_nu_idx_by_comb;
-  std::array<float, nComb> prefit_mW_by_comb;
+  const auto Pull2 = [](const float value,
+                        const float center,
+                        const float sigma) -> float {
+    const float pull = (value - center) / sigma;
+    return pull * pull;
+  };
 
-  best_chi2_by_comb.fill(std::numeric_limits<float>::max());
-  comb_has_valid_fit.fill(false);
-  best_nu_idx_by_comb.fill(0);
-  prefit_mW_by_comb.fill(-1.0f);
+  struct TopologyCandidate {
+    std::size_t comb_idx = 0;
+    std::size_t nu_idx = 0;
+
+    float score = std::numeric_limits<float>::max();
+
+    float mW = -1.0f;
+    float mTopHad = -1.0f;
+    float mTopLep = -1.0f;
+
+    float abs_mW_residual = std::numeric_limits<float>::max();
+    float abs_top_balance = std::numeric_limits<float>::max();
+  };
+
+  const auto CandidateLess =
+      [](const TopologyCandidate &a,
+         const TopologyCandidate &b) -> bool {
+        if (a.score != b.score)
+          return a.score < b.score;
+
+        if (a.abs_mW_residual != b.abs_mW_residual)
+          return a.abs_mW_residual < b.abs_mW_residual;
+
+        if (a.abs_top_balance != b.abs_top_balance)
+          return a.abs_top_balance < b.abs_top_balance;
+
+        if (a.comb_idx != b.comb_idx)
+          return a.comb_idx < b.comb_idx;
+
+        return a.nu_idx < b.nu_idx;
+      };
+
+  std::vector<TopologyCandidate> best_candidates_by_assignment;
+  best_candidates_by_assignment.reserve(nComb);
 
   for (std::size_t comb_idx = 0; comb_idx < nComb; ++comb_idx) {
     const auto &comb = comb_lut[comb_idx];
 
-    const Jet &W1cand = Jets[comb[2]];
-    const Jet &W2cand = Jets[comb[3]];
+    const SelectedJetView bHadCand = Jets[comb[0]];
+    const SelectedJetView bLepCand = Jets[comb[1]];
+    const SelectedJetView W1cand = Jets[comb[2]];
+    const SelectedJetView W2cand = Jets[comb[3]];
 
-    const float mW_prefit = (W1cand + W2cand).M();
-    prefit_mW_by_comb[comb_idx] = mW_prefit;
+    const float mW_prefit = (W1cand.P4() + W2cand.P4()).M();
 
-    if (kApplyPrefitWMassWindow) {
-      if (mW_prefit < kMinPrefitWMass || mW_prefit > kMaxPrefitWMass)
-        continue;
-    }
-
-    for (std::size_t nu_idx = 0; nu_idx < neutrino_solutions.size(); ++nu_idx) {
-      const Particle &neutrino_sol = neutrino_solutions[nu_idx];
-
-      KinFitterResult tt_fit_res =
-          Chi2Prefit(Jets[comb[0]],
-                     Jets[comb[1]],
-                     Jets[comb[2]],
-                     Jets[comb[3]],
-                     neutrino_sol,
-                     Muons[0]);
-
-      // Only accept converged fits.
-      if (tt_fit_res.status != 0)
-        continue;
-
-      const float total_chi2 =
-          tt_fit_res.chi2_thad +
-          tt_fit_res.chi2_tlep +
-          tt_fit_res.chi2_whad +
-          tt_fit_res.chi2_wlep;
-
-      if (total_chi2 < best_chi2_by_comb[comb_idx]) {
-        best_chi2_by_comb[comb_idx] = total_chi2;
-        best_fit_by_comb[comb_idx] = tt_fit_res;
-        best_nu_idx_by_comb[comb_idx] = nu_idx;
-        comb_has_valid_fit[comb_idx] = true;
-      }
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // Pick best and second-best distinct combinations.
-  // --------------------------------------------------------------------------
-
-  bool found_good_fit = false;
-
-  float min_total_chi2 = std::numeric_limits<float>::max();
-  float second_min_total_chi2 = std::numeric_limits<float>::max();
-
-  std::size_t best_comb_idx = 0;
-  std::size_t second_best_comb_idx = 0;
-  std::size_t best_nu_idx = 0;
-
-  for (std::size_t comb_idx = 0; comb_idx < nComb; ++comb_idx) {
-    if (!comb_has_valid_fit[comb_idx])
+    if (!std::isfinite(mW_prefit))
       continue;
 
-    const float chi2 = best_chi2_by_comb[comb_idx];
-
-    if (chi2 < min_total_chi2) {
-      second_min_total_chi2 = min_total_chi2;
-      second_best_comb_idx = best_comb_idx;
-
-      min_total_chi2 = chi2;
-      best_comb_idx = comb_idx;
-      best_nu_idx = best_nu_idx_by_comb[comb_idx];
-
-      found_good_fit = true;
-
-    } else if (chi2 < second_min_total_chi2) {
-      second_min_total_chi2 = chi2;
-      second_best_comb_idx = comb_idx;
+    if (kApplyPrefitWMassWindow) {
+      if (mW_prefit < kMinPrefitWMass ||
+          mW_prefit > kMaxPrefitWMass)
+        continue;
     }
+
+    bool has_valid_candidate = false;
+    TopologyCandidate best_for_assignment;
+
+    const std::size_t nNuSolutions =
+        std::min(neutrino_solutions.size(), kMaxNeutrinoSolutions);
+
+    for (std::size_t nu_idx = 0; nu_idx < nNuSolutions; ++nu_idx) {
+      const Particle &neutrino_sol = neutrino_solutions[nu_idx];
+
+      const float mTopHad =
+          (bHadCand.P4() + W1cand.P4() + W2cand.P4()).M();
+
+      const float mTopLep =
+          (bLepCand.P4() + Muons[0].P4() + neutrino_sol).M();
+
+      if (!std::isfinite(mTopHad) || !std::isfinite(mTopLep))
+        continue;
+
+      if (mTopHad <= 0.0f || mTopLep <= 0.0f)
+        continue;
+
+      const float chi2W =
+          Pull2(mW_prefit, kRecoWMass, kSigmaRecoW);
+
+      const float chi2HadTop =
+          Pull2(mTopHad, kRecoTopMass, kSigmaRecoHadTop);
+
+      const float chi2LepTop =
+          Pull2(mTopLep, kRecoTopMass, kSigmaRecoLepTop);
+
+      const float chi2TopBalance =
+          Pull2(mTopHad - mTopLep, 0.0f, kSigmaRecoTopBalance);
+
+      const float topology_score =
+          chi2W + chi2HadTop + chi2LepTop + 0.5f * chi2TopBalance;
+
+      if (!std::isfinite(topology_score) || topology_score < 0.0f)
+        continue;
+
+      ++ttsl_n_prefit_candidates;
+
+      TopologyCandidate cand;
+      cand.comb_idx = comb_idx;
+      cand.nu_idx = nu_idx;
+      cand.score = topology_score;
+      cand.mW = mW_prefit;
+      cand.mTopHad = mTopHad;
+      cand.mTopLep = mTopLep;
+      cand.abs_mW_residual = std::fabs(mW_prefit - kRecoWMass);
+      cand.abs_top_balance = std::fabs(mTopHad - mTopLep);
+
+      if (!has_valid_candidate || CandidateLess(cand, best_for_assignment)) {
+        best_for_assignment = cand;
+        has_valid_candidate = true;
+      }
+    }
+
+    if (!has_valid_candidate)
+      continue;
+
+    best_candidates_by_assignment.push_back(best_for_assignment);
+    ++ttsl_n_valid_combs;
   }
 
-  if (!found_good_fit)
+  if (best_candidates_by_assignment.empty())
     return false;
 
-  best_KF_result = best_fit_by_comb[best_comb_idx];
+  std::sort(best_candidates_by_assignment.begin(),
+            best_candidates_by_assignment.end(),
+            CandidateLess);
 
-  const float logChi2 = std::log(min_total_chi2 + 1e-6f);
+  const TopologyCandidate best_candidate =
+      best_candidates_by_assignment.front();
 
-  if (logChi2 > kMaxLogChi2)
-    return false;
+  // --------------------------------------------------------------------------
+  // Find second-best distinct W-pair hypothesis.
+  //
+  // A bHad/bLep swap with the same W pair is not counted as W-pair ambiguity.
+  // --------------------------------------------------------------------------
 
-  const bool has_second_best =
-      second_min_total_chi2 < std::numeric_limits<float>::max();
+  const auto SameWPair =
+      [&comb_lut](const TopologyCandidate &a,
+                  const TopologyCandidate &b) -> bool {
+        const auto &comb_a = comb_lut[a.comb_idx];
+        const auto &comb_b = comb_lut[b.comb_idx];
+
+        const bool same_order =
+            comb_a[2] == comb_b[2] && comb_a[3] == comb_b[3];
+
+        const bool swapped_order =
+            comb_a[2] == comb_b[3] && comb_a[3] == comb_b[2];
+
+        return same_order || swapped_order;
+      };
+
+  bool has_second_best = false;
+  TopologyCandidate second_best_candidate;
+
+  for (std::size_t idx = 1; idx < best_candidates_by_assignment.size(); ++idx) {
+    const TopologyCandidate &cand = best_candidates_by_assignment[idx];
+
+    if (SameWPair(best_candidate, cand))
+      continue;
+
+    second_best_candidate = cand;
+    has_second_best = true;
+    break;
+  }
+
+  if (kApplyTopologyScoreCut) {
+    if (best_candidate.score > kMaxTopologyScore)
+      return false;
+  }
+
+  const float logTopologyScore =
+      std::log(best_candidate.score + 1e-6f);
 
   const float deltaChi2 =
       has_second_best
-          ? (second_min_total_chi2 - min_total_chi2)
+          ? (second_best_candidate.score - best_candidate.score)
           : std::numeric_limits<float>::max();
 
   if (kApplyDeltaChi2Cut) {
@@ -3226,31 +3113,122 @@ bool CalibrationTree::PassTTSemilepBaselineSelection() {
   }
 
   // --------------------------------------------------------------------------
-  // Pick W jets from best combination.
+  // Best topology assignment.
+  //
+  // Do not use b-tagging to choose this assignment.
+  // B-tagging is applied only after this point, only to the b-side candidates.
   // --------------------------------------------------------------------------
 
-  const auto &best_comb = comb_lut[best_comb_idx];
+  const auto &best_comb = comb_lut[best_candidate.comb_idx];
 
-  Jet W1 = Jets[best_comb[2]];
-  Jet W2 = Jets[best_comb[3]];
+  const SelectedJetView bHad = Jets[best_comb[0]];
+  const SelectedJetView bLep = Jets[best_comb[1]];
 
-  // Optional: if your tree has diagnostic branches, fill them here.
+  const SelectedJetView W1 = Jets[best_comb[2]];
+  const SelectedJetView W2 = Jets[best_comb[3]];
+
+  // --------------------------------------------------------------------------
+  // Tag-side b-tag requirement.
   //
-  // Example names only; adapt to your class members if they exist.
+  // This reduces W+jets / QCD background while avoiding a direct tagger-score
+  // cut on the stored W jets.
   //
-  // TTSL_MinChi2       = min_total_chi2;
-  // TTSL_LogChi2       = logChi2;
-  // TTSL_SecondMinChi2 = second_min_total_chi2;
-  // TTSL_DeltaChi2     = deltaChi2;
-  // TTSL_PrefitMW      = prefit_mW_by_comb[best_comb_idx];
-  // TTSL_BestCombIdx   = static_cast<int>(best_comb_idx);
-  // TTSL_SecondCombIdx = static_cast<int>(second_best_comb_idx);
-  // TTSL_BestNuIdx     = static_cast<int>(best_nu_idx);
+  // Important:
+  //   If the b-side fails, reject the event.
+  //   Do NOT fall back to another assignment that passes b-tagging, because that
+  //   would make the W-pair choice tagger-dependent.
+  // --------------------------------------------------------------------------
 
+  if (kRequireTagSideBTag) {
+    const auto btagger = FlavTagger.at(DataEra.Data());
+    const float loose_wp =
+        GetBTaggingWP(btagger, JetTagging::JetFlavTaggerWP::Loose);
+    const float medium_wp =
+        GetBTaggingWP(btagger, JetTagging::JetFlavTaggerWP::Medium);
+
+    const float bHad_bscore =
+        bHad.GetTaggerResult(btagger, JetTagging::JetFlavTaggerScoreType::B);
+    const bool bHad_loose = bHad_bscore > loose_wp;
+    const bool bHad_medium = bHad_bscore > medium_wp;
+
+    const float bLep_bscore =
+        bLep.GetTaggerResult(btagger, JetTagging::JetFlavTaggerScoreType::B);
+    const bool bLep_loose = bLep_bscore > loose_wp;
+    const bool bLep_medium = bLep_bscore > medium_wp;
+
+    const int n_bside_loose =
+        static_cast<int>(bHad_loose) + static_cast<int>(bLep_loose);
+
+    const int n_bside_medium =
+        static_cast<int>(bHad_medium) + static_cast<int>(bLep_medium);
+
+    // Optional diagnostics if corresponding branches exist:
+    //
+    // ttsl_bside_n_loose = n_bside_loose;
+    // ttsl_bside_n_medium = n_bside_medium;
+    //
+    // For monitoring only. Do not cut on W-side b-tag multiplicity:
+    //
+    // ttsl_wside_n_loose =
+    //     static_cast<int>(W1.GetTaggerResult(
+    //         btagger, JetTagging::JetFlavTaggerScoreType::B) > loose_wp) +
+    //     static_cast<int>(W2.GetTaggerResult(
+    //         btagger, JetTagging::JetFlavTaggerScoreType::B) > loose_wp);
+    //
+    // ttsl_wside_n_medium =
+    //     static_cast<int>(W1.GetTaggerResult(
+    //         btagger, JetTagging::JetFlavTaggerScoreType::B) > medium_wp) +
+    //     static_cast<int>(W2.GetTaggerResult(
+    //         btagger, JetTagging::JetFlavTaggerScoreType::B) > medium_wp);
+
+    if (kRequireOneMediumOneLoose) {
+      const bool passOneMediumOneLoose =
+          (bHad_medium && bLep_loose) ||
+          (bLep_medium && bHad_loose);
+
+      if (!passOneMediumOneLoose)
+        return false;
+
+    } else {
+      if (n_bside_medium < 1)
+        return false;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Fill diagnostic branches.
+  //
+  // Legacy names are preserved for compatibility, but note:
+  //   ttsl_fit_chi2 now stores topology_score, not fitter chi2.
+  // --------------------------------------------------------------------------
+
+  log_chi2 = logTopologyScore;
+
+  ttsl_fit_status = 0;
+  ttsl_fit_chi2 = best_candidate.score;
+  ttsl_log_fit_chi2 = logTopologyScore;
+
+  ttsl_prefit_chi2 = best_candidate.score;
+  ttsl_prefit_mw = best_candidate.mW;
+
+  ttsl_best_comb_idx = static_cast<int>(best_candidate.comb_idx);
+  ttsl_second_comb_idx =
+      has_second_best ? static_cast<int>(second_best_candidate.comb_idx) : -1;
+
+  ttsl_best_nu_idx = static_cast<int>(best_candidate.nu_idx);
+
+  ttsl_second_fit_chi2 =
+      has_second_best ? second_best_candidate.score : -9999.0f;
+
+  ttsl_delta_chi2 =
+      has_second_best ? deltaChi2 : -9999.0f;
+
+  // --------------------------------------------------------------------------
   // Keep only the two hadronic-W assigned jets in the calibration tree.
-  Jets.clear();
-  Jets.push_back(W1);
-  Jets.push_back(W2);
+  // No tagger requirement has been applied to these two jets.
+  // --------------------------------------------------------------------------
+
+  Jets = Jets.selectPositions({best_comb[2], best_comb[3]});
 
   return true;
 }

@@ -16,6 +16,7 @@
 #pragma link C++ class CalibrationTree+;
 #pragma link C++ class Vcb+;
 #pragma link C++ class Vcb_SL+;
+#pragma link C++ class HadronAnalyzer+;
 #pragma link C++ class Vcb_SLStudy+;
 #pragma link C++ class Vcb_DL+;
 #pragma link C++ class Vcb_FH+;

@@ -1,24 +1,24 @@
 #ifndef VcbParameters_h
 #define VcbParameters_h
 
-#include "Electron.h"
-#include "Jet.h"
+#include "ElectronView.h"
+#include "JetView.h"
 #include "JetTaggingParameter.h"
-#include "Muon.h"
+#include "MuonView.h"
 #include "TString.h"
 #include "unordered_map"
 #include <string>
 
 // Vcb Global
-static constexpr Muon::MuonID Muon_Veto_ID = Muon::MuonID::POG_TIGHT;
-static constexpr Electron::ElectronID Electron_Veto_ID =
-    Electron::ElectronID::POG_MVAISO_WP90;
-static constexpr Muon::MuonID Muon_Veto_Iso = Muon::MuonID::POG_PFISO_LOOSE;
-//static constexpr Muon::MuonID Muon_Tight_ID = Muon::MuonID::POG_PROMPTMVA_WP0p64;
-static constexpr Muon::MuonID Muon_Tight_ID = Muon::MuonID::POG_TIGHT;
-static constexpr Muon::MuonID Muon_Tight_Iso = Muon::MuonID::POG_PFISO_TIGHT;
-//static constexpr Electron::ElectronID Electron_Tight_ID = Electron::ElectronID::POG_PROMPTMVA_TIGHT;
-static constexpr Electron::ElectronID Electron_Tight_ID = Electron::ElectronID::POG_MVAISO_WP80;
+static constexpr MuonView::MuonID Muon_Veto_ID = MuonView::MuonID::POG_TIGHT;
+static constexpr ElectronView::ElectronID Electron_Veto_ID =
+    ElectronView::ElectronID::POG_MVAISO_WP90;
+static constexpr MuonView::MuonID Muon_Veto_Iso = MuonView::MuonID::POG_PFISO_LOOSE;
+//static constexpr MuonView::MuonID Muon_Tight_ID = MuonView::MuonID::POG_PROMPTMVA_WP0p64;
+static constexpr MuonView::MuonID Muon_Tight_ID = MuonView::MuonID::POG_TIGHT;
+static constexpr MuonView::MuonID Muon_Tight_Iso = MuonView::MuonID::POG_PFISO_TIGHT;
+//static constexpr ElectronView::ElectronID Electron_Tight_ID = ElectronView::ElectronID::POG_PROMPTMVA_TIGHT;
+static constexpr ElectronView::ElectronID Electron_Tight_ID = ElectronView::ElectronID::POG_MVAISO_WP80;
 
 static constexpr float Muon_Veto_Pt = 10.f;
 static constexpr float Muon_Veto_Eta = 2.4;
@@ -41,8 +41,8 @@ static inline std::unordered_map<std::string, float> Electron_Tight_Pt = {
 
 static constexpr float Jet_Veto_DR = 0.4;
 
-static constexpr Jet::JetID Jet_ID = Jet::JetID::TIGHTLEPVETO;
-static constexpr Jet::JetID Jet_PUID = Jet::JetID::PUID_MEDIUM;
+static constexpr JetView::JetID Jet_ID = JetView::JetID::TIGHTLEPVETO;
+static constexpr JetView::JetID Jet_PUID = JetView::JetID::PUID_MEDIUM;
 static constexpr float Jet_Eta_cut = 2.4;
 
 static inline std::unordered_map<std::string, JetTagging::JetFlavTagger>

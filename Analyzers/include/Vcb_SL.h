@@ -37,9 +37,9 @@ public:
     bool PassBaseLineSelection(bool remove_flavtagging_cut = false, bool loose_cut = false) override;
     void FillKinematicFitterResult(const TString &histPrefix, float weight) override;
     std::variant<float, std::pair<float, float>> SolveNeutrinoPz(const Lepton &lepton, const Particle &met);
-    void GetKineMaticFitterResult(const RVec<Jet> &jets, Particle &MET, Lepton &lepton);
+    void GetKineMaticFitterResult(const SelectedJetViewCollection &jets, Particle &MET, Lepton &lepton);
     RVec<int> FindTTbarJetIndices() override;
-    tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> FitKinFitter(const RVec<Jet> &jets, const RVec<unsigned int> &permutation, Particle &neutrino, Lepton &lepton);
+    tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> FitKinFitter(const SelectedJetViewCollection &jets, const RVec<unsigned int> &permutation, Particle &neutrino, Lepton &lepton);
     void FillTrainingTree() override;
     void FillTemplateTrainingTree(const std::unordered_map<std::string, float> &weight_map) override;
     void FillHistogramsAtThisPoint(std::string_view histPrefix, float weight = 1.f) override;
@@ -48,7 +48,7 @@ public:
     void EnsureWcbNNEvaluated();
     void virtual CreateTrainingTree() override;
     void virtual CreateTemplateTrainingTree() override;
-    RVec<RVec<unsigned int>> GetPermutations(const RVec<Jet> &jets) override;
+    RVec<RVec<unsigned int>> GetPermutations(const SelectedJetViewCollection &jets) override;
     void virtual InferONNX() override;
     bool virtual FillTabNetInfo(const TString &histPrefix, float weight) override;
     void virtual InferTabNet() override;

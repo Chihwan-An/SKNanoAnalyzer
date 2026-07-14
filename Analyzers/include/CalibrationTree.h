@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "AnalyzerCore.h"
-#include "Gen.h"
 #include "GenView.h"
 #include "MLHelper.h"
 #include "SystematicHelper.h"
@@ -48,12 +47,14 @@ public:
 
   struct KinFitterResult {
     int status;
+    double fit_chi2;
     double chi2_whad;
     double chi2_wlep;
     double chi2_thad;
     double chi2_tlep;
     void clear() {
       status = -999; // 또는 -1 등 네가 쓰고 싶은 초기값
+      fit_chi2 = -999.0;
       chi2_whad = -999.0;
       chi2_wlep = -999.0;
       chi2_thad = -999.0;
@@ -65,21 +66,24 @@ public:
   void SetChannel();
   void initializeAnalyzer() override;
   void executeEvent() override;
+  std::string CurrentSystematicName() const override {
+    return systHelper ? systHelper->getCurrentSysName() : "";
+  }
   void SkimTree();
   void WriteHist() override;
   virtual void executeEventFromParameter();
   std::variant<float, std::pair<float, float>>
   SolveNeutrinoPz(const Lepton &lepton, const Particle &met);
   std::tuple<int, double, TLorentzVector, TLorentzVector, TLorentzVector>
-  FitKinFitterLepTop(const Jet &bjet, Particle &neutrino, Lepton &lepton);
-  KinFitterResult FitKinFitterTTSemilep(const Jet &had_t_b, const Jet &lep_t_b,
-                                        const Jet &had_w_1, const Jet &had_w_2,
+  FitKinFitterLepTop(const SelectedJetView &bjet, Particle &neutrino, Lepton &lepton);
+  KinFitterResult FitKinFitterTTSemilep(const SelectedJetView &had_t_b, const SelectedJetView &lep_t_b,
+                                        const SelectedJetView &had_w_1, const SelectedJetView &had_w_2,
                                         Particle &neutrino,
                                         Lepton &lepton);
   float Calc_Each_Chi2(TAbsFitParticle *ptr);
   float Calc_Each_Chi2(TAbsFitConstraint *constraint, float mass, float width);
-  KinFitterResult Chi2Prefit(const Jet &had_t_b, const Jet &lep_t_b,
-                                        const Jet &had_w_1, const Jet &had_w_2,
+  KinFitterResult Chi2Prefit(const SelectedJetView &had_t_b, const SelectedJetView &lep_t_b,
+                                        const SelectedJetView &had_w_1, const SelectedJetView &had_w_2,
                                         const Particle &neutrino,
                                         const Lepton &lepton);
 
@@ -120,11 +124,11 @@ public:
   GenViewCollection AllGenViews;
   TrigObjViewCollection AllTrigObjViews;
   // Selected Objects
-  RVec<Jet> Jets;
-  RVec<Electron> Electrons_Veto;
-  RVec<Electron> Electrons;
-  RVec<Muon> Muons_Veto;
-  RVec<Muon> Muons;
+  SelectedJetViewCollection Jets;
+  ElectronViewCollection Electrons_Veto;
+  ElectronViewCollection Electrons;
+  MuonViewCollection Muons_Veto;
+  MuonViewCollection Muons;
   Lepton lepton;
   RVec<Lepton> leptons;
   Event ev;
@@ -139,6 +143,22 @@ public:
   short n_hadronFlav_c_jets;
   // additional info
   float log_chi2;
+  int ttsl_fit_status;
+  int ttsl_best_comb_idx;
+  int ttsl_second_comb_idx;
+  int ttsl_best_nu_idx;
+  int ttsl_n_valid_combs;
+  int ttsl_n_prefit_candidates;
+  int ttsl_n_fit_candidates;
+  int ttsl_met_propagated;
+  float ttsl_fit_chi2;
+  float ttsl_log_fit_chi2;
+  float ttsl_second_fit_chi2;
+  float ttsl_delta_chi2;
+  float ttsl_prefit_chi2;
+  float ttsl_prefit_mw;
+  float ttsl_met_pt_before_jet_syst;
+  float ttsl_met_pt_after_jet_syst;
   float mmuj0;
   float melj0;
   float mmuj1;
@@ -235,8 +255,7 @@ public:
   std::vector<float> jetHFvLFAll;
   std::vector<float> jetBvCAll;
   bool useMyUParTBranches = false;
-  int myUParTCacheTreeNumber = -1;
-  std::unordered_map<std::string, TBranch *> myUParTBranchCache;
+  std::unordered_map<std::string, ColumnHandle<float>> myUParTColumns; //!
   struct LeptonSelectionCache {
     bool valid = false;
     Long64_t entry = -1;

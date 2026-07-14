@@ -87,7 +87,7 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
 
     if (HasFlag("Skim"))
     {
-        auto select_tight_muons = [&](Muon::MuonID id, bool require_iso)
+        auto select_tight_muons = [&](MuonView::MuonID id, bool require_iso)
         {
             std::vector<std::size_t> indices = SelectMuonIndices(
                 AllMuonViews, id, Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
@@ -100,7 +100,7 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
             return indices;
         };
 
-        auto select_tight_electrons = [&](Electron::ElectronID id)
+        auto select_tight_electrons = [&](ElectronView::ElectronID id)
         {
             return SelectElectronIndices(AllElectronViews, id,
                                          Electron_Tight_Pt[DataEra.Data()],
@@ -120,13 +120,13 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
         };
 
         const std::vector<std::size_t> mu_tight_pog =
-            select_tight_muons(Muon::MuonID::POG_TIGHT, true);
+            select_tight_muons(MuonView::MuonID::POG_TIGHT, true);
         const std::vector<std::size_t> mu_tight_prompt =
-            select_tight_muons(Muon::MuonID::POG_PROMPTMVA_WP0p64, false);
+            select_tight_muons(MuonView::MuonID::POG_PROMPTMVA_WP0p64, false);
         const std::vector<std::size_t> el_tight_wp80 =
-            select_tight_electrons(Electron::ElectronID::POG_MVAISO_WP80);
+            select_tight_electrons(ElectronView::ElectronID::POG_MVAISO_WP80);
         const std::vector<std::size_t> el_tight_prompt =
-            select_tight_electrons(Electron::ElectronID::POG_PROMPTMVA_MEDIUM);
+            select_tight_electrons(ElectronView::ElectronID::POG_PROMPTMVA_MEDIUM);
 
         auto pass_mm_case = [&](const std::vector<std::size_t> &mu_tight)
         {
@@ -217,10 +217,13 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
         }
     }
 
-    Muons_Veto = MaterializeMuons(AllMuonViews, Muons_Veto_indices);
-    Electrons_Veto = MaterializeElectrons(AllElectronViews, Electron_Veto_indices);
-    Muons = MaterializeMuons(AllMuonViews, Muons_indices);
-    Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
+    Muons_Veto =
+        MuonViewCollection(AllMuonViews.storage(), Muons_Veto_indices);
+    Electrons_Veto = ElectronViewCollection(AllElectronViews.storage(),
+                                             Electron_Veto_indices);
+    Muons = MuonViewCollection(AllMuonViews.storage(), Muons_indices);
+    Electrons =
+        ElectronViewCollection(AllElectronViews.storage(), Electrons_indices);
 
     MyCorrection::variation jesVar = MyCorrection::variation::nom;
     MyCorrection::variation jerVar = MyCorrection::variation::nom;
@@ -260,7 +263,7 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
                                       Muons_Veto_indices, Jet_Veto_DR);
     if (jetIndices.size() < 4)
         return false;
-    Jets = MaterializeJets(AllJetViews, jetIndices, jesVar, jerVar);
+    Jets = SelectJetViews(AllJetViews, jetIndices, jesVar, jerVar);
 
     HT = GetHT(Jets);
     n_jets = Jets.size();
@@ -294,8 +297,8 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
             if (!(Electrons_Veto.size() == 0 && Muons_Veto.size() == 2))
                 return false;
         }
-        leptons.push_back(Muons[0]);
-        leptons.push_back(Muons[1]);
+        leptons.push_back(MakeLeptonSnapshot(Muons[0]));
+        leptons.push_back(MakeLeptonSnapshot(Muons[1]));
     }
     else if (channel == Channel::ME)
     {
@@ -306,8 +309,8 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
             if (!(Muons_Veto.size() == 1 && Electrons_Veto.size() == 1))
                 return false;
         }
-        leptons.push_back(Muons[0]);
-        leptons.push_back(Electrons[0]);
+        leptons.push_back(MakeLeptonSnapshot(Muons[0]));
+        leptons.push_back(MakeLeptonSnapshot(Electrons[0]));
     }
     else if (channel == Channel::EE)
     {
@@ -318,8 +321,8 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
             if (!(Muons_Veto.size() == 0 && Electrons_Veto.size() == 2))
                 return false;
         }
-        leptons.push_back(Electrons[0]);
-        leptons.push_back(Electrons[1]);
+        leptons.push_back(MakeLeptonSnapshot(Electrons[0]));
+        leptons.push_back(MakeLeptonSnapshot(Electrons[1]));
     }
     Particle ZCand = leptons[0] + leptons[1];
     if (channel == Channel::MM || channel == Channel::EE)
@@ -337,8 +340,6 @@ bool Vcb_DL::PassBaseLineSelection(bool remove_flavtagging_cut, bool loose_cut)
     if (n_b_tagged_jets < 2 && !remove_flavtagging_cut)
         return false;
     FillCutFlow(7);
-    // re-order Jets by Pt
-    std::sort(Jets.begin(), Jets.end(), PtComparing);
     SetSystematicLambda();
     SetTTbarId();
     return true;
@@ -362,8 +363,8 @@ void Vcb_DL::FillHistogramsAtThisPoint(std::string_view histPrefix,
               [&](std::size_t a, std::size_t b)
               { return JetProbBScore(Jets[a]) > JetProbBScore(Jets[b]); });
 
-    const Jet &jet3 = Jets[probb_order[2]];
-    const Jet &jet4 = Jets[probb_order[3]];
+    const SelectedJetView jet3 = Jets[probb_order[2]];
+    const SelectedJetView jet4 = Jets[probb_order[3]];
 
     const int cat3 = static_cast<int>(JetCategory(jet3));
     const int cat4 = static_cast<int>(JetCategory(jet4));
@@ -376,6 +377,6 @@ void Vcb_DL::FillHistogramsAtThisPoint(std::string_view histPrefix,
 
     std::string name(histPrefix);
     name.append("/Jet34_Cat_Unrolled_Probb_Merged");
-    FillHist(name, unrolled, weight, kMergedBins, 0.f,
+    Hists().Fill(name, unrolled, weight, kMergedBins, 0.f,
              static_cast<float>(kMergedBins));
 }

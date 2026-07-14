@@ -34,11 +34,11 @@ public:
     }
     bool PassBaseLineSelection(bool remove_flavtagging_cut = false, bool loose_cut = false) override;
     void FillKinematicFitterResult(const TString &histPrefix, float weight) override;
-    void GetKineMaticFitterResult(const RVec<Jet> &jets);
+    void GetKineMaticFitterResult(const SelectedJetViewCollection &jets);
     RVec<int> FindTTbarJetIndices() override;
-    tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> FitKinFitter(const RVec<Jet> &jets, const RVec<unsigned int> &permutation);
+    tuple<int, float, RVec<unsigned int>, RVec<TLorentzVector>> FitKinFitter(const SelectedJetViewCollection &jets, const RVec<unsigned int> &permutation);
     void FillTrainingTree() override;
-    RVec<RVec<unsigned int>> GetPermutations(const RVec<Jet> &jets) override;
+    RVec<RVec<unsigned int>> GetPermutations(const SelectedJetViewCollection &jets) override;
     void CreateTrainingTree() override;
     void virtual InferONNX() override;
     bool virtual FillONNXRecoInfo(const TString &histPrefix, float weight) override;

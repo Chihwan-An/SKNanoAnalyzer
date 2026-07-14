@@ -20,10 +20,10 @@ private:
   enum class LooseMuonIsolationMode { Tight, Loose, None };
 
   struct StudyConfig {
-    Muon::MuonID looseMuonID = Muon_Veto_ID;
+    MuonView::MuonID looseMuonID = Muon_Veto_ID;
     LooseMuonIsolationMode looseMuonIso = LooseMuonIsolationMode::Tight;
     JetCleaningMode jetCleaningMode = JetCleaningMode::TightLeptons;
-    Jet::JetID jetID = Jet_ID;
+    JetView::JetID jetID = Jet_ID;
     bool requireMET20 = false;
     std::string looseMuonLabel = "TightID+TightIso";
     std::string jetCleaningLabel = "TightLeptons";

@@ -83,7 +83,7 @@ void Vcb_SLStudy::ConfigureStudyFlags() {
   }
 
   if (HasFlag("JetIDTightLeptonVeto") || HasFlag("JetIDTightLeptonID")) {
-    studyConfig_.jetID = Jet::JetID::TIGHTLEPVETO;
+    studyConfig_.jetID = JetView::JetID::TIGHTLEPVETO;
     studyConfig_.jetIDLabel = "TightLeptonVeto";
   }
 
@@ -93,17 +93,17 @@ void Vcb_SLStudy::ConfigureStudyFlags() {
   }
 
   if (HasFlag("LooseMuonIDMedium")) {
-    studyConfig_.looseMuonID = Muon::MuonID::POG_MEDIUM;
+    studyConfig_.looseMuonID = MuonView::MuonID::POG_MEDIUM;
     studyConfig_.looseMuonLabel = "MediumID+TightIso";
   } else if (HasFlag("LooseMuonIDLoose")) {
-    studyConfig_.looseMuonID = Muon::MuonID::POG_LOOSE;
+    studyConfig_.looseMuonID = MuonView::MuonID::POG_LOOSE;
     studyConfig_.looseMuonLabel = "LooseID+TightIso";
   } else if (HasFlag("LooseMuonIDPrompt") ||
              HasFlag("LooseMuonIDPromptMVA")) {
-    studyConfig_.looseMuonID = Muon::MuonID::POG_PROMPTMVA_WP0p64;
+    studyConfig_.looseMuonID = MuonView::MuonID::POG_PROMPTMVA_WP0p64;
     studyConfig_.looseMuonLabel = "PromptMVA+TightIso";
   } else if (HasFlag("LooseMuonIDTight")) {
-    studyConfig_.looseMuonID = Muon::MuonID::POG_TIGHT;
+    studyConfig_.looseMuonID = MuonView::MuonID::POG_TIGHT;
     studyConfig_.looseMuonLabel = "TightID+TightIso";
   }
 
@@ -149,13 +149,13 @@ std::vector<std::size_t> Vcb_SLStudy::BuildLooseMuonCleaningIndices(
   case LooseMuonIsolationMode::Tight:
     cleaning_muons =
         SelectMuonIndices(AllMuonViews, cleaning_muons,
-                          Muon::MuonID::POG_PFISO_TIGHT, Muon_Veto_Pt,
+                          MuonView::MuonID::POG_PFISO_TIGHT, Muon_Veto_Pt,
                           Muon_Veto_Eta);
     break;
   case LooseMuonIsolationMode::Loose:
     cleaning_muons =
         SelectMuonIndices(AllMuonViews, cleaning_muons,
-                          Muon::MuonID::POG_PFISO_LOOSE, Muon_Veto_Pt,
+                          MuonView::MuonID::POG_PFISO_LOOSE, Muon_Veto_Pt,
                           Muon_Veto_Eta);
     break;
   case LooseMuonIsolationMode::None:
@@ -241,7 +241,7 @@ bool Vcb_SLStudy::PassBaseLineSelection(bool remove_flavtagging_cut,
   }
 
   if (HasFlag("Skim")) {
-    auto select_tight_muons = [&](Muon::MuonID id, bool require_iso) {
+    auto select_tight_muons = [&](MuonView::MuonID id, bool require_iso) {
       std::vector<std::size_t> indices = SelectMuonIndices(
           AllMuonViews, id, Muon_Tight_Pt[DataEra.Data()], Muon_Tight_Eta);
       if (require_iso) {
@@ -252,7 +252,7 @@ bool Vcb_SLStudy::PassBaseLineSelection(bool remove_flavtagging_cut,
       return indices;
     };
 
-    auto select_tight_electrons = [&](Electron::ElectronID id) {
+    auto select_tight_electrons = [&](ElectronView::ElectronID id) {
       return SelectElectronIndices(AllElectronViews, id,
                                    Electron_Tight_Pt[DataEra.Data()],
                                    Electron_Tight_Eta);
@@ -269,13 +269,13 @@ bool Vcb_SLStudy::PassBaseLineSelection(bool remove_flavtagging_cut,
     };
 
     const std::vector<std::size_t> mu_tight_pog =
-        select_tight_muons(Muon::MuonID::POG_TIGHT, true);
+        select_tight_muons(MuonView::MuonID::POG_TIGHT, true);
     const std::vector<std::size_t> mu_tight_prompt =
-        select_tight_muons(Muon::MuonID::POG_PROMPTMVA_WP0p64, false);
+        select_tight_muons(MuonView::MuonID::POG_PROMPTMVA_WP0p64, false);
     const std::vector<std::size_t> el_tight_wp80 =
-        select_tight_electrons(Electron::ElectronID::POG_MVAISO_WP80);
+        select_tight_electrons(ElectronView::ElectronID::POG_MVAISO_WP80);
     const std::vector<std::size_t> el_tight_prompt =
-        select_tight_electrons(Electron::ElectronID::POG_PROMPTMVA_MEDIUM);
+        select_tight_electrons(ElectronView::ElectronID::POG_PROMPTMVA_MEDIUM);
 
     auto pass_mu_case = [&](const std::vector<std::size_t> &mu_tight,
                             const std::vector<std::size_t> &el_tight) {
@@ -332,9 +332,10 @@ bool Vcb_SLStudy::PassBaseLineSelection(bool remove_flavtagging_cut,
             Muons_indices.size() == 0 && Electron_Veto_indices.size() == 1))
         return false;
     }
-    Muons = MaterializeMuons(AllMuonViews, Muons_indices);
-    Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
-    lepton = Electrons[0];
+    Muons = MuonViewCollection(AllMuonViews.storage(), Muons_indices);
+    Electrons =
+        ElectronViewCollection(AllElectronViews.storage(), Electrons_indices);
+    lepton = MakeLeptonSnapshot(Electrons[0]);
     leptons.push_back(lepton);
   }
   if (channel == Channel::Mu) {
@@ -343,14 +344,15 @@ bool Vcb_SLStudy::PassBaseLineSelection(bool remove_flavtagging_cut,
             Electrons_indices.size() == 0 && Muons_Veto_indices.size() == 1))
         return false;
     }
-    Muons = MaterializeMuons(AllMuonViews, Muons_indices);
+    Muons = MuonViewCollection(AllMuonViews.storage(), Muons_indices);
     if (!HasFlag("Skim")) {
-      if (!Muons[0].PassID(Muon::MuonID::POG_PROMPTMVA_WP0p64)) {
+      if (!Muons[0].PassID(MuonView::MuonID::POG_PROMPTMVA_WP0p64)) {
         return false;
       }
     }
-    Electrons = MaterializeElectrons(AllElectronViews, Electrons_indices);
-    lepton = Muons[0];
+    Electrons =
+        ElectronViewCollection(AllElectronViews.storage(), Electrons_indices);
+    lepton = MakeLeptonSnapshot(Muons[0]);
     leptons.push_back(lepton);
   }
   FillCutFlow(4);
@@ -412,8 +414,7 @@ bool Vcb_SLStudy::PassBaseLineSelection(bool remove_flavtagging_cut,
       return false;
   }
 
-  Jets = MaterializeJets(AllJetViews, jetIndices, jesVar, jerVar);
-  std::sort(Jets.begin(), Jets.end(), PtComparing);
+  Jets = SelectJetViews(AllJetViews, jetIndices, jesVar, jerVar);
 
   HT = GetHT(Jets);
   n_jets = Jets.size();

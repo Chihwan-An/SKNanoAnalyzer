@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "AnalyzerCore.h"
-#include "Gen.h"
 #include "GenView.h"
 #include "MLHelper.h"
 #include "OtJsonLutBank.h"
@@ -87,20 +86,24 @@ public:
       return -simple_pid;
     return simple_pid;
   }
+
   array<std::size_t, 4> GetTopAndAntiTopIndices(const GenViewCollection &gens);
   float LeptonTriggerWeight(
       bool isEle,
       const MyCorrection::variation syst = MyCorrection::variation::nom,
       const TString &source = "total");
   void Clear();
-  int Unroller(RVec<Jet> &jets);
-  int Unroller(Jet &jet1, Jet &jet2);
-  short GetPassedBTaggingWP(const Jet &jet);
-  short GetPassedCTaggingWP(const Jet &jet);
+  int Unroller(const SelectedJetViewCollection &jets);
+  int Unroller(const SelectedJetView &jet1, const SelectedJetView &jet2);
+  short GetPassedBTaggingWP(const SelectedJetView &jet);
+  short GetPassedCTaggingWP(const SelectedJetView &jet);
   void SetChannel();
   bool virtual CheckChannel() = 0;
   void initializeAnalyzer() override;
   void executeEvent() override;
+  std::string CurrentSystematicName() const override {
+    return systHelper ? systHelper->getCurrentSysName() : "";
+  }
   virtual void executeEventFromParameter();
   bool virtual PassBaseLineSelection(bool remove_flavtagging_cut = false,
                                      bool loose_cut = false) = 0;
@@ -156,7 +159,8 @@ public:
 
   bool virtual FillONNXRecoInfo(const TString &histPrefix, float weight);
   bool virtual FillTabNetInfo(const TString &histPrefix, float weight);
-  inline float GetJetEnergyFractionWithRadius(Jet &jet, float radius) {
+  inline float GetJetEnergyFractionWithRadius(const SelectedJetView &jet,
+                                              float radius) {
     float sum = 0;
     for (size_t i = 0; i < Jets.size(); i++) {
       if (jet.DeltaR(Jets[i]) < 1e-5)
@@ -167,39 +171,41 @@ public:
     return jet.E() / sum;
   }
 
-  RVec<RVec<unsigned int>> virtual GetPermutations(const RVec<Jet> &jets);
+  RVec<RVec<unsigned int>> virtual GetPermutations(
+      const SelectedJetViewCollection &jets);
   inline JetTagging::JetFlavTagger CurrentFlavTagger() const {
     return FlavTagger[DataEra.Data()];
   }
-  inline float JetBScore(const Jet &jet) const {
+  inline float JetBScore(const SelectedJetView &jet) const {
     return jet.GetTaggerResult(CurrentFlavTagger(),
                                JetTagging::JetFlavTaggerScoreType::B);
   }
-  inline float JetCvBScore(const Jet &jet) const {
+  inline float JetCvBScore(const SelectedJetView &jet) const {
     return jet.GetTaggerResult(CurrentFlavTagger(),
                                JetTagging::JetFlavTaggerScoreType::CvB);
   }
-  inline float JetCvLScore(const Jet &jet) const {
+  inline float JetCvLScore(const SelectedJetView &jet) const {
     return jet.GetTaggerResult(CurrentFlavTagger(),
                                JetTagging::JetFlavTaggerScoreType::CvL);
   }
-  inline float JetQvGScore(const Jet &jet) const {
+  inline float JetQvGScore(const SelectedJetView &jet) const {
     return jet.GetTaggerResult(CurrentFlavTagger(),
                                JetTagging::JetFlavTaggerScoreType::QvG);
   }
-  inline std::pair<float, float> JetCScorePair(const Jet &jet) const {
+  inline std::pair<float, float> JetCScorePair(
+      const SelectedJetView &jet) const {
     return {JetCvBScore(jet), JetCvLScore(jet)};
   }
 
-  float JetHFvLFScore(const Jet &jet) const;
-  float JetBvCScore(const Jet &jet) const;
-  float JetProbBScore(const Jet &jet) const;
-  float JetProbCScore(const Jet &jet) const;
-  float JetProbLScore(const Jet &jet) const;
-  float JetILRdim1Score(const Jet &jet) const;
-  float JetILRdim2Score(const Jet &jet) const;
+  float JetHFvLFScore(const SelectedJetView &jet) const;
+  float JetBvCScore(const SelectedJetView &jet) const;
+  float JetProbBScore(const SelectedJetView &jet) const;
+  float JetProbCScore(const SelectedJetView &jet) const;
+  float JetProbLScore(const SelectedJetView &jet) const;
+  float JetILRdim1Score(const SelectedJetView &jet) const;
+  float JetILRdim2Score(const SelectedJetView &jet) const;
   
-  Cat JetCategory(const Jet &jet) const;
+  Cat JetCategory(const SelectedJetView &jet) const;
   void UpdateAllJetTaggingCaches(const JetViewCollection &jets);
   void UpdateAllJetTaggingCaches(
       const JetViewCollection &jets,
@@ -212,15 +218,14 @@ public:
   ElectronViewCollection AllElectronViews;
   JetViewCollection AllJetViews;
   GenViewCollection AllGenViews;
-  RVec<Gen> AllGens;
-  RVec<LHE> AllLHEs;
-  RVec<GenJet> AllGenJets;
+  GenViewCollection AllGens;
+  GenJetViewCollection AllGenJets;
   // Selected Objects
-  RVec<Jet> Jets;
-  RVec<Electron> Electrons_Veto;
-  RVec<Electron> Electrons;
-  RVec<Muon> Muons_Veto;
-  RVec<Muon> Muons;
+  SelectedJetViewCollection Jets;
+  ElectronViewCollection Electrons_Veto;
+  ElectronViewCollection Electrons;
+  MuonViewCollection Muons_Veto;
+  MuonViewCollection Muons;
   Lepton lepton;
   RVec<Lepton> leptons;
   Event ev;
@@ -345,7 +350,8 @@ protected:
                                                       int hadronFlavor) const;
 
   // --- Vcb 컨텍스트에서 쓰도록 멤버로 (지금은 멤버 접근 안 해도 OK)
-  std::pair<double, double> HFvLF_BvC_from_ParT(const Jet &j) const;
+  std::pair<double, double>
+  HFvLF_BvC_from_ParT(const SelectedJetView &j) const;
   std::pair<double, double> HFvLF_BvC_from_storage(const JetSoA &store,
                                                    std::size_t idx) const;
 

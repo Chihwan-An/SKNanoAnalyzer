@@ -147,6 +147,50 @@ class SchemaPipelineTest(unittest.TestCase):
                 },
             )
 
+    def test_codegen_discovers_companion_metadata_and_writes_depfile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            schema = root / "NanoAODv15.json"
+            schema.write_text(json.dumps({
+                "Events Content": {
+                    "Jet": {
+                        "nJet": {"type": "Int_t"},
+                        "Jet_pt": {"type": "Float_t"},
+                    }
+                }
+            }))
+            (root / "branch_overlay.json").write_text(json.dumps({
+                "overlay_version": 1,
+                "view_collections": {},
+            }))
+            addon_dir = root / "custom"
+            addon_dir.mkdir()
+            addon = addon_dir / "Example.json"
+            addon.write_text(json.dumps({
+                "addon_version": 1,
+                "name": "Example",
+                "collections": {
+                    "Example": {
+                        "count": {"name": "nExample", "type": "Int_t"},
+                        "fields": {"Example_value": "Float_t"},
+                    }
+                },
+            }))
+            output = root / "generated"
+            depfile = output / "schema_codegen.d"
+            subprocess.run([
+                "python3", str(GENERATOR_PATH), "--json", str(schema),
+                "--out-dir", str(output), "--depfile", str(depfile),
+            ], check=True, capture_output=True, text=True)
+
+            self.assertIn(
+                "Example_value",
+                (output / "generated_branch_decls.inc").read_text(),
+            )
+            dependencies = depfile.read_text()
+            self.assertIn(str(schema), dependencies)
+            self.assertIn(str(addon), dependencies)
+
     @unittest.skipUnless(shutil.which("cmake"), "CMake is unavailable")
     def test_build_directory_codegen_second_build_is_noop(self):
         repository = Path(__file__).resolve().parents[1]

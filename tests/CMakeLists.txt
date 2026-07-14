@@ -49,14 +49,6 @@ add_test(NAME generated_input_columns
     COMMAND test_generated_input_columns
 )
 
-# Manual production-schema smoke test.  It is intentionally not registered
-# with CTest because the CustomNanoAOD storage path is site-local.
-add_executable(custom_bph_file_smoke
-    custom_bph_file_smoke.cc
-)
-target_compile_features(custom_bph_file_smoke PRIVATE cxx_std_17)
-target_link_libraries(custom_bph_file_smoke PRIVATE Analyzers)
-
 add_executable(test_histogram_handles
     test_histogram_handles.cc
 )

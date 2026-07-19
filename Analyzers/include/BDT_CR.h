@@ -58,7 +58,7 @@ public:
         RVec<Jet> AllJets;
         RVec<Jet::JetID> Jet_ID = {Jet::JetID::TIGHTLEPVETO};
         float Jet_MinPt = 40.;
-        float Jet_MaxEta = 2.4;
+        float Jet_MaxEta = 2.5;
     } jet_set;
 
     struct FatJets {
@@ -66,7 +66,7 @@ public:
         TString FatJet_ID = "Tight";
         float Fatjet_LSF = 0.75;
         float FatJet_MinPt = 200.;
-        float FatJet_MaxEta = 2.4;
+        float FatJet_MaxEta = 2.5;
         float FatJet_SDM = 40;
     } fatjet_set;
 

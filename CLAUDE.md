@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## HNWR (W_R→lN→lljj) analysis — start here
+
+This repo's primary physics work is the HNWR search. Detailed, up-to-date docs (2026-07):
+
+- `docs/HNWR_Analyzers.md` — mechanism of `Analyzers/src/Reproduce20_002_copy.cc` (histogram
+  analyzer, SR/CR + systematics) and `HNWR_BDT_presel.cc` (BDT ntuple producer), including
+  their known selection differences. Selection numbers: `Analyzers/src/Reproduce20_002_copy_SELECTION_NOTES.md`.
+- `BDT/README.md` — XGBoost training→template→limit chain (production: `BDT/SR_R_B` + `BDT/combine`;
+  `proto*/resolve_boost` are archived). Pipeline source of truth: `BDT/SR_R_B/PIPELINE.md`.
+- `plots/README.md` — plotting area (active: `plots/HNWR/reproduce/syst_plotter/integrated`).
+- Statistical limits (mlljj shape): `/data6/Users/achihwan/combine/CMSSW_14_1_0_pre4/src/HiggsAnalysis/CombinedLimit/data/HNWR/README.md`.
+- Old-repo sibling analyzer: `/data6/Users/achihwan/SKNanoAnalyzer/docs/HNWR_Analyzer.md`
+  (HNWR.cc has the 2024 support; this repo has the measured 2022-23 electron HEEP ID SFs — they diverged).
+- `COMMANDS.md` — frequently used commands per area. `RECOMMENDATIONS.md` — known bugs/refactor list
+  (read before modifying the analyzers or datacard scripts).
+
+Analyzer outputs land in `/gv0/Users/achihwan/SKNanoOutput/<Analyzer>/<era>/`; run logs in
+`/gv0/Users/achihwan/SKNanoRunlog/`. Signal samples are named `WR{M_WR}N{M_N}{EE,MM}`.
+
 ## Project Overview
 
 SKNanoAnalyzer is a C++ physics analysis framework for CMS (Compact Muon Solenoid) experiment data analysis. It processes NanoAOD files for Run 2 (2016-2018) and Run 3 (2022-2023) data periods, providing tools for dilepton studies, ttbar reconstruction, and systematic uncertainty evaluations.

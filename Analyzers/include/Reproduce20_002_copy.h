@@ -122,7 +122,7 @@ public:
         //TString Jet_ID ="TIGHTLEPVETO";
         RVec<Jet::JetID> Jet_ID = {Jet::JetID::TIGHTLEPVETO};
         float Jet_MinPt = 40.;
-        float Jet_MaxEta = 2.4;
+        float Jet_MaxEta = 2.5;
         RVec<Jet::JetID> JetIds;
         RVec<Jet>cleanedjet_with_tight_leptons;
         RVec<Jet>cleanedjet_with_loose_leptons;
@@ -134,7 +134,7 @@ public:
         TString FatJet_ID ="Tight";
         float Fatjet_LSF = 0.75;
         float FatJet_MinPt = 200.;
-        float FatJet_MaxEta = 2.4;
+        float FatJet_MaxEta = 2.5;
         float FatJet_SDM = 40;
     }fatjet_set;
 
@@ -157,6 +157,16 @@ public:
     // Fill the signal SR cutflow copies (_offshell / _onshell / _tb) next to the base cutflow.
     // Only fills for the Central systematic.
     void FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight);
+
+    // Electron trigger (Target_Trigger_OR: HLT_Ele30_WPTight_Gsf | HLT_Photon200 | HLT_Ele115_CaloIdVT_GsfTrkIdT)
+    // scale factor from the egamma-tnp Tag&Probe measurement (2022/2022EE/2023/2023BPix),
+    // binned in (el_pt, el_eta). Returns 1.0 for eras without a measurement (e.g. 2017).
+    float GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const;
+
+    // HEEP ID (Electron_cutBased_HEEP) scale factor from the egamma-tnp Tag&Probe
+    // measurement, binned in (el_pt, el_eta). Currently 2022 only; returns 1.0
+    // for eras without a measurement (2022EE/2023/2023BPix pending).
+    float GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const;
 
     RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;

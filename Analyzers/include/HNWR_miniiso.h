@@ -1,22 +1,20 @@
-#ifndef Skim_20002_h
-#define Skim_20002_h
+#ifndef HNWR_miniiso_h
+#define HNWR_miniiso_h
 
 #include "AnalyzerCore.h"
 #include "SystematicHelper.h"
 #include "Muon.h"
 #include "Electron.h"
-#include "TTree.h"
+#include "LHE.h"
 
-class Skim_20002 : public AnalyzerCore {
+class HNWR_miniiso : public AnalyzerCore {
 public:
-    Skim_20002();
-    ~Skim_20002();
+    HNWR_miniiso();
+    ~HNWR_miniiso();
 
     void initializeAnalyzer();
     void executeEvent();
     void executeEventFromParameter();
-    void WriteHist();
-    TTree *newtree;
     bool RunSyst;
     bool RunWRCut;
     unique_ptr<SystematicHelper> systHelper;
@@ -90,7 +88,7 @@ public:
         bool Electron_UseMini = false;
         bool Electron_UsePtCone = false;
         bool isPassCustomLooseID(const Electron& el) const;
-        bool isPassCustomTightID(const Electron& el , const Skim_20002::Electrons& eset) const;
+        bool isPassCustomTightID(const Electron& el , const HNWR_miniiso::Electrons& eset) const;
         // Loose ID without isolation (matches Python vidNestedWPBitmap with id_level=2, ignoring isolation)
         bool isPassLooseNoIso(const Electron& el) const;
     }el_set;
@@ -134,7 +132,8 @@ public:
     struct FatJets{
         RVec<FatJet> AllFatJets;
         TString FatJet_ID ="Tight";
-        float Fatjet_LSF = 0.75;
+        float Fatjet_LSF = 0.75; // not used in HNWR_miniiso (replaced by Sublead_MiniIso)
+        float Sublead_MiniIso = 0.1;
         float FatJet_MinPt = 200.;
         float FatJet_MaxEta = 2.5;
         float FatJet_SDM = 40;
@@ -143,6 +142,32 @@ public:
     struct Gens{
         RVec<Gen> gens;
     }gen_set;
+
+    struct LHECollection{
+        RVec<LHE> lhe_parts;
+    }lhe_set;
+
+    // Signal categorization flags (set per event in executeEvent)
+    bool sig_isSignal   = false;
+    bool sig_isOffshell = false;
+    bool sig_isOnshell  = false;
+    bool sig_isTb       = false;
+
+    // Compute the signal / offshell / onshell / tb flags from gens, LHE and sample name
+    void SetSignalFlags();
+    // Fill the signal SR cutflow copies (_offshell / _onshell / _tb) next to the base cutflow.
+    // Only fills for the Central systematic.
+    void FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight);
+
+    // Electron trigger (Target_Trigger_OR: HLT_Ele30_WPTight_Gsf | HLT_Photon200 | HLT_Ele115_CaloIdVT_GsfTrkIdT)
+    // scale factor from the egamma-tnp Tag&Probe measurement (2022/2022EE/2023/2023BPix),
+    // binned in (el_pt, el_eta). Returns 1.0 for eras without a measurement (e.g. 2017).
+    float GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const;
+
+    // HEEP ID (Electron_cutBased_HEEP) scale factor from the egamma-tnp Tag&Probe
+    // measurement, binned in (el_pt, el_eta). Currently 2022 only; returns 1.0
+    // for eras without a measurement (2022EE/2023/2023BPix pending).
+    float GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const;
 
     RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;

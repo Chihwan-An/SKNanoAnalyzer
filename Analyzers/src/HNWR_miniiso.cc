@@ -1,10 +1,10 @@
-#include "Reproduce20_002_copy.h"
+#include "HNWR_miniiso.h"
 #include <array>
 
-Reproduce20_002_copy::Reproduce20_002_copy() {}
-Reproduce20_002_copy::~Reproduce20_002_copy() {}  
+HNWR_miniiso::HNWR_miniiso() {}
+HNWR_miniiso::~HNWR_miniiso() {}  
 
-void Reproduce20_002_copy::initializeAnalyzer() {
+void HNWR_miniiso::initializeAnalyzer() {
     // if signal ..  # 26 
     // kfactor  # 51
     el_set.AllElectrons.clear();
@@ -334,7 +334,7 @@ namespace {
     }};
 }
 
-float Reproduce20_002_copy::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const {
+float HNWR_miniiso::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     static const double eta_edges[7] = {-2.5, -1.566, -1.4442, 0.0, 1.4442, 1.566, 2.5};
     static const double pt_edges[14]  = {10, 20, 30, 40, 50, 60, 70, 90, 100, 120, 140, 200, 300, 400};
 
@@ -359,7 +359,7 @@ float Reproduce20_002_copy::GetElectronTriggerSF_TnP(double eta, double pt, MyCo
     return sf;
 }
 
-float Reproduce20_002_copy::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const {
+float HNWR_miniiso::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     static const double eta_edges[7] = {-2.5, -1.566, -1.4442, 0.0, 1.4442, 1.566, 2.5};
     static const double pt_edges[12] = {35, 40, 45, 50, 60, 70, 80, 90, 100, 200, 300, 1000};
 
@@ -385,7 +385,7 @@ float Reproduce20_002_copy::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCor
     return sf;
 }
 
-void Reproduce20_002_copy::executeEvent() {
+void HNWR_miniiso::executeEvent() {
 
     el_set.AllElectrons =  GetAllElectrons();
     mu_set.AllMuons = GetAllMuons();
@@ -404,7 +404,7 @@ void Reproduce20_002_copy::executeEvent() {
 
 }
 
-void Reproduce20_002_copy::executeEventFromParameter() {
+void HNWR_miniiso::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
     
     Event ev = GetEvent();
@@ -841,6 +841,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     float Boost_DYCREEsubleadlepeta = 0.;
     float Boost_DYCREEsubleadlepphi = 0.;
     float Boost_DYCREEfatjet_lsf3 = 0.;
+    float Boost_DYCREEsubleadlep_miniiso = -999.;
     float Boost_DYCREEdeltaR_leadlep_fatjet = 0.;
     float Boost_DYCREEdphi_leadlep_fatjet = 0.;
     float Boost_DYCREEpileup_num = 0.;
@@ -868,6 +869,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     float Boost_DYCRMMsubleadlepeta = 0.;
     float Boost_DYCRMMsubleadlepphi = 0.;
     float Boost_DYCRMMfatjet_lsf3 = 0.;
+    float Boost_DYCRMMsubleadlep_miniiso = -999.;
     float Boost_DYCRMMdeltaR_leadlep_fatjet = 0.;
     float Boost_DYCRMMdphi_leadlep_fatjet = 0.;
     float Boost_DYCRMMpileup_num = 0.;
@@ -895,6 +897,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     float Boost_SREEsubleadlepeta = 0.;
     float Boost_SREEsubleadlepphi = 0.;
     float Boost_SREEfatjet_lsf3 = 0.;
+    float Boost_SREEsubleadlep_miniiso = -999.;
     float Boost_SREEdeltaR_leadlep_fatjet = 0.;
     float Boost_SREEdphi_leadlep_fatjet = 0.;
     float Boost_SREEpileup_num = 0.;
@@ -922,6 +925,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     float Boost_SRMMsubleadlepeta = 0.;
     float Boost_SRMMsubleadlepphi = 0.;
     float Boost_SRMMfatjet_lsf3 = 0.;
+    float Boost_SRMMsubleadlep_miniiso = -999.;
     float Boost_SRMMdeltaR_leadlep_fatjet = 0.;
     float Boost_SRMMdphi_leadlep_fatjet = 0.;
     float Boost_SRMMpileup_num = 0.;
@@ -950,6 +954,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     float Boost_FlavEMJsubleadlepphi = 0.;
     float Boost_FlavEMJfatjet_lsf3 = 0.;
     float Boost_FlavEMJleadlep_lsf = 0.;
+    float Boost_FlavEMJsubleadlep_miniiso = -999.;
     float Boost_FlavEMJleadfatjetpt = 0.;
     float Boost_FlavEMJdeltaR_leadlep_fatjet = 0.;
     float Boost_FlavEMJdphi_leadlep_fatjet = 0.;
@@ -979,6 +984,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     float Boost_FlavMEJsubleadlepphi = 0.;
     float Boost_FlavMEJfatjet_lsf3 = 0.;
     float Boost_FlavMEJleadlep_lsf = 0.;
+    float Boost_FlavMEJsubleadlep_miniiso = -999.;
     float Boost_FlavMEJleadfatjetpt = 0.;
     float Boost_FlavMEJdeltaR_leadlep_fatjet = 0.;
     float Boost_FlavMEJdphi_leadlep_fatjet = 0.;
@@ -1154,9 +1160,9 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             
             if (fj.PassID(fatjet_set.FatJet_ID)) {
                 fatjet_list.push_back(fj);
-                if (fj.LSF3() >fatjet_set.Fatjet_LSF) {
-                    lsf.push_back(fj);
-                }
+                // LSF3 > 0.75 cut removed: miniIso < 0.1 on the subleading loose lepton
+                // inside the fat jet is required at the region level instead
+                lsf.push_back(fj);
             }
         }
     }
@@ -2008,6 +2014,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                         Boost_DYCREEsubleadlepeta = LowMllLooseLepton->Eta();
                                         Boost_DYCREEsubleadlepphi = LowMllLooseLepton->Phi();
                                         Boost_DYCREEfatjet_lsf3               = HNFatJet.LSF3();
+                                        Boost_DYCREEsubleadlep_miniiso        = LowMllLooseLepton->MiniPFRelIso();
                                         Boost_DYCREEdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                         Boost_DYCREEdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                         Boost_DYCREEpileup_num = ev.nTrueInt();
@@ -2084,6 +2091,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                         Boost_DYCRMMsubleadlepeta = LowMllLooseLepton->Eta();
                                         Boost_DYCRMMsubleadlepphi = LowMllLooseLepton->Phi();
                                         Boost_DYCRMMfatjet_lsf3               = HNFatJet.LSF3();
+                                        Boost_DYCRMMsubleadlep_miniiso        = LowMllLooseLepton->MiniPFRelIso();
                                         Boost_DYCRMMdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                         Boost_DYCRMMdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                         Boost_DYCRMMpileup_num = ev.nTrueInt();
@@ -2195,6 +2203,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                 hassflooseleptonoutfatjet = false ; 
                                 hassflooselepton = true;
                                 SFLooseLepton = Loose_SF_leps[k];
+                                FillHist(this_syst + "/SFLooseLepton_infatjet_miniiso_beforecut", SFLooseLepton->MiniPFRelIso(), weight, 200, 0., 1.);
                                 break;
                             }
                             else{
@@ -2212,6 +2221,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                             if (HNFatJet.DeltaR(*Loose_OF_leps[m]) < 0.8) {
                                 hasoflooselepton = true;
                                 OFLooseLepton = Loose_OF_leps[m];
+                                FillHist(this_syst + "/OFLooseLepton_infatjet_miniiso_beforecut", OFLooseLepton->MiniPFRelIso(), weight, 200, 0., 1.);
                                 cout << "has of loose lepton in fatjet and has " << hassflooseleptonoutfatjet << "number of sf loose lepton out fatjet" << endl ;
                                 if (hassflooseleptonoutfatjet){
                                     // case of SF loose lepton outside fatjet but OF in fatjet 
@@ -2237,7 +2247,14 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                             FillSignalCutflow(this_syst, false, 8.0, weight);
                             // tight fatjet 밖 한개 , loose lepton same flavor 안에 
                             FillHist(this_syst + "/Boost_cutflow_FLV", 6 , weight, 20, -10., 10.);
+                            // miniIso-only aux cutflow: bin0 = SF loose lep in fatjet, bin1 = bin0 + miniIso<0.1
+                            // (main cutflow bin numbers stay identical to Reproduce20_002_copy)
                             if (hassflooselepton) {
+                                TString miniiso_cf = is_tmp_lead_el ? "/SR_EE_miniiso_cutflow" : "/SR_MM_miniiso_cutflow";
+                                FillHist(this_syst + miniiso_cf, 0.0, weight, 2, 0., 2.);
+                                if (SFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso) FillHist(this_syst + miniiso_cf, 1.0, weight, 2, 0., 2.);
+                            }
+                            if (hassflooselepton && (SFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso)) {
                                 FillHist(this_syst + "/Cutflow_for_Boosted_SR", 9.0 , weight, 13, 0., 13.);
                                 FillSignalCutflow(this_syst, false, 9.0, weight);
                                 FillHist(this_syst + "/Boost_cutflow_FLV", 7 , weight, 20,-10,10.);
@@ -2333,6 +2350,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     Boost_SREEsubleadlepeta = SFLooseLepton->Eta();
                                                     Boost_SREEsubleadlepphi = SFLooseLepton->Phi();
                                                     Boost_SREEfatjet_lsf3               = HNFatJet.LSF3();
+                                                    Boost_SREEsubleadlep_miniiso        = SFLooseLepton->MiniPFRelIso();
                                                     Boost_SREEdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                                     Boost_SREEdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                                     Boost_SREEpileup_num = ev.nTrueInt();
@@ -2406,6 +2424,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     Boost_SRMMsubleadlepeta = SFLooseLepton->Eta();
                                                     Boost_SRMMsubleadlepphi = SFLooseLepton->Phi();
                                                     Boost_SRMMfatjet_lsf3               = HNFatJet.LSF3();
+                                                    Boost_SRMMsubleadlep_miniiso        = SFLooseLepton->MiniPFRelIso();
                                                     Boost_SRMMdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                                     Boost_SRMMdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                                     Boost_SRMMpileup_num = ev.nTrueInt();
@@ -2478,7 +2497,13 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                 FillHist(this_syst + "/Cutflow_for_mu_ejet", 10.0 , 1.0, 20, 0., 20.);
                             }
                             FillHist(this_syst + "/Boost_cutflow_FLV", -6 , weight, 20, -10, 10.);
-                            if (hasoflooselepton){
+                            // miniIso-only aux cutflow: bin0 = OF loose lep in fatjet, bin1 = bin0 + miniIso<0.1
+                            if (hasoflooselepton) {
+                                TString miniiso_cf = is_tmp_lead_el ? "/FlavEMJ_miniiso_cutflow" : "/FlavMEJ_miniiso_cutflow";
+                                FillHist(this_syst + miniiso_cf, 0.0, weight, 2, 0., 2.);
+                                if (OFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso) FillHist(this_syst + miniiso_cf, 1.0, weight, 2, 0., 2.);
+                            }
+                            if (hasoflooselepton && (OFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso)){
                                 if(is_tmp_lead_el){
                                     FillHist(this_syst + "/Cutflow_for_e_mujet", 11.0 , 1.0,20, 0., 20.);
                                 }
@@ -2617,6 +2642,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             Boost_FlavEMJleadlepphi    = LeadLep->Phi();
                                             Boost_FlavEMJsubleadlepphi = OFLooseLepton->Phi();
                                             Boost_FlavEMJfatjet_lsf3   = HNFatJet.LSF3();
+                                            Boost_FlavEMJsubleadlep_miniiso = OFLooseLepton->MiniPFRelIso();
                                             Boost_FlavEMJdphi_leadlep_fatjet = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                             Boost_FlavEMJpileup_num = ev.nTrueInt();
                                             Boost_FlavEMJpvgood = ev.nPVsGood();
@@ -2796,6 +2822,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             Boost_FlavMEJleadlepphi    = LeadLep->Phi();
                                             Boost_FlavMEJsubleadlepphi = OFLooseLepton->Phi();
                                             Boost_FlavMEJfatjet_lsf3   = HNFatJet.LSF3();
+                                            Boost_FlavMEJsubleadlep_miniiso = OFLooseLepton->MiniPFRelIso();
                                             Boost_FlavMEJdphi_leadlep_fatjet = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                             Boost_FlavMEJpileup_num = ev.nTrueInt();
                                             Boost_FlavMEJpvgood = ev.nPVsGood();
@@ -3153,6 +3180,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_DYCREEsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_DYCREEsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_DYCREEfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_DYCREEsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_DYCREEdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_DYCREEdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_DYCREEpileup_num, final_weight, 80, 0., 80.);
@@ -3195,6 +3223,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_DYCRMMsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_DYCRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_DYCRMMfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_DYCRMMsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_DYCRMMdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_DYCRMMdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_DYCRMMpileup_num, final_weight, 80, 0., 80.);
@@ -3235,6 +3264,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_SREEsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_SREEsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_SREEfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_SREEsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_SREEdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_SREEdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_SREEpileup_num, final_weight, 80, 0., 80.);
@@ -3277,6 +3307,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_SRMMsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_SRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_SRMMfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_SRMMsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_SRMMdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_SRMMdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_SRMMpileup_num, final_weight, 80, 0., 80.);
@@ -3320,6 +3351,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_leading_lep_phi", Boost_FlavEMJleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_FlavEMJsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_FlavEMJfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_FlavEMJsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_FlavEMJdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_FlavEMJpileup_num, final_weight, 80, 0., 80.);
                 FillHist(syst_name + "/" + pfx + "_pv", Boost_FlavEMJpv, final_weight, 80, 0., 80.);
@@ -3370,6 +3402,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_leading_lep_phi", Boost_FlavMEJleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_FlavMEJsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_FlavMEJfatjet_lsf3, final_weight, 100, 0., 1.);
+                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_FlavMEJsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_FlavMEJdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_FlavMEJpileup_num, final_weight, 80, 0., 80.);
                 FillHist(syst_name + "/" + pfx + "_pv", Boost_FlavMEJpv, final_weight, 80, 0., 80.);
@@ -3412,7 +3445,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     // end ## 1984
     
 
-void Reproduce20_002_copy::SetSignalFlags() {
+void HNWR_miniiso::SetSignalFlags() {
     sig_isSignal   = false;
     sig_isOffshell = false;
     sig_isOnshell  = false;
@@ -3468,7 +3501,7 @@ void Reproduce20_002_copy::SetSignalFlags() {
     }
 }
 
-void Reproduce20_002_copy::FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight) {
+void HNWR_miniiso::FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight) {
     if (this_syst != "Central") return;
     const TString base  = isResolved ? "/Cutflow_for_reseolved_SR" : "/Cutflow_for_Boosted_SR";
     const int     nbins = isResolved ? 10  : 13;
@@ -3482,7 +3515,7 @@ void Reproduce20_002_copy::FillSignalCutflow(const TString &this_syst, bool isRe
     if (sig_isSignal)              FillHist(this_syst + base + "_signal", binN, weight, nbins, 0., xmax);
 }
 
-bool Reproduce20_002_copy::Electrons::isPassCustomTightID(const Electron& el, const Reproduce20_002_copy::Electrons& eset) const {
+bool HNWR_miniiso::Electrons::isPassCustomTightID(const Electron& el, const HNWR_miniiso::Electrons& eset) const {
     if (fabs(el.scEta()) < 1.566) {
         return el.PassID(eset.Electron_Tight_ID[0]);
     }
@@ -3499,7 +3532,7 @@ bool Reproduce20_002_copy::Electrons::isPassCustomTightID(const Electron& el, co
     return true;
 }
 
-bool Reproduce20_002_copy::Electrons::isPassCustomLooseID(const Electron& el) const {
+bool HNWR_miniiso::Electrons::isPassCustomLooseID(const Electron& el) const {
     //if (!(el.hoe() < 0.5)) return false;
 
     if (fabs(el.scEta()) <= 1.479){
@@ -3526,7 +3559,7 @@ bool Reproduce20_002_copy::Electrons::isPassCustomLooseID(const Electron& el) co
     return true ;
 }
 
-bool Reproduce20_002_copy::Electrons::isPassLooseNoIso(const Electron& el) const {
+bool HNWR_miniiso::Electrons::isPassLooseNoIso(const Electron& el) const {
     // Matches Python selectLooseElectrons logic:
     // Evaluate vidNestedWPBitmap with id_level=2 (Loose WP), ignoring isolation (cut index 7)
     //
@@ -3561,7 +3594,7 @@ bool Reproduce20_002_copy::Electrons::isPassLooseNoIso(const Electron& el) const
     return true;
 }
 
-RVec<FatJet> Reproduce20_002_copy::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {
+RVec<FatJet> HNWR_miniiso::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {
     RVec<FatJet> cleanedfatjets;
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet fatjet = fatjets.at(i);
@@ -3580,7 +3613,7 @@ RVec<FatJet> Reproduce20_002_copy::Clean_Fatjet_with_tight_leptons(const RVec<Fa
     return cleanedfatjets;
 }
 
-RVec<Jet> Reproduce20_002_copy::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
+RVec<Jet> HNWR_miniiso::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
     RVec<Jet> cleanedjets;
     for (unsigned int i=0 ; i< jets.size(); i ++) {
         Jet jet = jets.at(i);
@@ -3599,7 +3632,7 @@ RVec<Jet> Reproduce20_002_copy::Clean_jet_with_loose_leptons(const RVec<Jet> & j
     return cleanedjets;
 }
 
-RVec<Jet> Reproduce20_002_copy::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) {
+RVec<Jet> HNWR_miniiso::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) {
     RVec<Jet> cleanedjets;
     for (unsigned int i=0 ; i< jets.size(); i ++) {
         Jet jet = jets.at(i);
@@ -3618,7 +3651,7 @@ RVec<Jet> Reproduce20_002_copy::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & 
     return cleanedjets;
 }
 
-RVec<FatJet> Reproduce20_002_copy::Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) {
+RVec<FatJet> HNWR_miniiso::Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) {
     RVec<FatJet> cleanedfatjets;
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet fatjet = fatjets.at(i);

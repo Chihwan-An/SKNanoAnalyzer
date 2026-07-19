@@ -50,6 +50,32 @@ void HNWR_BDT_presel::initializeAnalyzer() {
         makeTrees(sys + "/");
     }
 
+    // ---- Central-only auxiliary trees (background estimation / validation) ----
+    // These carry the FULL BDT branch set (same filler as the SR trees) so the
+    // trained boosters can score their events, but only the nominal (Central)
+    // variation is written to keep the output size in check:
+    //  * CR_DY / CR_FLV BDTTrees: restored CR ntuples for data/MC score-shape
+    //    validation (the CRs also keep their per-systematic histograms).
+    //  * CR_SS: same-sign resolved pair, 60 < mll < 300 (SR mll cut replaced) --
+    //    ATLAS-style SS control region for diboson normalisation + charge-flip /
+    //    fake validation. Overlaps the SR above mll > 200; cut at the fit level
+    //    if needed (mll branch is stored).
+    //  * SR_LL: resolved SR selection on the two LOOSE leptons with at least one
+    //    failing tight -- the N_TL/N_LT/N_LL fake-factor application sideband.
+    //  * CF_EE_Tree: charge-flip measurement tree (own small branch set): two
+    //    tight electrons, 50 < mll < 130, CHARGE-INCLUSIVE, no jet cuts.
+    for (const TString &ch : {TString("EE"), TString("MM")}) {
+        NewTree("Central/CR_DY_" + ch + "_BDTTree_resolved");
+        NewTree("Central/CR_DY_" + ch + "_BDTTree_boosted");
+        NewTree("Central/CR_SS_" + ch + "_BDTTree_resolved");
+        NewTree("Central/SR_LL_" + ch + "_BDTTree_resolved");
+    }
+    for (const TString &tag : {TString("EM"), TString("ME")}) {
+        NewTree("Central/CR_FLV_" + tag + "_BDTTree_resolved");
+        NewTree("Central/CR_FLV_" + tag + "_BDTTree_boosted");
+    }
+    NewTree("Central/CF_EE_Tree");
+
     mu_set.Muon_Trigger.clear();
     mu_set.Muon_Trigger_Safe_Pt_Cut = 0.;
     el_set.Ele_Trigger.clear();
@@ -74,6 +100,19 @@ void HNWR_BDT_presel::executeEvent() {
     mu_set.AllMuons       = GetAllMuons();
     jet_set.AllJets       = GetAllJets();
     fatjet_set.AllFatJets = GetAllFatJets();
+    AllGens.clear();
+    if (!IsDATA) AllGens = GetAllGens();
+
+    // tb decay tag: mark signal events whose LHE record contains a b (|PDG|=5) or
+    // top (|PDG|=6) parton. Mirrors Reproduce20_002_copy::SetSignalFlags step (3);
+    // recomputed once per event and written as the "is_tb" branch on every BDTTree.
+    sig_isTb = false;
+    if (!IsDATA) {
+        for (const auto &p : GetAllLHEs()) {
+            int apid = abs(p.PdgId());
+            if (apid == 5 || apid == 6) { sig_isTb = true; break; }
+        }
+    }
 
     // Re-run the selection once per object variation (Central + JES/JER up/down);
     // each variation writes into its own BDTTree_<category>[_<syst>] tree.
@@ -214,6 +253,53 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     RVec<Jet> selected_jets = SelectJets(jets, jet_set.Jet_ID[0], jet_set.Jet_MinPt, jet_set.Jet_MaxEta);
     sort(selected_jets.begin(), selected_jets.end(), PtComparing);
 
+    // Gen-level charge of the dR<0.1-matched status-1 lepton: -1/+1, or -999
+    // when unmatched or data. PID +11/+13 is the NEGATIVE lepton.
+    const int iMissingGen = -999;
+    auto genChargeOf = [&](const Lepton* lep) -> int {
+        if (!lep || IsDATA || AllGens.empty()) return iMissingGen;
+        const Gen matched = GetGenMatchedLepton(*lep, AllGens);
+        if (matched.PID() == 0) return iMissingGen;
+        return matched.PID() > 0 ? -1 : +1;
+    };
+
+    // --- Charge-flip measurement tree (Central only; data AND MC) --------------
+    // AN-19-206 sec.8.2 recipe needs a CHARGE-INCLUSIVE Z-window dielectron
+    // sample: analysis trigger + two tight electrons (trigger-safe lead pT,
+    // sublead > 53) + 50 < mll < 130. No jet or charge requirement. The rate is
+    // measured on MC truth (genCharge vs charge), the scale factor from the
+    // data SS/weighted-OS ratio in the same window. `weight` is gen x lumi
+    // (no lepton SFs), matching the SR trees' raw weight branch.
+    if (this_syst == "Central" && Tight_electrons.size() == 2 && Tight_muons.size() == 0) {
+        Electron* cf1 = Tight_electrons[0];
+        Electron* cf2 = Tight_electrons[1];
+        const bool cf_pt_ok = (cf1->Pt() > el_set.Ele_Trigger_Safe_Pt_Cut) && (cf2->Pt() > 53.0);
+        if (pass_trig_elec && cf_pt_ok) {
+            const TLorentzVector cfPair = *cf1 + *cf2;
+            if (cfPair.M() > 50.0 && cfPair.M() < 130.0) {
+                const TString cfTree = "Central/CF_EE_Tree";
+                for (int i = 0; i < 2; i++) {
+                    Electron* el = (i == 0) ? cf1 : cf2;
+                    const TString p = Form("ele%d", i + 1);
+                    SetBranch(cfTree, p + "_pt", el->Pt());
+                    SetBranch(cfTree, p + "_eta", el->Eta());
+                    SetBranch(cfTree, p + "_scEta", el->scEta());
+                    SetBranch(cfTree, p + "_phi", el->Phi());
+                    SetBranch(cfTree, p + "_charge", el->Charge());
+                    SetBranch(cfTree, p + "_tightCharge", static_cast<int>(el->TightCharge()));
+                    SetBranch(cfTree, p + "_genCharge", genChargeOf(el));
+                    SetBranch(cfTree, p + "_genPartFlav_truth", static_cast<int>(el->GenPartFlav()));
+                }
+                SetBranch(cfTree, "m_l1l2", static_cast<float>(cfPair.M()));
+                SetBranch(cfTree, "pt_l1l2", static_cast<float>(cfPair.Pt()));
+                SetBranch(cfTree, "isSS", cf1->Charge() * cf2->Charge() > 0);
+                SetBranch(cfTree, "nJet", static_cast<int>(selected_jets.size()));
+                SetBranch(cfTree, "weight", weight);
+                FillTrees(cfTree);
+            }
+        }
+    }
+
     // Region-aware jet<->fatjet cross-cleaning (leptons already cleaned above, so they
     // keep top priority). Build both topology variants up front:
     //  - Resolved: AK4 jets take priority -> keep jets, drop fatjets overlapping a jet.
@@ -258,8 +344,6 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     // - SR selection and nElectron/nMuon counts remain on TIGHT leptons;
     //   nLooseElectron/nLooseMuon give the loose multiplicity.
 
-    // Set below once the region (SR/CR_DY/CR_FLV) and topology (resolved/boosted) are known.
-    TString tree;
     auto isSameFlavorPair = [](const Lepton* lep1, const Lepton* lep2) {
         if (!lep1 || !lep2) return false;
         return (lep1->IsElectron() && lep2->IsElectron()) || (lep1->IsMuon() && lep2->IsMuon());
@@ -462,43 +546,67 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     const bool isBoostedFlavCR = (!isResolvedCandidate && !isResolvedDYCR && !isResolvedFlavCR &&
         !isBoostedDYCR && passBoostedTrigger && hasBoostedFlavDilepton && passBoostedFlavDRFail && fatjets.size() >= 1);
 
-    if (!(isResolvedCandidate || isBoostedCandidate || isResolvedDYCR || isResolvedFlavCR || isBoostedDYCR || isBoostedFlavCR)) return;
-
-    // Determine region prefix and assign leptons/channel/tree
-    TString regionPrefix;
-    bool isResolved;
-    if (isResolvedCandidate || isBoostedCandidate) {
-        regionPrefix = "SR_";
-        isResolved = isResolvedCandidate;
-        LeadLep = isResolvedCandidate ? resolvedLead : boostedLead;
-        SubLeadLep = isResolvedCandidate ? resolvedSubLead : boostedSubLead;
-        channel = isResolvedCandidate ? resolvedChannel : boostedChannel;
-        this_trigger_pass = isResolvedCandidate ? passResolvedTrigger : passBoostedTrigger;
-    } else if (isResolvedDYCR || isBoostedDYCR) {
-        regionPrefix = "CR_DY_";
-        isResolved = isResolvedDYCR;
-        LeadLep = isResolvedDYCR ? resolvedLead : boostedLead;
-        SubLeadLep = isResolvedDYCR ? resolvedSubLead : boostedDYSubLead;
-        channel = isResolvedDYCR ? resolvedChannel : boostedChannel;
-        this_trigger_pass = isResolvedDYCR ? passResolvedTrigger : passBoostedTrigger;
-    } else {
-        regionPrefix = "CR_FLV_";
-        isResolved = isResolvedFlavCR;
-        LeadLep = isResolvedFlavCR ? resolvedFlavLead : boostedLead;
-        SubLeadLep = isResolvedFlavCR ? resolvedFlavSubLead : boostedFlavSubLead;
-        channel = isResolvedFlavCR ? resolvedFlavChannel : boostedChannel;
-        this_trigger_pass = isResolvedFlavCR ? passResolvedFlavTrigger : passBoostedTrigger;
+    // --- Auxiliary categories (Central only) -----------------------------------
+    auto isTightLepton = [&](const Lepton* lep) {
+        return lep && std::find(Tight_leps.begin(), Tight_leps.end(), lep) != Tight_leps.end();
+    };
+    // CR_SS: the resolved SR selection with the mll > 200 cut replaced by
+    // 60 < mll < 300 and the pair required SAME-SIGN. Sources the SS-category
+    // background fit (prompt-SS diboson normalisation; charge-flip / fake
+    // validation). Overlaps the SS part of the SR for mll in (200, 300) -- the
+    // mll branch is stored, so restrict at the fit level if needed.
+    bool isSSCREvent = false;
+    if (this_syst == "Central" && passResolvedTrigger && passResolvedDRCandidate &&
+        resolvedLead && resolvedSubLead &&
+        resolvedLead->Charge() * resolvedSubLead->Charge() > 0) {
+        TLorentzVector ssPair;
+        if (makeSameFlavorPair(resolvedLead, resolvedSubLead, ssPair) &&
+            ssPair.M() > 60.0 && ssPair.M() < 300.0) {
+            isSSCREvent = true;
+        }
     }
+    // SR_LL: the resolved SR selection evaluated on the two LOOSE leptons, with
+    // at least one of them FAILING tight -- the N_TL/N_LT/N_LL sideband the
+    // fake-factor method reweights into the SR. (Loose-not-tight: electrons fail
+    // HEEP but pass loose-no-iso; muons pass HighPt ID but fail TkRelIso<0.1.)
+    // Tight-tight events are exactly the SR tree, so they are excluded here.
+    Lepton* llLead = nullptr;
+    Lepton* llSubLead = nullptr;
+    int llChannel = -999;
+    bool isLLEvent = false;
+    if (this_syst == "Central" && n_loose_leptons == 2) {
+        Lepton* l0 = Loose_leps[0];
+        Lepton* l1 = Loose_leps[1];
+        const bool notBothTight = !(isTightLepton(l0) && isTightLepton(l1));
+        TLorentzVector llPair;
+        if (notBothTight && (l0->Pt() > 60.0) && (l1->Pt() > 53.0) &&
+            makeSameFlavorPair(l0, l1, llPair) && llPair.M() > 200.0) {
+            bool llDR1 = false, llDR2 = false, llDR3 = false, llDR4 = false;
+            if (passLeadTrigger(l0, llChannel) &&
+                computeFourObjectDR(selected_jets, l0, l1, llDR1, llDR2, llDR3, llDR4)) {
+                llLead = l0;
+                llSubLead = l1;
+                isLLEvent = true;
+            }
+        }
+    }
+
+    const bool anyMainRegion = isResolvedCandidate || isBoostedCandidate || isResolvedDYCR ||
+                               isResolvedFlavCR || isBoostedDYCR || isBoostedFlavCR;
+    if (!(anyMainRegion || isSSCREvent || isLLEvent)) return;
+
+    // The ntuple fill below runs once for the (unique) main region and once per
+    // matching AUXILIARY category (CR_SS / SR_LL), each with its own lepton pair,
+    // tree, and topology-committed jet collections. The lambda parameters
+    // deliberately SHADOW the outer LeadLep/SubLeadLep/channel/... so the filling
+    // code below is the original main-region code unchanged; the caller passes the
+    // topology-committed collections (resolved: jets win / boosted: fatjets win).
+    // isMainFill gates the cutflow/LeadFlavorChannel histograms so auxiliary fills
+    // never double count them.
+    auto fillNtuple = [&](const TString& regionPrefix, Lepton* LeadLep, Lepton* SubLeadLep,
+                          int channel, bool this_trigger_pass, bool isResolved,
+                          RVec<Jet> selected_jets, RVec<FatJet> fatjets, bool isMainFill) {
     if (!LeadLep || !SubLeadLep || !this_trigger_pass) return;
-
-    // Commit to the topology-cleaned collections for everything below (branch filling):
-    //  - Resolved -> AK4 jets kept, fatjets cleaned against jets (jet priority).
-    //  - Boosted  -> fatjets kept, AK4 jets cleaned against fatjets (fatjet priority).
-    if (isResolved) {
-        fatjets = fatjets_resolved;
-    } else {
-        selected_jets = selected_jets_boosted;
-    }
     const bool has2Jets = selected_jets.size() >= 2;
 
     // Flavor channel tag: EE/MM for same-flavor (SR, CR_DY), EM/ME for the
@@ -511,17 +619,19 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     else if (LeadLep->IsMuon() && SubLeadLep->IsMuon())         chTag = "MM";
     else if (LeadLep->IsElectron() && SubLeadLep->IsMuon())     chTag = "EM";
     else                                                        chTag = "ME";
-    tree = dir + "/" + regionPrefix + chTag + "_" + (isResolved ? "BDTTree_resolved" : "BDTTree_boosted");
+    const TString tree = dir + "/" + regionPrefix + chTag + "_" + (isResolved ? "BDTTree_resolved" : "BDTTree_boosted");
     // Region + flavor + topology namespace for the monitoring/CR histograms,
     // mirroring the tree name: e.g. SR_EE_resolved, CR_DY_MM_boosted, CR_FLV_EM_resolved.
     const TString topoName = isResolved ? "resolved" : "boosted";
     const TString regionChanCat = regionPrefix + chTag + "_" + topoName;
+    if (isMainFill) {
     // --- Cutflow bin 5: any SR/CR candidate passed ---
     FillHist(dir + "/Cutflow", 5.0, weight, 10, 0., 10.);
     // --- Cutflow bin 6: resolved / bin 7: boosted (SR only) ---
     if (isResolvedCandidate) FillHist(dir + "/Cutflow", 6.0, weight, 10, 0., 10.);
     if (isBoostedCandidate)  FillHist(dir + "/Cutflow", 7.0, weight, 10, 0., 10.);
     FillHist(dir + "/LeadFlavorChannel", channel, weight, 2, 0., 2.);
+    }
 
     // ==========================================================================
     //  WEIGHT SYSTEMATICS (stored as per-event weight branches, not extra trees)
@@ -737,6 +847,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
         SetBranch(tree, prefix + "_passHEEP", el ? el->PassID(Electron::ElectronID::POG_HEEP) : false);
         SetBranch(tree, prefix + "_genPartFlav_truth", el ? static_cast<int>(el->GenPartFlav()) : iMissing);
         SetBranch(tree, prefix + "_genPartIdx_truth", el ? static_cast<int>(el->GenPartIdx()) : iMissing);
+        SetBranch(tree, prefix + "_genCharge", genChargeOf(el));
     };
 
     auto fillMuon = [&](const TString& prefix, const Muon* mu) {
@@ -772,6 +883,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
         SetBranch(tree, prefix + "_jetIdx", mu ? static_cast<int>(mu->JetIdx()) : iMissing);
         SetBranch(tree, prefix + "_genPartFlav_truth", mu ? static_cast<int>(mu->GenPartFlav()) : iMissing);
         SetBranch(tree, prefix + "_genPartIdx_truth", mu ? static_cast<int>(mu->GenPartIdx()) : iMissing);
+        SetBranch(tree, prefix + "_genCharge", genChargeOf(mu));
     };
 
     auto fillJet = [&](const TString& prefix, const Jet* jet) {
@@ -958,8 +1070,11 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     const bool hasSFL1L2 = makeSameFlavorPair(LeadLep, SubLeadLep, sfL1L2);
     const TLorentzVector sfL1L2jj = hasSFL1L2 ? sfL1L2 + jj : TLorentzVector();
 
-    // BDT ntuple is filled for the SR only; the CR is stored as histograms below.
-    if (regionPrefix == "SR_") {
+    // The SR BDT ntuple is written for EVERY object variation; the auxiliary
+    // trees (CR_DY / CR_FLV / CR_SS / SR_LL) exist only under Central/ (their
+    // events still fill the per-systematic CR histograms below).
+    const bool writeTree = (regionPrefix == "SR_") || (this_syst == "Central");
+    if (writeTree) {
     SetBranch(tree, "passTrigMuon", pass_trig_muon);
     SetBranch(tree, "passTrigElectron", pass_trig_elec);
     SetBranch(tree, "nElectronRaw", static_cast<int>(nElectron));
@@ -984,6 +1099,10 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     SetBranch(tree, "maxBTag", maxBTag);
     SetBranch(tree, "channel", channel);
     SetBranch(tree, "weight", weight);
+    // Signal truth tag: 1 if the WR* decay chain contains a b (|PDG|=5) or top
+    // (|PDG|=6) LHE parton (tb decay), 0 otherwise (light-quark decay / data / bkg).
+    // Not a BDT input feature -- only used to split the signal score by decay mode.
+    SetBranch(tree, "is_tb", sig_isTb ? 1 : 0);
     // Weight systematics stored as per-event branches (MC only): weight_Central is the
     // SF-included nominal, and each weight_<SystName>_Up/_Down is the full event weight
     // with that one systematic varied -- Pileup / Electron{ID,Reco,Trig} /
@@ -1105,7 +1224,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     fillLeptonFatJetBranches("l3", ThirdLep);
 
     FillTrees(tree);
-    } // end SR-only BDT ntuple
+    } // end writeTree BDT ntuple
 
     // --- CR histograms (CR_DY / CR_FLV): save mlljj, mll, HT, jet number ---
     // Saved per systematic, one directory per variation (Central, Pileup_Up,
@@ -1202,6 +1321,47 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     FillHist(monName + "/N_Jet", selected_jets.size(), weight, 10, 0., 10.);
     FillHist(monName + "/N_FatJet", fatjets.size(), weight, 10, 0., 10.);
     FillHist(monName + "/Mll", (*LeadLep + *SubLeadLep).M(), weight, 200, 0., 2000.);
+    }; // end fillNtuple
+
+    // ---- main region: at most one of the six flags is set (mutually exclusive) --
+    if (anyMainRegion) {
+        TString regionPrefix;
+        bool isResolved;
+        if (isResolvedCandidate || isBoostedCandidate) {
+            regionPrefix = "SR_";
+            isResolved = isResolvedCandidate;
+            LeadLep = isResolvedCandidate ? resolvedLead : boostedLead;
+            SubLeadLep = isResolvedCandidate ? resolvedSubLead : boostedSubLead;
+            channel = isResolvedCandidate ? resolvedChannel : boostedChannel;
+            this_trigger_pass = isResolvedCandidate ? passResolvedTrigger : passBoostedTrigger;
+        } else if (isResolvedDYCR || isBoostedDYCR) {
+            regionPrefix = "CR_DY_";
+            isResolved = isResolvedDYCR;
+            LeadLep = isResolvedDYCR ? resolvedLead : boostedLead;
+            SubLeadLep = isResolvedDYCR ? resolvedSubLead : boostedDYSubLead;
+            channel = isResolvedDYCR ? resolvedChannel : boostedChannel;
+            this_trigger_pass = isResolvedDYCR ? passResolvedTrigger : passBoostedTrigger;
+        } else {
+            regionPrefix = "CR_FLV_";
+            isResolved = isResolvedFlavCR;
+            LeadLep = isResolvedFlavCR ? resolvedFlavLead : boostedLead;
+            SubLeadLep = isResolvedFlavCR ? resolvedFlavSubLead : boostedFlavSubLead;
+            channel = isResolvedFlavCR ? resolvedFlavChannel : boostedChannel;
+            this_trigger_pass = isResolvedFlavCR ? passResolvedFlavTrigger : passBoostedTrigger;
+        }
+        // Commit to the topology-cleaned collections (resolved: AK4 jets win,
+        // fatjets cleaned against jets; boosted: fatjets win, jets cleaned).
+        fillNtuple(regionPrefix, LeadLep, SubLeadLep, channel, this_trigger_pass, isResolved,
+                   isResolved ? selected_jets : selected_jets_boosted,
+                   isResolved ? fatjets_resolved : fatjets, true);
+    }
+    // ---- auxiliary categories (Central only; may overlap the main region) ------
+    if (isSSCREvent)
+        fillNtuple("CR_SS_", resolvedLead, resolvedSubLead, resolvedChannel,
+                   true, true, selected_jets, fatjets_resolved, false);
+    if (isLLEvent)
+        fillNtuple("SR_LL_", llLead, llSubLead, llChannel,
+                   true, true, selected_jets, fatjets_resolved, false);
 }
 
 //================ Helper functions ================//

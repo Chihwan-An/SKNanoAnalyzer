@@ -1,5 +1,7 @@
 # ROOT persistent-object ABI and schema policy
 
+[Documentation index](README.md)
+
 Last audited: 2026-07-13.
 
 ## Current inventory

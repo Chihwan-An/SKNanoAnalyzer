@@ -1,5 +1,7 @@
 # Typed RNTuple output
 
+[Documentation index](README.md)
+
 `AnalyzerCore` output is RNTuple-only. New datasets are created through the
 output registry; there is no TTree output compatibility layer.
 

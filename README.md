@@ -4,8 +4,96 @@
 ## THIS IS DEVELOPMENT VERSION!!
 
 ## Introduction
-- If you want to engage in the development and commit to the repository, please read [Development Guide](docs/DevelopmentGuide.md) first.
-- For setting up the environment and starting the analysis, please refer [Getting Started](docs/GettingStarted.md).
+
+- Start with the [documentation index](docs/README.md).
+- For installation and analysis submission, see [Getting Started](docs/GettingStarted.md).
+- Before contributing code, read the [Development Guide](docs/DevelopmentGuide.md).
+
+## Changelog
+
+### [2.0.0] - 2026-07-22
+
+SKNano 2.0.0 is the NanoAODv15 and RNTuple release. This section summarizes
+the user-visible differences from the `main` branch rather than listing every
+internal commit.
+
+#### Breaking changes
+
+- RNTuple is now the default input format. Existing TTree samples must be run
+  with `SKNano.py --input-format ttree` or `--input-format auto`, or converted
+  with `sknano-convert-rntuple`.
+- Analyzer datasets are written as typed RNTuples. The former analyzer TTree
+  output API has been replaced by `Output().Book()`, typed fields, and stable
+  analyzer-owned buffers. Histograms remain ordinary ROOT objects.
+- NanoAOD collections now use event-scoped `*ViewCollection` APIs such as
+  `GetAllMuonViews()` and `GetAllJetViews()`. The former owning input-object
+  classes and materialization APIs have been removed. Views and selected
+  ranges must not be retained after advancing to the next event.
+- The supported Linux environment is the repository's ROOT 6.40.02 toolchain.
+  Create the shared `Nano` environment from `docs/Nano-linux-64.lock`, or use
+  `docs/Nano.yml` as the solver-based fallback. ROOT, correctionlib, Abseil,
+  ONNX Runtime, and the compiler toolchain must be kept ABI-compatible.
+
+#### Analysis and I/O
+
+- Added schema-driven lazy branch binding for NanoAODv15, including generated
+  scalar/vector accessors and event-scoped physics-object views.
+- Added native multi-file RNTuple input, explicit legacy TTree fallback, and
+  schema-preserving RNTuple skimming.
+- Added atomic output publication and `scripts/sknano_merge.py`, which validates
+  RNTuple and histogram schemas and verifies the merged output before removing
+  input shards.
+- Added typed RNTuple output handles, histogram groups, sparse output profiles,
+  and collision/schema checks.
+- Added a shared analyzer task API. Flag-selectable studies can register
+  validation, booking, and event callbacks while reusing one baseline event
+  selection.
+- Added configurable event failure handling through `--failure-policy` and
+  `--max-event-errors`.
+- Added deterministic counter-based random-number handling, batched correction
+  and ONNX helpers, execution planning, cache tuning, and optional performance
+  telemetry.
+
+#### Submission and user tools
+
+- `SKNano.py` now accepts `--input-format {rntuple,ttree,auto}`, data-period
+  filtering with `-p`, sample exclusion with `--exclude`, and explicit failure
+  policies.
+- Every submission records a source snapshot, compressed source archive,
+  sample-metadata snapshot, and `run_manifest.json` in the run directory.
+- User flags are included in skim and analysis output paths, preventing outputs
+  from different task selections from colliding.
+- Telegram submission/completion reporting is optional. `setup.sh` reports only
+  whether it is configured and no longer prints credentials.
+- Merge jobs use scheduler defaults unless resources are explicitly requested,
+  and batch setup activates the package environment before enabling strict
+  shell checks.
+- Added the schema-driven `sknano_plotter` workflow with inspect, validate,
+  local plot, and Condor submission modes.
+- `scripts/build.sh` supports incremental builds by default plus `--clean`,
+  Ninja, build-type, and AddressSanitizer options.
+
+#### Physics content
+
+- Added 2024 NanoAODv15 sample metadata, trigger paths, golden JSON, muon
+  corrections, tagging inputs, and modelling/reweighting resources.
+- Updated jet corrections and JES/JER-to-MET propagation, lepton IDs, trigger
+  object access, systematic handling, and Vcb calibration workflows.
+#### Migration quick start
+
+```bash
+source setup.sh
+./scripts/build.sh --clean
+
+# Default RNTuple input
+SKNano.py -a AnalyzerName -i 'Sample*' -e 2024 -n 10
+
+# Existing TTree input
+SKNano.py -a AnalyzerName -i 'LegacySample*' -e 2024 -n 10 \
+  --input-format ttree
+```
+
+See `docs/README.md` for the maintained API and workflow documentation.
 
 ## To do
 ### Assigned

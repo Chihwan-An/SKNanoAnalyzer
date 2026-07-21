@@ -175,7 +175,18 @@ def validate_inputs(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--jobs", type=int, default=min(8, os.cpu_count() or 1))
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="hadd worker count (default: 1; parallel RNTuple merge is experimental)",
+    )
+    parser.add_argument(
+        "--max-open-files",
+        type=int,
+        default=256,
+        help="maximum number of files hadd may open at once (default: 256)",
+    )
     parser.add_argument(
         "--temp-dir",
         type=Path,
@@ -187,6 +198,8 @@ def main() -> int:
 
     if args.jobs < 1:
         parser.error("--jobs must be positive")
+    if args.max_open_files < 2:
+        parser.error("--max-open-files must be at least 2")
     inputs = [path.resolve() for path in args.inputs]
     if len(set(inputs)) != len(inputs):
         parser.error("duplicate input paths are not allowed")
@@ -225,7 +238,14 @@ def main() -> int:
         with tempfile.TemporaryDirectory(
             prefix=f".{output.name}.hadd.", dir=temp_parent
         ) as merge_temp:
-            command = ["hadd", "-fk404", "-j", str(args.jobs), str(partial)]
+            command = ["hadd", "-fk404", "-n", str(args.max_open_files)]
+            # Passing ``-j 1`` still selects hadd's parallel merge path.  In
+            # particular, ROOT may remove the worker-produced target before
+            # this process can validate it.  Omit -j entirely for a genuinely
+            # sequential merge.
+            if args.jobs > 1:
+                command.extend(["-j", str(args.jobs)])
+            command.append(str(partial))
             command.extend(str(path) for path in inputs)
             environment = os.environ.copy()
             environment["TMPDIR"] = merge_temp

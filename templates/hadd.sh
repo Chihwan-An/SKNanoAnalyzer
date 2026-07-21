@@ -19,5 +19,5 @@ if (( ${#inputs[@]} == 0 )); then
 fi
 
 python3 "[SKNANO_HOME]/scripts/sknano_merge.py" \
-  --output [TARGET] --jobs 8 --delete-inputs "${inputs[@]}"
+  --output [TARGET] --jobs 1 --delete-inputs "${inputs[@]}"
 cp [PROVENANCE] [TARGET_PROVENANCE]

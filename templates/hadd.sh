@@ -1,10 +1,14 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 
 export PATH="/opt/conda/bin:${PATH}"
 export MAMBA_ROOT_PREFIX="/opt/conda"
 eval "$(micromamba shell hook -s bash)"
 micromamba activate Nano
+
+# Conda activation scripts may probe unset toolchain variables. Enable nounset
+# only after the environment has finished activating.
+set -u
 
 cd [WORKDIR]
 shopt -s nullglob

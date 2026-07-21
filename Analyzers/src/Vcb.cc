@@ -2,10 +2,6 @@
 #include "BranchManager.h"
 #include "GenView.h"
 #include "OtJsonLutBank.h"
-#include "TBranch.h"
-#include "TEntryList.h"
-#include "TEntryListArray.h"
-#include "TObjArray.h"
 #include "UParTScoreUtils.h"
 #include <TLorentzVector.h>
 #include <algorithm>

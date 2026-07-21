@@ -321,34 +321,29 @@ void CalibrationTree::initializeAnalyzer() {
                             IsDATA);
   SetSystematicLambda();
 
-  if (fChain) {
-    if (fChain->GetTreeNumber() < 0) {
-      fChain->LoadTree(0);
-    }
-    static constexpr std::array<std::string_view, 10> branchNames = {
-        "Jet_btagMyUParTAK4B",       "Jet_btagMyUParTAK4CvB",
-        "Jet_btagMyUParTAK4CvL",     "Jet_btagMyUParTAK4CvNotB",
-        "Jet_btagMyUParTAK4SvCB",    "Jet_btagMyUParTAK4SvUDG",
-        "Jet_btagMyUParTAK4UDG",     "Jet_btagMyUParTAK4HFvLF",
-        "Jet_btagMyUParTAK4BvC",     "Jet_btagMyUParTAK4QvG"};
-    for (const auto name : branchNames) {
-      const std::string key(name);
-      myUParTColumns.emplace(
-          key, GetColumnHandle<float>(key, ColumnRequirement::Optional));
-    }
-    useMyUParTBranches =
-        myUParTColumns.at("Jet_btagMyUParTAK4B").available() &&
-        myUParTColumns.at("Jet_btagMyUParTAK4CvB").available() &&
-        myUParTColumns.at("Jet_btagMyUParTAK4CvL").available() &&
-        myUParTColumns.at("Jet_btagMyUParTAK4CvNotB").available() &&
-        myUParTColumns.at("Jet_btagMyUParTAK4SvCB").available() &&
-        myUParTColumns.at("Jet_btagMyUParTAK4SvUDG").available() &&
-        myUParTColumns.at("Jet_btagMyUParTAK4UDG").available();
-    if (useMyUParTBranches) {
-      std::cout << "[CalibrationTree] MyUParT input branches detected. "
-                   "Using MyUParT scores for output tree."
-                << std::endl;
-    }
+  static constexpr std::array<std::string_view, 10> branchNames = {
+      "Jet_btagMyUParTAK4B",       "Jet_btagMyUParTAK4CvB",
+      "Jet_btagMyUParTAK4CvL",     "Jet_btagMyUParTAK4CvNotB",
+      "Jet_btagMyUParTAK4SvCB",    "Jet_btagMyUParTAK4SvUDG",
+      "Jet_btagMyUParTAK4UDG",     "Jet_btagMyUParTAK4HFvLF",
+      "Jet_btagMyUParTAK4BvC",     "Jet_btagMyUParTAK4QvG"};
+  for (const auto name : branchNames) {
+    const std::string key(name);
+    myUParTColumns.emplace(
+        key, GetColumnHandle<float>(key, ColumnRequirement::Optional));
+  }
+  useMyUParTBranches =
+      myUParTColumns.at("Jet_btagMyUParTAK4B").available() &&
+      myUParTColumns.at("Jet_btagMyUParTAK4CvB").available() &&
+      myUParTColumns.at("Jet_btagMyUParTAK4CvL").available() &&
+      myUParTColumns.at("Jet_btagMyUParTAK4CvNotB").available() &&
+      myUParTColumns.at("Jet_btagMyUParTAK4SvCB").available() &&
+      myUParTColumns.at("Jet_btagMyUParTAK4SvUDG").available() &&
+      myUParTColumns.at("Jet_btagMyUParTAK4UDG").available();
+  if (useMyUParTBranches) {
+    std::cout << "[CalibrationTree] MyUParT input fields detected. "
+                 "Using MyUParT scores for output RNTuple."
+              << std::endl;
   }
 }
 

@@ -349,7 +349,6 @@ def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot
             'Userflags': userflags,
             'NJobs': argparser.NJobs,
             'Reduction': argparser.Reduction,
-            'input_format': argparser.InputFormat,
             'NMax': argparser.NMax,
             'Memory': argparser.Memory,
             'ncpu': argparser.ncpu,
@@ -514,9 +513,6 @@ def setParser():
     help="Exclude samples by regex (comma-separated, supports * wildcard)")
     parser.add_argument('--nmax', dest='NMax', default=500, type=int, help="maximum running jobs")
     parser.add_argument('--reduction', dest='Reduction', default=1, type=float)
-    parser.add_argument('--input-format', dest='InputFormat', default='rntuple',
-    choices=['auto', 'ttree', 'rntuple'],
-    help="Input object format. Default: rntuple; use 'auto' or 'ttree' for legacy files")
     parser.add_argument('--python', action="store_true", default=False,
     help="Use python analyzer")
     parser.add_argument('--memory', dest='Memory', default=2048, type=float)
@@ -623,7 +619,6 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
             # Replace template variations
             job_content = job_content.replace("[Analyzer]", argparse.Analyzer)
             job_content = job_content.replace("[ncpu]", str(argparse.ncpu))
-            job_content = job_content.replace("[input_format]", argparse.InputFormat)
             job_content = job_content.replace("[era]", era)
             job_content = job_content.replace("[period]", period if period else "")
 
@@ -673,7 +668,6 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
             job_content = job_content.replace("[jobname]", f"job_{i+1}")
             job_content = job_content.replace("[ncpu]", str(argparse.ncpu))
             job_content = job_content.replace("[analyzer]", argparse.Analyzer)
-            job_content = job_content.replace("[input_format]", argparse.InputFormat)
             job_content = job_content.replace("[era]", era)
             job_content = job_content.replace("[period]", period if period else "")
 

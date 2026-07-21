@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate C++ branch scaffolding for SKNanoLoader without TTreeReader."""
+"""Generate RNTuple field scaffolding for SKNanoLoader."""
 
 from __future__ import annotations
 

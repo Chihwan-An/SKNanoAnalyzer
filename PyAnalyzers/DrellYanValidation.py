@@ -175,13 +175,13 @@ class GenValidation(GeneratorBase):
 
 if __name__ == "__main__":
     module = GenValidation()
-    module.SetTreeName("Events")
+    module.SetRNTupleName("Events")
     module.LogEvery = 1000
     module.IsDATA = False
     module.MCSample = "DYJets"
     module.SetEra("2023")
     if not module.AddFile("/Users/choij/Sync/workspace/SKNanoAnalyzer/test/NANOGEN/MG4GPU/DY012j_CPPAVX2/NANOGEN.root"): exit(1)
-    module.MaxEvent = int(module.fChain.GetEntries())
+    module.MaxEvent = int(module.GetInputEntries())
     module.SetOutfilePath("test.root")
     module.Init()
     module.initializeFromBase()

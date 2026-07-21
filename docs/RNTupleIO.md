@@ -1,5 +1,7 @@
 # RNTuple I/O
 
+[Documentation index](README.md)
+
 SKNanoAnalyzer uses ROOT 6.40 RNTuple input by default without changing
 analyzer code. `SKNanoLoader` opens the `Events` RNTuple in each input file,
 and the generated `BranchScalar`, `BranchVector`, collection views, and lazy

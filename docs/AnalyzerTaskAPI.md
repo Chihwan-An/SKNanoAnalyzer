@@ -1,5 +1,7 @@
 # Analyzer task API
 
+[Documentation index](README.md)
+
 `AnalyzerCore` provides a small lifecycle API for analyzers that share one
 event selection across several flag-selectable tasks.
 

@@ -1,5 +1,7 @@
 # HadronAnalyzer
 
+[Documentation index](README.md)
+
 `HadronAnalyzer` applies the `Vcb_SL` semileptonic ttbar baseline and stores BPH
 and generator-hadron information for the four leading selected jets.
 
@@ -29,6 +31,24 @@ creating another large training ntuple:
 SKNano.py -a HadronAnalyzer -i TTLJ_powheg_CustomBPH -e 2024 -n 10 \
   --userflags Mu,HadronHistOnly
 ```
+
+`LambdaCBDT` writes a compact LambdaC training RNTuple while leaving the full
+histogram workflow unchanged:
+
+```bash
+SKNano.py -a HadronAnalyzer -i TTLJ_powheg_CustomBPH -e 2024 -n 10 \
+  --userflags Mu,LambdaCBDT
+```
+
+Only `LambdaCToPKPi` rows are stored in `BPH_*`. Every row with nonzero
+`BPH_genMatchCategory` is retained. Unmatched combinatorial rows are retained
+with a deterministic 1/20 prescale based on run, luminosity block, event, and
+candidate source index. Their `BPH_prescaleWeight` includes this additional
+factor of 20, so training or yield studies should use
+`weight * BPH_prescaleWeight`. The deterministic selection is independent of
+job splitting. Generator-jet detail and flattened `GenHadron_*` fields are
+omitted; candidate truth labels, reco-jet context, top-jet matching, daughter
+features, and all hypothesis masks remain available.
 
 ## Tasks
 

@@ -1,5 +1,7 @@
 # Custom BPH NanoAOD input
 
+[Documentation index](README.md)
+
 The 2024 `TTLJ_powheg_CustomBPH` sample points to the site-local custom
 production through one recursive `path_glob`.  Submit it like any other sample:
 

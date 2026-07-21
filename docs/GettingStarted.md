@@ -1,46 +1,44 @@
 # Getting Started
-## Important Notes
-Before starting your main part of your analysis, ***PLEASE SKIM YOUR SAMPLES!***
-The main bottleneck of SNU Server is the I/O. In most cases, the fraction of the event that pass the baseline selection is very small(for semileptonic $t\bar t$ analysis $\sim 10-20$%), Thus, it will make unnecessary I/O if you don't skim your samples.
 
-And also will described later, you can submit the job with regex. if you skim the samples, you can use the regex to submit all the samples that desired in your analysis, by only one command like
+[Documentation index](README.md)
+
+## Important Notes
+Skim large samples before the main analysis when the baseline keeps only a
+small fraction of events. On the SNU cluster, avoidable input I/O is often the
+dominant bottleneck; a semileptonic $t\bar t$ baseline may retain only
+$\sim 10\text{--}20\%$ of the input.
+
+`SKNano.py` accepts sample patterns, so a common skim prefix can be submitted
+with one command:
+
 ```bash
-SKNano.py -a ExampleRun -i '[YOUR_PREFIX]*' -e 2022 -n 10 --reduction 10 ...
+SKNano.py -a ExampleRun -i '[YOUR_PREFIX]*' -e 2022 -n 10 --reduction 10
 ```
 
 ## Index
 
-- [Getting Started](#getting-started)
-  - [Important Notes](#important-notes)
-  - [Index](#index)
-  - [Setting up the environment](#setting-up-the-environment)
-    - [Preliminary Setup](#preliminary-setup)
-      - [Making config file](#making-config-file)
-      - [Using conda](#using-conda)
-      - [Using micromamba](#using-micromamba)
-      - [Note on using OSX](#note-on-using-osx)
-      - [Using cvmfs](#using-cvmfs)
-      - [Setting up ssh-key for gitlab.cern.ch (required for jsonpog-integration)](#setting-up-ssh-key-for-gitlabcernch-required-for-jsonpog-integration)
-    - [Installation](#installation)
-      - [About LHAPDFs](#about-lhapdfs)
-      - [About correctionlibs](#about-correctionlibs)
-      - [Check modules](#check-modules)
-  - [How to Submit the job](#how-to-submit-the-job)
-  - [Skimming mode](#skimming-mode)
-  - [Setting the telegram bot](#setting-the-telegram-bot)
-
-
+- [Important Notes](#important-notes)
+- [Setting up the environment](#setting-up-the-environment)
+  - [Preliminary Setup](#preliminary-setup)
+  - [Installation](#installation)
+- [How to Submit the job](#how-to-submit-the-job)
+- [How to make a sample list](#how-to-make-a-sample-list)
+- [Skimming mode](#skimming-mode)
+- [Setting the Telegram bot](#setting-the-telegram-bot)
 
 ## Setting up the environment
 ### Preliminary Setup
-If you have no particular preference for an environment, we strongly recommend setting up this analyzer with the micromamba+singularity environment. Please refer [here](SettingEnv.md) for detailed instructions.
+For Linux, the recommended environment is micromamba plus Singularity. See
+[Environment Setup](SettingEnv.md) for the cluster-specific instructions.
 #### Making config file
-Your configuration file should be named as `config/config.$USER`. You can copy the default configuration file and modify it.
-- [SYSTEM]: OS that you are using. `osx / redhat`
-- [PACKAGE]: Package manager that you are using. `conda / mamba / cvmfs(deprecated)`
-- [TOKEN\_TELEGRAMBOT]: Token for the telegram bot. refer to [Setting the telegram bot](#setting-the-telegram-bot)
-- [USER\_CHATID]: Your Chat ID that should be used for the telegram bot. refer to [Setting the telegram bot](#setting-the-telegram-bot)
-- [SINGULARITY\_IMAGE]: Singularity image that you want to use for the batch job. For default setup, Refer to [Singularity Support](#singularity-support) for more information. You can make your own singularity image by following the instructions in this section.
+Copy `config/config.default` to `config/config.$USER`, then set the entries
+needed by your environment:
+
+- [PACKAGE]: package manager, either `conda` or `mamba`
+- [TOKEN\_TELEGRAMBOT]: optional Telegram bot token
+- [USER\_CHATID]: optional Telegram chat ID
+- [SINGULARITY\_IMAGE]: absolute path to the Singularity image used by batch
+  jobs; see [Environment Setup](SettingEnv.md#setting-up-singularity)
 
 #### Using conda
 Here is an example to setup the environment using conda.
@@ -60,15 +58,13 @@ pip install numpy pandas matplotlib scipy scikit-learn captum networkx seaborn
 ```
 
 #### Using micromamba
-Using micromamba is highly recommended, which is a faster alternative to anaconda that is infamous for its slow speed to solving the environment.
+Micromamba is recommended for its fast, lightweight environment solver.
 ```bash
 "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
 ```
-Then, you can create the environment using micromamba, just replace `conda` with `micromamba`.
-
-For both `micromamba` and `conda`, Do not install the packages in home directory. It is because home directory cannot be accessed by the worker nodes. Use `/data6/Users/foo` instead.
-
-If you are choose to use `micromamba` set your `[PACKAGE]` as `mamba` in the config file.
+Store micromamba itself and its environment root on shared storage such as
+`/data6/Users/$USER`; worker nodes cannot access the login-node home directory.
+Set `[PACKAGE] mamba` in `config/config.$USER`.
 On Linux x86_64, the explicit lock file is recommended. It reproduces the tested
 ROOT 6.40.02, GCC 13.3, and C++20 package set without re-solving dependencies.
 The local validation environment may be called `Nano640`, but the shared environment
@@ -215,38 +211,44 @@ p.Print()
 For testing other modules and analyzers, check scripts/test.py
 
 ## How to Submit the job
-Jobs can be submitted to htcondor using SKFlat.py
+Submit HTCondor jobs with `SKNano.py`:
 ```bash
-SKFlat.py -a AnalyzerName -i SamplePD -n number of jobs -e era
+SKNano.py -a AnalyzerName -i SamplePD -n number_of_jobs -e era
 ```
 
-Basic usage is as aboves. There are some additional options for the submission:
-- -i: You can pass the sample PD using this option. This option supports the basic regex, thus,
-  ```bash
-  SKFlat.py -a Vcb_FH -i 'ST*' -n 100 -e 2022EE
-    ```
-    will submit the jobs for all the samples starting with 'ST' in the sample list. Thus, please be careful when you adding the new samples to the sample list.
-- -n: Number of jobs to submit. If you want to submit 100 jobs, you can use -n 100.
-  You can also choose to set the ***number of files for each job***. To do this, pass this argument as negative value. For example, -n -10 will submit 10 files per job. For example, if *TTLJ_powheg* sample has 1700 files, 
-  ```bash
-    SKFlat.py -a Vcb_FH -i TTLJ_powheg -n -10 -e 2022EE
-    ```
-    will submit 170 jobs with 10 files each to cluster.
-- -e: Era of the sample. You can also pass the multiple eras using comma. For example, -e 2022EE,2023 will submit the jobs for the samples in 2022EE and 2023 era.
-- -r: This argument set the run. choose Run2 or Run3. This option overrids the -e option.
-- --reduction: perform reduction by factor of input number. 
-- --memory: set the memory for the job. Default is 2GB.
-- --ncpu: set the number of cpus for the job. Default is 1.
-- --userflags: set the user flags for the job. Default is empty. to set multiple flags, use comma. e.g. --userflags flag1,flag2
-- --batchname: set the batch name for the job. Default is the analyzer name_userflags.
-- --skimming\_mode: by passing this flag, SKFlat.py will submit the jobs for the skimming mode. Detailed information as follows.
+Important submission options are:
 
-## How to make SampleList
-Here we expect that you have saved your central or customized NanoAOD in /gv0. Follow the steps to update sample info in `data/$ERA/Sample/CommonSampleInfo.json`.
+- `-i`: sample name, comma-separated names, a sample-list file, or a wildcard
+  pattern. For example,
+  ```bash
+  SKNano.py -a Vcb_FH -i 'ST*' -n 100 -e 2022EE
+    ```
+  selects every matching sample, so inspect broad patterns before submission.
+- `-n`: desired number of jobs. A negative value sets the number of files per
+  job. For example, `-n -10` assigns ten files to each job:
+  ```bash
+  SKNano.py -a Vcb_FH -i TTLJ_powheg -n -10 -e 2022EE
+    ```
+- `-e`: comma-separated eras, for example `-e 2022EE,2023`.
+- `-r`: `Run2`, `Run3`, or a comma-separated combination; this overrides
+  `-e`.
+- `--reduction`: process a reduced fraction of the input.
+- `--memory`: requested memory in MiB; the default is 2048.
+- `--ncpu`: requested CPU count; the default is 1.
+- `--userflags`: comma-separated analyzer flags.
+- `--input-format`: `rntuple` (default), `ttree`, or `auto`.
+- `--batchname`: custom batch name.
+- `--skimming_mode`: enable skimming output and post-processing.
+
+## How to make a sample list
+
+For NanoAOD stored under `/gv0`, update the sample metadata in
+`data/$SKNANO_VERSION/$ERA/Sample/CommonSampleInfo.json`:
+
 1. Update CommonSampleInfo.json with the alias of the sample and the name of the sample used for crab submission.
 2. Run the following command. It will search for root files under `/gv0/Users/$USER/SKNano/` and update the sample list.
 ```bash
-./scripts/MakeSamplePathInfo.py --era $ERA
+./scripts/makeSamplePathInfo.py --era $ERA
 ```
 3. Run GetEffLumi analyzer to calculate the number of events(data) or sum of weights(MC) for each sample.
 ```bash
@@ -258,28 +260,33 @@ SKNano.py -a GetEffLumi -i $SAMPLENAME -e $ERA -n 10
 ```
 
 ## Skimming mode
-By passing --skimming\_mode, SKFlat.py will submit the jobs for the skimming mode. In this mode, the jobs will create the output in `$SKNANO_RUN[2,3]_NANOAODPATH/Era/[Data,MC]/Skim/$USERNAME` directory, Instead of submit hadd layer in DAG, *PostProc* layer will add in the DAG. 
+Passing `--skimming_mode` writes skim output below
+`$SKNANO_RUN[2,3]_NANOAODPATH/Era/[DATA,MC]/Skim/$USER` and replaces the DAG's
+merge layer with skim post-processing.
 
-If your analyzer has name that starts with "Skim_", you will be asked to be enable the skimming mode. If you choose to enable the skimming mode, then skimming mode will be activated. Of course you can manually activate the skimming mode by passing --skimming\_mode flag.
+An analyzer name beginning with `Skim_` prompts for skimming mode; the explicit
+`--skimming_mode` flag avoids the prompt. Post-processing creates the skimmed
+sample directory and metadata below `$SKNANO_DATA/$ERA/Sample/Skim`.
 
-PostProc layer will create the Skimmed sample folder and will creat the skimTreeInfo.json file and dedicated json that saves the information of the skimmed samples under $SKNANO\_DATA/era/Sample/Skim directory.
-Each postproc job modify the skimTreeInfo.json sequentially, so ***DO NOT SUBMIT THE MULTIPLE DAG CLUSTERS THAT DO SKIMMING.*** After all the postproc jobs are done, you can submit the new jobs that using skimmed sample. A prefix of Skim_AnalyzerName will be added to the output file name.
+Do not run multiple skimming DAGs that update the same sample metadata at the
+same time. After post-processing completes, submit the generated
+`Skim_AnalyzerName_SampleName` sample normally.
 ```bash
-SKFlat.py -a AnalyzerName -i DYJets -n -1 -e era --skimming_mode
+SKNano.py -a AnalyzerName -i DYJets -n -1 -e era --skimming_mode
 ```
 or 
 ```bash
-SKFlat.py -a Skim_AnalyzerName -i DYJets -n -1 -e era
+SKNano.py -a Skim_AnalyzerName -i DYJets -n -1 -e era
 ```
-Will create the Skim\_AnalyzerName\_DYJets (if you choose to answer "y" in latter one).
-Then you can submit the jobs by
+Both commands create `Skim_AnalyzerName_DYJets`. Submit it with:
 ```bash
-SKFlat.py -a AnalyzerName -i Skim_AnalyzerName_DYJets -n -1 -e era
+SKNano.py -a AnalyzerName -i Skim_AnalyzerName_DYJets -n -1 -e era
 ```
 
-## Setting the telegram bot
-To use the telegram bot, you need to create a telegram bot and get the token.
-Search for `@BotFather` in the telegram. send `/newbot` and follow the instructions.
+## Setting the Telegram bot
+
+Create a bot with Telegram's `@BotFather`, send `/newbot`, and follow the
+instructions.
 
 ![](BotFather.png)
 

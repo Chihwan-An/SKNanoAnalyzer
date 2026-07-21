@@ -1,9 +1,46 @@
 #include "AnalyzerCore.h"
 #include <Compression.h>
+#include <ROOT/RNTupleWriteOptions.hxx>
+#include <ROOT/RNTupleWriter.hxx>
+#include <ROOT/RNTupleReader.hxx>
+#include <ROOT/RDataFrame.hxx>
+#include <ROOT/RSnapshotOptions.hxx>
 #include <algorithm>
+#include <cerrno>
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <filesystem>
+#include <memory>
+#include <string>
 #include <string_view>
+#include <typeindex>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+
+class RNTupleOutputState {
+public:
+  struct FieldBinding {
+    std::type_index type;
+    const void *address;
+    std::function<void(ROOT::Detail::RRawPtrWriteEntry &)> bind;
+  };
+
+  RNTupleOutputState(AnalyzerCore::RNTupleOutputProfile profile_,
+                     unsigned int compressionThreads_)
+      : model(ROOT::RNTupleModel::CreateBare()), profile(profile_),
+        compressionThreads(compressionThreads_) {}
+
+  std::unique_ptr<ROOT::RNTupleModel> model;
+  std::unique_ptr<ROOT::Detail::RRawPtrWriteEntry> entry;
+  std::unique_ptr<ROOT::RNTupleWriter> writer;
+  std::unordered_map<std::string, FieldBinding> fields;
+  AnalyzerCore::RNTupleOutputProfile profile;
+  unsigned int compressionThreads;
+  std::uint64_t entries = 0;
+};
 
 namespace {
 
@@ -18,7 +55,89 @@ bool outputPathsConflict(std::string_view first, std::string_view second) {
   return isParent(first, second) || isParent(second, first);
 }
 
+std::pair<TDirectory *, std::string>
+resolveRNTupleDirectory(TFile &file, const std::string &path) {
+  const auto slash = path.find_last_of('/');
+  if (slash == std::string::npos)
+    return {&file, path};
+  const std::string directoryName = path.substr(0, slash);
+  const std::string objectName = path.substr(slash + 1);
+  TDirectory *directory = file.GetDirectory(directoryName.c_str());
+  if (!directory)
+    directory = file.mkdir(directoryName.c_str());
+  if (!directory)
+    throw SKNano::LogicError("[AnalyzerCore::BookRNTuple] cannot create "
+                             "output directory '" +
+                             directoryName + "'");
+  return {directory, objectName};
+}
+
+void ensureRNTupleWriter(RNTupleOutputState &state, const std::string &path,
+                         TFile *outfile) {
+  if (state.writer)
+    return;
+  if (!outfile || !outfile->IsOpen())
+    throw SKNano::LogicError(
+        "[AnalyzerCore::BookRNTuple] output file is not open");
+  state.model->Freeze();
+  state.entry = state.model->CreateRawPtrWriteEntry();
+  for (const auto &[unused, field] : state.fields) {
+    static_cast<void>(unused);
+    field.bind(*state.entry);
+  }
+
+  ROOT::RNTupleWriteOptions options;
+  options.SetCompression(ROOT::RCompressionSetting::EAlgorithm::kLZ4, 4);
+  const std::size_t bufferSize =
+      state.profile == AnalyzerCore::RNTupleOutputProfile::Fast
+          ? 64U * 1024U * 1024U
+          : 4U * 1024U * 1024U;
+  options.SetApproxZippedClusterSize(bufferSize);
+  options.SetPageBufferBudget(bufferSize);
+  options.SetMaxUnzippedClusterSize(4U * bufferSize);
+  options.SetUseBufferedWrite(true);
+  options.SetEnablePageChecksums(true);
+  options.SetUseImplicitMT(
+      state.compressionThreads > 1
+          ? ROOT::RNTupleWriteOptions::EImplicitMT::kOn
+          : ROOT::RNTupleWriteOptions::EImplicitMT::kOff);
+
+  auto [directory, name] = resolveRNTupleDirectory(*outfile, path);
+  state.writer = ROOT::RNTupleWriter::Append(
+      std::move(state.model), name, *directory, options);
+}
+
 } // namespace
+
+void AnalyzerCore::SetOutfilePath(const TString &outpath) {
+  if (outfile)
+    throw SKNano::LogicError(
+        "[AnalyzerCore::SetOutfilePath] output file is already configured");
+  outputFinalPath_ = outpath.Data();
+  if (outputFinalPath_.empty())
+    throw SKNano::ConfigError(
+        "[AnalyzerCore::SetOutfilePath] output path is empty");
+  outputPartialPath_ = outputFinalPath_ + ".partial";
+  outfile = new TFile(outputPartialPath_.c_str(), "RECREATE");
+  if (!outfile || outfile->IsZombie())
+    throw SKNano::LogicError(
+        "[AnalyzerCore::SetOutfilePath] cannot create partial output '" +
+        outputPartialPath_ + "'");
+  SetErrorReportPath(outputFinalPath_ + ".errors.jsonl");
+  SetPerformanceReportPath(outputFinalPath_ + ".performance.json");
+}
+
+void AnalyzerCore::SetOutputThreads(unsigned int threads) {
+  if (threads == 0)
+    throw SKNano::ConfigError(
+        "[AnalyzerCore::SetOutputThreads] thread count must be positive");
+  if (!rntupleOutputs_.empty())
+    throw SKNano::LogicError(
+        "[AnalyzerCore::SetOutputThreads] configure threads before outputs");
+  outputCompressionThreads_ = threads;
+  if (threads > 1)
+    ROOT::EnableImplicitMT(threads);
+}
 
 void AnalyzerCore::FillHist(std::string_view histname, float value,
                             float weight, int n_bin, float x_min, float x_max) {
@@ -63,53 +182,216 @@ void AnalyzerCore::FillHist(std::string_view histname, float value_x,
       .Fill(value_x, value_y, value_z, weight);
 }
 
-TTree *AnalyzerCore::NewTree(const TString &treename,
-                             const RVec<TString> &keeps,
-                             const RVec<TString> &drops) {
-  auto treekey = string(treename);
-  auto it = treemap.find(treekey);
-  if (it == treemap.end()) {
-    ValidateTreePath(treekey);
-    const bool makeEmptyTree =
-        keeps.empty() &&
-        (drops.empty() || (drops.size() == 1 && drops[0] == "*"));
-    if (makeEmptyTree) {
-      TTree *newtree = new TTree(treekey.c_str(), "");
-      treemap[treekey] = newtree;
-      return newtree;
-    } else {
-      // check tree is empty.
-      if (fChain->GetEntries() == 0) {
-        throw SKNano::ConfigError("[AnalyzerCore::NewTree] fChain is empty");
-      }
-      TTree *newtree = fChain->CloneTree(0);
-      newtree->SetName(treekey.c_str());
-      for (const auto &drop : drops) {
-        newtree->SetBranchStatus(drop, 0);
-      }
-      for (const auto &keep : keeps) {
-        newtree->SetBranchStatus(keep, 1);
-      }
-      treemap[treekey] = newtree;
-      unordered_map<string, TBranch *> this_branchmap;
-      branchmaps[newtree] = this_branchmap;
-      return newtree;
-    }
-  } else {
-    return it->second;
+AnalyzerCore::RNTupleHandle
+AnalyzerCore::BookRNTuple(const TString &ntupleName,
+                          RNTupleOutputProfile profile) {
+  const std::string name(ntupleName.Data());
+  auto found = rntupleOutputs_.find(name);
+  if (found == rntupleOutputs_.end()) {
+    ValidateTreePath(name);
+    rntupleOutputs_.emplace(
+        name, std::make_shared<RNTupleOutputState>(
+                  profile, outputCompressionThreads_));
+  } else if (found->second->profile != profile) {
+    throw SKNano::ConfigError(
+        "[AnalyzerCore::BookRNTuple] conflicting output profile for '" +
+        name + "'");
   }
+  return RNTupleHandle(this, name);
 }
 
-AnalyzerCore::TreeHandle
-AnalyzerCore::BookTree(const TString &treename, const RVec<TString> &keeps,
-                       const RVec<TString> &drops) {
-  NewTree(treename, keeps, drops);
-  return TreeHandle(this, std::string(treename.Data()));
+AnalyzerCore::RNTupleHandle
+AnalyzerCore::OutputRNTuple(const TString &ntupleName) {
+  const std::string name(ntupleName.Data());
+  if (rntupleOutputs_.find(name) == rntupleOutputs_.end())
+    throw SKNano::LogicError("[AnalyzerCore::OutputRNTuple] RNTuple " + name +
+                             " not found");
+  return RNTupleHandle(this, name);
 }
 
-AnalyzerCore::TreeHandle AnalyzerCore::OutputTree(const TString &treename) {
-  GetTree(treename);
-  return TreeHandle(this, std::string(treename.Data()));
+AnalyzerCore::RNTupleHandle
+AnalyzerCore::OutputRegistry::Book(std::string_view name,
+                                   RNTupleOutputProfile profile) const {
+  return owner_->BookRNTuple(std::string(name), profile);
+}
+
+AnalyzerCore::RNTupleHandle
+AnalyzerCore::OutputRegistry::Get(std::string_view name) const {
+  return owner_->OutputRNTuple(std::string(name));
+}
+
+void AnalyzerCore::RNTupleHandle::RequireValid() const {
+  if (!owner_)
+    throw SKNano::LogicError("[RNTupleHandle] empty handle access");
+}
+
+void AnalyzerCore::RNTupleHandle::Fill() const {
+  RequireValid();
+  owner_->FillRNTuple(ntupleName_);
+}
+
+std::uint64_t AnalyzerCore::RNTupleHandle::GetEntries() const {
+  RequireValid();
+  return owner_->GetRNTupleEntries(ntupleName_);
+}
+
+AnalyzerCore::RNTupleHandle &
+AnalyzerCore::RNTupleHandle::Set(const TString &name, float value) {
+  RequireValid();
+  owner_->SetRNTupleValue(ntupleName_, name, value);
+  return *this;
+}
+
+AnalyzerCore::RNTupleHandle &
+AnalyzerCore::RNTupleHandle::Set(const TString &name, double value) {
+  RequireValid();
+  owner_->SetRNTupleValue(ntupleName_, name, value);
+  return *this;
+}
+
+AnalyzerCore::RNTupleHandle &
+AnalyzerCore::RNTupleHandle::Set(const TString &name, int value) {
+  RequireValid();
+  owner_->SetRNTupleValue(ntupleName_, name, value);
+  return *this;
+}
+
+AnalyzerCore::RNTupleHandle &
+AnalyzerCore::RNTupleHandle::Set(const TString &name, bool value) {
+  RequireValid();
+  owner_->SetRNTupleValue(ntupleName_, name, value);
+  return *this;
+}
+
+void AnalyzerCore::SetRNTupleValue(const TString &ntupleName,
+                                    const TString &fieldName, float value) {
+  const std::string key = std::string(ntupleName.Data()) + "/" +
+                          std::string(fieldName.Data());
+  auto [slot, inserted] = scalar_float_storage.try_emplace(key);
+  if (inserted) {
+    slot->second = std::make_unique<float>();
+    OutputRNTuple(ntupleName).Field(fieldName.Data(), *slot->second);
+  }
+  *slot->second = value;
+}
+
+void AnalyzerCore::SetRNTupleValue(const TString &ntupleName,
+                                    const TString &fieldName, double value) {
+  SetRNTupleValue(ntupleName, fieldName, static_cast<float>(value));
+}
+
+void AnalyzerCore::SetRNTupleValue(const TString &ntupleName,
+                                    const TString &fieldName, int value) {
+  const std::string key = std::string(ntupleName.Data()) + "/" +
+                          std::string(fieldName.Data());
+  auto [slot, inserted] = scalar_int_storage.try_emplace(key);
+  if (inserted) {
+    slot->second = std::make_unique<int>();
+    OutputRNTuple(ntupleName).Field(fieldName.Data(), *slot->second);
+  }
+  *slot->second = value;
+}
+
+void AnalyzerCore::SetRNTupleValue(const TString &ntupleName,
+                                    const TString &fieldName, bool value) {
+  const std::string key = std::string(ntupleName.Data()) + "/" +
+                          std::string(fieldName.Data());
+  auto [slot, inserted] = scalar_bool_storage.try_emplace(key);
+  if (inserted) {
+    slot->second = std::make_unique<bool>();
+    OutputRNTuple(ntupleName).Field(fieldName.Data(), *slot->second);
+  }
+  *slot->second = value;
+}
+
+void AnalyzerCore::RegisterRNTupleField(
+    const std::string &ntupleName, const std::string &fieldName,
+    std::type_index type, const void *address,
+    std::function<void(ROOT::RNTupleModel &)> addField,
+    std::function<void(ROOT::Detail::RRawPtrWriteEntry &)> bindField) {
+  auto output = rntupleOutputs_.find(ntupleName);
+  if (output == rntupleOutputs_.end())
+    throw SKNano::LogicError("[AnalyzerCore::RNTupleHandle] RNTuple " +
+                             ntupleName + " not found");
+  if (fieldName.empty())
+    throw SKNano::ConfigError(
+        "[AnalyzerCore::RNTupleHandle] field name is empty");
+
+  auto &state = *output->second;
+  const auto found = state.fields.find(fieldName);
+  if (found != state.fields.end()) {
+    if (found->second.type != type || found->second.address != address)
+      throw SKNano::ConfigError(
+          "[RNTupleHandle::Field] incompatible duplicate field '" +
+          ntupleName + "/" + fieldName + "'");
+    return;
+  }
+  if (state.writer)
+    throw SKNano::LogicError(
+        "[RNTupleHandle::Field] cannot add field after the first Fill for '" +
+        ntupleName + "'");
+
+  addField(*state.model);
+  state.fields.emplace(fieldName, RNTupleOutputState::FieldBinding{
+                                      type, address, std::move(bindField)});
+}
+
+void AnalyzerCore::FillRNTuple(const std::string &ntupleName) {
+  auto output = rntupleOutputs_.find(ntupleName);
+  if (output == rntupleOutputs_.end())
+    throw SKNano::LogicError("[AnalyzerCore::FillRNTuple] RNTuple " +
+                             ntupleName + " not found");
+  auto &state = *output->second;
+  ensureRNTupleWriter(state, ntupleName, outfile);
+  state.writer->Fill(*state.entry);
+  ++state.entries;
+}
+
+std::uint64_t
+AnalyzerCore::GetRNTupleEntries(const std::string &ntupleName) const {
+  const auto output = rntupleOutputs_.find(ntupleName);
+  if (output == rntupleOutputs_.end())
+    throw SKNano::LogicError("[AnalyzerCore::GetRNTupleEntries] RNTuple " +
+                             ntupleName + " not found");
+  return output->second->entries;
+}
+
+bool AnalyzerCore::HasRNTupleOutput(std::string_view name) const noexcept {
+  return rntupleOutputs_.find(std::string(name)) != rntupleOutputs_.end();
+}
+
+void AnalyzerCore::SnapshotSelectedInput(std::vector<Long64_t> entries,
+                                         std::string outputName) {
+  if (inputFiles.empty())
+    throw SKNano::LogicError(
+        "[AnalyzerCore::SnapshotSelectedInput] no input files configured");
+  if (outputName.empty())
+    throw SKNano::ConfigError(
+        "[AnalyzerCore::SnapshotSelectedInput] output name is empty");
+  if (!selectedInputOutputName_.empty())
+    throw SKNano::LogicError(
+        "[AnalyzerCore::SnapshotSelectedInput] a skim is already queued");
+  ValidateTreePath(outputName);
+  std::sort(entries.begin(), entries.end());
+  entries.erase(std::unique(entries.begin(), entries.end()), entries.end());
+  selectedInputEntries_ = std::move(entries);
+  selectedInputOutputName_ = std::move(outputName);
+}
+
+void AnalyzerCore::FinalizeRNTuples() {
+  for (auto &[name, output] : rntupleOutputs_) {
+    // Dynamically named category outputs acquire their schema on first use.
+    // Do not persist a zero-column placeholder: another shard may contain the
+    // real schema for the same category, which would make the files
+    // unmergeable.
+    if (output->fields.empty())
+      continue;
+    ensureRNTupleWriter(*output, name, outfile);
+    std::cout << "[AnalyzerCore::WriteHist] Writing RNTuple: " << name
+              << " (" << output->entries << " entries)" << std::endl;
+    output->writer.reset();
+    output->entry.reset();
+  }
 }
 
 AnalyzerCore::HistogramGroup AnalyzerCore::Hists(std::string_view prefix) {
@@ -119,49 +401,6 @@ AnalyzerCore::HistogramGroup AnalyzerCore::Hists(std::string_view prefix) {
   while (!normalized.empty() && normalized.back() == '/')
     normalized.pop_back();
   return HistogramGroup(this, std::move(normalized));
-}
-
-void AnalyzerCore::TreeHandle::RequireValid() const {
-  if (!owner_)
-    throw SKNano::LogicError("[TreeHandle] empty handle access");
-}
-
-TTree *AnalyzerCore::TreeHandle::get() const {
-  RequireValid();
-  return owner_->GetTree(treeName_);
-}
-
-AnalyzerCore::TreeHandle &AnalyzerCore::TreeHandle::Set(const TString &name,
-                                                        float value) {
-  RequireValid();
-  owner_->SetBranch(treeName_, name, value);
-  return *this;
-}
-
-AnalyzerCore::TreeHandle &AnalyzerCore::TreeHandle::Set(const TString &name,
-                                                        double value) {
-  RequireValid();
-  owner_->SetBranch(treeName_, name, value);
-  return *this;
-}
-
-AnalyzerCore::TreeHandle &AnalyzerCore::TreeHandle::Set(const TString &name,
-                                                        int value) {
-  RequireValid();
-  owner_->SetBranch(treeName_, name, value);
-  return *this;
-}
-
-AnalyzerCore::TreeHandle &AnalyzerCore::TreeHandle::Set(const TString &name,
-                                                        bool value) {
-  RequireValid();
-  owner_->SetBranch(treeName_, name, value);
-  return *this;
-}
-
-void AnalyzerCore::TreeHandle::Fill() const {
-  RequireValid();
-  owner_->FillTrees(treeName_);
 }
 
 void AnalyzerCore::HistogramGroup::RequireValid() const {
@@ -262,68 +501,22 @@ void AnalyzerCore::HistogramGroup::Fill(
       .Fill(x, y, z, weight);
 }
 
-TTree *AnalyzerCore::GetTree(const TString &treename) {
-  auto treekey = string(treename);
-  auto it = treemap.find(treekey);
-  if (it == treemap.end()) {
-    throw SKNano::LogicError("[AnalyzerCore::GetTree] Tree " +
-                             std::string(treename.Data()) + " not found");
-  }
-  return it->second;
-}
-
-void AnalyzerCore::SetBranch(const TString &treename, const TString &branchname,
-                             void *address, const TString &leaflist) {
-  try {
-    void *this_address = address;
-    TTree *tree = GetTree(treename);
-
-    unordered_map<string, TBranch *> *this_branchmap = &branchmaps[tree];
-    auto it = this_branchmap->find(string(branchname));
-
-    if (it == this_branchmap->end()) {
-      auto br = tree->Branch(branchname, this_address, leaflist);
-      this_branchmap->insert({string(branchname), br});
-      branchAddressCache[br] = this_address;
-      branchSchemaCache[br] = std::string(leaflist.Data());
-    } else {
-      const auto schemaIt = branchSchemaCache.find(it->second);
-      if (schemaIt == branchSchemaCache.end() ||
-          schemaIt->second != std::string(leaflist.Data()))
-        throw SKNano::ConfigError(
-            "[AnalyzerCore::SetBranch] incompatible duplicate branch '" +
-            std::string(treename.Data()) + "/" +
-            std::string(branchname.Data()) + "'");
-      auto cacheIt = branchAddressCache.find(it->second);
-      if (cacheIt == branchAddressCache.end() ||
-          cacheIt->second != this_address) {
-        it->second->SetAddress(this_address);
-        branchAddressCache[it->second] = this_address;
-      }
-    }
-  } catch (int e) {
-    throw SKNano::LogicError("[AnalyzerCore::SetBranch] Error get tree: " +
-                             std::string(treename.Data()) +
-                             " code=" + std::to_string(e));
-  }
-}
-
 void AnalyzerCore::ValidateTreePath(std::string_view treeName) const {
   if (treeName.empty())
-    throw SKNano::ConfigError("[AnalyzerCore::BookTree] tree name is empty");
-  for (const auto &[otherTree, unused] : treemap) {
+    throw SKNano::ConfigError("[AnalyzerCore::BookRNTuple] name is empty");
+  for (const auto &[otherNtuple, unused] : rntupleOutputs_) {
     static_cast<void>(unused);
-    if (outputPathsConflict(treeName, otherTree))
+    if (outputPathsConflict(treeName, otherNtuple))
       throw SKNano::ConfigError(
-          "[AnalyzerCore::BookTree] output path conflicts with tree '" +
-          otherTree + "'");
+          "[AnalyzerCore::BookRNTuple] output path conflicts with RNTuple '" +
+          otherNtuple + "'");
   }
   const auto checkHistograms = [&](const auto &histograms) {
     for (const auto &[histogram, unused] : histograms) {
       static_cast<void>(unused);
       if (outputPathsConflict(treeName, histogram))
         throw SKNano::ConfigError(
-            "[AnalyzerCore::BookTree] output path conflicts with histogram '" +
+            "[AnalyzerCore::BookRNTuple] output path conflicts with histogram '" +
             histogram + "'");
     }
   };
@@ -337,53 +530,22 @@ void AnalyzerCore::ValidateHistogramPath(
   if (histogramName.empty())
     throw SKNano::ConfigError(
         "[AnalyzerCore::BookHist] histogram name is empty");
-  for (const auto &[treeName, unused] : treemap) {
+  for (const auto &[ntupleName, unused] : rntupleOutputs_) {
     static_cast<void>(unused);
-    if (outputPathsConflict(histogramName, treeName))
+    if (outputPathsConflict(histogramName, ntupleName))
       throw SKNano::ConfigError(
-          "[AnalyzerCore::BookHist] output path conflicts with tree '" +
-          treeName + "'");
-  }
-}
-
-template void AnalyzerCore::SetBranch_Vector<int>(const TString &,
-                                                  const TString &,
-                                                  std::vector<int> &);
-template void AnalyzerCore::SetBranch_Vector<float>(const TString &,
-                                                    const TString &,
-                                                    std::vector<float> &);
-template void AnalyzerCore::SetBranch_Vector<double>(const TString &,
-                                                     const TString &,
-                                                     std::vector<double> &);
-template void AnalyzerCore::SetBranch_Vector<bool>(const TString &,
-                                                   const TString &,
-                                                   std::vector<bool> &);
-
-void AnalyzerCore::FillTrees(const TString &treename) {
-  if (treename == "") {
-    for (const auto &pair : treemap) {
-      const string &treename = pair.first;
-      TTree *tree = pair.second;
-      tree->Fill();
-    }
-  } else {
-    // Convert treeName to std::string for comparison
-    std::string treeNameStr(treename.Data());
-
-    auto it = treemap.find(treeNameStr);
-    if (it != treemap.end()) {
-      // Tree with the given name exists, fill it
-      TTree *tree = it->second;
-      tree->Fill();
-    } else {
-      // Handle the case where the treeName is not found in the map
-      throw std::runtime_error("[AnalyzerCore::FillTrees] Tree with name '" +
-                               treeNameStr + "' not found in treemap.");
-    }
+          "[AnalyzerCore::BookHist] output path conflicts with RNTuple '" +
+          ntupleName + "'");
   }
 }
 
 void AnalyzerCore::WriteHist() {
+  if (outputFinalized_)
+    throw SKNano::LogicError(
+        "[AnalyzerCore::WriteHist] output was already finalized");
+  if (!outfile || !outfile->IsOpen())
+    throw SKNano::LogicError(
+        "[AnalyzerCore::WriteHist] output file is not configured");
   const int compression_level = 4;
   const int compression_algorithm = ROOT::RCompressionSetting::EAlgorithm::kLZ4;
   cout << "[AnalyzerCore::WriteHist] Writing histograms to "
@@ -393,6 +555,7 @@ void AnalyzerCore::WriteHist() {
        << compression_level << endl;
   outfile->SetCompressionAlgorithm(compression_algorithm);
   outfile->SetCompressionLevel(compression_level);
+  FinalizeRNTuples();
   std::vector<std::pair<std::string, TH1 *>> sorted_histograms1d(
       histmap1d.begin(), histmap1d.end());
   std::vector<std::pair<std::string, TH2 *>> sorted_histograms2d(
@@ -474,25 +637,71 @@ void AnalyzerCore::WriteHist() {
     outfile->cd(this_prefix.c_str());
     hist->Write(this_name.c_str());
   }
-  for (const auto &pair : treemap) {
-    const string &treename = pair.first;
-    cout << "[AnalyzerCore::WriteHist] Writing tree: " << treename << endl;
-    TTree *tree = pair.second;
-
-    size_t last_slash = treename.find_last_of('/');
-    string this_prefix, this_name;
-    last_slash == string::npos ? this_prefix = ""
-                               : this_prefix = treename.substr(0, last_slash);
-    last_slash == string::npos ? this_name = treename
-                               : this_name = treename.substr(last_slash + 1);
-
-    TDirectory *this_dir = outfile->GetDirectory(this_prefix.c_str());
-    if (!this_dir)
-      outfile->mkdir(this_prefix.c_str());
-    outfile->cd(this_prefix.c_str());
-    tree->Write(this_name.c_str());
-    delete tree;
-  }
   cout << "[AnalyzerCore::WriteHist] Writing histograms done" << endl;
   outfile->Close();
+
+  if (!selectedInputOutputName_.empty()) {
+    auto selectedEntries =
+        std::make_shared<const std::vector<Long64_t>>(selectedInputEntries_);
+    ROOT::RDataFrame input(inputDatasetName, inputFiles);
+    auto selected = input.Filter(
+        [selectedEntries](ULong64_t entry) {
+          return std::binary_search(selectedEntries->begin(),
+                                    selectedEntries->end(),
+                                    static_cast<Long64_t>(entry));
+        },
+        {"rdfentry_"});
+    auto columns = input.GetColumnNames();
+    columns.erase(std::remove_if(columns.begin(), columns.end(),
+                                 [](const std::string &name) {
+                                   return !name.empty() && name.front() == '#';
+                                 }),
+                  columns.end());
+
+    ROOT::RDF::RSnapshotOptions options;
+    options.fMode = "UPDATE";
+    options.fOutputFormat = ROOT::RDF::ESnapshotOutputFormat::kRNTuple;
+    options.fCompressionAlgorithm =
+        ROOT::RCompressionSetting::EAlgorithm::kLZ4;
+    options.fCompressionLevel = 4;
+    options.fApproxZippedClusterSize = 64U * 1024U * 1024U;
+    options.fMaxUnzippedClusterSize = 256U * 1024U * 1024U;
+    options.fEnablePageChecksums = true;
+    selected.Snapshot(selectedInputOutputName_, outputPartialPath_, columns,
+                      options);
+  }
+
+  {
+    std::unique_ptr<TFile> validation(
+        TFile::Open(outputPartialPath_.c_str(), "READ"));
+    if (!validation || validation->IsZombie())
+      throw SKNano::LogicError(
+          "[AnalyzerCore::WriteHist] cannot reopen partial output '" +
+          outputPartialPath_ + "'");
+    for (const auto &[name, output] : rntupleOutputs_) {
+      if (output->fields.empty())
+        continue;
+      auto reader = ROOT::RNTupleReader::Open(name, outputPartialPath_);
+      if (reader->GetNEntries() != output->entries)
+        throw SKNano::LogicError(
+            "[AnalyzerCore::WriteHist] RNTuple entry validation failed for '" +
+            name + "'");
+    }
+    if (!selectedInputOutputName_.empty()) {
+      auto reader = ROOT::RNTupleReader::Open(selectedInputOutputName_,
+                                              outputPartialPath_);
+      if (reader->GetNEntries() != selectedInputEntries_.size())
+        throw SKNano::LogicError(
+            "[AnalyzerCore::WriteHist] skim entry validation failed for '" +
+            selectedInputOutputName_ + "'");
+    }
+  }
+
+  if (std::rename(outputPartialPath_.c_str(), outputFinalPath_.c_str()) != 0)
+    throw SKNano::LogicError(
+        "[AnalyzerCore::WriteHist] cannot publish output '" +
+        outputFinalPath_ + "': " + std::strerror(errno));
+  outputFinalized_ = true;
+  cout << "[AnalyzerCore::WriteHist] Published output to " << outputFinalPath_
+       << endl;
 }

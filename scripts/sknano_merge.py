@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""Validated, atomic merger for SKNano ROOT/RNTuple output shards."""
+
+from __future__ import annotations
+
+import argparse
+import math
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+from typing import NamedTuple
+
+
+class Dataset(NamedTuple):
+    entries: int
+    schema: tuple[tuple[str, str], ...]
+
+
+class Histogram(NamedTuple):
+    class_name: str
+    dimension: int
+    cells: int
+    entries: float
+
+
+def _root_module():
+    try:
+        import ROOT  # type: ignore
+    except ImportError as error:
+        raise RuntimeError("PyROOT is required to validate merge inputs") from error
+    ROOT.gROOT.SetBatch(True)
+    return ROOT
+
+
+def _rntuple_names(root, file_path: Path) -> list[str]:
+    root_file = root.TFile.Open(str(file_path), "READ")
+    if not root_file or root_file.IsZombie() or root_file.TestBit(root.TFile.kRecovered):
+        raise RuntimeError(f"invalid or recovered ROOT file: {file_path}")
+    names: list[str] = []
+
+    def visit(directory, prefix: str = "") -> None:
+        for key in directory.GetListOfKeys():
+            name = str(key.GetName())
+            path = f"{prefix}/{name}" if prefix else name
+            class_name = str(key.GetClassName())
+            if "RNTuple" in class_name:
+                names.append(path)
+                continue
+            klass = root.TClass.GetClass(class_name)
+            if klass and klass.InheritsFrom(root.TDirectory.Class()):
+                child = directory.GetDirectory(name)
+                if child:
+                    visit(child, path)
+
+    visit(root_file)
+    root_file.Close()
+    return sorted(names)
+
+
+def inspect_file(root, file_path: Path) -> dict[str, Dataset]:
+    result: dict[str, Dataset] = {}
+    for name in _rntuple_names(root, file_path):
+        reader = root.RNTupleReader.Open(name, str(file_path))
+        descriptor = reader.GetDescriptor()
+        schema = []
+        def add_field(field) -> None:
+            field_id = field.GetId()
+            schema.append(
+                (str(descriptor.GetQualifiedFieldName(field_id)),
+                 str(field.GetTypeName()))
+            )
+            for child in descriptor.GetFieldIterable(field):
+                add_field(child)
+
+        for field in descriptor.GetTopLevelFields():
+            add_field(field)
+        result[name] = Dataset(int(reader.GetNEntries()), tuple(sorted(schema)))
+    return result
+
+
+def inspect_histograms(root, file_path: Path) -> dict[str, Histogram]:
+    root_file = root.TFile.Open(str(file_path), "READ")
+    if not root_file or root_file.IsZombie() or root_file.TestBit(root.TFile.kRecovered):
+        raise RuntimeError(f"invalid or recovered ROOT file: {file_path}")
+    result: dict[str, Histogram] = {}
+
+    def visit(directory, prefix: str = "") -> None:
+        for key in directory.GetListOfKeys():
+            name = str(key.GetName())
+            path = f"{prefix}/{name}" if prefix else name
+            class_name = str(key.GetClassName())
+            klass = root.TClass.GetClass(class_name)
+            if klass and klass.InheritsFrom(root.TDirectory.Class()):
+                child = directory.GetDirectory(name)
+                if child:
+                    visit(child, path)
+                continue
+            if not klass or not klass.InheritsFrom(root.TH1.Class()):
+                continue
+            histogram = key.ReadObj()
+            if not histogram or not histogram.InheritsFrom(root.TH1.Class()):
+                raise RuntimeError(
+                    f"cannot read histogram {path} from {file_path}"
+                )
+            result[path] = Histogram(
+                class_name,
+                int(histogram.GetDimension()),
+                int(histogram.GetNcells()),
+                float(histogram.GetEntries()),
+            )
+
+    visit(root_file)
+    root_file.Close()
+    return result
+
+
+def validate_inputs(
+    root, inputs: list[Path]
+) -> tuple[
+    dict[str, tuple[tuple[str, str], ...]],
+    dict[str, int],
+    dict[str, tuple[str, int, int]],
+    dict[str, float],
+]:
+    reference: dict[str, tuple[tuple[str, str], ...]] | None = None
+    histogram_reference: dict[str, tuple[str, int, int]] | None = None
+    totals: dict[str, int] = {}
+    histogram_totals: dict[str, float] = {}
+    for path in inputs:
+        datasets = inspect_file(root, path)
+        schemas = {name: data.schema for name, data in datasets.items()}
+        if reference is None:
+            reference = {}
+        changed = sorted(
+            name for name in set(reference) & set(schemas)
+            if reference[name] != schemas[name]
+        )
+        if changed:
+            raise RuntimeError(
+                f"RNTuple schema mismatch in {path}: "
+                f"changed={changed}"
+            )
+        reference.update(schemas)
+        for name, data in datasets.items():
+            totals[name] = totals.get(name, 0) + data.entries
+
+        histograms = inspect_histograms(root, path)
+        histogram_schemas = {
+            name: (hist.class_name, hist.dimension, hist.cells)
+            for name, hist in histograms.items()
+        }
+        if histogram_reference is None:
+            histogram_reference = {}
+        changed = sorted(
+            name
+            for name in set(histogram_reference) & set(histogram_schemas)
+            if histogram_reference[name] != histogram_schemas[name]
+        )
+        if changed:
+            raise RuntimeError(
+                f"histogram schema mismatch in {path}: "
+                f"changed={changed}"
+            )
+        histogram_reference.update(histogram_schemas)
+        for name, histogram in histograms.items():
+            histogram_totals[name] = (
+                histogram_totals.get(name, 0.0) + histogram.entries
+            )
+    return reference or {}, totals, histogram_reference or {}, histogram_totals
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--jobs", type=int, default=min(8, os.cpu_count() or 1))
+    parser.add_argument(
+        "--temp-dir",
+        type=Path,
+        help="directory for hadd parallel partials (default: output directory)",
+    )
+    parser.add_argument("--delete-inputs", action="store_true")
+    parser.add_argument("inputs", nargs="+", type=Path)
+    args = parser.parse_args()
+
+    if args.jobs < 1:
+        parser.error("--jobs must be positive")
+    inputs = [path.resolve() for path in args.inputs]
+    if len(set(inputs)) != len(inputs):
+        parser.error("duplicate input paths are not allowed")
+    output = args.output.resolve()
+    if output in inputs:
+        parser.error("output must not also be an input")
+    for path in inputs:
+        if not path.is_file():
+            parser.error(f"input does not exist: {path}")
+
+    root = _root_module()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temp_parent = (args.temp_dir or output.parent).resolve()
+    temp_parent.mkdir(parents=True, exist_ok=True)
+    if args.jobs > 1:
+        input_bytes = sum(path.stat().st_size for path in inputs)
+        # Parallel hadd keeps its worker partials while assembling the final
+        # partial, so both generations can coexist on this filesystem.
+        required = 2 * input_bytes
+        available = shutil.disk_usage(temp_parent).free
+        if available < required:
+            raise RuntimeError(
+                f"parallel merge temporary directory {temp_parent} has "
+                f"{available} bytes free but needs about {required} bytes "
+                f"for {input_bytes} bytes of input shards"
+            )
+
+    schemas, totals, histogram_schemas, histogram_totals = validate_inputs(
+        root, inputs
+    )
+    partial = output.with_name(f".{output.name}.partial.{os.getpid()}")
+    if partial.exists():
+        partial.unlink()
+
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=f".{output.name}.hadd.", dir=temp_parent
+        ) as merge_temp:
+            command = ["hadd", "-fk404", "-j", str(args.jobs), str(partial)]
+            command.extend(str(path) for path in inputs)
+            environment = os.environ.copy()
+            environment["TMPDIR"] = merge_temp
+            subprocess.run(command, check=True, env=environment)
+        merged = inspect_file(root, partial)
+        if {name: data.schema for name, data in merged.items()} != schemas:
+            raise RuntimeError("merged RNTuple schema differs from the inputs")
+        merged_counts = {name: data.entries for name, data in merged.items()}
+        if merged_counts != totals:
+            raise RuntimeError(
+                f"merged RNTuple entry counts differ: expected={totals}, "
+                f"actual={merged_counts}"
+            )
+        merged_histograms = inspect_histograms(root, partial)
+        merged_histogram_schemas = {
+            name: (hist.class_name, hist.dimension, hist.cells)
+            for name, hist in merged_histograms.items()
+        }
+        if merged_histogram_schemas != histogram_schemas:
+            raise RuntimeError("merged histogram schema differs from the inputs")
+        for name, expected_entries in histogram_totals.items():
+            actual_entries = merged_histograms[name].entries
+            if not math.isclose(
+                actual_entries, expected_entries, rel_tol=1.0e-12, abs_tol=1.0e-9
+            ):
+                raise RuntimeError(
+                    f"merged histogram entry count differs for {name}: "
+                    f"expected={expected_entries}, actual={actual_entries}"
+                )
+        check_file = root.TFile.Open(str(partial), "READ")
+        if not check_file or check_file.IsZombie():
+            raise RuntimeError("merged ROOT file cannot be reopened")
+        compression = int(check_file.GetCompressionSettings())
+        check_file.Close()
+        if compression != 404:
+            raise RuntimeError(
+                f"merged file compression is {compression}, expected LZ4 level 4 (404)"
+            )
+        os.replace(partial, output)
+    except Exception:
+        if partial.exists():
+            partial.unlink()
+        raise
+
+    if args.delete_inputs:
+        for path in inputs:
+            path.unlink()
+    print(f"Merged {len(inputs)} shards into {output}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        print(f"sknano-merge: {error}", file=sys.stderr)
+        raise SystemExit(1)

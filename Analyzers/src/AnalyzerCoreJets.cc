@@ -117,12 +117,28 @@ void AnalyzerCore::InitialiseJetSystematics(JetSoA &storage) const {
   storage.jecFactor.assign(n, 1.f);
   storage.correctedPt.assign(n, 0.f);
   storage.correctedMass.assign(n, 0.f);
+  storage.jerResolution.assign(n, 0.f);
+  storage.jerScaleFactorNominal.assign(n, 1.f);
+  storage.jerGaussianSample.assign(n, 0.f);
+  storage.jerMatchedGenPt.assign(n, -1.f);
+  storage.jerMinCorrection.assign(n, 0.f);
   storage.smearedPtNominal.assign(n, 0.f);
-  storage.smearedPtUp.assign(n, 0.f);
-  storage.smearedPtDown.assign(n, 0.f);
   storage.smearedMassNominal.assign(n, 0.f);
-  storage.smearedMassUp.assign(n, 0.f);
-  storage.smearedMassDown.assign(n, 0.f);
+  if (IsDATA) {
+    // Preserve the legacy data-lane shape. JER variations are not meaningful
+    // for data, but existing callers may still inspect the backing vectors.
+    storage.smearedPtUp.assign(n, 0.f);
+    storage.smearedPtDown.assign(n, 0.f);
+    storage.smearedMassUp.assign(n, 0.f);
+    storage.smearedMassDown.assign(n, 0.f);
+  } else {
+    // MC variation lanes are materialized only when a JER up/down projection
+    // is actually requested.
+    storage.smearedPtUp.clear();
+    storage.smearedPtDown.clear();
+    storage.smearedMassUp.clear();
+    storage.smearedMassDown.clear();
+  }
   storage.jesPtUp.assign(n, 0.f);
   storage.jesPtDown.assign(n, 0.f);
   storage.jesMassUp.assign(n, 0.f);
@@ -131,10 +147,16 @@ void AnalyzerCore::InitialiseJetSystematics(JetSoA &storage) const {
   storage.jesVariationSource.clear();
   storage.jesVariationValid = false;
   storage.jesTotalUncertaintyValid = false;
+  storage.jerVariationsReady = IsDATA;
+  storage.jerVariationsComputing = false;
 }
 
 void AnalyzerCore::PopulateJetStorageWithoutCorrections(JetSoA &storage) const {
   const std::size_t n = storage.size();
+  storage.smearedPtUp.assign(n, -999.f);
+  storage.smearedPtDown.assign(n, -999.f);
+  storage.smearedMassUp.assign(n, -999.f);
+  storage.smearedMassDown.assign(n, -999.f);
   for (std::size_t i = 0; i < n; ++i) {
     storage.jecFactor[i] = 1.f;
     storage.correctedPt[i] = -999.f;
@@ -151,6 +173,7 @@ void AnalyzerCore::PopulateJetStorageWithoutCorrections(JetSoA &storage) const {
     storage.jesMassDown[i] = -999.f;
     storage.jesTotalUncertainty[i] = -999.f;
   }
+  storage.jerVariationsReady = true;
 }
 
 void AnalyzerCore::ApplyJetEnergyCorrections(JetSoA &storage, float rho) {
@@ -185,7 +208,7 @@ void AnalyzerCore::ApplyJetEnergyCorrections(JetSoA &storage, float rho) {
   }
 }
 
-std::vector<int>
+const std::vector<int> &
 AnalyzerCore::MatchJetsToGenJets(const JetViewCollection &jets,
                                  const GenJetViewCollection &genjets,
                                  float rho) const {
@@ -194,31 +217,49 @@ AnalyzerCore::MatchJetsToGenJets(const JetViewCollection &jets,
   const std::size_t njet = jetSoAPtr ? jetSoAPtr->size() : 0;
   const std::size_t ngen = genSoAPtr ? genSoAPtr->size() : 0;
 
-  std::vector<int> matchedGenIdx(njet, -999);
-  if (njet == 0 || ngen == 0)
+  auto &matchedGenIdx = jetMatchIndicesScratch;
+  matchedGenIdx.assign(njet, -999);
+  if (njet == 0)
     return matchedGenIdx;
 
-  const JetSoA &jsoa = *jetSoAPtr;
-  const GenJetSoA &gsoa = *genSoAPtr;
+  JetSoA &jsoa = *jetSoAPtr;
   const auto jetPtView = jsoa.pt.snapshot();
   const auto jetEtaView = jsoa.eta.snapshot();
   const auto jetPhiView = jsoa.phi.snapshot();
-  const auto genPtView = gsoa.pt.snapshot();
-  const auto genEtaView = gsoa.eta.snapshot();
-  const auto genPhiView = gsoa.phi.snapshot();
   if (jetPtView.size() != njet || jetEtaView.size() != njet ||
-      jetPhiView.size() != njet || genPtView.size() != ngen ||
-      genEtaView.size() != ngen || genPhiView.size() != ngen)
+      jetPhiView.size() != njet)
     throw SKNano::EventDataError(
         "[MatchJetsToGenJets] inconsistent Jet/GenJet column sizes");
   const float *jetPtInput = jetPtView.data();
   const float *jetEtaInput = jetEtaView.data();
   const float *jetPhiInput = jetPhiView.data();
+
+  // Resolution is needed both by matching and by unmatched-jet smearing.
+  // Cache the first evaluation in the event-owned SoA instead of invoking the
+  // correctionlib AST a second time after matching.
+  for (std::size_t i = 0; i < njet; ++i) {
+    const float pt =
+        jsoa.correctedPt.empty() ? jetPtInput[i] : jsoa.correctedPt[i];
+    if (pt > 0.f)
+      jsoa.jerResolution[i] = myCorr->GetJER(jetEtaInput[i], pt, rho);
+  }
+  if (ngen == 0)
+    return matchedGenIdx;
+
+  const GenJetSoA &gsoa = *genSoAPtr;
+  const auto genPtView = gsoa.pt.snapshot();
+  const auto genEtaView = gsoa.eta.snapshot();
+  const auto genPhiView = gsoa.phi.snapshot();
+  if (genPtView.size() != ngen || genEtaView.size() != ngen ||
+      genPhiView.size() != ngen)
+    throw SKNano::EventDataError(
+        "[MatchJetsToGenJets] inconsistent Jet/GenJet column sizes");
   const float *genPtInput = genPtView.data();
   const float *genEtaInput = genEtaView.data();
   const float *genPhiInput = genPhiView.data();
 
-  std::vector<std::tuple<std::size_t, std::size_t, float, float>> candidates;
+  auto &candidates = jetMatchCandidatesScratch;
+  candidates.clear();
   candidates.reserve(njet * 2);
 
   const float maxDR = 0.2f;
@@ -227,21 +268,13 @@ AnalyzerCore::MatchJetsToGenJets(const JetViewCollection &jets,
   constexpr float pi = 3.14159265358979323846f;
   constexpr float twoPi = 6.28318530717958647692f;
 
-  std::vector<float> jetJerSigma(njet, 0.f);
-  for (std::size_t i = 0; i < njet; ++i) {
-    const float pt =
-        jsoa.correctedPt.empty() ? jetPtInput[i] : jsoa.correctedPt[i];
-    if (pt > 0.f)
-      jetJerSigma[i] = myCorr->GetJER(jetEtaInput[i], pt, rho) * pt;
-  }
-
   // 후보 수집
   for (std::size_t i = 0; i < njet; ++i) {
     const float jetPt =
         jsoa.correctedPt.empty() ? jetPtInput[i] : jsoa.correctedPt[i];
     const float jetEta = jetEtaInput[i];
     const float jetPhi = jetPhiInput[i];
-    const float sigma = jetJerSigma[i];
+    const float sigma = jsoa.jerResolution[i] * jetPt;
     if (jetPt <= 0.f || sigma <= 0.f)
       continue;
 
@@ -277,16 +310,18 @@ AnalyzerCore::MatchJetsToGenJets(const JetViewCollection &jets,
             });
 
   // 1:1 할당
-  std::vector<bool> usedJet(njet, false);
-  std::vector<bool> usedGen(ngen, false);
+  auto &usedJet = jetMatchUsedJetScratch;
+  auto &usedGen = jetMatchUsedGenScratch;
+  usedJet.assign(njet, 0);
+  usedGen.assign(ngen, 0);
   for (const auto &c : candidates) {
     const auto i = std::get<0>(c);
     const auto j = std::get<1>(c);
     if (usedJet[i] || usedGen[j])
       continue;
     matchedGenIdx[i] = static_cast<int>(j);
-    usedJet[i] = true;
-    usedGen[j] = true;
+    usedJet[i] = 1;
+    usedGen[j] = 1;
   }
 
   return matchedGenIdx;
@@ -328,17 +363,17 @@ void AnalyzerCore::ApplyJetSmearingAndUncertainties(
         std::max(energy, MIN_JET_ENERGY);
 
     float smearNom = 1.f;
-    float smearUp = 1.f;
-    float smearDown = 1.f;
 
     if (isMC && correctedPt > 0.f) {
       const int matched = (!matchedGenIdx.empty() && i < matchedGenIdx.size())
                               ? matchedGenIdx[i]
                               : -1;
-      const auto jerSF = myCorr->GetJERSFSet(eta, correctedPt);
+      const float jerSF =
+          myCorr->GetJERSF(eta, correctedPt, MyCorrection::variation::nom);
+      storage.jerScaleFactorNominal[i] = jerSF;
 
       const float jerSigma =
-          (matched < 0) ? myCorr->GetJER(eta, correctedPt, rho) : 0.f;
+          (matched < 0) ? storage.jerResolution[i] : 0.f;
       float gausSample = 0.f;
       if (matched < 0) {
         if (GetRngMode() == SKNano::RngMode::CounterBased) {
@@ -351,11 +386,15 @@ void AnalyzerCore::ApplyJetSmearingAndUncertainties(
           gausSample = gRandom->Gaus(0., jerSigma);
         }
       }
+      storage.jerGaussianSample[i] = gausSample;
+      storage.jerMinCorrection[i] = minCorr;
+      if (matched >= 0 && matched < genjets.size())
+        storage.jerMatchedGenPt[i] = genjets[matched].Pt();
 
       const auto computeCorr = [&](float sf) {
         float corr = 1.f;
-        if (matched >= 0 && matched < genjets.size()) {
-          const float genPt = genjets[matched].Pt();
+        if (storage.jerMatchedGenPt[i] >= 0.f) {
+          const float genPt = storage.jerMatchedGenPt[i];
           const float scale = 1.f - genPt / std::max(correctedPt, 1e-6f);
           corr += (sf - 1.f) * scale;
         } else {
@@ -365,15 +404,58 @@ void AnalyzerCore::ApplyJetSmearingAndUncertainties(
         return std::max(corr, minCorr);
       };
 
-      smearNom = computeCorr(jerSF.nom);
-      smearUp = computeCorr(jerSF.up);
-      smearDown = computeCorr(jerSF.down);
+      smearNom = computeCorr(jerSF);
     }
 
     storage.smearedPtNominal[i] = correctedPt * smearNom;
+    storage.smearedMassNominal[i] = correctedMass * smearNom;
+  }
+}
+
+void AnalyzerCore::PopulateJetJERVariations(
+    const std::shared_ptr<JetSoA> &storagePtr) {
+  auto performancePhase = MeasurePerformancePhase("correction");
+  if (!storagePtr || IsDATA)
+    return;
+
+  JetSoA &storage = *storagePtr;
+  const std::size_t n = storage.size();
+  storage.smearedPtUp.resize(n);
+  storage.smearedPtDown.resize(n);
+  storage.smearedMassUp.resize(n);
+  storage.smearedMassDown.resize(n);
+  const auto etaView = storage.eta.snapshot();
+  if (etaView.size() != n)
+    throw SKNano::EventDataError(
+        "[PopulateJetJERVariations] inconsistent Jet column sizes");
+  const float *etaInput = etaView.data();
+
+  for (std::size_t i = 0; i < n; ++i) {
+    const float correctedPt = storage.correctedPt[i];
+    const float correctedMass = storage.correctedMass[i];
+    float smearUp = 1.f;
+    float smearDown = 1.f;
+    if (correctedPt > 0.f) {
+      const auto variations = myCorr->GetJERSFVariations(
+          etaInput[i], correctedPt, storage.jerScaleFactorNominal[i]);
+      const auto computeCorr = [&](float sf) {
+        float corr = 1.f;
+        if (storage.jerMatchedGenPt[i] >= 0.f) {
+          const float scale =
+              1.f - storage.jerMatchedGenPt[i] /
+                        std::max(correctedPt, 1e-6f);
+          corr += (sf - 1.f) * scale;
+        } else {
+          const float variance = std::max(sf * sf - 1.f, 0.f);
+          corr += storage.jerGaussianSample[i] * std::sqrt(variance);
+        }
+        return std::max(corr, storage.jerMinCorrection[i]);
+      };
+      smearUp = computeCorr(variations.up);
+      smearDown = computeCorr(variations.down);
+    }
     storage.smearedPtUp[i] = correctedPt * smearUp;
     storage.smearedPtDown[i] = correctedPt * smearDown;
-    storage.smearedMassNominal[i] = correctedMass * smearNom;
     storage.smearedMassUp[i] = correctedMass * smearUp;
     storage.smearedMassDown[i] = correctedMass * smearDown;
   }
@@ -534,6 +616,14 @@ JetViewCollection AnalyzerCore::GetAllJetViews() {
           "[GetAllJetViews] expired Jet storage during lazy population");
     PopulateJetNominal(locked);
   };
+  storage->populateJerVariations = [this, weakStorage]() {
+    auto locked = weakStorage.lock();
+    if (!locked)
+      throw SKNano::EventDataError(
+          "[GetAllJetViews] expired Jet storage during JER variation "
+          "materialization");
+    PopulateJetJERVariations(locked);
+  };
 
   cachedJetViews = JetViewCollection(std::move(storage));
   cachedJetViewsEntry = entry;
@@ -607,8 +697,7 @@ void AnalyzerCore::SmearJetViews(const JetViewCollection &jets,
   }
 
   GenJetViewCollection genjetviews = GetAllGenJetViews();
-  std::vector<int> matchedGenIdx;
-  matchedGenIdx = MatchJetsToGenJets(jets, genjetviews, rho);
+  const auto &matchedGenIdx = MatchJetsToGenJets(jets, genjetviews, rho);
   gRandom->SetSeed(static_cast<int>(PuppiMET_pt * 1e6));
 
   ApplyJetSmearingAndUncertainties(jets, matchedGenIdx, genjetviews, true, rho);

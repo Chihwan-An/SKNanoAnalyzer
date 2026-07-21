@@ -42,18 +42,15 @@ Your configuration file should be named as `config/config.$USER`. You can copy t
 - [USER\_CHATID]: Your Chat ID that should be used for the telegram bot. refer to [Setting the telegram bot](#setting-the-telegram-bot)
 - [SINGULARITY\_IMAGE]: Singularity image that you want to use for the batch job. For default setup, Refer to [Singularity Support](#singularity-support) for more information. You can make your own singularity image by following the instructions in this section.
 
-```bash
-
 #### Using conda
 Here is an example to setup the environment using conda.
 ```bash
-# create conda environment
-conda create -n nano python=3.12 root=6.34.04 -c conda-forge
-conda activate nano
+# Solver-based fallback (Linux users should prefer the lock file below).
+conda env create -f docs/Nano.yml
+conda activate Nano
 
-# REQUIRED: Install onnxruntime-cpp / correctionlib / boost-cpp
-# NOTE: Using pip to install dependencies is not recommended. Might cause the confusion while compiling the project.
-conda install onnxruntime-cpp correctionlib boost-cpp
+# ROOT, correctionlib, Abseil, ONNX Runtime, and the compiler toolchain are
+# installed together from docs/Nano.yml to keep their C++ ABI compatible.
 
 # Optional packages
 pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
@@ -72,12 +69,22 @@ Then, you can create the environment using micromamba, just replace `conda` with
 For both `micromamba` and `conda`, Do not install the packages in home directory. It is because home directory cannot be accessed by the worker nodes. Use `/data6/Users/foo` instead.
 
 If you are choose to use `micromamba` set your `[PACKAGE]` as `mamba` in the config file.
-you can copy my environment by use `Nano.yml` under `docs` directory. Just Change the `prefix` to your own directory.
+On Linux x86_64, the explicit lock file is recommended. It reproduces the tested
+ROOT 6.40.02, GCC 13.3, and C++20 package set without re-solving dependencies.
+The local validation environment may be called `Nano640`, but the shared environment
+name must remain `Nano` because `setup.sh` and batch jobs expect that name.
 ```bash
-# @ $SKNANO_HOME/docs
-# After modifying the prefix in Nano.yml (repalce [YOURNAME] in file)
-micromamba env create -f Nano.yml
+# Run from the SKNanoAnalyzer repository root.
+micromamba create -n Nano -f docs/Nano-linux-64.lock
+micromamba activate Nano
 ```
+
+If an exact package URL in the lock has been retired, use the solver-based
+`docs/Nano.yml` as a Linux fallback. macOS has a separate setup below.
+
+Do not upgrade ROOT or Abseil independently in this environment. ROOT 6.40 uses
+C++20 here; mixing it with the older 20220623 Abseil headers causes Cling to load
+the removed `<ciso646>` header and can make every analyzer job crash at startup.
 
 #### Note on using OSX
 MacOS have some limitations on the test, especially if you are testing your machine learning workflows with GPUs. Otherwise, compiling the project and running the analyzers should be fine.
@@ -171,13 +178,19 @@ It would be run automatically for the first time setup.
 2. use lhapdf from cvmfs
 
 #### About correctionlibs
-In the config/config.$USER file, there is an option to choose bewteen conda and cvmfs. When configuring your environment with conda, at least ROOT and correctionlibs should be installed:
+The config file can select conda or CVMFS corrections. For conda-based builds,
+install ROOT, correctionlib, Abseil, ONNX Runtime, and the compiler toolchain
+together so their C++ ABIs remain compatible. The supported Linux setup is the
+repository environment described above:
+
 ```bash
-# example
-conda env create -n nano python=3.12 root=6.32.02 -c conda-forge
-conda activate nano
-conda install -c conda-forge correctionlib
+micromamba create -n Nano -f docs/Nano-linux-64.lock
+# Solver-based fallback:
+# micromamba env create -f docs/Nano.yml
 ```
+
+Do not install or upgrade ROOT and correctionlib independently in this
+environment.
 
 
 #### Check modules
@@ -280,3 +293,14 @@ Then you can parse your chat ID as
 ```json
 "from":{"id":YOUR_CHAT_ID...
 ```
+
+When both values are configured, `SKNano.py` sends an English submission summary
+containing the analyzer, eras, number of jobs, cluster ID, Git revision, and master
+directory. The DAG final node sends an English completion report with elapsed time,
+output counts, failed nodes, common failure signatures, scheduler hold/eviction and
+memory observations, and the rescue command when a retry is needed.
+
+Telegram delivery is best-effort: a missing credential, timeout, or Telegram API
+failure is written to the reporter log and never changes the analysis result. Bot
+credentials are read from the personal config and are not embedded in generated DAG
+scripts. Keep `config/config.$USER` readable only by your account.

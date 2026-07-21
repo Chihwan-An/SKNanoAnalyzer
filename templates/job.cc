@@ -3,8 +3,10 @@
 
 void [jobname]() {
     [analyzer] module;
+    module.SetInputFormat("[input_format]");
     module.SetTreeName("Events");
     module.SetAnalyzerName("[analyzer]");
+    module.SetOutputThreads([ncpu]);
     module.LogEvery = 5000;
     module.IsDATA = false;
     module.MCSample = "[sample]";

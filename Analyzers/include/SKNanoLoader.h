@@ -5,10 +5,12 @@
 #include <iostream>
 #include <cstdint>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 using namespace std;
 
 #include "TROOT.h"
@@ -40,12 +42,21 @@ using namespace ROOT::VecOps;
 class SKNanoLoader : public SKNano::TriggerDecisionProvider
 {
 public:
+    enum class InputFormat { Auto, TTree, RNTuple };
+
     SKNanoLoader();
     virtual ~SKNanoLoader() = default;
 
     // virtual long GetEntry(long entry);
-    virtual void SetTreeName(TString tname) { fChain = new TChain(tname); }
-    virtual int AddFile(TString filename) { return fChain->Add(filename, -1); }
+    virtual void SetTreeName(TString tname);
+    virtual int AddFile(TString filename);
+    void SetInputFormat(InputFormat format);
+    void SetInputFormat(const std::string &format);
+    InputFormat GetInputFormat() const noexcept { return inputFormat; }
+    bool IsRNTupleInput() const noexcept {
+        return inputFormat == InputFormat::RNTuple;
+    }
+    Long64_t GetInputEntries();
     void RegisterBranches();
     void ResetBranchStates();
 
@@ -178,6 +189,8 @@ public:
     mutable Long64_t triggerDecisionCacheEntry = -1;
     Long64_t currentEntry = -1;
     Long64_t currentLocalEntry = -1;
+    Long64_t currentTreeGlobalBegin = -1;
+    Long64_t currentTreeGlobalEnd = -1;
     std::uint64_t eventEpoch = 0;
     int currentTreeNumber = -1;
     std::string analyzerName = "SKNanoLoader";
@@ -195,6 +208,21 @@ public:
     std::size_t eventBlockMaximumEvents = 256;
     std::unique_ptr<SKNano::EventArena> eventArena; //!
 
+    InputFormat inputFormat = InputFormat::RNTuple;
+    std::string inputDatasetName = "Events";
+    std::vector<std::string> inputFiles;
+    struct RNTupleFileRange {
+        std::string fileName;
+        Long64_t begin = 0;
+        Long64_t end = 0;
+    };
+    std::vector<RNTupleFileRange> rntupleFileRanges; //!
+    std::unique_ptr<SKNano::RNTupleSource> rntupleSource; //!
+    std::size_t currentRNTupleFileIndex =
+        std::numeric_limits<std::size_t>::max();
+    Long64_t rntupleTotalEntries = -1;
+    bool rntupleClusterCache = true;
+
     // A larger default cache and longer learn phase help steady throughput
     // across file boundaries.
     Long64_t treeCacheSizeBytes = 200LL * 1024 * 1024; // 200 MB default cache
@@ -204,8 +232,11 @@ public:
     int treeCacheLearnEntries = 100;                   // learn quickly for short jobs
     bool enableTreePrefetching = true;
     static constexpr Long64_t CACHE_PREFETCH_WARMUP_EVENTS = 100;
+    static constexpr Long64_t CACHE_PREFETCH_RETUNE_INTERVAL_EVENTS = 1000;
     bool cachePrefetchConfigured = false;
+    bool cachePrefetchRetunePending = false;
     Long64_t cachePrefetchWarmupEntries = 0;
+    Long64_t cacheLastTuneEntry = -1;
     Long64_t performanceStartBytesRead = 0;
     int performanceStartReadCalls = 0;
     Long64_t performanceEventsProcessed = 0;
@@ -226,6 +257,15 @@ protected:
             "[SKNanoLoader] EventBlock execute hook is not implemented");
     }
     void LoopEventBlocks();
+    // Advance sequentially inside the current concrete tree without paying
+    // TChain::LoadTree() for every event.  Returns false at end of input.
+    bool PrepareEntry(Long64_t globalEntry);
+    bool PrepareRNTupleEntry(Long64_t globalEntry);
+    void PrepareRNTupleFiles();
+    void OpenRNTupleFile(std::size_t index);
+    InputFormat DetectInputFormat(const std::string &fileName) const;
+    void ValidateExecutionPlanRNTuple() const;
+    void UpdateTreeCacheForCurrentEntry();
     void configureTreeCache(TTree *tree, bool resetCache = false);
     void AddActivatedBranchToCache(const std::string &name);
     SKNano::FailureContext BuildFailureContext() const;

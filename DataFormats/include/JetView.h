@@ -15,8 +15,11 @@
 
 struct JetSoA {
     std::function<void()> populateNominal;
+    std::function<void()> populateJerVariations;
     mutable bool nominalReady = false;
     mutable bool nominalComputing = false;
+    mutable bool jerVariationsReady = false;
+    mutable bool jerVariationsComputing = false;
 
     ColumnView<float> pt;
     ColumnView<float> eta;
@@ -81,6 +84,11 @@ struct JetSoA {
     std::vector<float> jecFactor;
     std::vector<float> correctedPt;
     std::vector<float> correctedMass;
+    std::vector<float> jerResolution;
+    std::vector<float> jerScaleFactorNominal;
+    std::vector<float> jerGaussianSample;
+    std::vector<float> jerMatchedGenPt;
+    std::vector<float> jerMinCorrection;
     std::vector<float> smearedPtNominal;
     std::vector<float> smearedPtUp;
     std::vector<float> smearedPtDown;
@@ -116,6 +124,25 @@ struct JetSoA {
             nominalComputing = false;
         } catch (...) {
             nominalComputing = false;
+            throw;
+        }
+    }
+
+    void ensureJerVariations() const {
+        ensureNominal();
+        if (jerVariationsReady)
+            return;
+        if (jerVariationsComputing)
+            throw std::logic_error("recursive Jet JER variation materialization");
+        if (!populateJerVariations)
+            return;
+        jerVariationsComputing = true;
+        try {
+            populateJerVariations();
+            jerVariationsReady = true;
+            jerVariationsComputing = false;
+        } catch (...) {
+            jerVariationsComputing = false;
             throw;
         }
     }
@@ -234,11 +261,11 @@ public:
     float CorrectedPt() const { ensureNominal(); return idx < store->correctedPt.size() ? store->correctedPt[idx] : Pt(); }
     float CorrectedMass() const { ensureNominal(); return idx < store->correctedMass.size() ? store->correctedMass[idx] : Mass(); }
     float SmearedPtNominal() const { ensureNominal(); return idx < store->smearedPtNominal.size() ? store->smearedPtNominal[idx] : Pt(); }
-    float SmearedPtUp() const { ensureNominal(); return idx < store->smearedPtUp.size() ? store->smearedPtUp[idx] : Pt(); }
-    float SmearedPtDown() const { ensureNominal(); return idx < store->smearedPtDown.size() ? store->smearedPtDown[idx] : Pt(); }
+    float SmearedPtUp() const { ensureJerVariations(); return idx < store->smearedPtUp.size() ? store->smearedPtUp[idx] : Pt(); }
+    float SmearedPtDown() const { ensureJerVariations(); return idx < store->smearedPtDown.size() ? store->smearedPtDown[idx] : Pt(); }
     float SmearedMassNominal() const { ensureNominal(); return idx < store->smearedMassNominal.size() ? store->smearedMassNominal[idx] : Mass(); }
-    float SmearedMassUp() const { ensureNominal(); return idx < store->smearedMassUp.size() ? store->smearedMassUp[idx] : Mass(); }
-    float SmearedMassDown() const { ensureNominal(); return idx < store->smearedMassDown.size() ? store->smearedMassDown[idx] : Mass(); }
+    float SmearedMassUp() const { ensureJerVariations(); return idx < store->smearedMassUp.size() ? store->smearedMassUp[idx] : Mass(); }
+    float SmearedMassDown() const { ensureJerVariations(); return idx < store->smearedMassDown.size() ? store->smearedMassDown[idx] : Mass(); }
     float JesPtUp() const { ensureNominal(); return idx < store->jesPtUp.size() ? store->jesPtUp[idx] : SmearedPtNominal(); }
     float JesPtDown() const { ensureNominal(); return idx < store->jesPtDown.size() ? store->jesPtDown[idx] : SmearedPtNominal(); }
     float JesMassUp() const { ensureNominal(); return idx < store->jesMassUp.size() ? store->jesMassUp[idx] : SmearedMassNominal(); }
@@ -263,6 +290,10 @@ private:
     void ensureNominal() const {
         assertCurrentEvent();
         store->ensureNominal();
+    }
+    void ensureJerVariations() const {
+        assertCurrentEvent();
+        store->ensureJerVariations();
     }
     const JetSoA *store = nullptr;
     std::size_t idx = 0;

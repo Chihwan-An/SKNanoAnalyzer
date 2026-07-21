@@ -4,6 +4,7 @@ compile_commands.json
 test/*
 test.root
 LocalRuns/**
+RNTupleFiles/**
 external/lhapdf/*
 external/libtorch/*
 config/config.*

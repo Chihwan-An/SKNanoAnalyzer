@@ -4,7 +4,9 @@
 #include "TLeaf.h"
 #include "TObjArray.h"
 #include "TIterator.h"
+#include "TKey.h"
 #include <algorithm>
+#include <cctype>
 #include <exception>
 #include <iomanip>
 using json = nlohmann::json;
@@ -51,6 +53,161 @@ SKNanoLoader::SKNanoLoader()
         [this](const std::string &name) { AddActivatedBranchToCache(name); });
 }
 
+void SKNanoLoader::SetInputFormat(InputFormat format)
+{
+    if (!inputFiles.empty() && format != inputFormat)
+        throw SKNano::ConfigError(
+            "[SKNanoLoader] input format must be selected before AddFile()");
+    inputFormat = format;
+}
+
+void SKNanoLoader::SetInputFormat(const std::string &format)
+{
+    std::string normalized = format;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (normalized == "auto")
+        SetInputFormat(InputFormat::Auto);
+    else if (normalized == "ttree" || normalized == "tree")
+        SetInputFormat(InputFormat::TTree);
+    else if (normalized == "rntuple" || normalized == "ntuple")
+        SetInputFormat(InputFormat::RNTuple);
+    else
+        throw SKNano::ConfigError(
+            "[SKNanoLoader] input format must be auto, ttree, or rntuple");
+}
+
+void SKNanoLoader::SetTreeName(TString name)
+{
+    if (!inputFiles.empty())
+        throw SKNano::ConfigError(
+            "[SKNanoLoader] SetTreeName() must precede AddFile()");
+    inputDatasetName = name.Data();
+    if (fChain) {
+        delete fChain;
+        fChain = nullptr;
+    }
+    if (inputFormat == InputFormat::TTree)
+        fChain = new TChain(inputDatasetName.c_str());
+}
+
+SKNanoLoader::InputFormat
+SKNanoLoader::DetectInputFormat(const std::string &fileName) const
+{
+    std::unique_ptr<TFile> file(TFile::Open(fileName.c_str(), "READ"));
+    if (!file || file->IsZombie())
+        throw SKNano::ConfigError(
+            "[SKNanoLoader] cannot inspect input file " + fileName);
+    TKey *key = file->GetKey(inputDatasetName.c_str());
+    if (!key)
+        throw SKNano::ConfigError(
+            "[SKNanoLoader] input dataset '" + inputDatasetName +
+            "' is missing in " + fileName);
+    const std::string className = key->GetClassName();
+    if (className == "ROOT::RNTuple" || className == "RNTuple")
+        return InputFormat::RNTuple;
+    if (className == "TTree" || className == "TNtuple")
+        return InputFormat::TTree;
+    throw SKNano::ConfigError(
+        "[SKNanoLoader] unsupported input object type " + className +
+        " for '" + inputDatasetName + "' in " + fileName);
+}
+
+int SKNanoLoader::AddFile(TString filename)
+{
+    const std::string path = filename.Data();
+    if (path.empty())
+        return 0;
+    if (inputFormat == InputFormat::Auto)
+        inputFormat = DetectInputFormat(path);
+    inputFiles.push_back(path);
+    rntupleFileRanges.clear();
+    rntupleTotalEntries = -1;
+    if (inputFormat == InputFormat::RNTuple)
+        return 1;
+    if (!fChain)
+        fChain = new TChain(inputDatasetName.c_str());
+    const int added = fChain->Add(filename, -1);
+    if (added == 0)
+        inputFiles.pop_back();
+    return added;
+}
+
+void SKNanoLoader::PrepareRNTupleFiles()
+{
+    if (!IsRNTupleInput() || rntupleTotalEntries >= 0)
+        return;
+    rntupleFileRanges.clear();
+    Long64_t offset = 0;
+    for (const auto &fileName : inputFiles) {
+        SKNano::RNTupleSource probe;
+        probe.open(inputDatasetName, fileName, false, false);
+        const auto entries = probe.entries();
+        if (entries > static_cast<std::uint64_t>(
+                          std::numeric_limits<Long64_t>::max() - offset))
+            throw SKNano::ConfigError(
+                "[SKNanoLoader] RNTuple chain entry count overflows Long64_t");
+        const Long64_t end = offset + static_cast<Long64_t>(entries);
+        rntupleFileRanges.push_back({fileName, offset, end});
+        offset = end;
+    }
+    rntupleTotalEntries = offset;
+}
+
+Long64_t SKNanoLoader::GetInputEntries()
+{
+    if (IsRNTupleInput()) {
+        PrepareRNTupleFiles();
+        return rntupleTotalEntries;
+    }
+    return fChain ? fChain->GetEntries() : 0;
+}
+
+void SKNanoLoader::OpenRNTupleFile(std::size_t index)
+{
+    if (index >= rntupleFileRanges.size())
+        throw SKNano::LogicError("[SKNanoLoader] invalid RNTuple file index");
+    auto next = std::make_unique<SKNano::RNTupleSource>();
+    next->open(inputDatasetName, rntupleFileRanges[index].fileName,
+               performanceTelemetry.enabled(), rntupleClusterCache);
+    // attachRNTuple clears views into the previous reader before the old
+    // RNTupleSource is destroyed by the unique_ptr move below.
+    branchManager.attachRNTuple(next.get());
+    rntupleSource = std::move(next);
+    currentRNTupleFileIndex = index;
+    currentTreeNumber = static_cast<int>(index);
+    currentTreeGlobalBegin = rntupleFileRanges[index].begin;
+    currentTreeGlobalEnd = rntupleFileRanges[index].end;
+    ResetBranchStates();
+    ValidateExecutionPlanRNTuple();
+    performanceTelemetry.addCounter("rntuple_file_opens");
+}
+
+bool SKNanoLoader::PrepareRNTupleEntry(Long64_t globalEntry)
+{
+    PrepareRNTupleFiles();
+    if (globalEntry < 0 || globalEntry >= rntupleTotalEntries)
+        return false;
+    if (currentRNTupleFileIndex >= rntupleFileRanges.size() ||
+        globalEntry < currentTreeGlobalBegin ||
+        globalEntry >= currentTreeGlobalEnd) {
+        const auto it = std::upper_bound(
+            rntupleFileRanges.begin(), rntupleFileRanges.end(), globalEntry,
+            [](Long64_t entry, const RNTupleFileRange &range) {
+                return entry < range.end;
+            });
+        if (it == rntupleFileRanges.end())
+            return false;
+        OpenRNTupleFile(static_cast<std::size_t>(
+            std::distance(rntupleFileRanges.begin(), it)));
+    }
+    currentEntry = globalEntry;
+    currentLocalEntry = globalEntry - currentTreeGlobalBegin;
+    ++eventEpoch;
+    performanceTelemetry.addCounter("rntuple_local_entry_advances");
+    return true;
+}
+
 void SKNanoLoader::AddActivatedBranchToCache(const std::string &name)
 {
     if (!cachePrefetchConfigured || !enableTreePrefetching || !fChain)
@@ -60,11 +217,67 @@ void SKNanoLoader::AddActivatedBranchToCache(const std::string &name)
     if (!tree || !tree->GetBranch(name.c_str()))
         return;
     tree->AddBranchToCache(name.c_str(), true);
+    cachePrefetchRetunePending = true;
     if (auto *file = tree->GetCurrentFile())
     {
         if (auto *cache = tree->GetReadCache(file, false))
             cache->StopLearningPhase();
     }
+}
+
+void SKNanoLoader::UpdateTreeCacheForCurrentEntry()
+{
+    if (!enableTreePrefetching || !fChain)
+        return;
+
+    if (!cachePrefetchConfigured) {
+        if (cachePrefetchWarmupEntries < CACHE_PREFETCH_WARMUP_EVENTS)
+            return;
+        configureTreeCache(fChain, true);
+        cachePrefetchConfigured = true;
+        return;
+    }
+
+    if (cachePrefetchRetunePending && cacheLastTuneEntry >= 0 &&
+        currentEntry - cacheLastTuneEntry >=
+            CACHE_PREFETCH_RETUNE_INTERVAL_EVENTS)
+        configureTreeCache(fChain, false);
+}
+
+bool SKNanoLoader::PrepareEntry(Long64_t globalEntry)
+{
+    if (IsRNTupleInput())
+        return PrepareRNTupleEntry(globalEntry);
+    if (!fChain)
+        return false;
+
+    const bool needsTreeLoad = currentTreeGlobalBegin < 0 ||
+        globalEntry < currentTreeGlobalBegin ||
+        globalEntry >= currentTreeGlobalEnd;
+
+    if (needsTreeLoad) {
+        performanceTelemetry.addCounter("tree_load_calls");
+        const Long64_t localEntry = fChain->LoadTree(globalEntry);
+        if (localEntry < 0)
+            return false;
+
+        TTree *tree = fChain->GetTree();
+        if (!tree)
+            return false;
+
+        currentTreeGlobalBegin = globalEntry - localEntry;
+        currentTreeGlobalEnd = currentTreeGlobalBegin + tree->GetEntries();
+        if (currentTreeGlobalEnd <= globalEntry)
+            return false;
+        currentLocalEntry = localEntry;
+    } else {
+        performanceTelemetry.addCounter("tree_local_entry_advances");
+        currentLocalEntry = globalEntry - currentTreeGlobalBegin;
+    }
+
+    currentEntry = globalEntry;
+    ++eventEpoch;
+    return true;
 }
 
 void SKNanoLoader::configureTreeCache(TTree *tree, bool resetCache)
@@ -119,6 +332,7 @@ void SKNanoLoader::configureTreeCache(TTree *tree, bool resetCache)
     if (effectiveTreeCacheSizeBytes <= 0)
     {
         tree->SetCacheSize(0);
+        cachePrefetchRetunePending = false;
         return;
     }
 
@@ -169,6 +383,9 @@ void SKNanoLoader::configureTreeCache(TTree *tree, bool resetCache)
                 cache->StopLearningPhase();
         }
     }
+    cachePrefetchRetunePending = false;
+    cacheLastTuneEntry = currentEntry;
+    performanceTelemetry.addCounter("tree_cache_configurations");
 }
 
 void SKNanoLoader::ValidateExecutionPlanTree(TTree *tree) const
@@ -208,6 +425,31 @@ void SKNanoLoader::ValidateExecutionPlanTree(TTree *tree) const
     }
 }
 
+void SKNanoLoader::ValidateExecutionPlanRNTuple() const
+{
+    if (!hasExecutionPlan || !rntupleSource)
+        return;
+    const std::string context = rntupleSource->fileName() + ":" +
+                                inputDatasetName;
+    for (const auto &column : executionPlan.columns()) {
+        if (!rntupleSource->hasField(column.name)) {
+            if (column.requirement == SKNano::PlanRequirement::Required)
+                throw SKNano::ConfigError(
+                    "[ExecutionPlan] required RNTuple field '" + column.name +
+                    "' is missing in " + context);
+            continue;
+        }
+        const std::string type = rntupleSource->fieldType(column.name);
+        const bool vector = type.find("RVec<") != std::string::npos ||
+                            type.find("vector<") != std::string::npos;
+        if ((column.cardinality == SKNano::PlanCardinality::Scalar && vector) ||
+            (column.cardinality == SKNano::PlanCardinality::Vector && !vector))
+            throw SKNano::ConfigError(
+                "[ExecutionPlan] RNTuple field '" + column.name +
+                "' has incompatible cardinality in " + context);
+    }
+}
+
 std::vector<SKNano::ClusterTask>
 SKNanoLoader::BuildCurrentTreeClusterTasks(
     std::size_t maximumEventsPerTask) const
@@ -234,14 +476,17 @@ SKNanoLoader::BuildCurrentTreeClusterTasks(
 
 void SKNanoLoader::Loop()
 {
-    if (!fChain)
+    if (GetInputEntries() <= 0)
         return;
     if (eventBlockMode) {
+        if (IsRNTupleInput())
+            throw SKNano::ConfigError(
+                "[SKNanoLoader] EventBlock mode is not yet supported for RNTuple input");
         LoopEventBlocks();
         return;
     }
 
-    Long64_t totalEntries = fChain->GetEntries();
+    Long64_t totalEntries = GetInputEntries();
     Long64_t targetEntries = totalEntries;
     if (MaxEvent > 0)
         targetEntries = std::min(targetEntries, static_cast<Long64_t>(MaxEvent));
@@ -267,10 +512,15 @@ void SKNanoLoader::Loop()
     currentTreeNumber = -1;
     currentEntry = -1;
     currentLocalEntry = -1;
+    currentTreeGlobalBegin = -1;
+    currentTreeGlobalEnd = -1;
+    currentRNTupleFileIndex = std::numeric_limits<std::size_t>::max();
     branchManager.bindEntrySource(&currentLocalEntry);
     branchManager.bindEpochSource(&eventEpoch);
     cachePrefetchConfigured = false;
+    cachePrefetchRetunePending = false;
     cachePrefetchWarmupEntries = 0;
+    cacheLastTuneEntry = -1;
 
     Long64_t processed = 0;
 
@@ -283,15 +533,11 @@ void SKNanoLoader::Loop()
     {
         {
             auto headerPhase = performanceTelemetry.measure("header_io");
-            Long64_t localEntry = fChain->LoadTree(globalEntry);
-            if (localEntry < 0)
+            if (!PrepareEntry(globalEntry))
                 break;
 
-            currentEntry = globalEntry;
-            currentLocalEntry = localEntry;
-            ++eventEpoch;
-
-            if (fChain->GetTreeNumber() != currentTreeNumber)
+            if (!IsRNTupleInput() &&
+                fChain->GetTreeNumber() != currentTreeNumber)
             {
                 currentTreeNumber = fChain->GetTreeNumber();
                 TTree *currentTree = fChain->GetTree();
@@ -299,8 +545,12 @@ void SKNanoLoader::Loop()
                 branchManager.attachTree(currentTree);
                 ResetBranchStates();
                 cachePrefetchConfigured = false;
+                cachePrefetchRetunePending = false;
                 cachePrefetchWarmupEntries = 0;
-                if (hasExecutionPlan && enableTreePrefetching) {
+                cacheLastTuneEntry = -1;
+                if (enableTreePrefetching &&
+                    (hasExecutionPlan ||
+                     !branchManager.getActiveBranches().empty())) {
                     configureTreeCache(currentTree, true);
                     cachePrefetchConfigured = true;
                 }
@@ -376,14 +626,7 @@ void SKNanoLoader::Loop()
         ++processed;
         performanceEventsProcessed = processed;
         ++cachePrefetchWarmupEntries;
-
-        if (!cachePrefetchConfigured &&
-            enableTreePrefetching &&
-            cachePrefetchWarmupEntries >= CACHE_PREFETCH_WARMUP_EVENTS)
-        {
-            configureTreeCache(fChain, true);
-            cachePrefetchConfigured = true;
-        }
+        UpdateTreeCacheForCurrentEntry();
         if (processed >= entriesToProcess)
             break;
         if (skipCurrentEvent)
@@ -434,10 +677,14 @@ void SKNanoLoader::LoopEventBlocks()
     currentTreeNumber = -1;
     currentEntry = -1;
     currentLocalEntry = -1;
+    currentTreeGlobalBegin = -1;
+    currentTreeGlobalEnd = -1;
     branchManager.bindEntrySource(&currentLocalEntry);
     branchManager.bindEpochSource(&eventEpoch);
     cachePrefetchConfigured = false;
+    cachePrefetchRetunePending = false;
     cachePrefetchWarmupEntries = 0;
+    cacheLastTuneEntry = -1;
 
     SKNano::EventBlock block(eventBlockMemoryBudgetBytes,
                              eventBlockMaximumEvents);
@@ -454,8 +701,11 @@ void SKNanoLoader::LoopEventBlocks()
         branchManager.attachTree(currentTree);
         ResetBranchStates();
         cachePrefetchConfigured = false;
+        cachePrefetchRetunePending = false;
         cachePrefetchWarmupEntries = 0;
-        if (hasExecutionPlan && enableTreePrefetching) {
+        cacheLastTuneEntry = -1;
+        if (enableTreePrefetching &&
+            (hasExecutionPlan || !branchManager.getActiveBranches().empty())) {
             configureTreeCache(currentTree, true);
             cachePrefetchConfigured = true;
         }
@@ -465,11 +715,8 @@ void SKNanoLoader::LoopEventBlocks()
         while (globalEntry < targetEntries) {
             {
                 auto headerPhase = performanceTelemetry.measure("header_io");
-                currentLocalEntry = fChain->LoadTree(globalEntry);
-                if (currentLocalEntry < 0)
+                if (!PrepareEntry(globalEntry))
                     break;
-                currentEntry = globalEntry;
-                ++eventEpoch;
                 attachCurrentTree();
             }
 
@@ -485,11 +732,8 @@ void SKNanoLoader::LoopEventBlocks()
                    block.eventCount() < eventBlockMaximumEvents) {
                 if (currentEntry != globalEntry) {
                     auto headerPhase = performanceTelemetry.measure("header_io");
-                    currentLocalEntry = fChain->LoadTree(globalEntry);
-                    if (currentLocalEntry < 0)
+                    if (!PrepareEntry(globalEntry))
                         break;
-                    currentEntry = globalEntry;
-                    ++eventEpoch;
                     attachCurrentTree();
                 }
 
@@ -507,6 +751,8 @@ void SKNanoLoader::LoopEventBlocks()
                     performanceTelemetry.addCounter("event_block_fallback_events");
                     ++globalEntry;
                     ++performanceEventsProcessed;
+                    ++cachePrefetchWarmupEntries;
+                    UpdateTreeCacheForCurrentEntry();
                     break;
                 }
 
@@ -519,6 +765,8 @@ void SKNanoLoader::LoopEventBlocks()
                 performanceTelemetry.addCounter("event_block_copied_bytes",
                                                 static_cast<double>(payload));
                 ++globalEntry;
+                ++cachePrefetchWarmupEntries;
+                UpdateTreeCacheForCurrentEntry();
             }
 
             if (block.eventCount() != 0) {
@@ -540,7 +788,7 @@ void SKNanoLoader::LoopEventBlocks()
                 blockHighWatermarkBytes =
                     std::max(blockHighWatermarkBytes, bytesInBlock);
             }
-            currentEntry = -1; // force LoadTree/epoch refresh on next block
+            currentEntry = -1; // force epoch refresh on the next block
         }
     } catch (const SKNano::AnalysisException &error) {
         RecordFailure(BuildFailureContext(),
@@ -581,6 +829,8 @@ void SKNanoLoader::WritePerformanceSummary()
     performanceTelemetry.setCounter("events_processed", performanceEventsProcessed);
     performanceTelemetry.setCounter("event_errors", eventErrorCount);
     performanceTelemetry.setCounter("active_branches", branchManager.getActiveBranches().size());
+    performanceTelemetry.setMetadata(
+        "input_format", IsRNTupleInput() ? "rntuple" : "ttree");
     performanceTelemetry.setCounter("file_bytes_read",
         TFile::GetFileBytesRead() - performanceStartBytesRead);
     performanceTelemetry.setCounter("file_read_calls",
@@ -590,7 +840,8 @@ void SKNanoLoader::WritePerformanceSummary()
     performanceTelemetry.setCounter("tree_zip_bytes",
         fChain ? static_cast<double>(fChain->GetZipBytes()) : 0.);
     performanceTelemetry.setCounter("tree_cache_bytes",
-                                    effectiveTreeCacheSizeBytes);
+        IsRNTupleInput() ? 0. : static_cast<double>(effectiveTreeCacheSizeBytes));
+    performanceTelemetry.setCounter("input_files", inputFiles.size());
     performanceTelemetry.writeJson();
 }
 
@@ -599,27 +850,36 @@ void SKNanoLoader::Init()
     cout << "[SKNanoLoader::Init] Initializing. Era = " << DataEra << " Run =  " << Run << endl;
     if (const char *report = std::getenv("SKNANO_PERFORMANCE_REPORT"))
         SetPerformanceReportPath(report);
-    if (fChain->GetEntries() == 0)
+    if (GetInputEntries() == 0)
     {
         cout << "[SKNanoLoader::Init] No Entries in the Tree" << endl;
         throw SKNano::ConfigError("[SKNanoLoader::Init] No entries in the tree");
     }
 
-    fChain->SetBranchStatus("*", 0);
+    if (!IsRNTupleInput())
+        fChain->SetBranchStatus("*", 0);
     branchManager.clear();
     branchManager.bindEntrySource(&currentLocalEntry);
     branchManager.bindEpochSource(&eventEpoch);
     RegisterBranches();
     ResetBranchStates();
 
-    // Attach the first concrete tree before analyzer initialization so typed
-    // required/optional handles can validate the real leaf schema up front.
-    if (fChain->LoadTree(0) < 0 || !fChain->GetTree()) {
-        throw SKNano::ConfigError(
-            "[SKNanoLoader::Init] Failed to load the first input tree");
+    // Attach the first concrete source before analyzer initialization so
+    // typed required/optional handles validate the physical schema up front.
+    if (IsRNTupleInput()) {
+        PrepareRNTupleFiles();
+        if (rntupleFileRanges.empty())
+            throw SKNano::ConfigError(
+                "[SKNanoLoader::Init] no RNTuple input files");
+        OpenRNTupleFile(0);
+    } else {
+        if (fChain->LoadTree(0) < 0 || !fChain->GetTree()) {
+            throw SKNano::ConfigError(
+                "[SKNanoLoader::Init] Failed to load the first input tree");
+        }
+        branchManager.attachTree(fChain->GetTree());
+        ValidateExecutionPlanTree(fChain->GetTree());
     }
-    branchManager.attachTree(fChain->GetTree());
-    ValidateExecutionPlanTree(fChain->GetTree());
     ResetBranchStates();
 
     TriggerMap.clear();
@@ -643,7 +903,7 @@ void SKNanoLoader::Init()
                 continue;
             }
 
-            if (!fChain->GetBranch(key.c_str()))
+            if (!branchManager.available(key))
             {
                 cout << "[SKNanoLoader::Init] " << key << " branch not in tree – skipped" << endl;
                 continue;
@@ -711,7 +971,11 @@ SKNano::FailureContext SKNanoLoader::BuildFailureContext() const
     context.campaign = Campaign.Data();
     context.systematic = CurrentSystematicName();
 
-    if (fChain)
+    if (IsRNTupleInput() && rntupleSource)
+    {
+        context.inputFile = rntupleSource->fileName();
+    }
+    else if (fChain)
     {
         if (auto *file = fChain->GetCurrentFile())
             context.inputFile = file->GetName();

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <functional>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -11,6 +12,7 @@
 #include <string_view>
 #include <tuple>
 #include <type_traits>
+#include <typeindex>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -25,6 +27,8 @@
 #include "TH2D.h"
 #include "TH3D.h"
 #include "TTree.h"
+#include <ROOT/RNTupleModel.hxx>
+#include <ROOT/RRawPtrWriteEntry.hxx>
 #include "TBranch.h"
 #include "TString.h"
 #include "TObjString.h"
@@ -81,6 +85,9 @@ struct TransparentStringEq {
     }
 }; 
 
+class AnalyzerTaskRegistryState;
+class RNTupleOutputState;
+
 template <typename HistT>
 class HistogramHandle {
 public:
@@ -127,39 +134,83 @@ private:
 
 class AnalyzerCore: public SKNanoLoader {
 public:
-    class TreeHandle {
+    enum class RNTupleOutputProfile { Fast, Sparse };
+    class RNTupleHandle;
+
+    template <typename T>
+    class OutputField {
     public:
-        TreeHandle() = default;
+        OutputField() = default;
+        void Set(const T &value) { *value_ = value; }
+        void Set(T &&value) { *value_ = std::move(value); }
+        OutputField &operator=(const T &value) {
+            Set(value);
+            return *this;
+        }
+        T &Get() { return *value_; }
+        const T &Get() const { return *value_; }
+        explicit operator bool() const noexcept {
+            return static_cast<bool>(value_);
+        }
 
-        template <typename T,
-                  std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-        TreeHandle &Branch(std::string_view name, T &value);
+    private:
+        friend class RNTupleHandle;
+        explicit OutputField(std::shared_ptr<T> value)
+            : value_(std::move(value)) {}
+        std::shared_ptr<T> value_;
+    };
+    enum class TaskSystematicPolicy {
+        CentralOnly,
+        AllVariations,
+    };
 
-        template <typename T, std::size_t N>
-        TreeHandle &Branch(std::string_view name, std::array<T, N> &value);
+    struct TaskOptions {
+        bool enabledByDefault = false;
+        TaskSystematicPolicy systematicPolicy =
+            TaskSystematicPolicy::CentralOnly;
+    };
+
+    using TaskHook = std::function<void()>;
+
+    class RNTupleHandle {
+    public:
+        RNTupleHandle() = default;
 
         template <typename T>
-        TreeHandle &Branch(std::string_view name, std::vector<T> &value);
+        RNTupleHandle &Field(std::string_view name, T &value);
 
-        TreeHandle &Set(const TString &name, float value);
-        TreeHandle &Set(const TString &name, double value);
-        TreeHandle &Set(const TString &name, int value);
-        TreeHandle &Set(const TString &name, bool value);
+        template <typename T>
+        OutputField<T> MakeField(std::string_view name);
+
+        RNTupleHandle &Set(const TString &name, float value);
+        RNTupleHandle &Set(const TString &name, double value);
+        RNTupleHandle &Set(const TString &name, int value);
+        RNTupleHandle &Set(const TString &name, bool value);
         void Fill() const;
-        TTree *get() const;
+        std::uint64_t GetEntries() const;
         explicit operator bool() const noexcept { return owner_ != nullptr; }
 
     private:
         friend class AnalyzerCore;
-        TreeHandle(AnalyzerCore *owner, std::string treeName)
-            : owner_(owner), treeName_(std::move(treeName)) {}
-
-        template <typename T>
-        static constexpr const char *RootLeafCode();
+        RNTupleHandle(AnalyzerCore *owner, std::string ntupleName)
+            : owner_(owner), ntupleName_(std::move(ntupleName)) {}
         void RequireValid() const;
 
         AnalyzerCore *owner_ = nullptr;
-        std::string treeName_;
+        std::string ntupleName_;
+    };
+
+    class OutputRegistry {
+    public:
+        RNTupleHandle Book(
+            std::string_view name,
+            RNTupleOutputProfile profile = RNTupleOutputProfile::Fast) const;
+        RNTupleHandle Get(std::string_view name) const;
+
+    private:
+        friend class AnalyzerCore;
+        explicit OutputRegistry(AnalyzerCore *owner) : owner_(owner) {}
+        AnalyzerCore *owner_;
     };
 
     class HistogramGroup {
@@ -217,6 +268,7 @@ public:
 
     AnalyzerCore();
     ~AnalyzerCore();
+    void SetOutputThreads(unsigned int threads);
 
     virtual void initializeAnalyzer() {};
     virtual void executeEvent() {};
@@ -452,12 +504,7 @@ public:
     
     // Histogram Handlers
     TFile* GetOutfile() { return outfile; }
-    inline void SetOutfilePath(const TString &outpath) {
-        outfile = new TFile(outpath, "RECREATE");
-        SetErrorReportPath(std::string(outpath.Data()) + ".errors.jsonl");
-        SetPerformanceReportPath(std::string(outpath.Data()) +
-                                 ".performance.json");
-    }
+    void SetOutfilePath(const TString &outpath);
     TH1D* GetHist1D(const string &histname);
     Hist1DHandle BookHist1D(std::string_view histname, int nbin,
                             double xmin, double xmax);
@@ -509,58 +556,33 @@ public:
     inline void FillHist(std::string_view histname, float value_x, float value_y, float value_z, float weight, const RVec<float> &xbins, const RVec<float> &ybins, const RVec<float> &zbins) {FillHist(histname, value_x, value_y, value_z, weight, xbins.size() - 1, const_cast<float *>(xbins.data()), ybins.size() - 1, const_cast<float *>(ybins.data()), zbins.size() - 1, const_cast<float *>(zbins.data())); }
 
 
-    TTree* NewTree(const TString &treename, const RVec<TString> &keeps = {}, const RVec<TString> &drops = {});
-    TTree* GetTree(const TString &treename);
-    TreeHandle BookTree(const TString &treename,
-                        const RVec<TString> &keeps = {},
-                        const RVec<TString> &drops = {});
-    TreeHandle OutputTree(const TString &treename);
+    OutputRegistry Output() { return OutputRegistry(this); }
     HistogramGroup Hists(std::string_view prefix = {});
-    inline void SetBranch(const TString &treename, const TString &branchname, float val) {
-        const std::string key =
-            std::string(treename.Data()) + "/" + std::string(branchname.Data());
-        auto &storage = scalar_float_storage[key];
-        if (!storage)
-            storage = std::make_unique<float>();
-        *storage = val;
-        SetBranch(treename, branchname, (void *)(storage.get()), branchname + "/F");
-    };
-    inline void SetBranch(const TString &treename, const TString &branchname, double val) {
-        SetBranch(treename, branchname, static_cast<float>(val));
-    };
-    inline void SetBranch(const TString &treename, const TString &branchname, int val) {
-        const std::string key =
-            std::string(treename.Data()) + "/" + std::string(branchname.Data());
-        auto &storage = scalar_int_storage[key];
-        if (!storage)
-            storage = std::make_unique<int>();
-        *storage = val;
-        SetBranch(treename, branchname, (void *)(storage.get()), branchname + "/I");
-    };
-    inline void SetBranch(const TString &treename, const TString &branchname, bool val) {
-        const std::string key =
-            std::string(treename.Data()) + "/" + std::string(branchname.Data());
-        auto &storage = scalar_bool_storage[key];
-        if (!storage)
-            storage = std::make_unique<bool>();
-        *storage = val;
-        SetBranch(treename, branchname, (void *)(storage.get()), branchname + "/O");
-    }
-    //fill RVec to branch -> Not work do not use
-    //template <typename T>
-    //inline void SetBranch(const TString &treename, const TString &branchname, std::vector<T> &val) {SetBranch_Vector(treename, branchname, val);};
-
-    void FillTrees(const TString &treename="");
     virtual void WriteHist();
 
 protected:
+    // Register all tasks before InitializeTasks(). Task flags are additive;
+    // when none is explicit, only tasks marked enabledByDefault are selected.
+    void RegisterTask(std::string flag, TaskOptions options,
+                      TaskHook validate, TaskHook book, TaskHook run);
+    void InitializeTasks(std::string_view enableAllFlag = {});
+    bool HasTasksForSystematic(bool isCentralSystematic) const;
+    void RunTasks(bool isCentralSystematic);
+
+    // Queue a schema-preserving skim of the input dataset. The selected global
+    // entry numbers are snapshotted as an RNTuple during WriteHist(), after the
+    // regular output file has been closed.
+    void SnapshotSelectedInput(std::vector<Long64_t> entries,
+                               std::string outputName = "Events");
+
     bool PassNoiseFilterCommon(const JetViewCollection &AllJets, const Event &ev, Event::MET_Type met_type) const;
     std::shared_ptr<JetSoA> CreateJetSoA() const;
     void PopulateJetNominal(const std::shared_ptr<JetSoA> &storage);
+    void PopulateJetJERVariations(const std::shared_ptr<JetSoA> &storage);
     void InitialiseJetSystematics(JetSoA &storage) const;
     void PopulateJetStorageWithoutCorrections(JetSoA &storage) const;
     void ApplyJetEnergyCorrections(JetSoA &storage, float rho);
-    std::vector<int> MatchJetsToGenJets(const JetViewCollection& jets,
+    const std::vector<int> &MatchJetsToGenJets(const JetViewCollection& jets,
     const GenJetViewCollection& genjets,
     float rho) const;
     void ApplyJetSmearingAndUncertainties(const JetViewCollection& jets,
@@ -570,15 +592,18 @@ protected:
     float rho);
     const std::vector<TString> &JetEnergyScaleSources() const;
     bool useTH1F = false;
+    // Reused by the per-event jet/genjet matcher. Keeping the capacity on the
+    // analyzer removes allocator traffic without changing matching order.
+    mutable std::vector<int> jetMatchIndicesScratch;
+    mutable std::vector<std::tuple<std::size_t, std::size_t, float, float>>
+        jetMatchCandidatesScratch;
+    mutable std::vector<unsigned char> jetMatchUsedJetScratch;
+    mutable std::vector<unsigned char> jetMatchUsedGenScratch;
     absl::flat_hash_map<std::string, TH1*, TransparentStringHash, TransparentStringEq> histmap1d;
     absl::flat_hash_map<std::string, TH2*, TransparentStringHash, TransparentStringEq> histmap2d;
     absl::flat_hash_map<std::string, TH3*, TransparentStringHash, TransparentStringEq> histmap3d;
     Hist1DHandle cutFlowHist;
     int cutFlowMax = -1;
-    unordered_map<string, TTree*> treemap;
-    unordered_map<TTree*, unordered_map<string, TBranch*>> branchmaps; 
-    unordered_map<TBranch*, void*> branchAddressCache;
-    unordered_map<TBranch*, string> branchSchemaCache;
     static constexpr Long64_t kInvalidCacheEntry = -2;
     Long64_t cachedEventEntry = kInvalidCacheEntry;
     Event cachedEvent;
@@ -597,164 +622,74 @@ protected:
     std::unordered_map<std::string, std::unique_ptr<bool>> scalar_bool_storage;
     std::unordered_map<std::string, ModellingPatch> modelling_patches;
     nlohmann::json modelling_json;
+    std::unique_ptr<AnalyzerTaskRegistryState> taskRegistryState_; //!
+    std::unordered_map<std::string, std::shared_ptr<RNTupleOutputState>>
+        rntupleOutputs_; //!
     TFile *outfile;
-    void SetBranch(const TString &treename, const TString &branchname, void *address, const TString &leaflist);
+    std::string outputFinalPath_;
+    std::string outputPartialPath_;
+    bool outputFinalized_ = false;
+    unsigned int outputCompressionThreads_ = 1;
+    std::vector<Long64_t> selectedInputEntries_;
+    std::string selectedInputOutputName_;
+    RNTupleHandle BookRNTuple(
+        const TString &ntupleName,
+        RNTupleOutputProfile profile = RNTupleOutputProfile::Fast);
+    RNTupleHandle OutputRNTuple(const TString &ntupleName);
+    void RegisterRNTupleField(
+        const std::string &ntupleName, const std::string &fieldName,
+        std::type_index type, const void *address,
+        std::function<void(ROOT::RNTupleModel &)> addField,
+        std::function<void(ROOT::Detail::RRawPtrWriteEntry &)> bindField);
+    void FillRNTuple(const std::string &ntupleName);
+    std::uint64_t GetRNTupleEntries(const std::string &ntupleName) const;
+    bool HasRNTupleOutput(std::string_view name) const noexcept;
+    void FinalizeRNTuples();
+    void SetRNTupleValue(const TString &ntupleName, const TString &fieldName,
+                         float value);
+    void SetRNTupleValue(const TString &ntupleName, const TString &fieldName,
+                         double value);
+    void SetRNTupleValue(const TString &ntupleName, const TString &fieldName,
+                         int value);
+    void SetRNTupleValue(const TString &ntupleName, const TString &fieldName,
+                         bool value);
     void ValidateTreePath(std::string_view treeName) const;
     void ValidateHistogramPath(std::string_view histogramName) const;
-    template <typename T>
-    void SetBranch_Vector(const TString &treename, const TString &branchname, std::vector<T> &address) {
-        //Not work do not use
-        try {
-            TTree *tree = GetTree(treename);
-
-            unordered_map<string, TBranch *> *this_branchmap = &branchmaps[tree];
-            auto it = this_branchmap->find(string(branchname));
-
-            if (it == this_branchmap->end())
-            {
-                //template <typename T, std::size_t N> TBranch *Branch(const char* name, std::array<T, N> *obj, Int_t bufsize = 32000, Int_t splitlevel = 99)
-                auto br = tree->Branch(branchname, &address);
-                this_branchmap->insert({string(branchname), br});
-                branchAddressCache[br] = &address;
-            }
-            else
-            {
-                //void TBranch::SetAddress(void *add)
-                auto cacheIt = branchAddressCache.find(it->second);
-                if (cacheIt == branchAddressCache.end() ||
-                    cacheIt->second != static_cast<void *>(&address)) {
-                    it->second->SetAddress(&address);
-                    branchAddressCache[it->second] = &address;
-                }
-            }
-        } catch (int e) {
-            throw SKNano::LogicError("[AnalyzerCore::SetBranch_Vector] Error get tree: " +
-                                     std::string(treename.Data()) +
-                                     " code=" + std::to_string(e));
-        }
-    }
 };
 
 template <typename T>
-constexpr const char *AnalyzerCore::TreeHandle::RootLeafCode() {
+AnalyzerCore::RNTupleHandle &
+AnalyzerCore::RNTupleHandle::Field(std::string_view name, T &value) {
+    RequireValid();
     using Value = std::remove_cv_t<T>;
-    if constexpr (std::is_same_v<Value, bool>)
-        return "O";
-    else if constexpr (std::is_same_v<Value, char> ||
-                       std::is_same_v<Value, signed char>)
-        return "B";
-    else if constexpr (std::is_same_v<Value, unsigned char>)
-        return "b";
-    else if constexpr (std::is_same_v<Value, short>)
-        return "S";
-    else if constexpr (std::is_same_v<Value, unsigned short>)
-        return "s";
-    else if constexpr (std::is_same_v<Value, int>)
-        return "I";
-    else if constexpr (std::is_same_v<Value, unsigned int>)
-        return "i";
-    else if constexpr (std::is_same_v<Value, long long> ||
-                       (std::is_same_v<Value, long> && sizeof(long) == 8))
-        return "L";
-    else if constexpr (std::is_same_v<Value, unsigned long long> ||
-                       (std::is_same_v<Value, unsigned long> &&
-                        sizeof(unsigned long) == 8))
-        return "l";
-    else if constexpr (std::is_same_v<Value, float>)
-        return "F";
-    else if constexpr (std::is_same_v<Value, double>)
-        return "D";
-    else {
-        static_assert(!std::is_same_v<Value, Value>,
-                      "TreeHandle::Branch does not support this scalar type");
-        return "";
-    }
-}
-
-template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int>>
-AnalyzerCore::TreeHandle &
-AnalyzerCore::TreeHandle::Branch(std::string_view name, T &value) {
-    RequireValid();
-    const std::string branchName(name);
-    const TString leaf = branchName + "/" + RootLeafCode<T>();
-    TTree *tree = owner_->GetTree(treeName_);
-    auto &branches = owner_->branchmaps[tree];
-    const auto found = branches.find(branchName);
-    if (found != branches.end()) {
-        const auto schemaIt = owner_->branchSchemaCache.find(found->second);
-        const auto addressIt = owner_->branchAddressCache.find(found->second);
-        if (schemaIt == owner_->branchSchemaCache.end() ||
-            schemaIt->second != std::string(leaf.Data()) ||
-            addressIt == owner_->branchAddressCache.end() ||
-            addressIt->second != static_cast<void *>(&value))
-            throw SKNano::ConfigError(
-                "[TreeHandle::Branch] incompatible duplicate branch '" +
-                treeName_ + "/" + branchName + "'");
-        return *this;
-    }
-    owner_->SetBranch(treeName_, branchName, static_cast<void *>(&value), leaf);
-    return *this;
-}
-
-template <typename T, std::size_t N>
-AnalyzerCore::TreeHandle &
-AnalyzerCore::TreeHandle::Branch(std::string_view name,
-                                 std::array<T, N> &value) {
-    static_assert(std::is_arithmetic_v<T>,
-                  "TreeHandle arrays must contain arithmetic values");
-    RequireValid();
-    const std::string branchName(name);
-    const TString leaf = branchName + "[" + std::to_string(N) + "]/" +
-                         RootLeafCode<T>();
-    TTree *tree = owner_->GetTree(treeName_);
-    auto &branches = owner_->branchmaps[tree];
-    const auto found = branches.find(branchName);
-    if (found != branches.end()) {
-        const auto schemaIt = owner_->branchSchemaCache.find(found->second);
-        const auto addressIt = owner_->branchAddressCache.find(found->second);
-        if (schemaIt == owner_->branchSchemaCache.end() ||
-            schemaIt->second != std::string(leaf.Data()) ||
-            addressIt == owner_->branchAddressCache.end() ||
-            addressIt->second != static_cast<void *>(value.data()))
-            throw SKNano::ConfigError(
-                "[TreeHandle::Branch] incompatible duplicate branch '" +
-                treeName_ + "/" + branchName + "'");
-        return *this;
-    }
-    owner_->SetBranch(treeName_, branchName,
-                      static_cast<void *>(value.data()), leaf);
+    const std::string fieldName(name);
+    owner_->RegisterRNTupleField(
+        ntupleName_, fieldName, std::type_index(typeid(Value)),
+        static_cast<const void *>(&value),
+        [fieldName](ROOT::RNTupleModel &model) {
+            model.MakeField<Value>(fieldName);
+        },
+        [fieldName, address = &value](ROOT::Detail::RRawPtrWriteEntry &entry) {
+            entry.BindRawPtr<Value>(fieldName, address);
+        });
     return *this;
 }
 
 template <typename T>
-AnalyzerCore::TreeHandle &
-AnalyzerCore::TreeHandle::Branch(std::string_view name,
-                                 std::vector<T> &value) {
-    static_assert(std::is_arithmetic_v<T>,
-                  "TreeHandle vectors must contain arithmetic values");
+AnalyzerCore::OutputField<T>
+AnalyzerCore::RNTupleHandle::MakeField(std::string_view name) {
     RequireValid();
-    const std::string branchName(name);
-    TTree *tree = owner_->GetTree(treeName_);
-    auto &branches = owner_->branchmaps[tree];
-    const auto found = branches.find(branchName);
-    const std::string schema = std::string("vector/") + RootLeafCode<T>();
-    if (found != branches.end()) {
-        const auto schemaIt = owner_->branchSchemaCache.find(found->second);
-        const auto addressIt = owner_->branchAddressCache.find(found->second);
-        if (schemaIt == owner_->branchSchemaCache.end() ||
-            schemaIt->second != schema ||
-            addressIt == owner_->branchAddressCache.end() ||
-            addressIt->second != static_cast<void *>(&value))
-            throw SKNano::ConfigError(
-                "[TreeHandle::Branch] incompatible duplicate branch '" +
-                treeName_ + "/" + branchName + "'");
-        return *this;
-    }
-    TBranch *branch = tree->Branch(branchName.c_str(), &value);
-    branches.emplace(branchName, branch);
-    owner_->branchAddressCache[branch] = static_cast<void *>(&value);
-    owner_->branchSchemaCache[branch] = schema;
-    return *this;
+    const std::string fieldName(name);
+    auto value = std::make_shared<T>();
+    owner_->RegisterRNTupleField(
+        ntupleName_, fieldName, std::type_index(typeid(T)), value.get(),
+        [fieldName](ROOT::RNTupleModel &model) {
+            model.MakeField<T>(fieldName);
+        },
+        [fieldName, value](ROOT::Detail::RRawPtrWriteEntry &entry) {
+            entry.BindRawPtr<T>(fieldName, value.get());
+        });
+    return OutputField<T>(std::move(value));
 }
 
 inline bool AnalyzerCore::PassNoiseFilterCommon(const JetViewCollection &AllJets, const Event &ev, Event::MET_Type met_type) const

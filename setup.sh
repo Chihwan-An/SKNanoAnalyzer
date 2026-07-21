@@ -53,8 +53,11 @@ else
 fi
 echo "@@@@ System:  $SYSTEM"
 echo "@@@@ Package: $PACKAGE"
-echo "@@@@ Telegram Bot Token: $TOKEN_TELEGRAMBOT"
-echo "@@@@ Telegram Chat ID:   $USER_CHATID"
+if [[ -n "$TOKEN_TELEGRAMBOT" && -n "$USER_CHATID" ]]; then
+    echo "@@@@ Telegram reporting: configured"
+else
+    echo "@@@@ Telegram reporting: disabled"
+fi
 echo "@@@@ Using singularity image: $SINGULARITY_IMAGE"
 echo "@@@@ SKNano Home: $SKNANO_HOME"
 echo "@@@@ SKNano Runlog: $SKNANO_RUNLOG"

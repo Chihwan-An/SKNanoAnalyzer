@@ -320,6 +320,52 @@ void testJetDemandNominalLane() {
             "a cached jet correction lane must reject stale-event access");
 }
 
+void testJetDemandJerVariationLane() {
+    FakeColumnSource<float> pt;
+    FakeColumnSource<float> eta;
+    pt.values = {100.f};
+    eta.values = {0.4f};
+    auto storage = std::make_shared<JetSoA>();
+    storage->pt.bind(&pt);
+    storage->eta.bind(&eta);
+    int nominalCalls = 0;
+    int variationCalls = 0;
+    storage->populateNominal = [target = storage.get(), &nominalCalls] {
+        ++nominalCalls;
+        target->correctedPt = {110.f};
+        target->correctedMass = {11.f};
+        target->smearedPtNominal = {108.f};
+        target->smearedMassNominal = {10.8f};
+    };
+    storage->populateJerVariations =
+        [target = storage.get(), &variationCalls] {
+            ++variationCalls;
+            target->smearedPtUp = {112.f};
+            target->smearedPtDown = {104.f};
+            target->smearedMassUp = {11.2f};
+            target->smearedMassDown = {10.4f};
+        };
+
+    JetViewCollection jets(storage);
+    const auto jet = jets[0];
+    require(jet.SmearedPtNominal() == 108.f && nominalCalls == 1 &&
+                variationCalls == 0,
+            "nominal JER access must not materialize up/down lanes");
+    require(jet.SmearedPtUp() == 112.f && nominalCalls == 1 &&
+                variationCalls == 1,
+            "the first JER variation access must materialize the lane once");
+    require(jet.SmearedPtDown() == 104.f &&
+                jet.SmearedMassUp() == 11.2f &&
+                jet.SmearedMassDown() == 10.4f && variationCalls == 1,
+            "all JER variation getters must reuse the materialized lanes");
+
+    ++pt.currentEpoch;
+    ++eta.currentEpoch;
+    require(throws<SKNano::LogicError>(
+                [&] { static_cast<void>(jet.SmearedPtUp()); }),
+            "a cached JER variation lane must reject stale-event access");
+}
+
 void testSelectedJetProjection() {
     FakeColumnSource<float> pt;
     FakeColumnSource<float> eta;
@@ -571,6 +617,7 @@ int main() {
         testFatJetDemandDrivenFields();
         testMuonDemandMomentumLane();
         testJetDemandNominalLane();
+        testJetDemandJerVariationLane();
         testSelectedJetProjection();
         testElectronIdentityRangeAndDemandRho();
         testCanonicalBranchRegistryAndTreeTransition();

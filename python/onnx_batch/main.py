@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Sequence
 import subprocess
 import shlex
-import htcondor
+try:
+    import htcondor
+except ModuleNotFoundError:
+    import htcondor2 as htcondor
 import uproot
 
 from rich.console import Console

@@ -14,7 +14,7 @@ target_include_directories(KinFitter PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 # Link ROOT libraries
-target_link_libraries(KinFitter ${ROOT_LIBRARIES})
+target_link_libraries(KinFitter PUBLIC ${ROOT_LIBRARIES})
 
 ROOT_GENERATE_DICTIONARY(G__KinFitter
     ${HEADERS}

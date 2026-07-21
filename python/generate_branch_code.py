@@ -114,6 +114,18 @@ def merge_addons(
                 }
 
             merge_leaf(count_name, count_type)
+            optional_fields = config.get("optional_fields", [])
+            if not isinstance(optional_fields, list) or not all(
+                    isinstance(name, str) for name in optional_fields):
+                raise ValueError(
+                    f"addon '{addon_name}' collection '{collection}' "
+                    "optional_fields must be an array of branch names")
+            optional_field_set = set(optional_fields)
+            unknown_optional = sorted(optional_field_set - set(fields))
+            if unknown_optional:
+                raise ValueError(
+                    f"addon '{addon_name}' collection '{collection}' has "
+                    "unknown optional fields: " + ", ".join(unknown_optional))
             normalized_fields = []
             for branch_name in sorted(fields):
                 leaf_type = fields[branch_name]
@@ -121,7 +133,9 @@ def merge_addons(
                     raise ValueError(
                         f"addon '{addon_name}' collection '{collection}' has invalid field")
                 merge_leaf(branch_name, leaf_type)
-                normalized_fields.append((branch_name, leaf_type))
+                normalized_fields.append(
+                    (branch_name, leaf_type,
+                     branch_name not in optional_field_set))
 
             view_name = config.get("view_name", collection)
             if not isinstance(view_name, str) or not view_name:
@@ -132,7 +146,8 @@ def merge_addons(
                 raise ValueError(f"duplicate addon view name '{view_name}'")
             used_view_names.add(view_name)
             presence_branch = config.get("presence_branch", count_name)
-            known_names = {count_name, *(name for name, _ in normalized_fields)}
+            known_names = {
+                count_name, *(name for name, _, _ in normalized_fields)}
             if presence_branch not in known_names:
                 raise ValueError(
                     f"addon view '{view_name}' presence branch '{presence_branch}' "
@@ -331,21 +346,22 @@ def build_addon_view_blocks(view_specs: List[dict]) -> List[str]:
         struct_name = f"{view_name}ViewCollectionGenerated"
         fields = []
         used_members = set()
-        for branch_name, leaf_type in spec["fields"]:
+        for branch_name, leaf_type, required in spec["fields"]:
             suffix = (branch_name[len(collection) + 1:]
                       if branch_name.startswith(collection + "_") else branch_name)
             member = cpp_identifier(suffix)
             if member in used_members:
                 raise ValueError(f"duplicate addon member '{member}' in {view_name}")
             used_members.add(member)
-            fields.append((branch_name, member, cpp_type(leaf_type)))
+            fields.append((branch_name, member, cpp_type(leaf_type), required))
 
         presence_branch = spec["presence_branch"]
         if presence_branch == count_name:
             presence_expression = "count && count->valid()"
         else:
             presence_member = next(
-                member for branch, member, _ in fields if branch == presence_branch)
+                member for branch, member, _, _ in fields
+                if branch == presence_branch)
             presence_expression = f"{presence_member}.available()"
 
         lines.append(f"    // Optional {spec['addon_name']} collection: {collection}")
@@ -354,11 +370,14 @@ def build_addon_view_blocks(view_specs: List[dict]) -> List[str]:
         lines.append(f"        const BranchScalar<{count_ctype}> *count = nullptr;")
         lines.append("        const std::uint64_t *epochSource = nullptr;")
         lines.append("        std::uint64_t boundEpoch = 0;")
-        for _, member, ctype in fields:
+        for _, member, ctype, required in fields:
             view_type = "BoolColumnView" if ctype == "bool" else f"ColumnView<{ctype}>"
             lines.append(f"        {view_type} {member};")
             lines.append(
                 f"        bool {member}Available() const {{ return {member}.available(); }}")
+            lines.append(
+                f"        static constexpr bool {member}Required = "
+                f"{'true' if required else 'false'};")
         lines.append("")
         lines.append("        void assertCurrentEvent() const {")
         lines.append("            if (epochSource && *epochSource != boundEpoch)")
@@ -368,7 +387,7 @@ def build_addon_view_blocks(view_specs: List[dict]) -> List[str]:
         lines.append("        Availability availability() const {")
         lines.append("            assertCurrentEvent();")
         lines.append(f"            const bool presence = {presence_expression};")
-        any_terms = [f"{member}.available()" for _, member, _ in fields]
+        any_terms = [f"{member}.available()" for _, member, _, _ in fields]
         if spec["count_is_addon"]:
             any_terms.insert(0, "count && count->valid()")
         lines.append(f"            const bool anyAddon = {' || '.join(any_terms)};")
@@ -376,9 +395,10 @@ def build_addon_view_blocks(view_specs: List[dict]) -> List[str]:
         lines.append("                return anyAddon ? Availability::Partial : Availability::Missing;")
         lines.append("            if (!count || !count->valid())")
         lines.append("                return Availability::Partial;")
-        for _, member, _ in fields:
-            lines.append(f"            if (!{member}.available())")
-            lines.append("                return Availability::Partial;")
+        for _, member, _, required in fields:
+            if required:
+                lines.append(f"            if (!{member}.available())")
+                lines.append("                return Availability::Partial;")
         lines.append("            return Availability::Complete;")
         lines.append("        }")
         lines.append("        bool available() const {")
@@ -412,9 +432,23 @@ def build_addon_view_blocks(view_specs: List[dict]) -> List[str]:
             f"            value_type(const {struct_name} *columns, std::size_t index)")
         lines.append("                : columns_(columns), index_(index) {}")
         lines.append("            std::size_t index() const { return index_; }")
-        for _, member, ctype in fields:
-            lines.append(
-                f"            {ctype} {member}() const {{ return columns_->{member}[index_]; }}")
+        missing_values = {
+            "float": "-999.f", "double": "-999.", "int": "-999",
+            "short": "static_cast<short>(-999)",
+            "Long64_t": "static_cast<Long64_t>(-999)",
+            "unsigned int": "0u", "unsigned short": "0u",
+            "unsigned char": "0u", "ULong64_t": "0u", "bool": "false",
+        }
+        for _, member, ctype, required in fields:
+            if required:
+                lines.append(
+                    f"            {ctype} {member}() const {{ return columns_->{member}[index_]; }}")
+            else:
+                missing = missing_values[ctype]
+                lines.append(
+                    f"            {ctype} {member}() const {{ return "
+                    f"columns_->{member}.available() ? "
+                    f"columns_->{member}[index_] : {missing}; }}")
         lines.append("        private:")
         lines.append(f"            const {struct_name} *columns_ = nullptr;")
         lines.append("            std::size_t index_ = 0;")
@@ -453,7 +487,7 @@ def build_addon_view_blocks(view_specs: List[dict]) -> List[str]:
         lines.append(f"        columns.count = &{count_member};")
         lines.append("        columns.epochSource = &eventEpoch;")
         lines.append("        columns.boundEpoch = eventEpoch;")
-        for branch_name, member, _ in fields:
+        for branch_name, member, _, _ in fields:
             branch_member = cpp_member_name(collection, branch_name)
             lines.append(f"        columns.{member}.bind(&{branch_member});")
         lines.append("        if (columns.availability() == ")

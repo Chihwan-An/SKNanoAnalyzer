@@ -236,7 +236,6 @@ Important submission options are:
 - `--memory`: requested memory in MiB; the default is 2048.
 - `--ncpu`: requested CPU count; the default is 1.
 - `--userflags`: comma-separated analyzer flags.
-- `--input-format`: `rntuple` (default), `ttree`, or `auto`.
 - `--batchname`: custom batch name.
 - `--skimming_mode`: enable skimming output and post-processing.
 

@@ -14,10 +14,7 @@
 using namespace std;
 
 #include "TROOT.h"
-#include "TChain.h"
-#include "TChainElement.h"
 #include "TFile.h"
-#include "TTree.h"
 #include "TString.h"
 #include "TRandom3.h"
 #include "ROOT/RVec.hxx"
@@ -25,16 +22,13 @@ using namespace std;
 #include <nlohmann/json.hpp>
 #include "AnalysisException.h"
 #include "BranchManager.h"
-#include "ClusterTaskPlanner.h"
 #include "CounterRNG.h"
 #include "FailureContext.h"
 #include "FailurePolicy.h"
 #include "ExecutionPlan.h"
 #include "EventArena.h"
-#include "EventBlock.h"
 #include "PerformanceTelemetry.h"
 #include "TriggerDecision.h"
-#include "TreeCacheTuner.h"
 #include "Triggerinfo.h"
 #include "ViewColumns.h"
 using namespace ROOT::VecOps;
@@ -42,20 +36,11 @@ using namespace ROOT::VecOps;
 class SKNanoLoader : public SKNano::TriggerDecisionProvider
 {
 public:
-    enum class InputFormat { Auto, TTree, RNTuple };
-
     SKNanoLoader();
-    virtual ~SKNanoLoader() = default;
+    virtual ~SKNanoLoader();
 
-    // virtual long GetEntry(long entry);
-    virtual void SetTreeName(TString tname);
+    virtual void SetRNTupleName(TString name);
     virtual int AddFile(TString filename);
-    void SetInputFormat(InputFormat format);
-    void SetInputFormat(const std::string &format);
-    InputFormat GetInputFormat() const noexcept { return inputFormat; }
-    bool IsRNTupleInput() const noexcept {
-        return inputFormat == InputFormat::RNTuple;
-    }
     Long64_t GetInputEntries();
     void RegisterBranches();
     void ResetBranchStates();
@@ -109,21 +94,6 @@ public:
     virtual void SetPeriod(TString period) { DataPeriod=period; }
     virtual void SetCampaign(TString campaign) { Campaign=campaign; }
 
-    void SetTreeCacheSize(Long64_t cacheBytes) {
-        treeCacheSizeBytes = cacheBytes;
-        autoTuneTreeCache = false;
-    }
-    void EnableTreeCacheAutoTune(bool enable = true) noexcept {
-        autoTuneTreeCache = enable;
-    }
-    void SetIOMemoryBudget(std::size_t bytes) {
-        if (bytes == 0)
-            throw SKNano::ConfigError(
-                "[SKNanoLoader] I/O memory budget must be positive");
-        ioMemoryBudgetBytes = bytes;
-    }
-    void SetTreeCacheLearnEntries(int learnEntries) { treeCacheLearnEntries = learnEntries; }
-    void EnableTreePrefetching(bool enable) { enableTreePrefetching = enable; }
     void SetAnalyzerName(const std::string &name) { analyzerName = name; }
     void SetFailurePolicy(SKNano::FailurePolicy policy) { failurePolicy = policy; }
     void SetFailurePolicy(const std::string &policy) { failurePolicy = SKNano::ParseFailurePolicy(policy); }
@@ -150,21 +120,8 @@ public:
     const SKNano::ExecutionPlan *GetExecutionPlan() const noexcept {
         return hasExecutionPlan ? &executionPlan : nullptr;
     }
-    std::vector<SKNano::ClusterTask>
-    BuildCurrentTreeClusterTasks(std::size_t maximumEventsPerTask) const;
     void SetRngMode(SKNano::RngMode mode) noexcept { rngMode = mode; }
     SKNano::RngMode GetRngMode() const noexcept { return rngMode; }
-    void EnableEventBlockMode(bool enable = true) noexcept {
-        eventBlockMode = enable;
-    }
-    void SetEventBlockLimits(std::size_t memoryBudgetBytes,
-                             std::size_t maximumEvents) {
-        if (memoryBudgetBytes == 0 || maximumEvents == 0)
-            throw SKNano::ConfigError(
-                "[SKNanoLoader] EventBlock limits must be positive");
-        eventBlockMemoryBudgetBytes = memoryBudgetBytes;
-        eventBlockMaximumEvents = maximumEvents;
-    }
     void EnableEventArena(std::size_t initialBytes = 8 * 1024 * 1024) {
         eventArena = std::make_unique<SKNano::EventArena>(initialBytes);
     }
@@ -182,17 +139,16 @@ public:
     Long64_t CurrentEntry() const { return currentEntry; }
     Long64_t CurrentLocalEntry() const { return currentLocalEntry; }
 
-    TChain *fChain = nullptr; //!
     BranchManager branchManager; //!
     TriggerMap_t TriggerMap;
     mutable SKNano::TriggerDecisionMap triggerDecisionCache; //!
     mutable Long64_t triggerDecisionCacheEntry = -1;
     Long64_t currentEntry = -1;
     Long64_t currentLocalEntry = -1;
-    Long64_t currentTreeGlobalBegin = -1;
-    Long64_t currentTreeGlobalEnd = -1;
+    Long64_t currentFileGlobalBegin = -1;
+    Long64_t currentFileGlobalEnd = -1;
     std::uint64_t eventEpoch = 0;
-    int currentTreeNumber = -1;
+    int currentFileNumber = -1;
     std::string analyzerName = "SKNanoLoader";
     SKNano::FailurePolicy failurePolicy = SKNano::FailurePolicy::FailFast;
     int maxEventErrors = 1;
@@ -203,12 +159,8 @@ public:
     SKNano::ExecutionPlan executionPlan; //!
     bool hasExecutionPlan = false;
     SKNano::RngMode rngMode = SKNano::RngMode::StrictLegacy;
-    bool eventBlockMode = false;
-    std::size_t eventBlockMemoryBudgetBytes = 64 * 1024 * 1024;
-    std::size_t eventBlockMaximumEvents = 256;
     std::unique_ptr<SKNano::EventArena> eventArena; //!
 
-    InputFormat inputFormat = InputFormat::RNTuple;
     std::string inputDatasetName = "Events";
     std::vector<std::string> inputFiles;
     struct RNTupleFileRange {
@@ -223,51 +175,15 @@ public:
     Long64_t rntupleTotalEntries = -1;
     bool rntupleClusterCache = true;
 
-    // A larger default cache and longer learn phase help steady throughput
-    // across file boundaries.
-    Long64_t treeCacheSizeBytes = 200LL * 1024 * 1024; // 200 MB default cache
-    Long64_t effectiveTreeCacheSizeBytes = treeCacheSizeBytes;
-    std::size_t ioMemoryBudgetBytes = 512ULL * 1024 * 1024;
-    bool autoTuneTreeCache = true;
-    int treeCacheLearnEntries = 100;                   // learn quickly for short jobs
-    bool enableTreePrefetching = true;
-    static constexpr Long64_t CACHE_PREFETCH_WARMUP_EVENTS = 100;
-    static constexpr Long64_t CACHE_PREFETCH_RETUNE_INTERVAL_EVENTS = 1000;
-    bool cachePrefetchConfigured = false;
-    bool cachePrefetchRetunePending = false;
-    Long64_t cachePrefetchWarmupEntries = 0;
-    Long64_t cacheLastTuneEntry = -1;
     Long64_t performanceStartBytesRead = 0;
     int performanceStartReadCalls = 0;
     Long64_t performanceEventsProcessed = 0;
 
 protected:
-    // Experimental D2b seam. An analyzer must opt in explicitly and own all
-    // data needed by executeEventBlock(); ordinary analyzers remain on D2a.
-    virtual bool SupportsOwnedEventBlocks() const noexcept { return false; }
-    virtual void ConfigureEventBlock(SKNano::EventBlock &) {}
-    virtual bool CanGatherCurrentEventIntoBlock() const { return false; }
-    virtual std::size_t CurrentEventBlockPayloadBytes() const { return 0; }
-    virtual void AppendCurrentEventToBlock(SKNano::EventBlock &) {
-        throw SKNano::LogicError(
-            "[SKNanoLoader] EventBlock gather hook is not implemented");
-    }
-    virtual void executeEventBlock(const SKNano::EventBlock &) {
-        throw SKNano::LogicError(
-            "[SKNanoLoader] EventBlock execute hook is not implemented");
-    }
-    void LoopEventBlocks();
-    // Advance sequentially inside the current concrete tree without paying
-    // TChain::LoadTree() for every event.  Returns false at end of input.
     bool PrepareEntry(Long64_t globalEntry);
-    bool PrepareRNTupleEntry(Long64_t globalEntry);
     void PrepareRNTupleFiles();
     void OpenRNTupleFile(std::size_t index);
-    InputFormat DetectInputFormat(const std::string &fileName) const;
     void ValidateExecutionPlanRNTuple() const;
-    void UpdateTreeCacheForCurrentEntry();
-    void configureTreeCache(TTree *tree, bool resetCache = false);
-    void AddActivatedBranchToCache(const std::string &name);
     SKNano::FailureContext BuildFailureContext() const;
     void RecordFailure(const SKNano::FailureContext &context,
                        const std::string &category,
@@ -275,7 +191,6 @@ protected:
                        const std::string &exceptionType);
     void WriteFailureSummary() const;
     void WritePerformanceSummary();
-    void ValidateExecutionPlanTree(TTree *tree) const;
 
 #include <generated_loader_api.inc>
 };

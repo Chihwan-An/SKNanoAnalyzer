@@ -5,14 +5,6 @@ GetEffLumi::GetEffLumi(){};
 GetEffLumi::~GetEffLumi(){};
 void GetEffLumi::initializeAnalyzer(){
   myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA?DataStream:MCSample ,IsDATA);
-  fChain->SetBranchStatus("*", 0);
-  if(!IsDATA){
-    fChain->SetBranchStatus("genWeight", 1);
-  }
-  else{
-    fChain->SetBranchStatus("run", 1);
-    fChain->SetBranchStatus("luminosityBlock", 1);
-  }
   sumW = 1.;
   sumSign = 1.;
 }
@@ -35,4 +27,3 @@ void GetEffLumi::executeEvent() {
 
   return;
 }
-

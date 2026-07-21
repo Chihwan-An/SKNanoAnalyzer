@@ -26,10 +26,8 @@
 #include "TH1D.h"
 #include "TH2D.h"
 #include "TH3D.h"
-#include "TTree.h"
 #include <ROOT/RNTupleModel.hxx>
 #include <ROOT/RRawPtrWriteEntry.hxx>
-#include "TBranch.h"
 #include "TString.h"
 #include "TObjString.h"
 #include "TMath.h"

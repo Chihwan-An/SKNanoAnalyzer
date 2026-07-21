@@ -2,8 +2,7 @@
 
 [Documentation index](README.md)
 
-`AnalyzerCore` output is RNTuple-only. New datasets are created through the
-output registry; there is no TTree output compatibility layer.
+`AnalyzerCore` datasets are created through the typed RNTuple output registry.
 
 ## Stable zero-copy buffers
 

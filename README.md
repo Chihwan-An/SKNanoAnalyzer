@@ -19,12 +19,10 @@ internal commit.
 
 #### Breaking changes
 
-- RNTuple is now the default input format. Existing TTree samples must be run
-  with `SKNano.py --input-format ttree` or `--input-format auto`, or converted
-  with `sknano-convert-rntuple`.
-- Analyzer datasets are written as typed RNTuples. The former analyzer TTree
-  output API has been replaced by `Output().Book()`, typed fields, and stable
-  analyzer-owned buffers. Histograms remain ordinary ROOT objects.
+- RNTuple is the only supported input format.
+- Analyzer datasets are written as typed RNTuples through `Output().Book()`,
+  typed fields, and stable analyzer-owned buffers. Histograms remain ordinary
+  ROOT objects.
 - NanoAOD collections now use event-scoped `*ViewCollection` APIs such as
   `GetAllMuonViews()` and `GetAllJetViews()`. The former owning input-object
   classes and materialization APIs have been removed. Views and selected
@@ -38,8 +36,7 @@ internal commit.
 
 - Added schema-driven lazy branch binding for NanoAODv15, including generated
   scalar/vector accessors and event-scoped physics-object views.
-- Added native multi-file RNTuple input, explicit legacy TTree fallback, and
-  schema-preserving RNTuple skimming.
+- Added native multi-file RNTuple input and schema-preserving RNTuple skimming.
 - Added atomic output publication and `scripts/sknano_merge.py`, which validates
   RNTuple and histogram schemas and verifies the merged output before removing
   input shards.
@@ -56,9 +53,8 @@ internal commit.
 
 #### Submission and user tools
 
-- `SKNano.py` now accepts `--input-format {rntuple,ttree,auto}`, data-period
-  filtering with `-p`, sample exclusion with `--exclude`, and explicit failure
-  policies.
+- `SKNano.py` now accepts data-period filtering with `-p`, sample exclusion
+  with `--exclude`, and explicit failure policies.
 - Every submission records a source snapshot, compressed source archive,
   sample-metadata snapshot, and `run_manifest.json` in the run directory.
 - User flags are included in skim and analysis output paths, preventing outputs
@@ -85,12 +81,8 @@ internal commit.
 source setup.sh
 ./scripts/build.sh --clean
 
-# Default RNTuple input
+# RNTuple input
 SKNano.py -a AnalyzerName -i 'Sample*' -e 2024 -n 10
-
-# Existing TTree input
-SKNano.py -a AnalyzerName -i 'LegacySample*' -e 2024 -n 10 \
-  --input-format ttree
 ```
 
 See `docs/README.md` for the maintained API and workflow documentation.

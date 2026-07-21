@@ -152,22 +152,6 @@ add_subdirectory(DataFormats)
 add_subdirectory(AnalyzerTools)
 add_subdirectory(Analyzers)
 
-# Standalone, transactional TTree -> RNTuple conversion utility.  Keep this
-# independent of the analysis libraries so input conversion does not pull in
-# correction or ML dependencies at runtime.
-add_executable(sknano-convert-rntuple
-    tools/convert_ttree_to_rntuple.cc)
-target_compile_features(sknano-convert-rntuple PRIVATE cxx_std_17)
-target_link_libraries(sknano-convert-rntuple PRIVATE
-    ${ROOT_LIBRARIES}
-    ROOT::ROOTNTuple
-    ROOT::ROOTNTupleUtil)
-install(TARGETS sknano-convert-rntuple DESTINATION bin)
-
-if(BUILD_TESTING)
-    add_subdirectory(tests)
-endif()
-
 # Fetch external dependencies
 include(FetchContent)
 FetchContent_Declare(

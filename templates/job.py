@@ -6,8 +6,7 @@ from [Analyzer] import [Analyzer]
 
 if __name__ == "__main__":
     module = [Analyzer]()
-    module.SetInputFormat("[input_format]")
-    module.SetTreeName("Events")
+    module.SetRNTupleName("Events")
     module.SetAnalyzerName("[Analyzer]")
     module.SetOutputThreads([ncpu])
     module.LogEvery = 5000

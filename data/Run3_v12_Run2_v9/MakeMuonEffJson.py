@@ -114,7 +114,7 @@ def makingJson(era, target_binning):
 
     trigs = hist_dicts.keys()
     
-    categorys['scale_factors']['content'] = ['effData','effDataUp','effDataDown','effMC','effMCUp','effMCDown']
+    categorys['scale_factors']['content'] = ['nominal','systup','systdown']
     
     for trig in trigs:
         trig_eff_dict={}
@@ -151,16 +151,16 @@ def makingJson(era, target_binning):
             if 'effdata' in key:
                 this_key = 'nominal'
                 if 'up' in key:
-                    this_key = 'sfup'
+                    this_key = 'systup'
                 elif 'down' in key:
-                    this_key = 'sfdown'
+                    this_key = 'systdown'
                 trig_eff_dict['data']['content'][0]['value']['content'].append({"key":this_key,"value":eff})
             else:
                 this_key = 'nominal'
                 if 'up' in key:
-                    this_key = 'sfup'
+                    this_key = 'systup'
                 elif 'down' in key:
-                    this_key = 'sfdown'
+                    this_key = 'systdown'
                 trig_eff_dict['data']['content'][1]['value']['content'].append({"key":this_key,"value":eff})
                 
         
@@ -185,14 +185,14 @@ if __name__ == "__main__":
 
     totalEras = ['2022','2022EE']
     totalEras = ['2017','2016preVFP','2016postVFP','2018']
+    totalEras = ['2024']
     for era in totalEras:
         out_dir = os.path.join(os.environ['SKNANO_DATA'],era,'MUO')
-        target_binning = 'abseta_pt'
+        target_binning = 'eta_pt'
         main_json = makingJson(era,target_binning)
         
         with open(os.path.join(out_dir,out_name_str+'muon_trig.json'), 'w') as f:
             json.dump(main_json, f, indent=4)
-
 
 
 

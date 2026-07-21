@@ -1,0 +1,73 @@
+{
+  "overlay_version": 1,
+  "view_collections": {
+    "Electron": {
+      "required": false,
+      "fields": {
+        "Electron_charge": {"required": true},
+        "Electron_eta": {"required": true},
+        "Electron_mass": {"required": true},
+        "Electron_phi": {"required": true},
+        "Electron_pt": {"required": true}
+      }
+    },
+    "GenJet": {
+      "required": false,
+      "fields": {
+        "GenJet_eta": {"required": true},
+        "GenJet_mass": {"required": true},
+        "GenJet_phi": {"required": true},
+        "GenJet_pt": {"required": true}
+      }
+    },
+    "GenPart": {
+      "required": false,
+      "fields": {
+        "GenPart_eta": {"required": true},
+        "GenPart_mass": {"required": true},
+        "GenPart_pdgId": {"required": true},
+        "GenPart_phi": {"required": true},
+        "GenPart_pt": {"required": true},
+        "GenPart_status": {"required": true}
+      }
+    },
+    "Jet": {
+      "required": false,
+      "fields": {
+        "Jet_eta": {"required": true},
+        "Jet_mass": {"required": true},
+        "Jet_phi": {"required": true},
+        "Jet_pt": {"required": true}
+      }
+    },
+    "Muon": {
+      "required": false,
+      "fields": {
+        "Muon_charge": {"required": true},
+        "Muon_eta": {"required": true},
+        "Muon_mass": {"required": true},
+        "Muon_phi": {"required": true},
+        "Muon_pt": {"required": true}
+      }
+    },
+    "SV": {
+      "required": false,
+      "fields": {
+        "SV_eta": {"required": true},
+        "SV_mass": {"required": true},
+        "SV_phi": {"required": true},
+        "SV_pt": {"required": true}
+      }
+    },
+    "TrigObj": {
+      "required": false,
+      "fields": {
+        "TrigObj_eta": {"required": true},
+        "TrigObj_filterBits": {"required": true},
+        "TrigObj_id": {"required": true},
+        "TrigObj_phi": {"required": true},
+        "TrigObj_pt": {"required": true}
+      }
+    }
+  }
+}

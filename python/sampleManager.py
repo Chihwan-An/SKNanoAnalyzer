@@ -3,6 +3,7 @@ import argparse
 import fcntl
 import json
 import os
+import re
 import tempfile
 from contextlib import contextmanager
 from multiprocessing import Pool
@@ -204,12 +205,11 @@ def makeSkimTreeInfo(era,skimTreeFolder,skimTreeSuffix,skimTreeOrigPD):
     from copy import deepcopy
     isMC = True
     period = None
-    if skimTreeOrigPD.split("_")[-1].isupper() and len(skimTreeOrigPD.split("_")[-1]) == 1:
-        #if sample is ends with _one capital letter, it is data
-        #hope there will be no exception(please)
+    data_match = re.match(r"^(?P<pd>.+)_(?P<period>[A-Z](?:_v\d+)?)$", skimTreeOrigPD)
+    if data_match:
         isMC = False
-        period = skimTreeOrigPD.split("_")[-1]
-        skimTreeOrigPD = skimTreeOrigPD[:-2]
+        period = data_match.group("period")
+        skimTreeOrigPD = data_match.group("pd")
         
     sampleInfos = loadCommonSampleInfo(era)
     skimJsonFolderPath = os.path.join(os.environ['SKNANO_DATA'],era,'Sample','Skim')

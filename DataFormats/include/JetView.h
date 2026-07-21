@@ -1,14 +1,26 @@
 #ifndef JETVIEW_H
 #define JETVIEW_H
 
-#include <memory>
 #include <cstddef>
+#include <functional>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
+#include "EventRange.h"
+#include "JetIDEnums.h"
+#include "JetTaggingParameter.h"
 #include "TLorentzVector.h"
 #include "ViewColumns.h"
 
 struct JetSoA {
+    std::function<void()> populateNominal;
+    std::function<void()> populateJerVariations;
+    mutable bool nominalReady = false;
+    mutable bool nominalComputing = false;
+    mutable bool jerVariationsReady = false;
+    mutable bool jerVariationsComputing = false;
+
     ColumnView<float> pt;
     ColumnView<float> eta;
     ColumnView<float> phi;
@@ -72,6 +84,11 @@ struct JetSoA {
     std::vector<float> jecFactor;
     std::vector<float> correctedPt;
     std::vector<float> correctedMass;
+    std::vector<float> jerResolution;
+    std::vector<float> jerScaleFactorNominal;
+    std::vector<float> jerGaussianSample;
+    std::vector<float> jerMatchedGenPt;
+    std::vector<float> jerMinCorrection;
     std::vector<float> smearedPtNominal;
     std::vector<float> smearedPtUp;
     std::vector<float> smearedPtDown;
@@ -82,15 +99,62 @@ struct JetSoA {
     std::vector<float> jesPtDown;
     std::vector<float> jesMassUp;
     std::vector<float> jesMassDown;
+    std::vector<float> jesTotalUncertainty;
+    std::string jesVariationSource;
+    bool jesVariationValid = false;
+    bool jesTotalUncertaintyValid = false;
 
     std::size_t size() const { return pt.size(); }
+
+    void ensureNominal() const {
+        // Validate the event epoch before invoking a provider that may read
+        // several branches.  This also keeps a stale Ref from populating data
+        // for the following event.
+        static_cast<void>(pt.size());
+        if (nominalReady)
+            return;
+        if (nominalComputing)
+            throw std::logic_error("recursive Jet nominal materialization");
+        if (!populateNominal)
+            return;
+        nominalComputing = true;
+        try {
+            populateNominal();
+            nominalReady = true;
+            nominalComputing = false;
+        } catch (...) {
+            nominalComputing = false;
+            throw;
+        }
+    }
+
+    void ensureJerVariations() const {
+        ensureNominal();
+        if (jerVariationsReady)
+            return;
+        if (jerVariationsComputing)
+            throw std::logic_error("recursive Jet JER variation materialization");
+        if (!populateJerVariations)
+            return;
+        jerVariationsComputing = true;
+        try {
+            populateJerVariations();
+            jerVariationsReady = true;
+            jerVariationsComputing = false;
+        } catch (...) {
+            jerVariationsComputing = false;
+            throw;
+        }
+    }
 };
 
 class JetView {
 public:
+    using JetID = JetSelection::JetID;
+
     JetView() = default;
-    JetView(std::shared_ptr<const JetSoA> storage, std::size_t index)
-        : store(std::move(storage)), idx(index) {}
+    JetView(const JetSoA *storage, std::size_t index)
+        : store(storage), idx(index) {}
 
     bool valid() const { return static_cast<bool>(store) && idx < store->size(); }
 
@@ -98,6 +162,7 @@ public:
     float Eta() const { return store->eta[idx]; }
     float Phi() const { return store->phi[idx]; }
     float Mass() const { return store->mass[idx]; }
+    float M() const { return Mass(); }
     float RawFactor() const { return store->rawFactor[idx]; }
     float Area() const { return store->area[idx]; }
     float ChHEF() const { return store->chHEF[idx]; }
@@ -105,8 +170,16 @@ public:
     float NeEmEF() const { return store->neEmEF[idx]; }
     float ChEmEF() const { return store->chEmEF[idx]; }
     float MuEF() const { return store->muEF[idx]; }
-    short PartonFlavour() const { return store->partonFlavour[idx]; }
-    unsigned char HadronFlavour() const { return store->hadronFlavour[idx]; }
+    float muEF() const { return MuEF(); }
+    float neEmEF() const { return NeEmEF(); }
+    short PartonFlavour() const {
+        return store->partonFlavour.available() ? store->partonFlavour[idx] : -999;
+    }
+    unsigned char HadronFlavour() const {
+        return store->hadronFlavour.available() ? store->hadronFlavour[idx] : 0;
+    }
+    short partonFlavour() const { return PartonFlavour(); }
+    unsigned char hadronFlavour() const { return HadronFlavour(); }
     unsigned char ChMultiplicity() const { return store->chMultiplicity[idx]; }
     unsigned char NeMultiplicity() const { return store->neMultiplicity[idx]; }
     unsigned char NConstituents() const { return store->nConstituents[idx]; }
@@ -119,7 +192,9 @@ public:
     short MuonIdx2() const { return store->muonIdx2[idx]; }
     short SvIdx1() const { return store->svIdx1[idx]; }
     short SvIdx2() const { return store->svIdx2[idx]; }
-    short GenJetIdx() const { return store->genJetIdx[idx]; }
+    short GenJetIdx() const {
+        return store->genJetIdx.available() ? store->genJetIdx[idx] : -999;
+    }
     float PNetRegPtRawCorr() const { return store->pnetRegPtRawCorr[idx]; }
     float PNetRegPtRawCorrNeutrino() const { return store->pnetRegPtRawCorrNeutrino[idx]; }
     float PNetRegPtRawRes() const { return store->pnetRegPtRawRes[idx]; }
@@ -131,19 +206,70 @@ public:
     float UParTAK4V1RegPtRawRes() const { return store->uparTAK4V1RegPtRawRes[idx]; }
     float PuIdDisc() const { return store->puIdDisc[idx]; }
 
-    float JECFactor() const { return idx < store->jecFactor.size() ? store->jecFactor[idx] : 1.f; }
-    float CorrectedPt() const { return idx < store->correctedPt.size() ? store->correctedPt[idx] : Pt(); }
-    float CorrectedMass() const { return idx < store->correctedMass.size() ? store->correctedMass[idx] : Mass(); }
-    float SmearedPtNominal() const { return idx < store->smearedPtNominal.size() ? store->smearedPtNominal[idx] : CorrectedPt(); }
-    float SmearedPtUp() const { return idx < store->smearedPtUp.size() ? store->smearedPtUp[idx] : CorrectedPt(); }
-    float SmearedPtDown() const { return idx < store->smearedPtDown.size() ? store->smearedPtDown[idx] : CorrectedPt(); }
-    float SmearedMassNominal() const { return idx < store->smearedMassNominal.size() ? store->smearedMassNominal[idx] : CorrectedMass(); }
-    float SmearedMassUp() const { return idx < store->smearedMassUp.size() ? store->smearedMassUp[idx] : CorrectedMass(); }
-    float SmearedMassDown() const { return idx < store->smearedMassDown.size() ? store->smearedMassDown[idx] : CorrectedMass(); }
-    float JesPtUp() const { return idx < store->jesPtUp.size() ? store->jesPtUp[idx] : SmearedPtNominal(); }
-    float JesPtDown() const { return idx < store->jesPtDown.size() ? store->jesPtDown[idx] : SmearedPtNominal(); }
-    float JesMassUp() const { return idx < store->jesMassUp.size() ? store->jesMassUp[idx] : SmearedMassNominal(); }
-    float JesMassDown() const { return idx < store->jesMassDown.size() ? store->jesMassDown[idx] : SmearedMassNominal(); }
+    float GetTaggerResult(
+        JetTagging::JetFlavTagger tagger,
+        JetTagging::JetFlavTaggerScoreType score) const {
+        using Tagger = JetTagging::JetFlavTagger;
+        using Score = JetTagging::JetFlavTaggerScoreType;
+        switch (tagger) {
+        case Tagger::DeepJet:
+            switch (score) {
+            case Score::B: return store->deepFlavB[idx];
+            case Score::CvB: return store->deepFlavCvB[idx];
+            case Score::CvL: return store->deepFlavCvL[idx];
+            case Score::QvG: return store->deepFlavQG[idx];
+            default: break;
+            }
+            break;
+        case Tagger::ParticleNet:
+            switch (score) {
+            case Score::B: return store->pnetB[idx];
+            case Score::CvB: return store->pnetCvB[idx];
+            case Score::CvL: return store->pnetCvL[idx];
+            case Score::CvNotB: return store->pnetCvNotB[idx];
+            case Score::QvG: return store->pnetQvG[idx];
+            case Score::TauVJet: return store->pnetTauVJet[idx];
+            default: break;
+            }
+            break;
+        case Tagger::ParT:
+            switch (score) {
+            case Score::B: return store->uparTAK4B[idx];
+            case Score::CvB: return store->uparTAK4CvB[idx];
+            case Score::CvL: return store->uparTAK4CvL[idx];
+            case Score::CvNotB: return store->uparTAK4CvNotB[idx];
+            case Score::Ele: return store->uparTAK4Ele[idx];
+            case Score::Mu: return store->uparTAK4Mu[idx];
+            case Score::QvG: return store->uparTAK4QvG[idx];
+            case Score::SvCB: return store->uparTAK4SvCB[idx];
+            case Score::SvUDG: return store->uparTAK4SvUDG[idx];
+            case Score::TauVJet: return store->uparTAK4TauVJet[idx];
+            case Score::probUDG: return store->uparTAK4UDG[idx];
+            case Score::probB: return store->uparTAK4ProbB[idx];
+            case Score::probBB: return store->uparTAK4ProbBB[idx];
+            default: break;
+            }
+            break;
+        default:
+            break;
+        }
+        throw SKNano::LogicError(
+            "[JetView::GetTaggerResult] unsupported tagger/score");
+    }
+
+    float JECFactor() const { ensureNominal(); return idx < store->jecFactor.size() ? store->jecFactor[idx] : 1.f; }
+    float CorrectedPt() const { ensureNominal(); return idx < store->correctedPt.size() ? store->correctedPt[idx] : Pt(); }
+    float CorrectedMass() const { ensureNominal(); return idx < store->correctedMass.size() ? store->correctedMass[idx] : Mass(); }
+    float SmearedPtNominal() const { ensureNominal(); return idx < store->smearedPtNominal.size() ? store->smearedPtNominal[idx] : Pt(); }
+    float SmearedPtUp() const { ensureJerVariations(); return idx < store->smearedPtUp.size() ? store->smearedPtUp[idx] : Pt(); }
+    float SmearedPtDown() const { ensureJerVariations(); return idx < store->smearedPtDown.size() ? store->smearedPtDown[idx] : Pt(); }
+    float SmearedMassNominal() const { ensureNominal(); return idx < store->smearedMassNominal.size() ? store->smearedMassNominal[idx] : Mass(); }
+    float SmearedMassUp() const { ensureJerVariations(); return idx < store->smearedMassUp.size() ? store->smearedMassUp[idx] : Mass(); }
+    float SmearedMassDown() const { ensureJerVariations(); return idx < store->smearedMassDown.size() ? store->smearedMassDown[idx] : Mass(); }
+    float JesPtUp() const { ensureNominal(); return idx < store->jesPtUp.size() ? store->jesPtUp[idx] : SmearedPtNominal(); }
+    float JesPtDown() const { ensureNominal(); return idx < store->jesPtDown.size() ? store->jesPtDown[idx] : SmearedPtNominal(); }
+    float JesMassUp() const { ensureNominal(); return idx < store->jesMassUp.size() ? store->jesMassUp[idx] : SmearedMassNominal(); }
+    float JesMassDown() const { ensureNominal(); return idx < store->jesMassDown.size() ? store->jesMassDown[idx] : SmearedMassNominal(); }
 
     TLorentzVector P4() const {
         TLorentzVector v;
@@ -151,37 +277,28 @@ public:
         return v;
     }
 
+    template <typename Other>
+    float DeltaPhi(const Other &other) const {
+        if constexpr (requires { other.P4(); })
+            return P4().DeltaPhi(other.P4());
+        else
+            return P4().DeltaPhi(TLorentzVector(other));
+    }
+
 private:
-    std::shared_ptr<const JetSoA> store;
+    void assertCurrentEvent() const { static_cast<void>(store->size()); }
+    void ensureNominal() const {
+        assertCurrentEvent();
+        store->ensureNominal();
+    }
+    void ensureJerVariations() const {
+        assertCurrentEvent();
+        store->ensureJerVariations();
+    }
+    const JetSoA *store = nullptr;
     std::size_t idx = 0;
 };
 
-class JetViewCollection {
-public:
-    JetViewCollection() = default;
-    explicit JetViewCollection(std::shared_ptr<JetSoA> payload)
-        : storage_(std::move(payload)) {
-        if (storage_) {
-            const std::size_t n = storage_->size();
-            views.reserve(n);
-            for (std::size_t i = 0; i < n; ++i) {
-                views.emplace_back(storage_, i);
-            }
-        }
-    }
-
-    const JetView &operator[](std::size_t index) const { return views[index]; }
-    std::size_t size() const { return views.size(); }
-    bool empty() const { return views.empty(); }
-
-    auto begin() const { return views.begin(); }
-    auto end() const { return views.end(); }
-
-    const std::shared_ptr<JetSoA> &storage() const { return storage_; }
-
-private:
-    std::shared_ptr<JetSoA> storage_;
-    std::vector<JetView> views;
-};
+using JetViewCollection = EventRange<JetSoA, JetView>;
 
 #endif // JETVIEW_H

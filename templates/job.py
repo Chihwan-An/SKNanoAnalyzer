@@ -1,12 +1,14 @@
 import os, sys
-sys.path.append(f"{os.getenv("SKNANO_HOME")}/PyAnalyzers")
+sys.path.append(f"{os.getenv('SKNANO_HOME')}/PyAnalyzers")
 from ROOT import TString
 from ROOT.VecOps import RVec
 from [Analyzer] import [Analyzer]
 
 if __name__ == "__main__":
     module = [Analyzer]()
-    module.SetTreeName("Events")
+    module.SetRNTupleName("Events")
+    module.SetAnalyzerName("[Analyzer]")
+    module.SetOutputThreads([ncpu])
     module.LogEvery = 5000
     module.IsDATA = False
     module.MCSample = "[sample]"
@@ -19,6 +21,8 @@ if __name__ == "__main__":
 [SAMPLEPATHS]
 [MAXEVENT]
     module.SetOutfilePath("[output]")
+    module.SetFailurePolicy("[failure_policy]")
+    module.SetMaxEventErrors([max_event_errors])
     module.Init()
     module.initializePyAnalyzer()
     module.Loop()

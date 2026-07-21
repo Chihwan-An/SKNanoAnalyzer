@@ -1,25 +1,20 @@
 # Define the library with source files and the generated dictionary
-file(GLOB SOURCES src/*.cc)
+file(GLOB SOURCES CONFIGURE_DEPENDS src/*.cc)
 add_library(DataFormats SHARED
     ${SOURCES}
     #${CMAKE_CURRENT_BINARY_DIR}/G__DataFormats.cxx
 )
 
-find_library(CORRECTION_LIBRARY NAMES correctionlib PATHS $ENV{CORRECTION_LIB_DIR})
-
 # Specify where the library should look for header files
-target_include_directories(DataFormats PRIVATE
+target_include_directories(DataFormats PUBLIC
     $<BUILD_INTERFACE:${ROOT_INCLUDE_DIRS}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../AnalyzerTools/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../Analyzers/include>
-    $<BUILD_INTERFACE:$ENV{CORRECTION_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:$ENV{ROCCOR_PATH}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../SKNanoCore/include>
     $<INSTALL_INTERFACE:include>
 )
 
 # Generate the ROOT dictionary before defining the library
-file(GLOB HEADERS include/*.h)
+file(GLOB HEADERS CONFIGURE_DEPENDS include/*.h)
 foreach(HEADER ${HEADERS})
     file(RELATIVE_PATH REL_HEADER ${CMAKE_CURRENT_SOURCE_DIR} ${HEADER})
     list(APPEND REL_HEADERS ${REL_HEADER})
@@ -34,8 +29,7 @@ ROOT_GENERATE_DICTIONARY(G__DataFormats
 
 
 # Link ROOT libraries
-target_link_libraries(DataFormats ${ROOT_LIBRARIES})
-target_link_libraries(DataFormats ${CORRECTION_LIBRARY})
+target_link_libraries(DataFormats PUBLIC ${ROOT_LIBRARIES} SKNanoCore)
 
 # Specify where to install the library
 install(TARGETS DataFormats DESTINATION lib)

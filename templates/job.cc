@@ -3,7 +3,9 @@
 
 void [jobname]() {
     [analyzer] module;
-    module.SetTreeName("Events");
+    module.SetRNTupleName("Events");
+    module.SetAnalyzerName("[analyzer]");
+    module.SetOutputThreads([ncpu]);
     module.LogEvery = 5000;
     module.IsDATA = false;
     module.MCSample = "[sample]";
@@ -16,6 +18,8 @@ void [jobname]() {
 [SAMPLEPATHS]
 [MAXEVENT]
     module.SetOutfilePath("[output]");
+    module.SetFailurePolicy("[failure_policy]");
+    module.SetMaxEventErrors([max_event_errors]);
     module.Init();
     module.initializeAnalyzer();
     module.Loop();

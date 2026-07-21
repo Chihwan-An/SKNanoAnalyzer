@@ -1,10 +1,33 @@
 #include "SKNanoLoader.h"
-#include "TTreeCache.h"
-#include "TBranch.h"
-#include "TObjArray.h"
-#include "TIterator.h"
 #include <algorithm>
+#include <exception>
+#include <iomanip>
 using json = nlohmann::json;
+
+namespace {
+
+std::string summaryPathFor(const std::string &jsonlPath)
+{
+    if (jsonlPath.size() >= 6 &&
+        jsonlPath.compare(jsonlPath.size() - 6, 6, ".jsonl") == 0)
+        return jsonlPath.substr(0, jsonlPath.size() - 6) + ".summary.json";
+    return jsonlPath + ".summary.json";
+}
+
+template <typename BranchT, typename ValueT>
+void tryReadBranch(const BranchT &branch, ValueT &value)
+{
+    try
+    {
+        if (branch.valid())
+            value = static_cast<ValueT>(branch);
+    }
+    catch (...)
+    {
+    }
+}
+
+} // namespace
 
 SKNanoLoader::SKNanoLoader()
 {
@@ -21,57 +44,134 @@ SKNanoLoader::SKNanoLoader()
     Userflags.clear();
 }
 
-void SKNanoLoader::configureTreeCache(TTree *tree)
+SKNanoLoader::~SKNanoLoader()
 {
-    if (!tree)
+    // RNTuple column views must be released while their reader is still alive.
+    branchManager.clear();
+}
+
+void SKNanoLoader::SetRNTupleName(TString name)
+{
+    if (!inputFiles.empty())
+        throw SKNano::ConfigError(
+            "[SKNanoLoader] SetRNTupleName() must precede AddFile()");
+    inputDatasetName = name.Data();
+}
+
+int SKNanoLoader::AddFile(TString filename)
+{
+    const std::string path = filename.Data();
+    if (path.empty())
+        return 0;
+    inputFiles.push_back(path);
+    rntupleFileRanges.clear();
+    rntupleTotalEntries = -1;
+    return 1;
+}
+
+void SKNanoLoader::PrepareRNTupleFiles()
+{
+    if (rntupleTotalEntries >= 0)
         return;
+    rntupleFileRanges.clear();
+    Long64_t offset = 0;
+    for (const auto &fileName : inputFiles) {
+        SKNano::RNTupleSource probe;
+        probe.open(inputDatasetName, fileName, false, false);
+        const auto entries = probe.entries();
+        if (entries > static_cast<std::uint64_t>(
+                          std::numeric_limits<Long64_t>::max() - offset))
+            throw SKNano::ConfigError(
+                "[SKNanoLoader] RNTuple chain entry count overflows Long64_t");
+        const Long64_t end = offset + static_cast<Long64_t>(entries);
+        rntupleFileRanges.push_back({fileName, offset, end});
+        offset = end;
+    }
+    rntupleTotalEntries = offset;
+}
 
-    if (treeCacheSizeBytes <= 0)
-    {
-        tree->SetCacheSize(0);
+Long64_t SKNanoLoader::GetInputEntries()
+{
+    PrepareRNTupleFiles();
+    return rntupleTotalEntries;
+}
+
+void SKNanoLoader::OpenRNTupleFile(std::size_t index)
+{
+    if (index >= rntupleFileRanges.size())
+        throw SKNano::LogicError("[SKNanoLoader] invalid RNTuple file index");
+    auto next = std::make_unique<SKNano::RNTupleSource>();
+    next->open(inputDatasetName, rntupleFileRanges[index].fileName,
+               performanceTelemetry.enabled(), rntupleClusterCache);
+    // attachRNTuple clears views into the previous reader before the old
+    // RNTupleSource is destroyed by the unique_ptr move below.
+    branchManager.attachRNTuple(next.get());
+    rntupleSource = std::move(next);
+    currentRNTupleFileIndex = index;
+    currentFileNumber = static_cast<int>(index);
+    currentFileGlobalBegin = rntupleFileRanges[index].begin;
+    currentFileGlobalEnd = rntupleFileRanges[index].end;
+    ResetBranchStates();
+    ValidateExecutionPlanRNTuple();
+    performanceTelemetry.addCounter("rntuple_file_opens");
+}
+
+bool SKNanoLoader::PrepareEntry(Long64_t globalEntry)
+{
+    PrepareRNTupleFiles();
+    if (globalEntry < 0 || globalEntry >= rntupleTotalEntries)
+        return false;
+    if (currentRNTupleFileIndex >= rntupleFileRanges.size() ||
+        globalEntry < currentFileGlobalBegin ||
+        globalEntry >= currentFileGlobalEnd) {
+        const auto it = std::upper_bound(
+            rntupleFileRanges.begin(), rntupleFileRanges.end(), globalEntry,
+            [](Long64_t entry, const RNTupleFileRange &range) {
+                return entry < range.end;
+            });
+        if (it == rntupleFileRanges.end())
+            return false;
+        OpenRNTupleFile(static_cast<std::size_t>(
+            std::distance(rntupleFileRanges.begin(), it)));
+    }
+    currentEntry = globalEntry;
+    currentLocalEntry = globalEntry - currentFileGlobalBegin;
+    ++eventEpoch;
+    performanceTelemetry.addCounter("rntuple_local_entry_advances");
+    return true;
+}
+
+void SKNanoLoader::ValidateExecutionPlanRNTuple() const
+{
+    if (!hasExecutionPlan || !rntupleSource)
         return;
-    }
-
-    tree->SetCacheSize(treeCacheSizeBytes);
-    const Long64_t cacheEnd =
-        fChain ? fChain->GetEntries() : tree->GetEntries();
-    tree->SetCacheEntryRange(0, cacheEnd);
-    tree->SetCacheLearnEntries(treeCacheLearnEntries >= 0 ? treeCacheLearnEntries : -1);
-
-    if (auto *file = tree->GetCurrentFile())
-    {
-        if (auto *cache = tree->GetReadCache(file, true))
-        {
-            cache->SetBufferSize(treeCacheSizeBytes);
-            cache->SetLearnPrefill(enableTreePrefetching ? TTreeCache::kAllBranches : TTreeCache::kNoPrefill);
+    const std::string context = rntupleSource->fileName() + ":" +
+                                inputDatasetName;
+    for (const auto &column : executionPlan.columns()) {
+        if (!rntupleSource->hasField(column.name)) {
+            if (column.requirement == SKNano::PlanRequirement::Required)
+                throw SKNano::ConfigError(
+                    "[ExecutionPlan] required RNTuple field '" + column.name +
+                    "' is missing in " + context);
+            continue;
         }
-    }
-
-    // Prefetch only branches that were actually activated (recorded by BranchManager)
-    if (enableTreePrefetching)
-    {
-        const auto &activeBranches = BranchBase::GetActiveBranches();
-        auto *branchList = tree->GetListOfBranches();
-        const int capacity = branchList ? branchList->GetSize() : -1;
-        for (const auto &name : activeBranches)
-        {
-            auto *branch = tree->GetBranch(name.c_str());
-            if (!branch)
-                continue;
-            const int id = static_cast<int>(branch->GetUniqueID());
-            if (capacity >= 0 && id >= capacity)
-                continue; // skip pathological IDs that would overflow TObjArray
-            tree->AddBranchToCache(name.c_str(), true);
-        }
+        const std::string type = rntupleSource->fieldType(column.name);
+        const bool vector = type.find("RVec<") != std::string::npos ||
+                            type.find("vector<") != std::string::npos;
+        if ((column.cardinality == SKNano::PlanCardinality::Scalar && vector) ||
+            (column.cardinality == SKNano::PlanCardinality::Vector && !vector))
+            throw SKNano::ConfigError(
+                "[ExecutionPlan] RNTuple field '" + column.name +
+                "' has incompatible cardinality in " + context);
     }
 }
 
 void SKNanoLoader::Loop()
 {
-    if (!fChain)
+    if (GetInputEntries() <= 0)
         return;
 
-    Long64_t totalEntries = fChain->GetEntries();
+    Long64_t totalEntries = GetInputEntries();
     Long64_t targetEntries = totalEntries;
     if (MaxEvent > 0)
         targetEntries = std::min(targetEntries, static_cast<Long64_t>(MaxEvent));
@@ -87,80 +187,161 @@ void SKNanoLoader::Loop()
 
     auto startTime = std::chrono::steady_clock::now();
     cout << "[SKNanoLoader::Loop] Event Loop Started" << endl;
+    performanceStartBytesRead = TFile::GetFileBytesRead();
+    performanceStartReadCalls = TFile::GetFileReadCalls();
+    performanceEventsProcessed = 0;
+    performanceTelemetry.setMetadata("analyzer", analyzerName);
+    performanceTelemetry.setMetadata("era", DataEra.Data());
+    performanceTelemetry.startRun();
 
-    currentTreeNumber = -1;
+    currentFileNumber = -1;
     currentEntry = -1;
     currentLocalEntry = -1;
+    currentFileGlobalBegin = -1;
+    currentFileGlobalEnd = -1;
+    currentRNTupleFileIndex = std::numeric_limits<std::size_t>::max();
     branchManager.bindEntrySource(&currentLocalEntry);
-    cachePrefetchConfigured = false;
+    branchManager.bindEpochSource(&eventEpoch);
 
     Long64_t processed = 0;
+
+    int next_log_percent = 0;
+    const int log_step_percent = 5;                        // 5% 진행될 때마다 로깅
+    auto last_log_time = startTime;
+    const auto log_step_time = std::chrono::seconds(60);   // 또는 60초가 지날 때마다 로깅
+
     for (Long64_t globalEntry = 0; globalEntry < targetEntries; ++globalEntry)
     {
-        Long64_t localEntry = fChain->LoadTree(globalEntry);
-        if (localEntry < 0)
-            break;
-
-        currentEntry = globalEntry;
-        currentLocalEntry = localEntry;
-
-        if (fChain->GetTreeNumber() != currentTreeNumber)
         {
-            currentTreeNumber = fChain->GetTreeNumber();
-            TTree *currentTree = fChain->GetTree();
-            branchManager.attachTree(currentTree);
-            ResetBranchStates();
+            auto headerPhase = performanceTelemetry.measure("header_io");
+            if (!PrepareEntry(globalEntry))
+                break;
         }
 
         if (globalEntry < skipEntries)
             continue;
 
-        if (LogEvery > 0 && (processed % LogEvery == 0))
+        int current_percent = (entriesToProcess > 0) ? (processed * 100) / entriesToProcess : 100;
+
+        if (current_percent >= next_log_percent || (processed % 1000 == 0))
         {
             auto currentTime = std::chrono::steady_clock::now();
-            std::chrono::duration<double> elapsedTime = currentTime - startTime;
-            double timePerEvent = processed > 0 ? elapsedTime.count() / static_cast<double>(processed) : 0.0;
-            Long64_t remainingEvents = std::max(entriesToProcess - processed, 0LL);
-            double estimatedRemaining = remainingEvents * timePerEvent;
+            
+            if (current_percent >= next_log_percent || (currentTime - last_log_time) >= log_step_time)
+            {
+                std::chrono::duration<double> elapsedTime = currentTime - startTime;
+                double timePerEvent = processed > 0 ? elapsedTime.count() / static_cast<double>(processed) : 0.0;
+                Long64_t remainingEvents = std::max(entriesToProcess - processed, 0LL);
+                double estimatedRemaining = remainingEvents * timePerEvent;
 
-            cout << "[SKNanoLoader::Loop] Processing " << (skipEntries + processed) << " / " << targetEntries
-                 << " | Elapsed: " << std::fixed << std::setprecision(2) << elapsedTime.count() << "s, Remaining: " << estimatedRemaining << "s" << endl;
+                cout << "[SKNanoLoader::Loop] Progress: " << std::setw(3) << current_percent << "% "
+                     << "(" << (skipEntries + processed) << " / " << targetEntries << ") "
+                     << "| Elapsed: " << std::fixed << std::setprecision(1) << elapsedTime.count() << "s "
+                     << "| ETA: " << std::fixed << std::setprecision(1) << estimatedRemaining << "s" << endl;
+
+                next_log_percent = ((current_percent / log_step_percent) + 1) * log_step_percent;
+                last_log_time = currentTime; // 마지막 로그 시간 갱신
+            }
         }
 
-        executeEvent();
-        ++processed;
-        if (!cachePrefetchConfigured &&
-            enableTreePrefetching &&
-            processed >= CACHE_PREFETCH_WARMUP_EVENTS)
+        bool skipCurrentEvent = false;
+        try
         {
-            configureTreeCache(fChain);
-            cachePrefetchConfigured = true;
+            if (eventArena)
+                eventArena->reset();
+            auto eventPhase = performanceTelemetry.measure("event_total");
+            executeEvent();
         }
+        catch (const SKNano::AnalysisException &e)
+        {
+            const auto context = BuildFailureContext();
+            RecordFailure(context, SKNano::ErrorCategoryName(e.category()),
+                          e.what(), "SKNano::AnalysisException");
+            const bool tooManyErrors =
+                maxEventErrors >= 0 && eventErrorCount > maxEventErrors;
+            if (failurePolicy == SKNano::FailurePolicy::FailFast ||
+                !e.eventLocal() || tooManyErrors)
+            {
+                WriteFailureSummary();
+                WritePerformanceSummary();
+                throw;
+            }
+            skipCurrentEvent = true;
+        }
+        catch (const std::exception &e)
+        {
+            const auto context = BuildFailureContext();
+            RecordFailure(context, "Unknown", e.what(), "std::exception");
+            WriteFailureSummary();
+            WritePerformanceSummary();
+            throw;
+        }
+        catch (...)
+        {
+            const auto context = BuildFailureContext();
+            RecordFailure(context, "Unknown", "non-std exception", "unknown");
+            WriteFailureSummary();
+            WritePerformanceSummary();
+            throw;
+        }
+        ++processed;
+        performanceEventsProcessed = processed;
         if (processed >= entriesToProcess)
             break;
+        if (skipCurrentEvent)
+            continue;
     }
 
     auto endTime = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsedTime = endTime - startTime;
-    cout << "[SKNanoLoader::Loop] Event Loop Finished in " << std::fixed << std::setprecision(2) << elapsedTime.count() << "s" << endl;
+    
+    cout << "[SKNanoLoader::Loop] Progress: 100% (" << targetEntries << " / " << targetEntries << ") "
+         << "| Event Loop Finished in " << std::fixed << std::setprecision(2) << elapsedTime.count() << "s" << endl;
+    WriteFailureSummary();
+    WritePerformanceSummary();
+}
+
+void SKNanoLoader::WritePerformanceSummary()
+{
+    if (!performanceTelemetry.enabled())
+        return;
+    performanceTelemetry.setCounter("events_processed", performanceEventsProcessed);
+    performanceTelemetry.setCounter("event_errors", eventErrorCount);
+    performanceTelemetry.setCounter("active_branches", branchManager.getActiveBranches().size());
+    performanceTelemetry.setMetadata("input_format", "rntuple");
+    performanceTelemetry.setCounter("file_bytes_read",
+        TFile::GetFileBytesRead() - performanceStartBytesRead);
+    performanceTelemetry.setCounter("file_read_calls",
+        TFile::GetFileReadCalls() - performanceStartReadCalls);
+    performanceTelemetry.setCounter("input_files", inputFiles.size());
+    performanceTelemetry.writeJson();
 }
 
 void SKNanoLoader::Init()
 {
     cout << "[SKNanoLoader::Init] Initializing. Era = " << DataEra << " Run =  " << Run << endl;
-    if (fChain->GetEntries() == 0)
+    if (const char *report = std::getenv("SKNANO_PERFORMANCE_REPORT"))
+        SetPerformanceReportPath(report);
+    if (GetInputEntries() == 0)
     {
-        cout << "[SKNanoLoader::Init] No Entries in the Tree" << endl;
-        cout << "[SKNanoLoader::Init] Exiting without make output..." << endl;
-        exit(0);
+        cout << "[SKNanoLoader::Init] No entries in the RNTuple" << endl;
+        throw SKNano::ConfigError(
+            "[SKNanoLoader::Init] no entries in the RNTuple");
     }
-
-    fChain->SetBranchStatus("*", 0);
-    BranchBase::ClearActiveBranches();
 
     branchManager.clear();
     branchManager.bindEntrySource(&currentLocalEntry);
+    branchManager.bindEpochSource(&eventEpoch);
     RegisterBranches();
+    ResetBranchStates();
+
+    // Attach the first concrete source before analyzer initialization so
+    // typed required/optional handles validate the physical schema up front.
+    PrepareRNTupleFiles();
+    if (rntupleFileRanges.empty())
+        throw SKNano::ConfigError(
+            "[SKNanoLoader::Init] no RNTuple input files");
+    OpenRNTupleFile(0);
     ResetBranchStates();
 
     TriggerMap.clear();
@@ -184,15 +365,14 @@ void SKNanoLoader::Init()
                 continue;
             }
 
-            if (!fChain->GetBranch(key.c_str()))
+            if (!branchManager.available(key))
             {
-                cout << "[SKNanoLoader::Init] " << key << " branch not in tree – skipped" << endl;
+                cout << "[SKNanoLoader::Init] " << key
+                     << " field not in RNTuple - skipped" << endl;
                 continue;
             }
 
-            auto hltBranch = std::make_unique<BranchScalar<Bool_t>>(key.c_str());
-            branchManager.registerScalar(*hltBranch);
-            info->hlt = std::move(hltBranch);
+            info->hlt = &branchManager.getOrCreateScalar<Bool_t>(key);
             TriggerMap.emplace(key, std::move(info));
         }
     }
@@ -202,14 +382,142 @@ void SKNanoLoader::Init()
     }
 }
 
+bool SKNanoLoader::lookupTrigger(const std::string &name,
+                                  SKNano::TriggerDecision &decision) const
+{
+    if (triggerDecisionCacheEntry != currentEntry) {
+        triggerDecisionCache.clear();
+        triggerDecisionCacheEntry = currentEntry;
+    }
+    const auto cached = triggerDecisionCache.find(name);
+    if (cached != triggerDecisionCache.end()) {
+        decision = cached->second;
+        return true;
+    }
+
+    const auto it = TriggerMap.find(TString(name));
+    if (it == TriggerMap.end() || !it->second)
+        return false;
+
+    const TriggerInfo &info = *it->second;
+    decision.lumi = info.lumi;
+    decision.pass = info.alwaysTrue ||
+                    (info.hlt && info.hlt->valid() &&
+                     static_cast<bool>(*info.hlt));
+    triggerDecisionCache.emplace(name, decision);
+    return true;
+}
+
 
 void SKNanoLoader::RegisterBranches()
 {
-#include "../include/generated_branch_register.inc"
+#include <generated_branch_register.inc>
 }
 
 void SKNanoLoader::ResetBranchStates()
 {
     branchManager.resetAll();
-#include "../include/generated_branch_reset.inc"
+#include <generated_branch_reset.inc>
+}
+
+SKNano::FailureContext SKNanoLoader::BuildFailureContext() const
+{
+    SKNano::FailureContext context;
+    context.entry = currentEntry;
+    context.localEntry = currentLocalEntry;
+    context.treeNumber = currentFileNumber;
+    context.analyzer = analyzerName;
+    context.sample = MCSample.Data();
+    context.dataStream = DataStream.Data();
+    context.era = DataEra.Data();
+    context.period = DataPeriod.Data();
+    context.campaign = Campaign.Data();
+    context.systematic = CurrentSystematicName();
+
+    if (rntupleSource) {
+        context.inputFile = rntupleSource->fileName();
+    }
+
+    tryReadBranch(RunNumber, context.run);
+    tryReadBranch(luminosityBlock, context.lumi);
+    tryReadBranch(event, context.event);
+    return context;
+}
+
+void SKNanoLoader::RecordFailure(const SKNano::FailureContext &context,
+                                 const std::string &category,
+                                 const std::string &message,
+                                 const std::string &exceptionType)
+{
+    ++eventErrorCount;
+    ++errorCountsByCategory[category];
+
+    json record = {
+        {"category", category},
+        {"exception_type", exceptionType},
+        {"message", message},
+        {"entry", context.entry},
+        {"local_entry", context.localEntry},
+        {"tree_number", context.treeNumber},
+        {"input_file", context.inputFile},
+        {"run", context.run},
+        {"lumi", context.lumi},
+        {"event", context.event},
+        {"analyzer", context.analyzer},
+        {"sample", context.sample},
+        {"data_stream", context.dataStream},
+        {"era", context.era},
+        {"period", context.period},
+        {"campaign", context.campaign},
+        {"systematic", context.systematic},
+        {"failure_policy", SKNano::FailurePolicyName(failurePolicy)},
+        {"event_error_count", eventErrorCount},
+        {"max_event_errors", maxEventErrors},
+    };
+
+    cerr << "[SKNanoLoader::Loop] Event failure: " << record.dump() << endl;
+
+    if (errorReportPath.empty())
+        return;
+    std::ofstream out(errorReportPath, std::ios::app);
+    if (!out)
+    {
+        cerr << "[SKNanoLoader::RecordFailure] Cannot open error report "
+             << errorReportPath << endl;
+        return;
+    }
+    out << record.dump() << '\n';
+}
+
+void SKNanoLoader::WriteFailureSummary() const
+{
+    if (errorReportPath.empty())
+        return;
+
+    json byCategory = json::object();
+    for (const auto &kv : errorCountsByCategory)
+        byCategory[kv.first] = kv.second;
+
+    json summary = {
+        {"failure_policy", SKNano::FailurePolicyName(failurePolicy)},
+        {"event_error_count", eventErrorCount},
+        {"max_event_errors", maxEventErrors},
+        {"errors_by_category", byCategory},
+        {"analyzer", analyzerName},
+        {"sample", MCSample.Data()},
+        {"data_stream", DataStream.Data()},
+        {"era", DataEra.Data()},
+        {"period", DataPeriod.Data()},
+        {"campaign", Campaign.Data()},
+    };
+
+    const std::string summaryPath = summaryPathFor(errorReportPath);
+    std::ofstream out(summaryPath);
+    if (!out)
+    {
+        cerr << "[SKNanoLoader::WriteFailureSummary] Cannot open error summary "
+             << summaryPath << endl;
+        return;
+    }
+    out << summary.dump(2) << '\n';
 }

@@ -5,6 +5,8 @@
 #include <iostream>
 #include <TString.h>
 
+#include "AnalysisException.h"
+
 using namespace std;
 
 namespace JetTagging
@@ -95,7 +97,10 @@ namespace JetTagging
         XqqVsQCD,
         XteVsQCD,
         XtmVsQCD,
-        XttVsQCD
+        XttVsQCD,
+        MassCorr,
+        MassCorrGeneric,
+        MassCorrX2p
     };
     //string version of JetTaggingSFMethod
     inline TString GetJetTaggingSFMethodStr(JetTaggingSFMethod method) {
@@ -110,8 +115,7 @@ namespace JetTagging
         case JetTaggingSFMethod::wp:
             return "wp";
         default:
-            cerr << "[JetTagging::GetJetTaggingSFMethodStr] No such method" << endl;
-            exit(ENODATA);
+            throw SKNano::LogicError("[JetTagging::GetJetTaggingSFMethodStr] No such method");
         }
     };
 
@@ -126,8 +130,7 @@ namespace JetTagging
         case JetFlavTagger::ParT:
             return "UParTAK4";
         default:
-            cerr << "[JetTagging::GetTaggerCorrectionLibStr] No such tagger" << endl;
-            exit(ENODATA);
+            throw SKNano::LogicError("[JetTagging::GetTaggerCorrectionLibStr] No such tagger");
         }
     };
     inline TString GetTaggerCorrectionWPStr(JetFlavTaggerWP wp)
@@ -145,8 +148,7 @@ namespace JetTagging
         case JetFlavTaggerWP::SuperTight:
             return "XXT";
         default:
-        cerr << "[JetTagging::GetTaggerCorrectionLibStr] No such wp" << endl;
-        exit(ENODATA);
+            throw SKNano::LogicError("[JetTagging::GetTaggerCorrectionWPStr] No such wp");
         }
     };
     inline TString GetScoreTypeStr(JetFlavTaggerScoreType type)
@@ -180,8 +182,7 @@ namespace JetTagging
         case JetFlavTaggerScoreType::probUDG:
             return "probUDG";
         default:
-            cerr << "[JetTagging::GetScoreTypeStr] No such score type" << endl;
-            exit(ENODATA);
+            throw SKNano::LogicError("[JetTagging::GetScoreTypeStr] No such score type");
         }
     };
 
@@ -205,8 +206,7 @@ namespace JetTagging
         case FatJetTagger::ParT:
             return "robustParticleTransformer";
         default:
-            cerr << "[JetTagging::GetFatJetTaggerCorrectionLibStr] No such tagger" << endl;
-            exit(ENODATA);
+            throw SKNano::LogicError("[JetTagging::GetFatJetTaggerCorrectionLibStr] No such tagger");
         }
     };
 
@@ -282,9 +282,14 @@ namespace JetTagging
             return "XtmVsQCD";
         case FatJetTaggerScoreType::XttVsQCD:
             return "XttVsQCD";
+        case FatJetTaggerScoreType::MassCorr:
+            return "massCorr";
+        case FatJetTaggerScoreType::MassCorrGeneric:
+            return "massCorrGeneric";
+        case FatJetTaggerScoreType::MassCorrX2p:
+            return "massCorrX2p";
         default:
-            cerr << "[JetTagging::GetFatJetScore] No such score type" << endl;
-            exit(ENODATA);
+            throw SKNano::LogicError("[JetTagging::GetFatJetScore] No such score type");
         }
     }
     inline TString GetJetFlavTaggerScoreTypeStr(JetFlavTaggerScoreType type)
@@ -318,8 +323,7 @@ namespace JetTagging
         case JetFlavTaggerScoreType::probUDG:
             return "probUDG";
         default:
-            cerr << "[JetTagging::GetJetFlavTaggerScoreTypeStr] No such score type" << endl;
-            exit(ENODATA);
+            throw SKNano::LogicError("[JetTagging::GetJetFlavTaggerScoreTypeStr] No such score type");
         }
     }
 }

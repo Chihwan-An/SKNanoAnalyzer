@@ -1,0 +1,61 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "portable-release",
+      "displayName": "Portable strict Release",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/portable-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "$env{LIBTORCH_INSTALL_DIR}",
+        "SKNANO_NUMERIC_MODE": "StrictReference",
+        "SKNANO_USE_NATIVE_ARCH": "OFF",
+        "SKNANO_ENABLE_LTO": "OFF",
+        "SKNANO_PGO_PHASE": "OFF"
+      }
+    },
+    {
+      "name": "portable-lto",
+      "inherits": "portable-release",
+      "displayName": "Portable strict Release with LTO",
+      "binaryDir": "${sourceDir}/build/portable-lto",
+      "cacheVariables": { "SKNANO_ENABLE_LTO": "ON" }
+    },
+    {
+      "name": "fast-validated",
+      "inherits": "portable-release",
+      "displayName": "Portable FastValidated Release",
+      "binaryDir": "${sourceDir}/build/fast-validated",
+      "cacheVariables": { "SKNANO_NUMERIC_MODE": "FastValidated" }
+    },
+    {
+      "name": "pgo-generate",
+      "inherits": "portable-release",
+      "displayName": "Portable PGO instrumentation",
+      "binaryDir": "${sourceDir}/build/pgo-generate",
+      "cacheVariables": {
+        "SKNANO_PGO_PHASE": "GENERATE",
+        "SKNANO_PGO_PROFILE": "${sourceDir}/build/pgo-data"
+      }
+    },
+    {
+      "name": "pgo-use",
+      "inherits": "portable-release",
+      "displayName": "Portable optimized PGO build",
+      "binaryDir": "${sourceDir}/build/pgo-use",
+      "cacheVariables": {
+        "SKNANO_PGO_PHASE": "USE",
+        "SKNANO_PGO_PROFILE": "${sourceDir}/build/pgo-data"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "portable-release", "configurePreset": "portable-release" },
+    { "name": "portable-lto", "configurePreset": "portable-lto" },
+    { "name": "fast-validated", "configurePreset": "fast-validated" },
+    { "name": "pgo-generate", "configurePreset": "pgo-generate" },
+    { "name": "pgo-use", "configurePreset": "pgo-use" }
+  ]
+}

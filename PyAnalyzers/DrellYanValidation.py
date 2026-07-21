@@ -4,8 +4,6 @@
 from ROOT import gSystem
 from ROOT import GeneratorBase
 from ROOT import TString, TMath
-from ROOT.VecOps import RVec
-from ROOT import LHE, Gen, GenJet, GenDressedLepton, GenIsolatedPhoton, GenVisTau
 
 class GenValidation(GeneratorBase):
     def __init__(self):
@@ -25,12 +23,12 @@ class GenValidation(GeneratorBase):
         self.fillObjects()
 
     def reNewGenRawObjects(self):
-        LHEObjects = self.GetAllLHEs()
-        GenObjects = self.GetAllGens()
-        GenJetObjects = self.GetAllGenJets()
-        GenDressedLeptonObjects = self.GetAllGenDressedLeptons()
-        GenIsolatedPhotonObjects = self.GetAllGenIsolatedPhotons()
-        GenVisTauObjects = self.GetAllGenVisTaus()
+        LHEObjects = self.GetAllLHEViews()
+        GenObjects = self.GetAllGenViews()
+        GenJetObjects = self.GetAllGenJetViews()
+        GenDressedLeptonObjects = self.GetAllGenDressedLeptonViews()
+        GenIsolatedPhotonObjects = self.GetAllGenIsolatedPhotonViews()
+        GenVisTauObjects = self.GetAllGenVisTauViews()
 
         genRawObjects = {
             "LHE": LHEObjects,
@@ -44,20 +42,20 @@ class GenValidation(GeneratorBase):
 
     def selectLHEObjects(self, genRawObjects):
         LHEObjects = genRawObjects["LHE"]
-        lhe_leptons = RVec("LHE")()
-        lhe_outgoing_jets = RVec("LHE")()
+        lhe_leptons = []
+        lhe_outgoing_jets = []
 
         for lhe in LHEObjects:
             if lhe.Status() == -1: continue # incoming particles
             pdgId = abs(lhe.PdgId())
             if pdgId in [11, 13, 15]:
-                lhe_leptons.emplace_back(lhe)
+                lhe_leptons.append(lhe)
             else:
-                lhe_outgoing_jets.emplace_back(lhe)
+                lhe_outgoing_jets.append(lhe)
         
         # Define channel based on LHE leptons and outgoing jets
-        assert lhe_leptons.size() == 2, f"Unexpected number of leptons: {lhe_leptons.size()}"
-        channel = f"DY{lhe_outgoing_jets.size()}"
+        assert len(lhe_leptons) == 2, f"Unexpected number of leptons: {len(lhe_leptons)}"
+        channel = f"DY{len(lhe_outgoing_jets)}"
         mapping = {(11, 11): "_ee", (13, 13): "_mumu", (15, 15): "_tautau"}
         key = tuple(sorted([abs(lhe_leptons[0].PdgId()), abs(lhe_leptons[1].PdgId())]))
         try:
@@ -74,25 +72,23 @@ class GenValidation(GeneratorBase):
         LHE_leptons = self.genObjects["LHE-leptons"]
         GenObjects = genRawObjects["Gen"]
 
-        gen_leptons = RVec("Gen")()
-        # Using GetLeptonType()
-        # Checked event level matching eff. > 99.9% for electrons and muions
-        # For tau leptons, most of the events are missing due to hadronically decaying taus
+        gen_leptons = []
         for gen in GenObjects:
-            lepton_type = self.GetLeptonType(gen, GenObjects)
-            if lepton_type in [1, 3]:    # Is EWPrompt or EWtau daughter
-                gen_leptons.emplace_back(gen)
+            if gen.Status() != 1 or abs(gen.PdgId()) not in (11, 13):
+                continue
+            if gen.isPrompt() or gen.isDirectPromptTauDecayProduct():
+                gen_leptons.append(gen)
         self.genObjects["GEN-leptons"] = gen_leptons
 
     def selectGenJetObjects(self, genRawObjects):
         GenJetObjects = genRawObjects["GenJet"]
         gen_leptons = self.genObjects["GEN-leptons"]
-        gen_jets = RVec("GenJet")()
+        gen_jets = []
 
         for gen_jet in GenJetObjects:
             # Clean jets overlapping with leptons
             if any(gen_jet.DeltaR(gen_lepton) < 0.4 for gen_lepton in gen_leptons): continue
-            gen_jets.emplace_back(gen_jet)
+            gen_jets.append(gen_jet)
         self.genObjects["GEN-jets"] = gen_jets
 
     def fillObjects(self):
@@ -103,13 +99,13 @@ class GenValidation(GeneratorBase):
         GEN_jets = self.genObjects["GEN-jets"]
 
         # Fill LHE distributions
-        LHE_ZCand = LHE_leptons[0] + LHE_leptons[1]
+        LHE_ZCand = LHE_leptons[0].P4() + LHE_leptons[1].P4()
         for idx, jet in enumerate(LHE_jets, start=1):
             self.FillHist(f"Inclusive/LHE/jets/{idx}/pt", jet.Pt(), 1, 100, 0, 100)
             self.FillHist(f"Inclusive/LHE/jets/{idx}/eta", jet.Eta(), 1, 200, -10, 10)
             self.FillHist(f"Inclusive/LHE/jets/{idx}/phi", jet.Phi(), 1, 72, -TMath.Pi(), TMath.Pi())
             self.FillHist(f"Inclusive/LHE/jets/{idx}/mass", jet.M(), 1, 100, 0, 100)
-        self.FillHist("Inclusive/LHE/jets/size", LHE_jets.size(), 1, 10, 0, 10)
+        self.FillHist("Inclusive/LHE/jets/size", len(LHE_jets), 1, 10, 0, 10)
 
         self.FillHist("Inclusive/LHE/Z_pt", LHE_ZCand.Pt(), 1, 100, 0, 100)
         self.FillHist("Inclusive/LHE/Z_eta", LHE_ZCand.Eta(), 1, 200, -10, 10)
@@ -140,14 +136,14 @@ class GenValidation(GeneratorBase):
             self.FillHist(f"{channel}/LHE/leptons/{idx}/mass", lepton.M(), 1, 100, 0, 100)
 
         # Fill GEN distributions
-        if not (GEN_leptons.size() == 2): return
-        GEN_ZCand = GEN_leptons[0] + GEN_leptons[1]
+        if len(GEN_leptons) != 2: return
+        GEN_ZCand = GEN_leptons[0].P4() + GEN_leptons[1].P4()
         for idx, jet in enumerate(GEN_jets, start=1):
             self.FillHist(f"Inclusive/GEN/jets/{idx}/pt", jet.Pt(), 1, 100, 0, 100)
             self.FillHist(f"Inclusive/GEN/jets/{idx}/eta", jet.Eta(), 1, 200, -10, 10)
             self.FillHist(f"Inclusive/GEN/jets/{idx}/phi", jet.Phi(), 1, 72, -TMath.Pi(), TMath.Pi())
             self.FillHist(f"Inclusive/GEN/jets/{idx}/mass", jet.M(), 1, 100, 0, 100)
-        self.FillHist("Inclusive/GEN/jets/size", GEN_jets.size(), 1, 10, 0, 10)
+        self.FillHist("Inclusive/GEN/jets/size", len(GEN_jets), 1, 10, 0, 10)
         
         self.FillHist(f"Inclusive/GEN/Z_pt", GEN_ZCand.Pt(), 1, 100, 0, 100)
         self.FillHist(f"Inclusive/GEN/Z_eta", GEN_ZCand.Eta(), 1, 200, -10, 10)
@@ -179,13 +175,13 @@ class GenValidation(GeneratorBase):
 
 if __name__ == "__main__":
     module = GenValidation()
-    module.SetTreeName("Events")
+    module.SetRNTupleName("Events")
     module.LogEvery = 1000
     module.IsDATA = False
     module.MCSample = "DYJets"
     module.SetEra("2023")
     if not module.AddFile("/Users/choij/Sync/workspace/SKNanoAnalyzer/test/NANOGEN/MG4GPU/DY012j_CPPAVX2/NANOGEN.root"): exit(1)
-    module.MaxEvent = int(module.fChain.GetEntries())
+    module.MaxEvent = int(module.GetInputEntries())
     module.SetOutfilePath("test.root")
     module.Init()
     module.initializeFromBase()

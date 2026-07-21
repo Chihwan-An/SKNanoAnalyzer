@@ -1,0 +1,33 @@
+version: 1
+status: confirmed
+metadata:
+  title: Example data/MC analysis
+  cms_label: Preliminary
+  energy: 13.6
+tree:
+  rules:
+    - name: data_mc_histograms
+      kinds: [TH1]
+      pattern: '(?P<channel>[^/]+)/(?P<region>[^/]+)/(?P<variation>[^/]+)/(?P<process>[^/]+)/(?P<observable>.+)'
+styles:
+  series:
+    data_obs: {label: Data, color: '#000000', order: 1000}
+recipes:
+  - name: data_mc
+    renderer: data_stack
+    source: data_mc_histograms
+    enabled: true
+    facets: [channel, region, observable]
+    series: process
+    roles:
+      data: data_obs
+      signal: 're:.*signal.*'
+    ratio: true
+    ratio_range: [0.5, 1.5]
+    systematics:
+      dimension: variation
+      nominal: Central
+      up_suffix: _Up
+      down_suffix: _Down
+      missing: central
+    output: '{channel}/{region}/{observable}/data_mc'

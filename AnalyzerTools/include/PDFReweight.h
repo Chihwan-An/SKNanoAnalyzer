@@ -4,6 +4,7 @@
 #include <iostream>
 #include "TString.h"
 #include "ROOT/RVec.hxx"
+#include "AnalysisException.h"
 #include "LHAPDFHandler.h"
 
 using namespace std;
@@ -23,15 +24,13 @@ public:
 
     inline void SetProdPDF(LHAPDF::PDF *pdf_) { 
         if (!pdf_) {
-            cerr << "[PDFReweight::SetProdPDF] NULL pointer to PDF object!" << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::ConfigError("[PDFReweight::SetProdPDF] NULL pointer to PDF object");
         }
         ProdPDF = pdf_; 
     }
     inline void SetNewPDF(LHAPDF::PDF *pdf_) { 
         if (!pdf_) {
-            cerr << "[PDFReweight::SetNewPDF] NULL pointer to PDF object!" << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::ConfigError("[PDFReweight::SetNewPDF] NULL pointer to PDF object");
         }
         NewPDF = pdf_; 
     }
@@ -39,8 +38,7 @@ public:
         PDFErrorSet.clear();
         for (const auto &pdf : newPDFErrorSet) {
             if (!pdf) {
-                cerr << "[PDFReweight::SetNewPDFErrorSet] NULL pointer to PDF object!" << endl;
-                exit(EXIT_FAILURE);
+                throw SKNano::ConfigError("[PDFReweight::SetNewPDFErrorSet] NULL pointer to PDF object");
             }
             PDFErrorSet.push_back(pdf);
         }
@@ -48,8 +46,7 @@ public:
     }
     inline void SetNewPDFAlphaS(LHAPDF::PDF *newPDFAlphaSDown, LHAPDF::PDF *newPDFAlphaSUp) {
         if (!newPDFAlphaSDown || !newPDFAlphaSUp) {
-            cerr << "[PDFReweight::SetNewPDFAlphaS] NULL pointer to PDF object!" << endl;
-            exit(EXIT_FAILURE);
+            throw SKNano::ConfigError("[PDFReweight::SetNewPDFAlphaS] NULL pointer to PDF object");
         }
         NewPDFAlphaSDown = newPDFAlphaSDown;
         NewPDFAlphaSUp = newPDFAlphaSUp;

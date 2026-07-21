@@ -92,6 +92,7 @@ void HadronAnalyzer::ValidateBPHStudy() {
 }
 
 void HadronAnalyzer::BookBPHStudy() {
+  lambdaCBDTMode_ = HasFlag("LambdaCBDT");
   if (!HasFlag("HadronHistOnly"))
     BookOutputRNTuple();
   BookHistograms();
@@ -288,25 +289,27 @@ void HadronAnalyzer::BookOutputRNTuple() {
   outputTree_.Field("Jet_hadronFlavour", output_.jetHadronFlavour);
   outputTree_.Field("Jet_partonFlavour", output_.jetPartonFlavour);
   outputTree_.Field("Jet_genJetIdx", output_.jetGenJetIndex);
-  outputTree_.Field("GenJet_pt", output_.genJetPt);
-  outputTree_.Field("GenJet_eta", output_.genJetEta);
-  outputTree_.Field("GenJet_phi", output_.genJetPhi);
-  outputTree_.Field("GenJet_mass", output_.genJetMass);
-  outputTree_.Field("Jet_genJetDeltaR", output_.recoGenJetDeltaR);
-  outputTree_.Field("GenJet_hadronFlavour", output_.genJetHadronFlavour);
-  outputTree_.Field("GenJet_partonFlavour", output_.genJetPartonFlavour);
-  outputTree_.Field("GenJet_nBottomBaryon", output_.genJetNBottomBaryon);
-  outputTree_.Field("GenJet_nCharmBaryon", output_.genJetNCharmBaryon);
-  outputTree_.Field("GenJet_nD0", output_.genJetND0);
-  outputTree_.Field("GenJet_nDHadron", output_.genJetNDHadron);
-  outputTree_.Field("GenJet_nDplus", output_.genJetNDplus);
-  outputTree_.Field("GenJet_nDstar", output_.genJetNDstar);
-  outputTree_.Field("GenJet_nFeeddownD", output_.genJetNFeeddownD);
-  outputTree_.Field("GenJet_nLambdaB", output_.genJetNLambdaB);
-  outputTree_.Field("GenJet_nLambdaBaryon", output_.genJetNLambdaBaryon);
-  outputTree_.Field("GenJet_nLambdaC", output_.genJetNLambdaC);
-  outputTree_.Field("GenJet_nLightLambda", output_.genJetNLightLambda);
-  outputTree_.Field("GenJet_nPromptD", output_.genJetNPromptD);
+  if (!lambdaCBDTMode_) {
+    outputTree_.Field("GenJet_pt", output_.genJetPt);
+    outputTree_.Field("GenJet_eta", output_.genJetEta);
+    outputTree_.Field("GenJet_phi", output_.genJetPhi);
+    outputTree_.Field("GenJet_mass", output_.genJetMass);
+    outputTree_.Field("Jet_genJetDeltaR", output_.recoGenJetDeltaR);
+    outputTree_.Field("GenJet_hadronFlavour", output_.genJetHadronFlavour);
+    outputTree_.Field("GenJet_partonFlavour", output_.genJetPartonFlavour);
+    outputTree_.Field("GenJet_nBottomBaryon", output_.genJetNBottomBaryon);
+    outputTree_.Field("GenJet_nCharmBaryon", output_.genJetNCharmBaryon);
+    outputTree_.Field("GenJet_nD0", output_.genJetND0);
+    outputTree_.Field("GenJet_nDHadron", output_.genJetNDHadron);
+    outputTree_.Field("GenJet_nDplus", output_.genJetNDplus);
+    outputTree_.Field("GenJet_nDstar", output_.genJetNDstar);
+    outputTree_.Field("GenJet_nFeeddownD", output_.genJetNFeeddownD);
+    outputTree_.Field("GenJet_nLambdaB", output_.genJetNLambdaB);
+    outputTree_.Field("GenJet_nLambdaBaryon", output_.genJetNLambdaBaryon);
+    outputTree_.Field("GenJet_nLambdaC", output_.genJetNLambdaC);
+    outputTree_.Field("GenJet_nLightLambda", output_.genJetNLightLambda);
+    outputTree_.Field("GenJet_nPromptD", output_.genJetNPromptD);
+  }
 
   outputTree_.Field("Jet_nD0", output_.nD0);
   outputTree_.Field("Jet_nDstar", output_.nDstar);
@@ -410,39 +413,41 @@ void HadronAnalyzer::BookOutputRNTuple() {
   outputTree_.Field("BPH_daughterIdx2", output_.bphDaughterIndex2);
   outputTree_.Field("BPH_daughterIdx3", output_.bphDaughterIndex3);
 
-  outputTree_.Field("GenHadron_jetRank", output_.genHadronJetRank);
-  outputTree_.Field("GenHadron_genJetIdx", output_.genHadronGenJetIndex);
-  outputTree_.Field("GenHadron_srcIdx", output_.genHadronSourceIndex);
-  outputTree_.Field("GenHadron_pdgId", output_.genHadronPdgId);
-  outputTree_.Field("GenHadron_motherPdgId", output_.genHadronMotherPdgId);
-  outputTree_.Field("GenHadron_ancestorPdgId", output_.genHadronAncestorPdgId);
-  outputTree_.Field("GenHadron_flavour", output_.genHadronFlavour);
-  outputTree_.Field("GenHadron_status", output_.genHadronStatus);
-  outputTree_.Field("GenHadron_pt", output_.genHadronPt);
-  outputTree_.Field("GenHadron_eta", output_.genHadronEta);
-  outputTree_.Field("GenHadron_phi", output_.genHadronPhi);
-  outputTree_.Field("GenHadron_mass", output_.genHadronMass);
-  outputTree_.Field("GenHadron_deltaR", output_.genHadronDeltaR);
-  outputTree_.Field("GenHadron_recoJetDeltaR", output_.genHadronRecoJetDeltaR);
-  outputTree_.Field("GenHadron_vx", output_.genHadronVx);
-  outputTree_.Field("GenHadron_vy", output_.genHadronVy);
-  outputTree_.Field("GenHadron_vz", output_.genHadronVz);
-  outputTree_.Field("GenHadron_isBottomBaryon", output_.genHadronIsBottomBaryon);
-  outputTree_.Field("GenHadron_isCharmBaryon", output_.genHadronIsCharmBaryon);
-  outputTree_.Field("GenHadron_isD0", output_.genHadronIsD0);
-  outputTree_.Field("GenHadron_isDHadron", output_.genHadronIsDHadron);
-  outputTree_.Field("GenHadron_isDplus", output_.genHadronIsDplus);
-  outputTree_.Field("GenHadron_isDstar", output_.genHadronIsDstar);
-  outputTree_.Field("GenHadron_isFeeddown", output_.genHadronIsFeeddown);
-  outputTree_.Field("GenHadron_isFromB", output_.genHadronIsFromB);
-  outputTree_.Field("GenHadron_isFromC", output_.genHadronIsFromC);
-  outputTree_.Field("GenHadron_isFromDstar", output_.genHadronIsFromDstar);
-  outputTree_.Field("GenHadron_isLambdaB", output_.genHadronIsLambdaB);
-  outputTree_.Field("GenHadron_isLambdaBaryon", output_.genHadronIsLambdaBaryon);
-  outputTree_.Field("GenHadron_isLambdaC", output_.genHadronIsLambdaC);
-  outputTree_.Field("GenHadron_isLastCopy", output_.genHadronIsLastCopy);
-  outputTree_.Field("GenHadron_isLightLambda", output_.genHadronIsLightLambda);
-  outputTree_.Field("GenHadron_isPrompt", output_.genHadronIsPrompt);
+  if (!lambdaCBDTMode_) {
+    outputTree_.Field("GenHadron_jetRank", output_.genHadronJetRank);
+    outputTree_.Field("GenHadron_genJetIdx", output_.genHadronGenJetIndex);
+    outputTree_.Field("GenHadron_srcIdx", output_.genHadronSourceIndex);
+    outputTree_.Field("GenHadron_pdgId", output_.genHadronPdgId);
+    outputTree_.Field("GenHadron_motherPdgId", output_.genHadronMotherPdgId);
+    outputTree_.Field("GenHadron_ancestorPdgId", output_.genHadronAncestorPdgId);
+    outputTree_.Field("GenHadron_flavour", output_.genHadronFlavour);
+    outputTree_.Field("GenHadron_status", output_.genHadronStatus);
+    outputTree_.Field("GenHadron_pt", output_.genHadronPt);
+    outputTree_.Field("GenHadron_eta", output_.genHadronEta);
+    outputTree_.Field("GenHadron_phi", output_.genHadronPhi);
+    outputTree_.Field("GenHadron_mass", output_.genHadronMass);
+    outputTree_.Field("GenHadron_deltaR", output_.genHadronDeltaR);
+    outputTree_.Field("GenHadron_recoJetDeltaR", output_.genHadronRecoJetDeltaR);
+    outputTree_.Field("GenHadron_vx", output_.genHadronVx);
+    outputTree_.Field("GenHadron_vy", output_.genHadronVy);
+    outputTree_.Field("GenHadron_vz", output_.genHadronVz);
+    outputTree_.Field("GenHadron_isBottomBaryon", output_.genHadronIsBottomBaryon);
+    outputTree_.Field("GenHadron_isCharmBaryon", output_.genHadronIsCharmBaryon);
+    outputTree_.Field("GenHadron_isD0", output_.genHadronIsD0);
+    outputTree_.Field("GenHadron_isDHadron", output_.genHadronIsDHadron);
+    outputTree_.Field("GenHadron_isDplus", output_.genHadronIsDplus);
+    outputTree_.Field("GenHadron_isDstar", output_.genHadronIsDstar);
+    outputTree_.Field("GenHadron_isFeeddown", output_.genHadronIsFeeddown);
+    outputTree_.Field("GenHadron_isFromB", output_.genHadronIsFromB);
+    outputTree_.Field("GenHadron_isFromC", output_.genHadronIsFromC);
+    outputTree_.Field("GenHadron_isFromDstar", output_.genHadronIsFromDstar);
+    outputTree_.Field("GenHadron_isLambdaB", output_.genHadronIsLambdaB);
+    outputTree_.Field("GenHadron_isLambdaBaryon", output_.genHadronIsLambdaBaryon);
+    outputTree_.Field("GenHadron_isLambdaC", output_.genHadronIsLambdaC);
+    outputTree_.Field("GenHadron_isLastCopy", output_.genHadronIsLastCopy);
+    outputTree_.Field("GenHadron_isLightLambda", output_.genHadronIsLightLambda);
+    outputTree_.Field("GenHadron_isPrompt", output_.genHadronIsPrompt);
+  }
 }
 
 void HadronAnalyzer::BookHistograms() {
@@ -784,88 +789,94 @@ void HadronAnalyzer::AppendBPHCandidate(const BPHRecord &record) {
   float wCharmDeltaR = -999.f;
   FillWCharmFragmentation(record, jetRank, wCharmZ, wCharmDeltaR);
 
-  output_.bphJetRank.push_back(jetRank);
-  output_.bphSpecies.push_back(static_cast<int>(record.species));
-  output_.bphSourceIndex.push_back(record.sourceIndex);
-  output_.bphDeltaR.push_back(deltaR);
-  output_.bphPt.push_back(record.pt);
-  output_.bphEta.push_back(record.eta);
-  output_.bphPhi.push_back(record.phi);
-  output_.bphRapidity.push_back(record.rapidity);
-  output_.bphMass.push_back(record.mass);
-  output_.bphPdgId.push_back(record.pdgId);
-  output_.bphCharge.push_back(record.charge);
-  output_.bphInputJetIndex.push_back(record.inputJetIndex);
-  output_.bphInputJetDeltaR.push_back(record.inputJetDeltaR);
-  output_.bphHypothesisMask.push_back(record.hypothesisMask);
-  output_.bphPrescaleWeight.push_back(record.prescaleWeight);
-  output_.bphGenPartIndex.push_back(record.genPartIndex);
-  output_.bphGenMatchCategory.push_back(record.genMatchCategory);
-  output_.bphGenHypothesisMask.push_back(record.genHypothesisMask);
-  output_.bphGenHypothesisIndex.push_back(record.genHypothesisIndex);
-  output_.bphWCharmZ.push_back(wCharmZ);
-  output_.bphWCharmDeltaR.push_back(wCharmDeltaR);
-  output_.bphFitPt.push_back(record.fitPt);
-  output_.bphFitEta.push_back(record.fitEta);
-  output_.bphFitPhi.push_back(record.fitPhi);
-  output_.bphFitMass.push_back(record.fitMass);
-  output_.bphMassHypothesis1.push_back(record.massHypothesis1);
-  output_.bphMassHypothesis2.push_back(record.massHypothesis2);
-  output_.bphMassError1.push_back(record.massError1);
-  output_.bphMassError2.push_back(record.massError2);
-  output_.bphSvProbability.push_back(record.svProbability);
-  output_.bphSvChi2.push_back(record.svChi2);
-  output_.bphSvNdof.push_back(record.svNdof);
-  output_.bphSvChi2Ndof.push_back(record.svChi2Ndof);
-  output_.bphLxy.push_back(record.lxy);
-  output_.bphLxyError.push_back(record.lxyError);
-  output_.bphLxySignificance.push_back(record.lxySignificance);
-  output_.bphCosTheta2D.push_back(record.cosTheta2D);
-  output_.bphPointingAngle2D.push_back(record.pointingAngle2D);
-  output_.bphCandidateDca.push_back(record.candidateDca);
-  output_.bphCandidateDcaError.push_back(record.candidateDcaError);
-  output_.bphCandidateDcaSignificance.push_back(
-      record.candidateDcaSignificance);
-  output_.bphDaughterDeltaR.push_back(record.daughterDeltaR);
-  output_.bphDaughterAbsDz.push_back(record.daughterAbsDz);
-  output_.bphDaughterDca3D.push_back(record.daughterDca3D);
-  output_.bphDecayLength3D.push_back(record.decayLength3D);
-  output_.bphDecayLength3DSignificance.push_back(
-      record.decayLength3DSignificance);
-  output_.bphSoftPionDxyD0Vertex.push_back(record.softPionDxyD0Vertex);
-  output_.bphSoftPionDzD0Vertex.push_back(record.softPionDzD0Vertex);
-  output_.bphPKMass.push_back(record.pKMass);
-  output_.bphKPiMass.push_back(record.kPiMass);
-  output_.bphPPiMass.push_back(record.pPiMass);
-  output_.bphPKDeltaR.push_back(record.pKDeltaR);
-  output_.bphKPiDeltaR.push_back(record.kPiDeltaR);
-  output_.bphPPiDeltaR.push_back(record.pPiDeltaR);
-  output_.bphMinPairDeltaR.push_back(record.minPairDeltaR);
-  output_.bphMaxPairDeltaR.push_back(record.maxPairDeltaR);
-  for (std::size_t role = 0; role < record.trackFeatures.size(); ++role) {
-    const auto &track = record.trackFeatures[role];
-    output_.bphTrackPt[role].push_back(track.pt);
-    output_.bphTrackEta[role].push_back(track.eta);
-    output_.bphTrackPhi[role].push_back(track.phi);
-    output_.bphTrackCharge[role].push_back(track.charge);
-    output_.bphTrackPtFraction[role].push_back(track.ptFraction);
-    output_.bphTrackDxy[role].push_back(track.dxy);
-    output_.bphTrackDz[role].push_back(track.dz);
-    output_.bphTrackDxySignificance[role].push_back(track.dxySignificance);
-    output_.bphTrackDzSignificance[role].push_back(track.dzSignificance);
-    output_.bphTrackDcaSignificance[role].push_back(track.dcaSignificance);
-    output_.bphTrackPtError[role].push_back(track.ptError);
-    output_.bphTrackPtErrorRelative[role].push_back(track.ptErrorRelative);
-    output_.bphTrackNormalizedChi2[role].push_back(track.normalizedChi2);
-    output_.bphTrackFitPt[role].push_back(track.fitPt);
-    output_.bphTrackFitPtFraction[role].push_back(track.fitPtFraction);
-    output_.bphTrackNValidHits[role].push_back(track.nValidHits);
-    output_.bphTrackNValidPixelHits[role].push_back(track.nValidPixelHits);
+  if (StoreBPHCandidate(record)) {
+    output_.bphJetRank.push_back(jetRank);
+    output_.bphSpecies.push_back(static_cast<int>(record.species));
+    output_.bphSourceIndex.push_back(record.sourceIndex);
+    output_.bphDeltaR.push_back(deltaR);
+    output_.bphPt.push_back(record.pt);
+    output_.bphEta.push_back(record.eta);
+    output_.bphPhi.push_back(record.phi);
+    output_.bphRapidity.push_back(record.rapidity);
+    output_.bphMass.push_back(record.mass);
+    output_.bphPdgId.push_back(record.pdgId);
+    output_.bphCharge.push_back(record.charge);
+    output_.bphInputJetIndex.push_back(record.inputJetIndex);
+    output_.bphInputJetDeltaR.push_back(record.inputJetDeltaR);
+    output_.bphHypothesisMask.push_back(record.hypothesisMask);
+    const int outputPrescale =
+        lambdaCBDTMode_ && record.genMatchCategory == 0
+            ? record.prescaleWeight * kLambdaCBDTBackgroundPrescale
+            : record.prescaleWeight;
+    output_.bphPrescaleWeight.push_back(outputPrescale);
+    output_.bphGenPartIndex.push_back(record.genPartIndex);
+    output_.bphGenMatchCategory.push_back(record.genMatchCategory);
+    output_.bphGenHypothesisMask.push_back(record.genHypothesisMask);
+    output_.bphGenHypothesisIndex.push_back(record.genHypothesisIndex);
+    output_.bphWCharmZ.push_back(wCharmZ);
+    output_.bphWCharmDeltaR.push_back(wCharmDeltaR);
+    output_.bphFitPt.push_back(record.fitPt);
+    output_.bphFitEta.push_back(record.fitEta);
+    output_.bphFitPhi.push_back(record.fitPhi);
+    output_.bphFitMass.push_back(record.fitMass);
+    output_.bphMassHypothesis1.push_back(record.massHypothesis1);
+    output_.bphMassHypothesis2.push_back(record.massHypothesis2);
+    output_.bphMassError1.push_back(record.massError1);
+    output_.bphMassError2.push_back(record.massError2);
+    output_.bphSvProbability.push_back(record.svProbability);
+    output_.bphSvChi2.push_back(record.svChi2);
+    output_.bphSvNdof.push_back(record.svNdof);
+    output_.bphSvChi2Ndof.push_back(record.svChi2Ndof);
+    output_.bphLxy.push_back(record.lxy);
+    output_.bphLxyError.push_back(record.lxyError);
+    output_.bphLxySignificance.push_back(record.lxySignificance);
+    output_.bphCosTheta2D.push_back(record.cosTheta2D);
+    output_.bphPointingAngle2D.push_back(record.pointingAngle2D);
+    output_.bphCandidateDca.push_back(record.candidateDca);
+    output_.bphCandidateDcaError.push_back(record.candidateDcaError);
+    output_.bphCandidateDcaSignificance.push_back(
+        record.candidateDcaSignificance);
+    output_.bphDaughterDeltaR.push_back(record.daughterDeltaR);
+    output_.bphDaughterAbsDz.push_back(record.daughterAbsDz);
+    output_.bphDaughterDca3D.push_back(record.daughterDca3D);
+    output_.bphDecayLength3D.push_back(record.decayLength3D);
+    output_.bphDecayLength3DSignificance.push_back(
+        record.decayLength3DSignificance);
+    output_.bphSoftPionDxyD0Vertex.push_back(record.softPionDxyD0Vertex);
+    output_.bphSoftPionDzD0Vertex.push_back(record.softPionDzD0Vertex);
+    output_.bphPKMass.push_back(record.pKMass);
+    output_.bphKPiMass.push_back(record.kPiMass);
+    output_.bphPPiMass.push_back(record.pPiMass);
+    output_.bphPKDeltaR.push_back(record.pKDeltaR);
+    output_.bphKPiDeltaR.push_back(record.kPiDeltaR);
+    output_.bphPPiDeltaR.push_back(record.pPiDeltaR);
+    output_.bphMinPairDeltaR.push_back(record.minPairDeltaR);
+    output_.bphMaxPairDeltaR.push_back(record.maxPairDeltaR);
+    for (std::size_t role = 0; role < record.trackFeatures.size(); ++role) {
+      const auto &track = record.trackFeatures[role];
+      output_.bphTrackPt[role].push_back(track.pt);
+      output_.bphTrackEta[role].push_back(track.eta);
+      output_.bphTrackPhi[role].push_back(track.phi);
+      output_.bphTrackCharge[role].push_back(track.charge);
+      output_.bphTrackPtFraction[role].push_back(track.ptFraction);
+      output_.bphTrackDxy[role].push_back(track.dxy);
+      output_.bphTrackDz[role].push_back(track.dz);
+      output_.bphTrackDxySignificance[role].push_back(track.dxySignificance);
+      output_.bphTrackDzSignificance[role].push_back(track.dzSignificance);
+      output_.bphTrackDcaSignificance[role].push_back(track.dcaSignificance);
+      output_.bphTrackPtError[role].push_back(track.ptError);
+      output_.bphTrackPtErrorRelative[role].push_back(track.ptErrorRelative);
+      output_.bphTrackNormalizedChi2[role].push_back(track.normalizedChi2);
+      output_.bphTrackFitPt[role].push_back(track.fitPt);
+      output_.bphTrackFitPtFraction[role].push_back(track.fitPtFraction);
+      output_.bphTrackNValidHits[role].push_back(track.nValidHits);
+      output_.bphTrackNValidPixelHits[role].push_back(track.nValidPixelHits);
+    }
+    output_.bphDeltaMass.push_back(record.deltaMass);
+    output_.bphDaughterIndex1.push_back(record.daughterIndex1);
+    output_.bphDaughterIndex2.push_back(record.daughterIndex2);
+    output_.bphDaughterIndex3.push_back(record.daughterIndex3);
   }
-  output_.bphDeltaMass.push_back(record.deltaMass);
-  output_.bphDaughterIndex1.push_back(record.daughterIndex1);
-  output_.bphDaughterIndex2.push_back(record.daughterIndex2);
-  output_.bphDaughterIndex3.push_back(record.daughterIndex3);
 
   switch (record.species) {
   case BPHSpecies::D0ToKPi:
@@ -882,6 +893,28 @@ void HadronAnalyzer::AppendBPHCandidate(const BPHRecord &record) {
     break;
   }
   FillBPHHistograms(record, jetRank, deltaR);
+}
+
+bool HadronAnalyzer::StoreBPHCandidate(const BPHRecord &record) const {
+  if (!lambdaCBDTMode_)
+    return true;
+  if (record.species != BPHSpecies::LambdaCToPKPi)
+    return false;
+  if (record.genMatchCategory > 0)
+    return true;
+
+  // SplitMix64 gives a stable event/candidate hash, so repeated jobs and
+  // different shard layouts retain the same unmatched training candidates.
+  std::uint64_t hash = output_.event;
+  hash ^= static_cast<std::uint64_t>(output_.run) << 32;
+  hash ^= static_cast<std::uint64_t>(output_.luminosityBlock) << 16;
+  hash ^= static_cast<std::uint64_t>(
+      static_cast<std::uint32_t>(record.sourceIndex));
+  hash += 0x9e3779b97f4a7c15ULL;
+  hash = (hash ^ (hash >> 30)) * 0xbf58476d1ce4e5b9ULL;
+  hash = (hash ^ (hash >> 27)) * 0x94d049bb133111ebULL;
+  hash ^= hash >> 31;
+  return hash % kLambdaCBDTBackgroundPrescale == 0;
 }
 
 void HadronAnalyzer::FillTopJetMatches() {

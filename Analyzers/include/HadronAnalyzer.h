@@ -24,6 +24,7 @@ private:
   static constexpr std::size_t kWCharmSpecies = 3;
   static constexpr std::size_t kWCharmMatchCategories = 2;
   static constexpr float kBPHJetRadius = 0.4f;
+  static constexpr int kLambdaCBDTBackgroundPrescale = 20;
 
   enum class BPHSpecies : int {
     D0ToKPi = 0,
@@ -323,6 +324,7 @@ private:
 
   HadronAnalysis::TopJetMatcher topJetMatcher_;
   HadronAnalysis::LambdaCTruthMatcher lambdaCTruthMatcher_;
+  bool lambdaCBDTMode_ = false;
 
   AnalyzerCore::RNTupleHandle outputTree_;
   Hist1DHandle selectedEvents_;
@@ -389,6 +391,7 @@ private:
                                float &z, float &deltaR);
   void FillSelectedEvent();
   void AppendBPHCandidate(const BPHRecord &record);
+  bool StoreBPHCandidate(const BPHRecord &record) const;
   void FillBPHHistograms(const BPHRecord &record, int jetRank, float deltaR);
   std::size_t JetFlavourIndex(int jetRank) const;
   static int GenOriginCategory(bool isPrompt, bool isFromB, bool isFromC,

@@ -1,6 +1,7 @@
 #ifndef MyCorrection_h
 #define MyCorrection_h
 
+#include <array>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -45,6 +46,11 @@ public:
 
     struct JERSFSet {
         float nom = 1.f;
+        float up = 1.f;
+        float down = 1.f;
+    };
+
+    struct JERSFVariations {
         float up = 1.f;
         float down = 1.f;
     };
@@ -139,6 +145,9 @@ public:
     float GetJER(const float eta, const float pt, const float rho) const;
     float GetJERSF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     JERSFSet GetJERSFSet(const float eta, const float pt, const TString &source = "total") const;
+    JERSFVariations GetJERSFVariations(const float eta, const float pt,
+                                       const float nominal,
+                                       const TString &source = "total") const;
     float GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
     float GetJESUncertaintySF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     float GetJESUncertainty(const float eta, const float pt, const TString &source = "total") const;
@@ -205,6 +214,22 @@ public:
             }
             throw SKNano::CorrectionError(oss.str());
         }
+    }
+
+    // correctionlib's public evaluator accepts a vector<variant>.  JEC calls
+    // have a fixed, all-floating signature, so keep one buffer per arity and
+    // thread instead of allocating and constructing an initializer-list
+    // vector for every correction level of every jet.
+    template <typename CorrectionRef, std::size_t N>
+    inline float safeEvaluateFloats(const CorrectionRef &cset,
+                                    const string &function_name,
+                                    const std::array<float, N> &values) const {
+        static thread_local vector<correction::Variable::Type> args(N);
+        if (args.size() != N)
+            args.resize(N);
+        for (std::size_t index = 0; index < N; ++index)
+            args[index] = static_cast<double>(values[index]);
+        return safeEvaluate(cset, function_name, args);
     }
 
 private:

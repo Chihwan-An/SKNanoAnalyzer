@@ -15,6 +15,7 @@
 
 #include "AnalysisException.h"
 #include "ColumnSource.h"
+#include "RNTupleSource.h"
 #include "TBranch.h"
 #include "TFile.h"
 #include "TLeaf.h"
@@ -58,6 +59,9 @@ public:
     virtual ~BranchBase() = default;
 
     virtual void attach(TTree *tree_) {
+        clearBackendBinding();
+        rntupleSource = nullptr;
+        rntupleFieldAvailable = false;
         tree = tree_;
         branch = tree ? tree->GetBranch(branchName.c_str()) : nullptr;
         const bool wasActive = active; // remember whether this branch had been turned on
@@ -69,6 +73,23 @@ public:
             tree->SetBranchStatus(branchName.c_str(), wasActive ? 1 : 0);
             if (active)
                 bindAddress();
+        }
+    }
+
+    virtual void attachRNTuple(SKNano::RNTupleSource *source) {
+        clearBackendBinding();
+        tree = nullptr;
+        branch = nullptr;
+        rntupleSource = source;
+        const bool wasActive = active;
+        lastEntry = -1;
+        rntupleFieldAvailable = source && source->hasField(branchName);
+        needsRebind = rntupleFieldAvailable;
+        active = wasActive && rntupleFieldAvailable;
+        if (rntupleFieldAvailable) {
+            validateRNTupleSchema();
+            if (active)
+                bindRNTuple();
         }
     }
 
@@ -90,7 +111,10 @@ public:
 
 protected:
     virtual void bindAddress() const {}
+    virtual void bindRNTuple() const {}
+    virtual void clearBackendBinding() const {}
     virtual void validateSchema() const {}
+    virtual void validateRNTupleSchema() const {}
 
     void requireLeafType(const TLeaf *leaf, const char *expected,
                          const char *kind) const {
@@ -104,13 +128,17 @@ protected:
     }
 
     void requireAvailable() const {
-        if (branch)
+        if (branch || rntupleFieldAvailable)
             return;
-        if (tree)
+        if (tree || rntupleSource)
             throw SKNano::ConfigError("[BranchManager] Missing NanoAOD branch '" +
                                       branchName + "' in current tree");
         throw SKNano::ConfigError("[BranchManager] Branch '" + branchName +
                                   "' accessed before a tree was attached");
+    }
+
+    bool usesRNTuple() const noexcept {
+        return rntupleSource && rntupleFieldAvailable;
     }
 
     Long64_t resolveEntry(Long64_t entry) const {
@@ -129,6 +157,8 @@ protected:
     std::string branchName;
     TTree *tree = nullptr;
     TBranch *branch = nullptr;
+    SKNano::RNTupleSource *rntupleSource = nullptr;
+    bool rntupleFieldAvailable = false;
     mutable bool active = false;
     mutable Long64_t lastEntry = -1;
     const Long64_t *entrySource = nullptr;
@@ -151,6 +181,16 @@ public:
         }
     }
 
+    void bindRNTuple() const override {
+        if (!rntupleSource || !rntupleFieldAvailable)
+            return;
+        rntupleColumn = rntupleSource->makeScalarColumn(
+            branchName, std::type_index(typeid(T)));
+        needsRebind = false;
+    }
+
+    void clearBackendBinding() const override { rntupleColumn.reset(); }
+
     void validateSchema() const override {
         TLeaf *leaf = branch->GetLeaf(branchName.c_str());
         requireLeafType(leaf, ExpectedRootLeafType<T>(), "scalar");
@@ -169,35 +209,47 @@ public:
 
     T &mutableValue() const { return value; }
 
-    bool valid() const { return branch != nullptr; }
+    bool valid() const { return branch != nullptr || rntupleFieldAvailable; }
     const std::type_info &wrapperType() const override {
         return typeid(BranchScalar<T>);
     }
 
     void ensure(Long64_t entry = -1) const {
         requireAvailable();
-        if (needsRebind)
-            bindAddress();
+        if (needsRebind) {
+            if (usesRNTuple())
+                bindRNTuple();
+            else
+                bindAddress();
+        }
         const Long64_t target = resolveEntry(entry);
         if (target < 0)
             return;
         if (!active) {
             std::cout << "[BranchManager] activating branch '" << branchName
                       << "'" << std::endl;
-            tree->SetBranchStatus(branchName.c_str(), 1);
-            branch->SetAddress(&value);
+            if (usesRNTuple())
+                bindRNTuple();
+            else {
+                tree->SetBranchStatus(branchName.c_str(), 1);
+                branch->SetAddress(&value);
+            }
             active = true;
             needsRebind = false;
             recordActivation();
         }
         if (lastEntry == target)
             return;
-        branch->GetEntry(target);
+        if (usesRNTuple())
+            rntupleColumn->read(static_cast<std::uint64_t>(target), &value);
+        else
+            branch->GetEntry(target);
         lastEntry = target;
     }
 
 private:
     mutable T value{};
+    mutable std::shared_ptr<SKNano::RNTupleScalarColumn> rntupleColumn;
 };
 
 template <typename T, typename CountT>
@@ -217,6 +269,22 @@ public:
         needsRebind = false;
     }
 
+    void bindRNTuple() const override {
+        if (!rntupleSource || !rntupleFieldAvailable)
+            return;
+        rntupleColumn = rntupleSource->makeVectorColumn(
+            branchName, std::type_index(typeid(T)));
+        rntupleData = nullptr;
+        rntupleSize = 0;
+        needsRebind = false;
+    }
+
+    void clearBackendBinding() const override {
+        rntupleColumn.reset();
+        rntupleData = nullptr;
+        rntupleSize = 0;
+    }
+
     void validateSchema() const override {
         TLeaf *leaf = branch->GetLeaf(branchName.c_str());
         requireLeafType(leaf, ExpectedRootLeafType<T>(), "vector");
@@ -230,16 +298,37 @@ public:
 
     const std::vector<T> &values(Long64_t entry = -1) const {
         ensure(entry);
+        if (usesRNTuple()) {
+            if (rntupleSize == 0)
+                compatibilityBuffer.clear();
+            else
+                compatibilityBuffer.assign(rntupleData,
+                                           rntupleData + rntupleSize);
+            return compatibilityBuffer;
+        }
         return buffer;
     }
 
     std::vector<T> &mutableValues(Long64_t entry = -1) const {
         ensure(entry);
+        if (usesRNTuple()) {
+            if (rntupleSize == 0)
+                compatibilityBuffer.clear();
+            else
+                compatibilityBuffer.assign(rntupleData,
+                                           rntupleData + rntupleSize);
+            return compatibilityBuffer;
+        }
         return buffer;
     }
 
     const T &operator[](std::size_t idx) const {
         ensure();
+        if (usesRNTuple()) {
+            if (idx >= rntupleSize)
+                throw std::out_of_range("[BranchVector] column index out of range");
+            return rntupleData[idx];
+        }
         return buffer.at(idx);
     }
 
@@ -247,7 +336,7 @@ public:
 
     std::size_t size(Long64_t entry) const {
         ensure(entry);
-        return buffer.size();
+        return usesRNTuple() ? rntupleSize : buffer.size();
     }
 
     std::size_t size() const override { return size(-1); }
@@ -256,11 +345,13 @@ public:
         return size(entry) == 0;
     }
 
-    bool valid() const override { return branch != nullptr; }
+    bool valid() const override { return branch != nullptr || rntupleFieldAvailable; }
     std::uint64_t epoch() const override { return currentEpoch(); }
     SKNano::ContiguousView<T> snapshot() const override {
         ensure();
-        return SKNano::ContiguousView<T>(this, buffer.data(), buffer.size(),
+        const T *data = usesRNTuple() ? rntupleData : buffer.data();
+        const std::size_t count = usesRNTuple() ? rntupleSize : buffer.size();
+        return SKNano::ContiguousView<T>(this, data, count,
                                          currentEpoch());
     }
     const std::type_info &wrapperType() const override {
@@ -269,12 +360,19 @@ public:
 
     void ensure(Long64_t entry = -1) const {
         requireAvailable();
-        if (needsRebind)
-            bindAddress();
+        if (needsRebind) {
+            if (usesRNTuple())
+                bindRNTuple();
+            else
+                bindAddress();
+        }
         if (!active) {
             std::cout << "[BranchManager] activating branch '" << branchName
                       << "'" << std::endl;
-            tree->SetBranchStatus(branchName.c_str(), 1);
+            if (usesRNTuple())
+                bindRNTuple();
+            else
+                tree->SetBranchStatus(branchName.c_str(), 1);
             active = true;
             capacity = 0;
             recordActivation();
@@ -283,6 +381,17 @@ public:
         const Long64_t target = resolveEntry(entry);
         if (target < 0)
             return;
+
+        if (usesRNTuple()) {
+            if (lastEntry == target)
+                return;
+            const auto span = rntupleColumn->read(
+                static_cast<std::uint64_t>(target));
+            rntupleData = static_cast<const T *>(span.data);
+            rntupleSize = span.size;
+            lastEntry = target;
+            return;
+        }
 
         countBranch.ensure(target);
         auto rawSize = countBranch.mutableValue();
@@ -321,6 +430,10 @@ private:
     mutable std::size_t capacity = 0;
     mutable T zeroValue{};
     mutable void *boundAddress = nullptr;
+    mutable std::shared_ptr<SKNano::RNTupleVectorColumn> rntupleColumn;
+    mutable const T *rntupleData = nullptr;
+    mutable std::size_t rntupleSize = 0;
+    mutable std::vector<T> compatibilityBuffer;
 
     void setAddress(void *address) const {
         if (boundAddress == address)
@@ -347,6 +460,22 @@ public:
         needsRebind = false;
     }
 
+    void bindRNTuple() const override {
+        if (!rntupleSource || !rntupleFieldAvailable)
+            return;
+        rntupleColumn = rntupleSource->makeVectorColumn(
+            branchName, std::type_index(typeid(bool)));
+        rntupleData = nullptr;
+        rntupleSize = 0;
+        needsRebind = false;
+    }
+
+    void clearBackendBinding() const override {
+        rntupleColumn.reset();
+        rntupleData = nullptr;
+        rntupleSize = 0;
+    }
+
     void validateSchema() const override {
         TLeaf *leaf = branch->GetLeaf(branchName.c_str());
         requireLeafType(leaf, ExpectedRootLeafType<bool>(), "vector");
@@ -360,6 +489,11 @@ public:
 
     bool operator[](std::size_t idx) const {
         ensure();
+        if (usesRNTuple()) {
+            if (idx >= rntupleSize)
+                throw std::out_of_range("[BranchVector] bool column index out of range");
+            return rntupleData[idx] != 0;
+        }
         return static_cast<bool>(storage.at(idx));
     }
 
@@ -367,7 +501,7 @@ public:
 
     std::size_t size(Long64_t entry) const {
         ensure(entry);
-        return storage.size();
+        return usesRNTuple() ? rntupleSize : storage.size();
     }
 
     std::size_t size() const override { return size(-1); }
@@ -376,11 +510,13 @@ public:
         return size(entry) == 0;
     }
 
-    bool valid() const override { return branch != nullptr; }
+    bool valid() const override { return branch != nullptr || rntupleFieldAvailable; }
     std::uint64_t epoch() const override { return currentEpoch(); }
     SKNano::ByteContiguousView snapshot() const override {
         ensure();
-        return SKNano::ByteContiguousView(this, storage.data(), storage.size(),
+        const auto *data = usesRNTuple() ? rntupleData : storage.data();
+        const std::size_t count = usesRNTuple() ? rntupleSize : storage.size();
+        return SKNano::ByteContiguousView(this, data, count,
                                           currentEpoch());
     }
     const std::type_info &wrapperType() const override {
@@ -389,10 +525,17 @@ public:
 
     void ensure(Long64_t entry = -1) const {
         requireAvailable();
-        if (needsRebind)
-            bindAddress();
+        if (needsRebind) {
+            if (usesRNTuple())
+                bindRNTuple();
+            else
+                bindAddress();
+        }
         if (!active) {
-            tree->SetBranchStatus(branchName.c_str(), 1);
+            if (usesRNTuple())
+                bindRNTuple();
+            else
+                tree->SetBranchStatus(branchName.c_str(), 1);
             std::cout << "[BranchManager] activating branch '" << branchName << "'" << std::endl;
             active = true;
             capacity = 0;
@@ -402,6 +545,17 @@ public:
         const Long64_t target = resolveEntry(entry);
         if (target < 0)
             return;
+
+        if (usesRNTuple()) {
+            if (lastEntry == target)
+                return;
+            const auto span = rntupleColumn->read(
+                static_cast<std::uint64_t>(target));
+            rntupleData = static_cast<const std::uint8_t *>(span.data);
+            rntupleSize = span.size;
+            lastEntry = target;
+            return;
+        }
 
         countBranch.ensure(target);
         auto rawSize = countBranch.mutableValue();
@@ -440,6 +594,9 @@ private:
     mutable std::size_t capacity = 0;
     mutable unsigned char zeroValue = 0;
     mutable void *boundAddress = nullptr;
+    mutable std::shared_ptr<SKNano::RNTupleVectorColumn> rntupleColumn;
+    mutable const std::uint8_t *rntupleData = nullptr;
+    mutable std::size_t rntupleSize = 0;
 
     void setAddress(void *address) const {
         if (boundAddress == address)
@@ -464,6 +621,7 @@ public:
         requests.clear();
         activeBranchNames.clear();
         tree = nullptr;
+        rntupleSource = nullptr;
     }
 
     void bindEntrySource(const Long64_t *ptr) {
@@ -486,8 +644,21 @@ public:
 
     void attachTree(TTree *t) {
         tree = t;
+        rntupleSource = nullptr;
         for (auto *branch : branches) {
             branch->attach(tree);
+            branch->bindEntrySource(entrySource);
+            branch->bindEpochSource(epochSource);
+        }
+        for (const auto &item : requests)
+            validateRequest(item.first, item.second);
+    }
+
+    void attachRNTuple(SKNano::RNTupleSource *source) {
+        tree = nullptr;
+        rntupleSource = source;
+        for (auto *branch : branches) {
+            branch->attachRNTuple(source);
             branch->bindEntrySource(entrySource);
             branch->bindEpochSource(epochSource);
         }
@@ -517,6 +688,8 @@ public:
         branch.bindActiveBranchSet(&activeBranchNames);
         if (tree)
             branch.attach(tree);
+        else if (rntupleSource)
+            branch.attachRNTuple(rntupleSource);
         branches.push_back(&branch);
         branchesByName.emplace(branch.name(), &branch);
     }
@@ -568,7 +741,7 @@ public:
     SKNano::ColumnSource<T> *resolveColumn(const std::string &name,
                                            ColumnRequirement requirement) {
         registerRequest<T>(name, true, requirement);
-        if (!tree || !tree->GetBranch(name.c_str())) {
+        if (!available(name)) {
             if (requirement == ColumnRequirement::Required)
                 throwMissing(name);
             return nullptr;
@@ -585,6 +758,11 @@ public:
             return source;
         }
 
+        if (rntupleSource) {
+            throw SKNano::ConfigError(
+                "[BranchManager] dynamic RNTuple vector field '" + name +
+                "' must be present in the generated input schema");
+        }
         TLeaf *leaf = requirePhysicalLeaf(name);
         TLeaf *countLeaf = leaf->GetLeafCount();
         if (!countLeaf) {
@@ -616,7 +794,7 @@ public:
     BranchScalar<T> *resolveScalar(const std::string &name,
                                    ColumnRequirement requirement) {
         registerRequest<T>(name, false, requirement);
-        if (!tree || !tree->GetBranch(name.c_str())) {
+        if (!available(name)) {
             if (requirement == ColumnRequirement::Required)
                 throwMissing(name);
             return nullptr;
@@ -625,7 +803,8 @@ public:
     }
 
     bool available(const std::string &name) const {
-        return tree && tree->GetBranch(name.c_str());
+        return (tree && tree->GetBranch(name.c_str())) ||
+               (rntupleSource && rntupleSource->hasField(name));
     }
 
     template <typename Branch>
@@ -648,6 +827,8 @@ private:
     };
 
     std::string treeContext() const {
+        if (rntupleSource)
+            return rntupleSource->fileName() + ":RNTuple";
         if (!tree)
             return "<no tree>";
         const TFile *file = tree->GetCurrentFile();
@@ -670,8 +851,35 @@ private:
     }
 
     void validateRequest(const std::string &name, const Request &request) const {
-        if (!tree)
+        if (!tree && !rntupleSource)
             return;
+        if (rntupleSource) {
+            if (!rntupleSource->hasField(name)) {
+                if (request.requirement == ColumnRequirement::Required)
+                    throwMissing(name);
+                return;
+            }
+            try {
+                if (request.vector) {
+                    const auto existing = branchesByName.find(name);
+                    if (existing == branchesByName.end())
+                        throw SKNano::ConfigError(
+                            "RNTuple vector is absent from generated schema");
+                    // The concrete wrapper validates its element type when it
+                    // creates the lazy RNTuple view on first access.
+                } else {
+                    const auto existing = branchesByName.find(name);
+                    if (existing == branchesByName.end())
+                        throw SKNano::ConfigError(
+                            "RNTuple scalar is absent from generated schema");
+                }
+            } catch (const std::exception &error) {
+                throw SKNano::ConfigError(
+                    "[BranchManager] incompatible RNTuple request for field '" +
+                    name + "' in " + treeContext() + ": " + error.what());
+            }
+            return;
+        }
         TBranch *physical = tree->GetBranch(name.c_str());
         if (!physical) {
             if (request.requirement == ColumnRequirement::Required)
@@ -741,6 +949,7 @@ private:
     }
 
     TTree *tree = nullptr;
+    SKNano::RNTupleSource *rntupleSource = nullptr;
     const Long64_t *entrySource = nullptr;
     const std::uint64_t *epochSource = nullptr;
     std::function<void(const std::string &)> activationCallback;

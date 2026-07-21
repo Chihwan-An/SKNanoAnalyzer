@@ -1,0 +1,5 @@
+numpy
+uproot
+PyYAML
+matplotlib
+mplhep

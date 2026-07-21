@@ -74,6 +74,7 @@ ROOT_GENERATE_DICTIONARY(G__Analyzers
 
 # Link ROOT libraries
 target_link_libraries(Analyzers PUBLIC ${ROOT_LIBRARIES})
+target_link_libraries(Analyzers PUBLIC ROOT::ROOTNTuple)
 target_link_libraries(Analyzers PUBLIC DataFormats)
 target_link_libraries(Analyzers PUBLIC AnalyzerTools)
 target_link_libraries(Analyzers PUBLIC SKNanoCore)

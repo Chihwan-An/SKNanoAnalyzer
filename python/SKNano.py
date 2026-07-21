@@ -4,7 +4,12 @@
 import os, shutil
 import warnings
 import argparse
-import htcondor
+try:
+    import htcondor
+    from htcondor import dags
+except ModuleNotFoundError:
+    import htcondor2 as htcondor
+    from htcondor2 import dags
 import datetime
 import json
 import re
@@ -15,7 +20,6 @@ import tarfile
 import hashlib
 from pathlib import Path
 
-from htcondor import dags
 from tqdm.rich import tqdm
 from tqdm import TqdmExperimentalWarning
 
@@ -38,6 +42,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from templates.job_dict import main_job, hadd_job, final_job
 from python.sample_paths import resolve_sample_paths
+from python.telegram_reporter import send_telegram_message, submission_message
 
 dag = dags.DAG()
 warnings.simplefilter("ignore", TqdmExperimentalWarning)
@@ -55,9 +60,6 @@ SKNANO_RUN3_NANOAODPATH = os.environ['SKNANO_RUN3_NANOAODPATH']
 SKNANO_RUN2_NANOAODPATH = os.environ['SKNANO_RUN2_NANOAODPATH']
 username = os.environ['USER']
 Run = {'2016preVFP':2,'2016postVFP':2,'2017':2,'2018':2,'2022':3,'2022EE':3, '2023':3, '2023BPix':3, '2024':3}
-TOKEN = os.environ['TOKEN_TELEGRAMBOT']
-chat_id = os.environ['USER_CHATID']
-url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={chat_id}"
 SKIMMING_MODE = False
 SOURCE_SNAPSHOT_DIRNAME = "source_snapshot"
 SOURCE_ARCHIVE_DIRNAME = "code_archive"
@@ -347,6 +349,7 @@ def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot
             'Userflags': userflags,
             'NJobs': argparser.NJobs,
             'Reduction': argparser.Reduction,
+            'input_format': argparser.InputFormat,
             'NMax': argparser.NMax,
             'Memory': argparser.Memory,
             'ncpu': argparser.ncpu,
@@ -511,6 +514,9 @@ def setParser():
     help="Exclude samples by regex (comma-separated, supports * wildcard)")
     parser.add_argument('--nmax', dest='NMax', default=500, type=int, help="maximum running jobs")
     parser.add_argument('--reduction', dest='Reduction', default=1, type=float)
+    parser.add_argument('--input-format', dest='InputFormat', default='rntuple',
+    choices=['auto', 'ttree', 'rntuple'],
+    help="Input object format. Default: rntuple; use 'auto' or 'ttree' for legacy files")
     parser.add_argument('--python', action="store_true", default=False,
     help="Use python analyzer")
     parser.add_argument('--memory', dest='Memory', default=2048, type=float)
@@ -616,6 +622,8 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
 
             # Replace template variations
             job_content = job_content.replace("[Analyzer]", argparse.Analyzer)
+            job_content = job_content.replace("[ncpu]", str(argparse.ncpu))
+            job_content = job_content.replace("[input_format]", argparse.InputFormat)
             job_content = job_content.replace("[era]", era)
             job_content = job_content.replace("[period]", period if period else "")
 
@@ -646,7 +654,7 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
             job_content = job_content.replace("[SAMPLEPATHS]", samplepaths_str)
 
             # Handle reduction/max events
-            maxevent_str = f'    module.MaxEvent = max(1, int(module.fChain.GetEntries()/{int(reduction)}))'
+            maxevent_str = f'    module.MaxEvent = max(1, int(module.GetInputEntries()/{int(reduction)}))'
             job_content = job_content.replace("[MAXEVENT]", maxevent_str)
 
             # Set output path
@@ -663,7 +671,9 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
             
             # Replace template variables
             job_content = job_content.replace("[jobname]", f"job_{i+1}")
+            job_content = job_content.replace("[ncpu]", str(argparse.ncpu))
             job_content = job_content.replace("[analyzer]", argparse.Analyzer)
+            job_content = job_content.replace("[input_format]", argparse.InputFormat)
             job_content = job_content.replace("[era]", era)
             job_content = job_content.replace("[period]", period if period else "")
 
@@ -694,7 +704,7 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
             job_content = job_content.replace("[SAMPLEPATHS]", samplepaths_str)
 
             # Handle reduction/max events
-            maxevent_str = f'\tmodule.MaxEvent = std::max(1, static_cast<int>(module.fChain->GetEntries()/{int(reduction)}));'
+            maxevent_str = f'\tmodule.MaxEvent = std::max<Long64_t>(1, module.GetInputEntries()/{int(reduction)});'
             job_content = job_content.replace("[MAXEVENT]", maxevent_str)
 
             # Set output path
@@ -791,6 +801,7 @@ def makeHaddJobs(working_dir,argparser,sample):
     with open(template_path, 'r') as f:
         hadd_content = f.read()
     hadd_content = hadd_content.replace("[WORKDIR]", working_dir)
+    hadd_content = hadd_content.replace("[SKNANO_HOME]", SKNANO_HOME)
     hadd_content = hadd_content.replace("[TARGET]", hadd_target)
     hadd_content = hadd_content.replace("[PROVENANCE]", os.path.join(os.path.dirname(os.path.dirname(working_dir)), RUN_MANIFEST_NAME))
     hadd_content = hadd_content.replace("[TARGET_PROVENANCE]", hadd_target + ".provenance.json")
@@ -976,8 +987,6 @@ def getFinalDag(hadd_layer_dicts,skim_postproc_layers,master_dir,argparser):
         final_content = f.read()
     final_content = final_content.replace("[DAGDIR]", dag_dir)
     final_content = final_content.replace("[SKNANO_PYTHON]", os.environ['SKNANO_PYTHON'])
-    final_content = final_content.replace("[TOKEN]", TOKEN)
-    final_content = final_content.replace("[CHATID]", chat_id)
     final_content = final_content.replace("[MASTERDIR]", master_dir)
     with open(os.path.join(dag_dir,"final.sh"),'w') as f:
         f.write(final_content)
@@ -1047,7 +1056,14 @@ def getFinalDag(hadd_layer_dicts,skim_postproc_layers,master_dir,argparser):
         submit_cwd = os.getcwd()
         try:
             os.chdir(dag_dir)
-            finalDag_submit = htcondor.Submit.from_dag(str(finalDag_file),{"force":1,"include_env":','.join(list(os.environ.keys())),"batch-name":batchname})
+            secret_names = {"TOKEN_TELEGRAMBOT", "USER_CHATID"}
+            included_environment = ','.join(
+                name for name in os.environ.keys() if name not in secret_names
+            )
+            finalDag_submit = htcondor.Submit.from_dag(
+                str(finalDag_file),
+                {"force": 1, "include_env": included_environment, "batch-name": batchname},
+            )
             cluster_id = htcondor.Schedd().submit(finalDag_submit).cluster()
             print(f"DAGMan job cluster is {cluster_id}")
         finally:
@@ -1130,3 +1146,7 @@ if __name__ == '__main__':
     submit_result['source_snapshot'] = source_snapshot
     submit_result['manifest_path'] = writeRunManifest(abs_MasterDirectoryName, args, userflags, dag_list, source_snapshot, submit_result)
     renderSubmissionSummary(dag_list, abs_MasterDirectoryName, args, userflags, submit_result)
+    if not args.no_exec:
+        with open(submit_result['manifest_path'], encoding='utf-8') as manifest_file:
+            manifest = json.load(manifest_file)
+        send_telegram_message(submission_message(manifest))

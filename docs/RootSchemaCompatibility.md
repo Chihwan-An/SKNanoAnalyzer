@@ -10,9 +10,9 @@ types are non-streaming event-scoped views (`#pragma link ...-`) and therefore
 have no persistent-object schema.
 
 The output code paths audited in `AnalyzerCoreOutput.cc`, `CalibrationTree.cc`
-and `Vcb_SL.cc` write primitive leaves and STL vector branches. `NewTree()` may
-also clone an input NanoAOD tree. No current call site writes a `DataFormats`
-value object directly through `TTree::Branch`; therefore view and branch-manager
+and `Vcb_SL.cc` write primitive, fixed-array, and STL-vector RNTuple fields.
+Schema-preserving skims use RDataFrame's RNTuple Snapshot backend. No current
+call site persists a `DataFormats` value object, so view and branch-manager
 changes do not alter a persisted `DataFormats` layout.
 
 `Event` may reference a trigger map/provider and capture the provider epoch at

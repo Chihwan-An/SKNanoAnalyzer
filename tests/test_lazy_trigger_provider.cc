@@ -146,6 +146,7 @@ std::vector<ObservedDecision> runProbe(const fs::path &dataDirectory,
         throw std::runtime_error("cannot set SKNANO_DATA for trigger test");
 
     TriggerProbeLoader loader;
+    loader.SetInputFormat("ttree");
     loader.SetTreeName("Events");
     loader.SetEra("2024");
     SKNano::ExecutionPlanBuilder planBuilder;
@@ -245,6 +246,7 @@ void testOwnedEventBlockLoopAndFallback() {
         require(setenv("SKNANO_DATA", (directory / "data").c_str(), 1) == 0,
                 "cannot set block fixture data path");
         BlockProbeLoader loader;
+        loader.SetInputFormat("ttree");
         loader.SetTreeName("Events");
         loader.SetEra("2024");
         loader.EnableEventBlockMode();

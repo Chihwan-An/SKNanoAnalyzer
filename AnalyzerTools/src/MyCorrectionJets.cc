@@ -198,31 +198,36 @@ float MyCorrection::GetJERSF(const float eta, const float pt,
 MyCorrection::JERSFSet MyCorrection::GetJERSFSet(const float eta,
                                                  const float pt,
                                                  const TString &source) const {
-  const auto &cset = getJERScaleFactorCorrection();
+  const float sf = GetJERSF(eta, pt, variation::nom, source);
+  const auto variations = GetJERSFVariations(eta, pt, sf, source);
+  return {sf, variations.up, variations.down};
+}
+
+MyCorrection::JERSFVariations
+MyCorrection::GetJERSFVariations(const float eta, const float pt,
+                                 const float nominal,
+                                 const TString &source) const {
+  static_cast<void>(source);
   if (GetEra() == "2024") {
-    const float sf = safeEvaluate2D(cset, "GetJERSF", eta, pt);
     const float sf_unc =
         safeEvaluate2D(getJERSFUncertaintyCorrection(), "GetJERSFUncertainty",
                        eta, pt);
-    return {sf, sf + sf_unc, std::max(sf - sf_unc, 0.f)};
+    return {nominal + sf_unc, std::max(nominal - sf_unc, 0.f)};
   }
+  const auto &cset = getJERScaleFactorCorrection();
   if (Run == 3) {
     return {safeEvaluate(cset, "GetJERSF",
-                         {eta, pt, getSystString_JME(variation::nom)}),
-            safeEvaluate(cset, "GetJERSF",
                          {eta, pt, getSystString_JME(variation::up)}),
             safeEvaluate(cset, "GetJERSF",
                          {eta, pt, getSystString_JME(variation::down)})};
   }
   if (Run == 2) {
     return {safeEvaluate(cset, "GetJERSF",
-                         {eta, getSystString_JME(variation::nom)}),
-            safeEvaluate(cset, "GetJERSF",
                          {eta, getSystString_JME(variation::up)}),
             safeEvaluate(cset, "GetJERSF",
                          {eta, getSystString_JME(variation::down)})};
   }
-  return {};
+  return {nominal, nominal};
 }
 
 // JESC
@@ -262,38 +267,50 @@ float MyCorrection::GetJESSF(const float area, const float eta, const float pt,
   }
 
   if (era != "2024") {
-    vector<correction::Variable::Type> args;
-    float JESSF = 1.;
     if (GetEra() == "2023BPix") {
-      args = {area, eta, pt, rho, phi};
       if (IsDATA)
-        args = {area, eta, pt, rho, phi, static_cast<float>(runNumber)};
+        return safeEvaluateFloats(
+            preparedJESCompound, "GetJESSF",
+            std::array<float, 6>{area, eta, pt, rho, phi,
+                                 static_cast<float>(runNumber)});
+      return safeEvaluateFloats(
+          preparedJESCompound, "GetJESSF",
+          std::array<float, 5>{area, eta, pt, rho, phi});
     } else if (GetEra() == "2023") {
-      args = {area, eta, pt, rho};
       if (IsDATA)
-        args = {area, eta, pt, rho, static_cast<float>(runNumber)};
-    } else {
-      args = {area, eta, pt, rho};
+        return safeEvaluateFloats(
+            preparedJESCompound, "GetJESSF",
+            std::array<float, 5>{area, eta, pt, rho,
+                                 static_cast<float>(runNumber)});
+      return safeEvaluateFloats(
+          preparedJESCompound, "GetJESSF",
+          std::array<float, 4>{area, eta, pt, rho});
     }
-    return safeEvaluate(preparedJESCompound, "GetJESSF", args);
+    return safeEvaluateFloats(
+        preparedJESCompound, "GetJESSF",
+        std::array<float, 4>{area, eta, pt, rho});
   }
   else{
     float current_pt = pt;
-    float current_corr = 1.f;
-    float sf_L1 = safeEvaluate(preparedJESL1, "GetJESCorrection",
-                               {area, eta, current_pt, rho});
+    float sf_L1 = safeEvaluateFloats(
+        preparedJESL1, "GetJESCorrection",
+        std::array<float, 4>{area, eta, current_pt, rho});
     current_pt = current_pt * sf_L1;
-    float sf_L2 = safeEvaluate(preparedJESL2, "GetJESCorrection",
-                               {eta, phi, current_pt});
+    float sf_L2 = safeEvaluateFloats(
+        preparedJESL2, "GetJESCorrection",
+        std::array<float, 3>{eta, phi, current_pt});
     current_pt = current_pt * sf_L2;
-    float sf_L3 = safeEvaluate(preparedJESL3, "GetJESCorrection",
-                               {eta, current_pt});
+    float sf_L3 = safeEvaluateFloats(
+        preparedJESL3, "GetJESCorrection",
+        std::array<float, 2>{eta, current_pt});
     current_pt = current_pt * sf_L3;
     float sf_res = 1.;
     if (IsDATA) {
       if(abs(eta) >=2.0 && abs(eta) < 2.5) current_pt = std::max(30.001f, current_pt);
-      sf_res = safeEvaluate(preparedJESResidual, "GetJESCorrection",
-                            {static_cast<float>(runNumber), eta, current_pt});
+      sf_res = safeEvaluateFloats(
+          preparedJESResidual, "GetJESCorrection",
+          std::array<float, 3>{static_cast<float>(runNumber), eta,
+                               current_pt});
     }
     return sf_L1 * sf_L2 * sf_L3 * sf_res;
   }

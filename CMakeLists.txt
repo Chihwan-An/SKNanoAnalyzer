@@ -10,6 +10,12 @@ project(SKNanoAnalyzer VERSION 1.0.0 LANGUAGES CXX)
 
 include(CTest)
 
+# Once a dependency checkout exists, configure from that pinned checkout.
+# This avoids an implicit network update on every build and still permits the
+# initial population when the source directory is absent.
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE BOOL
+    "Do not update already-populated FetchContent dependencies" FORCE)
+
 # Apply one language contract to every subdirectory and generated dictionary.
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -145,6 +151,18 @@ add_subdirectory(SKNanoCore)
 add_subdirectory(DataFormats)
 add_subdirectory(AnalyzerTools)
 add_subdirectory(Analyzers)
+
+# Standalone, transactional TTree -> RNTuple conversion utility.  Keep this
+# independent of the analysis libraries so input conversion does not pull in
+# correction or ML dependencies at runtime.
+add_executable(sknano-convert-rntuple
+    tools/convert_ttree_to_rntuple.cc)
+target_compile_features(sknano-convert-rntuple PRIVATE cxx_std_17)
+target_link_libraries(sknano-convert-rntuple PRIVATE
+    ${ROOT_LIBRARIES}
+    ROOT::ROOTNTuple
+    ROOT::ROOTNTupleUtil)
+install(TARGETS sknano-convert-rntuple DESTINATION bin)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

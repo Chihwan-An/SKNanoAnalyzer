@@ -121,13 +121,13 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   EGM_keys["2017"] = "2017";
   EGM_keys["2018"] = "2018";
 
-  // Please use ####### as placeholder
+  // Please use ###### as placeholder
   if (!IsData) {
-    JME_JER_GT["2024"] = "Summer24Prompt24_JRV1_MC_######_AK4PFPuppi";
-    JME_JES_GT["2024"] = "Summer24Prompt24_V3_MC_######_AK4PFPuppi";
+    JME_JER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK4PFPuppi";
+    JME_JES_GT["2024"] = "Summer24Prompt24_V5_MC_######_AK4PFPuppi";
   } else {
-    JME_JER_GT["2024"] = "Summer24Prompt24_JRV1_MC_######_AK4PFPuppi";
-    JME_JES_GT["2024"] = "Summer24Prompt24_V3_DATA_######_AK4PFPuppi";
+    JME_JER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK4PFPuppi";
+    JME_JES_GT["2024"] = "Summer24Prompt24_V5_DATA_######_AK4PFPuppi";
   }
 
   JME_vetomap_keys["2024"] = "Summer24Prompt24_RunBCDEFGHI_V1";

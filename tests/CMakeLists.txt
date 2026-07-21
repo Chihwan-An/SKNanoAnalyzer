@@ -13,6 +13,7 @@ target_compile_features(test_view_and_branch_lifetime PRIVATE cxx_std_20)
 target_link_libraries(test_view_and_branch_lifetime PRIVATE
     ${ROOT_LIBRARIES}
     SKNanoCore
+    Analyzers
 )
 
 add_test(NAME view_and_branch_lifetime
@@ -49,6 +50,17 @@ add_test(NAME generated_input_columns
     COMMAND test_generated_input_columns
 )
 
+# File-backed RNTuple integration probes. They are built with the regular test
+# suite and run manually with a converted NanoAOD path, because the repository
+# intentionally does not carry a large ROOT fixture.
+add_executable(test_rntuple_source test_rntuple_source.cc)
+target_compile_features(test_rntuple_source PRIVATE cxx_std_17)
+target_link_libraries(test_rntuple_source PRIVATE Analyzers)
+
+add_executable(compare_root_outputs compare_root_outputs.cc)
+target_compile_features(compare_root_outputs PRIVATE cxx_std_17)
+target_link_libraries(compare_root_outputs PRIVATE ${ROOT_LIBRARIES})
+
 add_executable(test_histogram_handles
     test_histogram_handles.cc
 )
@@ -69,6 +81,17 @@ target_link_libraries(test_output_handles PRIVATE Analyzers)
 
 add_test(NAME output_handles
     COMMAND test_output_handles
+)
+
+add_executable(test_analyzer_task_api
+    test_analyzer_task_api.cc
+)
+
+target_compile_features(test_analyzer_task_api PRIVATE cxx_std_17)
+target_link_libraries(test_analyzer_task_api PRIVATE Analyzers)
+
+add_test(NAME analyzer_task_api
+    COMMAND test_analyzer_task_api
 )
 
 add_executable(test_performance_telemetry

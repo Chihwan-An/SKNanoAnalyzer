@@ -428,6 +428,7 @@ float Vcb::OtLutPtFromStore(const JetSoA &store, std::size_t idx) const {
   }
 
   if (syst_target == "Jet_Res") {
+    store.ensureJerVariations();
     switch (variation) {
     case MyCorrection::variation::up:
       return ot_pt_value_or_nominal(store.smearedPtUp, idx,
@@ -1632,40 +1633,8 @@ void Vcb::SkimTree() {
 
 void Vcb::WriteHist() {
   if (HasFlag("Skim")) {
-    if (!skim_passed_global_entries.empty() && fChain) {
-
-      // 1) 글로벌 엔트리 정렬 + 중복 제거 (순차 I/O 위해)
-      std::sort(skim_passed_global_entries.begin(),
-                skim_passed_global_entries.end());
-      skim_passed_global_entries.erase(
-          std::unique(skim_passed_global_entries.begin(),
-                      skim_passed_global_entries.end()),
-          skim_passed_global_entries.end());
-
-      // 2) 모든 브랜치 활성화 + ROOT가 버퍼 관리
-      fChain->SetBranchStatus("*", 1);
-      fChain->ResetBranchAddresses();
-
-      // 3) TEntryList를 이용한 CopyTree (ROOT 내부 최적화 활용)
-      TEntryList elist("skim_list", "Selected entries");
-      for (Long64_t entry : skim_passed_global_entries) {
-        elist.Enter(entry, fChain);
-      }
-      fChain->SetEntryList(&elist);
-
-      if (TTree *curTree = fChain->GetTree()) {
-        configureTreeCache(curTree);
-      }
-
-      TTree *skimTree = fChain->CopyTree("");
-      if (skimTree) {
-        skimTree->SetName("Events");
-        treemap["Events"] = skimTree;
-      }
-
-      fChain->SetEntryList(0);
-      skim_passed_global_entries.clear();
-    }
+    SnapshotSelectedInput(std::move(skim_passed_global_entries));
+    skim_passed_global_entries.clear();
   }
 
   AnalyzerCore::WriteHist();

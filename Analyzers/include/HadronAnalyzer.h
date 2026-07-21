@@ -5,6 +5,9 @@
 #include <cstdint>
 #include <vector>
 
+#include "CharmFragmentation.h"
+#include "LambdaCTruthMatcher.h"
+#include "TopJetMatcher.h"
 #include "Vcb_SL.h"
 
 class HadronAnalyzer : public Vcb_SL {
@@ -18,6 +21,8 @@ public:
 private:
   static constexpr std::size_t kLeadingJets = 4;
   static constexpr std::size_t kJetFlavourCategories = 3;
+  static constexpr std::size_t kWCharmSpecies = 3;
+  static constexpr std::size_t kWCharmMatchCategories = 2;
   static constexpr float kBPHJetRadius = 0.4f;
 
   enum class BPHSpecies : int {
@@ -33,15 +38,50 @@ private:
     Bottom = 2,
   };
 
+  struct BPHTrackFeatures {
+    float pt = -999.f;
+    float eta = -999.f;
+    float phi = -999.f;
+    int charge = 0;
+    float ptFraction = -999.f;
+    float dxy = -999.f;
+    float dz = -999.f;
+    float dxySignificance = -999.f;
+    float dzSignificance = -999.f;
+    float dcaSignificance = -999.f;
+    float ptError = -999.f;
+    float ptErrorRelative = -999.f;
+    float normalizedChi2 = -999.f;
+    float fitPt = -999.f;
+    float fitPtFraction = -999.f;
+    int nValidHits = -1;
+    int nValidPixelHits = -1;
+    int sourceType = -1;
+    unsigned int sourceIndex = 0;
+    int hasTrackDetails = 0;
+    int highPurity = 0;
+    int passVertexSelection = 0;
+    int passSoftPionSelection = 0;
+  };
+
   struct BPHRecord {
     BPHSpecies species = BPHSpecies::D0ToKPi;
     int sourceIndex = -1;
     float pt = -999.f;
     float eta = -999.f;
     float phi = -999.f;
+    float rapidity = -999.f;
     float mass = -999.f;
     int pdgId = 0;
     int charge = 0;
+    int inputJetIndex = -1;
+    float inputJetDeltaR = -999.f;
+    int hypothesisMask = 0;
+    int prescaleWeight = 1;
+    int genPartIndex = -1;
+    int genMatchCategory = 0;
+    int genHypothesisMask = 0;
+    int genHypothesisIndex = -1;
     float fitPt = -999.f;
     float fitEta = -999.f;
     float fitPhi = -999.f;
@@ -53,9 +93,34 @@ private:
     float svProbability = -999.f;
     float svChi2 = -999.f;
     float svNdof = -999.f;
+    float svChi2Ndof = -999.f;
     float lxy = -999.f;
     float lxyError = -999.f;
+    float lxySignificance = -999.f;
     float cosTheta2D = -999.f;
+    float pointingAngle2D = -999.f;
+    float candidateDca = -999.f;
+    float candidateDcaError = -999.f;
+    float candidateDcaSignificance = -999.f;
+    float daughterDeltaR = -999.f;
+    float daughterAbsDz = -999.f;
+    float daughterDca3D = -999.f;
+    float decayLength3D = -999.f;
+    float decayLength3DSignificance = -999.f;
+    float softPionDxyD0Vertex = -999.f;
+    float softPionDzD0Vertex = -999.f;
+    float pKMass = -999.f;
+    float kPiMass = -999.f;
+    float pPiMass = -999.f;
+    float pKDeltaR = -999.f;
+    float kPiDeltaR = -999.f;
+    float pPiDeltaR = -999.f;
+    float minPairDeltaR = -999.f;
+    float maxPairDeltaR = -999.f;
+    // Species-dependent daughter order: D0=(trk1,trk2,-), D*=(-,-,soft pi),
+    // Lambda=(proton,pion,-), LambdaC=(trk1,trk2,trk3).  Every index points
+    // into the event-local compact HadronTrack collection.
+    std::array<BPHTrackFeatures, 3> trackFeatures;
     float deltaMass = -999.f;
     int daughterIndex1 = -1;
     int daughterIndex2 = -1;
@@ -79,6 +144,32 @@ private:
     int nJet = 0;
     int nBTaggedJet = 0;
     int nCTaggedJet = 0;
+
+    int topJetTopologyStatus = -1;
+    int topJetHadronicTopPdgId = 0;
+    int topJetNGenMatched = 0;
+    int topJetNRecoMatched = 0;
+    int topJetComplete = 0;
+    float topJetTotalCost = -1.f;
+    float topJetAssignmentMargin = -1.f;
+    float topJetHadronicWRecoMass = -1.f;
+    int topJetWCharmRole = -1;
+    int topJetWCharmJetIndex = -1;
+    int topJetWCharmJetOriginalIndex = -1;
+    std::array<int, HadronAnalysis::kNumTopJetRoles> topJetGenPartIndex;
+    std::array<int, HadronAnalysis::kNumTopJetRoles> topJetPartonPdgId;
+    std::array<int, HadronAnalysis::kNumTopJetRoles> topJetGenJetIndex;
+    std::array<int, HadronAnalysis::kNumTopJetRoles> topJetRecoJetIndex;
+    std::array<int, HadronAnalysis::kNumTopJetRoles>
+        topJetRecoJetOriginalIndex;
+    std::array<float, HadronAnalysis::kNumTopJetRoles>
+        topJetPartonGenJetDeltaR;
+    std::array<float, HadronAnalysis::kNumTopJetRoles>
+        topJetGenJetRecoDeltaR;
+    std::array<float, HadronAnalysis::kNumTopJetRoles> topJetCost;
+    std::array<int, HadronAnalysis::kNumTopJetRoles> topJetMatchSource;
+    std::array<int, HadronAnalysis::kNumTopJetRoles>
+        topJetFlavourFallback;
 
     std::array<float, kLeadingJets> jetPt;
     std::array<float, kLeadingJets> jetEta;
@@ -122,9 +213,20 @@ private:
     std::vector<float> bphPt;
     std::vector<float> bphEta;
     std::vector<float> bphPhi;
+    std::vector<float> bphRapidity;
     std::vector<float> bphMass;
     std::vector<int> bphPdgId;
     std::vector<int> bphCharge;
+    std::vector<int> bphInputJetIndex;
+    std::vector<float> bphInputJetDeltaR;
+    std::vector<int> bphHypothesisMask;
+    std::vector<int> bphPrescaleWeight;
+    std::vector<int> bphGenPartIndex;
+    std::vector<int> bphGenMatchCategory;
+    std::vector<std::uint8_t> bphGenHypothesisMask;
+    std::vector<std::int16_t> bphGenHypothesisIndex;
+    std::vector<float> bphWCharmZ;
+    std::vector<float> bphWCharmDeltaR;
     std::vector<float> bphFitPt;
     std::vector<float> bphFitEta;
     std::vector<float> bphFitPhi;
@@ -136,9 +238,47 @@ private:
     std::vector<float> bphSvProbability;
     std::vector<float> bphSvChi2;
     std::vector<float> bphSvNdof;
+    std::vector<float> bphSvChi2Ndof;
     std::vector<float> bphLxy;
     std::vector<float> bphLxyError;
+    std::vector<float> bphLxySignificance;
     std::vector<float> bphCosTheta2D;
+    std::vector<float> bphPointingAngle2D;
+    std::vector<float> bphCandidateDca;
+    std::vector<float> bphCandidateDcaError;
+    std::vector<float> bphCandidateDcaSignificance;
+    std::vector<float> bphDaughterDeltaR;
+    std::vector<float> bphDaughterAbsDz;
+    std::vector<float> bphDaughterDca3D;
+    std::vector<float> bphDecayLength3D;
+    std::vector<float> bphDecayLength3DSignificance;
+    std::vector<float> bphSoftPionDxyD0Vertex;
+    std::vector<float> bphSoftPionDzD0Vertex;
+    std::vector<float> bphPKMass;
+    std::vector<float> bphKPiMass;
+    std::vector<float> bphPPiMass;
+    std::vector<float> bphPKDeltaR;
+    std::vector<float> bphKPiDeltaR;
+    std::vector<float> bphPPiDeltaR;
+    std::vector<float> bphMinPairDeltaR;
+    std::vector<float> bphMaxPairDeltaR;
+    std::array<std::vector<float>, 3> bphTrackPt;
+    std::array<std::vector<float>, 3> bphTrackEta;
+    std::array<std::vector<float>, 3> bphTrackPhi;
+    std::array<std::vector<int>, 3> bphTrackCharge;
+    std::array<std::vector<float>, 3> bphTrackPtFraction;
+    std::array<std::vector<float>, 3> bphTrackDxy;
+    std::array<std::vector<float>, 3> bphTrackDz;
+    std::array<std::vector<float>, 3> bphTrackDxySignificance;
+    std::array<std::vector<float>, 3> bphTrackDzSignificance;
+    std::array<std::vector<float>, 3> bphTrackDcaSignificance;
+    std::array<std::vector<float>, 3> bphTrackPtError;
+    std::array<std::vector<float>, 3> bphTrackPtErrorRelative;
+    std::array<std::vector<float>, 3> bphTrackNormalizedChi2;
+    std::array<std::vector<float>, 3> bphTrackFitPt;
+    std::array<std::vector<float>, 3> bphTrackFitPtFraction;
+    std::array<std::vector<int>, 3> bphTrackNValidHits;
+    std::array<std::vector<int>, 3> bphTrackNValidPixelHits;
     std::vector<float> bphDeltaMass;
     std::vector<int> bphDaughterIndex1;
     std::vector<int> bphDaughterIndex2;
@@ -181,8 +321,35 @@ private:
     void clear();
   } output_;
 
-  AnalyzerCore::TreeHandle outputTree_;
+  HadronAnalysis::TopJetMatcher topJetMatcher_;
+  HadronAnalysis::LambdaCTruthMatcher lambdaCTruthMatcher_;
+
+  AnalyzerCore::RNTupleHandle outputTree_;
   Hist1DHandle selectedEvents_;
+  Hist1DHandle hadronTrackMultiplicity_;
+  Hist1DHandle d0InclusiveMultiplicity_;
+  Hist1DHandle dstarInclusiveMultiplicity_;
+  Hist1DHandle lambdaInclusiveMultiplicity_;
+  Hist1DHandle lambdaCInclusiveMultiplicity_;
+  Hist1DHandle hadronTrackPt_;
+  Hist1DHandle hadronTrackPtErrorRelative_;
+  Hist1DHandle validationD0Mass_;
+  Hist1DHandle validationDstarDeltaMass_;
+  Hist1DHandle validationLambdaMass_;
+  Hist1DHandle validationLambdaCMass_;
+  Hist1DHandle validationLambdaCAcceptedHypothesisMass_;
+  Hist1DHandle validationLambdaCGenMatchedHypothesisMass_;
+  Hist1DHandle wCharmRecoMass_;
+  Hist1DHandle wCharmJetPt_;
+  std::array<std::array<Hist2DHandle, kWCharmMatchCategories>,
+             kWCharmSpecies>
+      wCharmZVsRecoMass_;
+  std::array<std::array<
+                 std::array<Hist1DHandle,
+                            HadronAnalysis::kNumRecoWMassBins>,
+                 kWCharmMatchCategories>,
+             kWCharmSpecies>
+      wCharmZByRecoMass_;
   std::array<Hist1DHandle, kLeadingJets> d0Multiplicity_;
   std::array<Hist1DHandle, kLeadingJets> dstarMultiplicity_;
   std::array<Hist1DHandle, kLeadingJets> lambdaMultiplicity_;
@@ -211,8 +378,15 @@ private:
   std::array<Hist2DHandle, kLeadingJets> recoVsGenLambdaC_;
   std::array<Hist2DHandle, kLeadingJets> recoVsGenTotal_;
 
-  void BookOutputTree();
+  void RegisterTasks();
+  void ValidateBPHStudy();
+  void BookBPHStudy();
+  void RunBPHStudy();
+  void BookOutputRNTuple();
   void BookHistograms();
+  void FillTopJetMatches();
+  void FillWCharmFragmentation(const BPHRecord &record, int jetRank,
+                               float &z, float &deltaR);
   void FillSelectedEvent();
   void AppendBPHCandidate(const BPHRecord &record);
   void FillBPHHistograms(const BPHRecord &record, int jetRank, float deltaR);

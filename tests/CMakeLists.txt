@@ -216,6 +216,44 @@ add_test(NAME fatjet_contract
     COMMAND test_fatjet_contract
 )
 
+add_executable(custom_bph_file_smoke custom_bph_file_smoke.cc)
+target_compile_features(custom_bph_file_smoke PRIVATE cxx_std_17)
+target_link_libraries(custom_bph_file_smoke PRIVATE Analyzers)
+
+add_executable(hadron_analyzer_file_smoke hadron_analyzer_file_smoke.cc)
+target_compile_features(hadron_analyzer_file_smoke PRIVATE cxx_std_17)
+target_link_libraries(hadron_analyzer_file_smoke PRIVATE Analyzers)
+
+add_executable(test_top_jet_matcher
+    test_top_jet_matcher.cc
+    ${CMAKE_SOURCE_DIR}/Analyzers/src/TopJetMatcher.cc
+)
+target_compile_features(test_top_jet_matcher PRIVATE cxx_std_17)
+target_include_directories(test_top_jet_matcher PRIVATE
+    ${CMAKE_SOURCE_DIR}/Analyzers/include
+)
+add_test(NAME top_jet_matcher COMMAND test_top_jet_matcher)
+
+add_executable(test_charm_fragmentation
+    test_charm_fragmentation.cc
+    ${CMAKE_SOURCE_DIR}/Analyzers/src/CharmFragmentation.cc
+)
+target_compile_features(test_charm_fragmentation PRIVATE cxx_std_17)
+target_include_directories(test_charm_fragmentation PRIVATE
+    ${CMAKE_SOURCE_DIR}/Analyzers/include
+)
+add_test(NAME charm_fragmentation COMMAND test_charm_fragmentation)
+
+add_executable(test_lambdac_truth_matcher
+    test_lambdac_truth_matcher.cc
+    ${CMAKE_SOURCE_DIR}/Analyzers/src/LambdaCTruthMatcher.cc
+)
+target_compile_features(test_lambdac_truth_matcher PRIVATE cxx_std_17)
+target_include_directories(test_lambdac_truth_matcher PRIVATE
+    ${CMAKE_SOURCE_DIR}/Analyzers/include
+)
+add_test(NAME lambdac_truth_matcher COMMAND test_lambdac_truth_matcher)
+
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
     add_test(NAME branch_schema_pipeline

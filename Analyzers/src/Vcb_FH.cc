@@ -10,31 +10,31 @@ void Vcb_FH::CreateTrainingTree()
     Clear();
     RVec<TString> keeps = {};
     RVec<TString> drops = {"*"};
-    BookTree("Training_Tree", keeps, drops);
-    OutputTree("Training_Tree").Branch("Jet_Px", Jet_Px);
-    OutputTree("Training_Tree").Branch("Jet_Py", Jet_Py);
-    OutputTree("Training_Tree").Branch("Jet_Pz", Jet_Pz);
-    OutputTree("Training_Tree").Branch("Jet_E", Jet_E);
-    OutputTree("Training_Tree").Branch("Jet_M", Jet_M);
-    OutputTree("Training_Tree").Branch("Jet_BvsC", Jet_BvsC);
-    OutputTree("Training_Tree").Branch("Jet_CvsB", Jet_CvsB);
-    OutputTree("Training_Tree").Branch("Jet_CvsL", Jet_CvsL);
-    OutputTree("Training_Tree").Branch("Jet_QvsG", Jet_QvsG);
-    OutputTree("Training_Tree").Branch("Jet_HFvLF", Jet_HFvLF);
-    OutputTree("Training_Tree").Branch("Jet_BvC", Jet_BvC);
-    OutputTree("Training_Tree").Branch("Jet_Category", Jet_Category);
-    OutputTree("Training_Tree").Branch("Jet_B_WP", Jet_B_WP);
-    OutputTree("Training_Tree").Branch("Jet_C_WP", Jet_C_WP);
-    OutputTree("Training_Tree").Branch("Jet_isTTbarJet", Jet_isTTbarJet);
-    OutputTree("Training_Tree").Branch("Jet_ttbarJet_idx", Jet_ttbarJet_idx);
-    OutputTree("Training_Tree").Branch("Jet_Pt", Jet_Pt);
-    OutputTree("Training_Tree").Branch("Jet_Eta", Jet_Eta);
-    OutputTree("Training_Tree").Branch("Jet_Phi", Jet_Phi);
-    OutputTree("Training_Tree").Branch("edge_index_0", edge_index0);
-    OutputTree("Training_Tree").Branch("edge_index_1", edge_index1);
-    OutputTree("Training_Tree").Branch("deltaR", deltaR);
-    OutputTree("Training_Tree").Branch("invM", invM);
-    OutputTree("Training_Tree").Branch("cosTheta", cosTheta);
+    Output().Book("Training_Tree");
+    Output().Get("Training_Tree").Field("Jet_Px", Jet_Px);
+    Output().Get("Training_Tree").Field("Jet_Py", Jet_Py);
+    Output().Get("Training_Tree").Field("Jet_Pz", Jet_Pz);
+    Output().Get("Training_Tree").Field("Jet_E", Jet_E);
+    Output().Get("Training_Tree").Field("Jet_M", Jet_M);
+    Output().Get("Training_Tree").Field("Jet_BvsC", Jet_BvsC);
+    Output().Get("Training_Tree").Field("Jet_CvsB", Jet_CvsB);
+    Output().Get("Training_Tree").Field("Jet_CvsL", Jet_CvsL);
+    Output().Get("Training_Tree").Field("Jet_QvsG", Jet_QvsG);
+    Output().Get("Training_Tree").Field("Jet_HFvLF", Jet_HFvLF);
+    Output().Get("Training_Tree").Field("Jet_BvC", Jet_BvC);
+    Output().Get("Training_Tree").Field("Jet_Category", Jet_Category);
+    Output().Get("Training_Tree").Field("Jet_B_WP", Jet_B_WP);
+    Output().Get("Training_Tree").Field("Jet_C_WP", Jet_C_WP);
+    Output().Get("Training_Tree").Field("Jet_isTTbarJet", Jet_isTTbarJet);
+    Output().Get("Training_Tree").Field("Jet_ttbarJet_idx", Jet_ttbarJet_idx);
+    Output().Get("Training_Tree").Field("Jet_Pt", Jet_Pt);
+    Output().Get("Training_Tree").Field("Jet_Eta", Jet_Eta);
+    Output().Get("Training_Tree").Field("Jet_Phi", Jet_Phi);
+    Output().Get("Training_Tree").Field("edge_index_0", edge_index0);
+    Output().Get("Training_Tree").Field("edge_index_1", edge_index1);
+    Output().Get("Training_Tree").Field("deltaR", deltaR);
+    Output().Get("Training_Tree").Field("invM", invM);
+    Output().Get("Training_Tree").Field("cosTheta", cosTheta);
 }
 
 RVec<RVec<unsigned int>>
@@ -247,15 +247,15 @@ void Vcb_FH::FillKinematicFitterResult(const TString &histPrefix, float weight)
 void Vcb_FH::FillTrainingTree()
 {
     ttbar_jet_indices = FindTTbarJetIndices();
-    OutputTree("Training_Tree").Set( "MET", MET.Pt());
-    OutputTree("Training_Tree").Set( "HT", HT);
-    OutputTree("Training_Tree").Set( "n_jets", n_jets);
-    OutputTree("Training_Tree").Set( "n_b_tagged_jets", n_b_tagged_jets);
-    OutputTree("Training_Tree").Set( "n_c_tagged_jets", n_c_tagged_jets);
-    OutputTree("Training_Tree").Set( "find_all_jets", find_all_jets);
+    Output().Get("Training_Tree").Set( "MET", MET.Pt());
+    Output().Get("Training_Tree").Set( "HT", HT);
+    Output().Get("Training_Tree").Set( "n_jets", n_jets);
+    Output().Get("Training_Tree").Set( "n_b_tagged_jets", n_b_tagged_jets);
+    Output().Get("Training_Tree").Set( "n_c_tagged_jets", n_c_tagged_jets);
+    Output().Get("Training_Tree").Set( "find_all_jets", find_all_jets);
     float weight = MCNormalization();
     weight *= systHelper->calculateWeight()["Jet_En_Down"];
-    OutputTree("Training_Tree").Set( "weight", weight);
+    Output().Get("Training_Tree").Set( "weight", weight);
 
     if (find_all_jets)
     {
@@ -264,90 +264,90 @@ void Vcb_FH::FillTrainingTree()
         Particle Top1Cand(Jets[ttbar_jet_indices[0]].P4() + W1Cand);
         Particle Top2Cand(Jets[ttbar_jet_indices[1]].P4() + W2Cand);
         Particle ttCand = Top1Cand + Top2Cand;
-        OutputTree("Training_Tree").Set( "Top1Mass", Top1Cand.M());
-        OutputTree("Training_Tree").Set( "Top2Mass", Top2Cand.M());
-        OutputTree("Training_Tree").Set( "W1Mass", W1Cand.M());
-        OutputTree("Training_Tree").Set( "W2Mass", W2Cand.M());
-        OutputTree("Training_Tree").Set( "Top1Pt", Top1Cand.Pt());
-        OutputTree("Training_Tree").Set( "Top2Pt", Top2Cand.Pt());
-        OutputTree("Training_Tree").Set( "W1Pt", W1Cand.Pt());
-        OutputTree("Training_Tree").Set( "W2Pt", W2Cand.Pt());
-        OutputTree("Training_Tree").Set( "Top1Eta", Top1Cand.Eta());
-        OutputTree("Training_Tree").Set( "Top2Eta", Top2Cand.Eta());
-        OutputTree("Training_Tree").Set( "W1Eta", W1Cand.Eta());
-        OutputTree("Training_Tree").Set( "W2Eta", W2Cand.Eta());
-        OutputTree("Training_Tree").Set( "Top1Phi", Top1Cand.Phi());
-        OutputTree("Training_Tree").Set( "Top2Phi", Top2Cand.Phi());
-        OutputTree("Training_Tree").Set( "W1Phi", W1Cand.Phi());
-        OutputTree("Training_Tree").Set( "W2Phi", W2Cand.Phi());
-        OutputTree("Training_Tree").Set( "ttbarMass", ttCand.M());
-        OutputTree("Training_Tree").Set( "ttbarPt", ttCand.Pt());
-        OutputTree("Training_Tree").Set( "ttbarEta", ttCand.Eta());
-        OutputTree("Training_Tree").Set( "ttbarPhi", ttCand.Phi());
+        Output().Get("Training_Tree").Set( "Top1Mass", Top1Cand.M());
+        Output().Get("Training_Tree").Set( "Top2Mass", Top2Cand.M());
+        Output().Get("Training_Tree").Set( "W1Mass", W1Cand.M());
+        Output().Get("Training_Tree").Set( "W2Mass", W2Cand.M());
+        Output().Get("Training_Tree").Set( "Top1Pt", Top1Cand.Pt());
+        Output().Get("Training_Tree").Set( "Top2Pt", Top2Cand.Pt());
+        Output().Get("Training_Tree").Set( "W1Pt", W1Cand.Pt());
+        Output().Get("Training_Tree").Set( "W2Pt", W2Cand.Pt());
+        Output().Get("Training_Tree").Set( "Top1Eta", Top1Cand.Eta());
+        Output().Get("Training_Tree").Set( "Top2Eta", Top2Cand.Eta());
+        Output().Get("Training_Tree").Set( "W1Eta", W1Cand.Eta());
+        Output().Get("Training_Tree").Set( "W2Eta", W2Cand.Eta());
+        Output().Get("Training_Tree").Set( "Top1Phi", Top1Cand.Phi());
+        Output().Get("Training_Tree").Set( "Top2Phi", Top2Cand.Phi());
+        Output().Get("Training_Tree").Set( "W1Phi", W1Cand.Phi());
+        Output().Get("Training_Tree").Set( "W2Phi", W2Cand.Phi());
+        Output().Get("Training_Tree").Set( "ttbarMass", ttCand.M());
+        Output().Get("Training_Tree").Set( "ttbarPt", ttCand.Pt());
+        Output().Get("Training_Tree").Set( "ttbarEta", ttCand.Eta());
+        Output().Get("Training_Tree").Set( "ttbarPhi", ttCand.Phi());
     }
     else
     {
-        OutputTree("Training_Tree").Set( "Top1Mass", -999.);
-        OutputTree("Training_Tree").Set( "Top2Mass", -999.);
-        OutputTree("Training_Tree").Set( "W1Mass", -999.);
-        OutputTree("Training_Tree").Set( "W2Mass", -999.);
-        OutputTree("Training_Tree").Set( "Top1Pt", -999.);
-        OutputTree("Training_Tree").Set( "Top2Pt", -999.);
-        OutputTree("Training_Tree").Set( "W1Pt", -999.);
-        OutputTree("Training_Tree").Set( "W2Pt", -999.);
-        OutputTree("Training_Tree").Set( "Top1Eta", -999.);
-        OutputTree("Training_Tree").Set( "Top2Eta", -999.);
-        OutputTree("Training_Tree").Set( "W1Eta", -999.);
-        OutputTree("Training_Tree").Set( "W2Eta", -999.);
-        OutputTree("Training_Tree").Set( "Top1Phi", -999.);
-        OutputTree("Training_Tree").Set( "Top2Phi", -999.);
-        OutputTree("Training_Tree").Set( "W1Phi", -999.);
-        OutputTree("Training_Tree").Set( "W2Phi", -999.);
-        OutputTree("Training_Tree").Set( "ttbarMass", -999.);
-        OutputTree("Training_Tree").Set( "ttbarPt", -999.);
-        OutputTree("Training_Tree").Set( "ttbarEta", -999.);
-        OutputTree("Training_Tree").Set( "ttbarPhi", -999.);
+        Output().Get("Training_Tree").Set( "Top1Mass", -999.);
+        Output().Get("Training_Tree").Set( "Top2Mass", -999.);
+        Output().Get("Training_Tree").Set( "W1Mass", -999.);
+        Output().Get("Training_Tree").Set( "W2Mass", -999.);
+        Output().Get("Training_Tree").Set( "Top1Pt", -999.);
+        Output().Get("Training_Tree").Set( "Top2Pt", -999.);
+        Output().Get("Training_Tree").Set( "W1Pt", -999.);
+        Output().Get("Training_Tree").Set( "W2Pt", -999.);
+        Output().Get("Training_Tree").Set( "Top1Eta", -999.);
+        Output().Get("Training_Tree").Set( "Top2Eta", -999.);
+        Output().Get("Training_Tree").Set( "W1Eta", -999.);
+        Output().Get("Training_Tree").Set( "W2Eta", -999.);
+        Output().Get("Training_Tree").Set( "Top1Phi", -999.);
+        Output().Get("Training_Tree").Set( "Top2Phi", -999.);
+        Output().Get("Training_Tree").Set( "W1Phi", -999.);
+        Output().Get("Training_Tree").Set( "W2Phi", -999.);
+        Output().Get("Training_Tree").Set( "ttbarMass", -999.);
+        Output().Get("Training_Tree").Set( "ttbarPt", -999.);
+        Output().Get("Training_Tree").Set( "ttbarEta", -999.);
+        Output().Get("Training_Tree").Set( "ttbarPhi", -999.);
     }
 
     // for (size_t i = 0; i <= 10; i++)
     // {
     //     if(i < n_jets){
-    //         OutputTree("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), Jets[i].Pt());
-    //         OutputTree("Training_Tree").Set( "Jet_Eta_" + std::to_string(i), Jets[i].Eta());
-    //         OutputTree("Training_Tree").Set( "Jet_Phi_" + std::to_string(i), Jets[i].Phi());
-    //         OutputTree("Training_Tree").Set( "Jet_M_" + std::to_string(i), Jets[i].M());
-    //         OutputTree("Training_Tree").Set( "Jet_BvsC_" + std::to_string(i), JetBScore(Jets[i]));
-    //         OutputTree("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i), JetCvBScore(Jets[i]));
-    //         OutputTree("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i), JetCvLScore(Jets[i]));
-    //         OutputTree("Training_Tree").Set( "Jet_QvsG_" + std::to_string(i), JetQvGScore(Jets[i]));
+    //         Output().Get("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), Jets[i].Pt());
+    //         Output().Get("Training_Tree").Set( "Jet_Eta_" + std::to_string(i), Jets[i].Eta());
+    //         Output().Get("Training_Tree").Set( "Jet_Phi_" + std::to_string(i), Jets[i].Phi());
+    //         Output().Get("Training_Tree").Set( "Jet_M_" + std::to_string(i), Jets[i].M());
+    //         Output().Get("Training_Tree").Set( "Jet_BvsC_" + std::to_string(i), JetBScore(Jets[i]));
+    //         Output().Get("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i), JetCvBScore(Jets[i]));
+    //         Output().Get("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i), JetCvLScore(Jets[i]));
+    //         Output().Get("Training_Tree").Set( "Jet_QvsG_" + std::to_string(i), JetQvGScore(Jets[i]));
     //         //Tagging WP
-    //         OutputTree("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i), GetPassedBTaggingWP(Jets[i]));
-    //         OutputTree("Training_Tree").Set( "Jet_C_WP_" + std::to_string(i), GetPassedCTaggingWP(Jets[i]));
+    //         Output().Get("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i), GetPassedBTaggingWP(Jets[i]));
+    //         Output().Get("Training_Tree").Set( "Jet_C_WP_" + std::to_string(i), GetPassedCTaggingWP(Jets[i]));
 
     // auto it = find(ttbar_jet_indices.begin(), ttbar_jet_indices.end(), i);
     // if(it != ttbar_jet_indices.end()){
-    //     OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(1));
-    //     OutputTree("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(it - ttbar_jet_indices.begin()));
+    //     Output().Get("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(1));
+    //     Output().Get("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(it - ttbar_jet_indices.begin()));
     // }
     // else{
-    //     OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(0));
-    //     OutputTree("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
+    //     Output().Get("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(0));
+    //     Output().Get("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
     // }
 
     //     }
     //     else{
-    //         OutputTree("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_Eta_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_Phi_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_M_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_BvsC_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_QvsG_" + std::to_string(i), -999.);
-    //         OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(-999));
-    //         OutputTree("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
-    //         OutputTree("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i), -999);
-    //         OutputTree("Training_Tree").Set( "Jet_C_WP_" + std::to_string(i), -999);
+    //         Output().Get("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_Eta_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_Phi_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_M_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_BvsC_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_QvsG_" + std::to_string(i), -999.);
+    //         Output().Get("Training_Tree").Set( "Jet_isTTbarJet_" + std::to_string(i), int(-999));
+    //         Output().Get("Training_Tree").Set( "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
+    //         Output().Get("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i), -999);
+    //         Output().Get("Training_Tree").Set( "Jet_C_WP_" + std::to_string(i), -999);
     //     }
     // }
 
@@ -430,13 +430,13 @@ void Vcb_FH::FillTrainingTree()
         }
     }
 
-    OutputTree("Training_Tree").Set( "KF_b1_idx", best_KF_result.best_b1_idx);
-    OutputTree("Training_Tree").Set( "KF_b2_idx", best_KF_result.best_b2_idx);
-    OutputTree("Training_Tree").Set( "KF_w11_idx", best_KF_result.best_w11_idx);
-    OutputTree("Training_Tree").Set( "KF_w12_idx", best_KF_result.best_w12_idx);
-    OutputTree("Training_Tree").Set( "KF_w21_idx", best_KF_result.best_w21_idx);
-    OutputTree("Training_Tree").Set( "KF_w22_idx", best_KF_result.best_w22_idx);
-    OutputTree("Training_Tree").Set( "KF_chi2", best_KF_result.chi2);
+    Output().Get("Training_Tree").Set( "KF_b1_idx", best_KF_result.best_b1_idx);
+    Output().Get("Training_Tree").Set( "KF_b2_idx", best_KF_result.best_b2_idx);
+    Output().Get("Training_Tree").Set( "KF_w11_idx", best_KF_result.best_w11_idx);
+    Output().Get("Training_Tree").Set( "KF_w12_idx", best_KF_result.best_w12_idx);
+    Output().Get("Training_Tree").Set( "KF_w21_idx", best_KF_result.best_w21_idx);
+    Output().Get("Training_Tree").Set( "KF_w22_idx", best_KF_result.best_w22_idx);
+    Output().Get("Training_Tree").Set( "KF_chi2", best_KF_result.chi2);
 
     int answer;
     if (IsDATA)
@@ -453,9 +453,9 @@ void Vcb_FH::FillTrainingTree()
     }
     else
         answer = category_for_training_SL["Others"];
-    OutputTree("Training_Tree").Set( "y", answer);
+    Output().Get("Training_Tree").Set( "y", answer);
 
-    OutputTree("Training_Tree").Fill();
+    Output().Get("Training_Tree").Fill();
 }
 
 RVec<int> Vcb_FH::FindTTbarJetIndices()

@@ -399,49 +399,49 @@ void Vcb_SL::CreateTrainingTree() {
     return;
   RVec<TString> keeps = {};
   RVec<TString> drops = {"*"};
-  BookTree("Training_Tree", keeps, drops);
-  OutputTree("Training_Tree").Branch("Jet_Px", Jet_Px);
-  OutputTree("Training_Tree").Branch("Jet_Py", Jet_Py);
-  OutputTree("Training_Tree").Branch("Jet_Pz", Jet_Pz);
-  OutputTree("Training_Tree").Branch("Jet_E", Jet_E);
-  OutputTree("Training_Tree").Branch("Jet_Mass", Jet_M);
-  OutputTree("Training_Tree").Branch("Jet_BvsC", Jet_BvsC);
-  OutputTree("Training_Tree").Branch("Jet_CvsB", Jet_CvsB);
-  OutputTree("Training_Tree").Branch("Jet_CvsL", Jet_CvsL);
-  OutputTree("Training_Tree").Branch("Jet_QvsG", Jet_QvsG);
-  OutputTree("Training_Tree").Branch("Jet_HFvLF", Jet_HFvLF);
-  OutputTree("Training_Tree").Branch("Jet_BvC", Jet_BvC);
-  OutputTree("Training_Tree").Branch("Jet_Category", Jet_Category);
-  OutputTree("Training_Tree").Branch("Jet_B_WP", Jet_B_WP);
-  OutputTree("Training_Tree").Branch("Jet_C_WP", Jet_C_WP);
-  OutputTree("Training_Tree").Branch("Jet_ILR_Dim_1", Jet_ILR_Dim_1);
-  OutputTree("Training_Tree").Branch("Jet_ILR_Dim_2", Jet_ILR_Dim_2);
-  OutputTree("Training_Tree").Branch("Jet_isTTbarJet", Jet_isTTbarJet);
-  OutputTree("Training_Tree").Branch("Jet_ttbarJet_idx", Jet_ttbarJet_idx);
-  OutputTree("Training_Tree").Branch("Jet_Pt", Jet_Pt);
-  OutputTree("Training_Tree").Branch("Jet_Eta", Jet_Eta);
-  OutputTree("Training_Tree").Branch("Jet_Phi", Jet_Phi);
-  OutputTree("Training_Tree").Branch("edge_index_jet_jet0", edge_index_jet_jet0);
-  OutputTree("Training_Tree").Branch("edge_index_jet_jet1", edge_index_jet_jet1);
-  OutputTree("Training_Tree").Branch("deltaR_jet_jet", deltaR_jet_jet);
-  OutputTree("Training_Tree").Branch("invM_jet_jet", invM_jet_jet);
-  OutputTree("Training_Tree").Branch("cosTheta_jet_jet", cosTheta_jet_jet);
-  OutputTree("Training_Tree").Branch("edge_index_jet_lepton0", edge_index_jet_lepton0);
-  OutputTree("Training_Tree").Branch("edge_index_jet_lepton1", edge_index_jet_lepton1);
-  OutputTree("Training_Tree").Branch("deltaR_jet_lepton", deltaR_jet_lepton);
-  OutputTree("Training_Tree").Branch("invM_jet_lepton", invM_jet_lepton);
-  OutputTree("Training_Tree").Branch("cosTheta_jet_lepton", cosTheta_jet_lepton);
-  OutputTree("Training_Tree").Branch("edge_index_jet_neutrino0", edge_index_jet_neutrino0);
-  OutputTree("Training_Tree").Branch("edge_index_jet_neutrino1", edge_index_jet_neutrino1);
-  OutputTree("Training_Tree").Branch("deltaR_jet_neutrino", deltaR_jet_neutrino);
-  OutputTree("Training_Tree").Branch("invM_jet_neutrino", invM_jet_neutrino);
-  OutputTree("Training_Tree").Branch("cosTheta_jet_neutrino", cosTheta_jet_neutrino);
-  OutputTree("Training_Tree").Branch("edge_index_lepton_neutrino0", edge_index_lepton_neutrino0);
-  OutputTree("Training_Tree").Branch("edge_index_lepton_neutrino1", edge_index_lepton_neutrino1);
-  OutputTree("Training_Tree").Branch("deltaR_lepton_neutrino", deltaR_lepton_neutrino);
-  OutputTree("Training_Tree").Branch("invM_lepton_neutrino", invM_lepton_neutrino);
-  OutputTree("Training_Tree").Branch("cosTheta_lepton_neutrino", cosTheta_lepton_neutrino);
-  OutputTree("Training_Tree").Branch("Index_Hard_Process", parton_jet_assignment);
+  Output().Book("Training_Tree");
+  Output().Get("Training_Tree").Field("Jet_Px", Jet_Px);
+  Output().Get("Training_Tree").Field("Jet_Py", Jet_Py);
+  Output().Get("Training_Tree").Field("Jet_Pz", Jet_Pz);
+  Output().Get("Training_Tree").Field("Jet_E", Jet_E);
+  Output().Get("Training_Tree").Field("Jet_Mass", Jet_M);
+  Output().Get("Training_Tree").Field("Jet_BvsC", Jet_BvsC);
+  Output().Get("Training_Tree").Field("Jet_CvsB", Jet_CvsB);
+  Output().Get("Training_Tree").Field("Jet_CvsL", Jet_CvsL);
+  Output().Get("Training_Tree").Field("Jet_QvsG", Jet_QvsG);
+  Output().Get("Training_Tree").Field("Jet_HFvLF", Jet_HFvLF);
+  Output().Get("Training_Tree").Field("Jet_BvC", Jet_BvC);
+  Output().Get("Training_Tree").Field("Jet_Category", Jet_Category);
+  Output().Get("Training_Tree").Field("Jet_B_WP", Jet_B_WP);
+  Output().Get("Training_Tree").Field("Jet_C_WP", Jet_C_WP);
+  Output().Get("Training_Tree").Field("Jet_ILR_Dim_1", Jet_ILR_Dim_1);
+  Output().Get("Training_Tree").Field("Jet_ILR_Dim_2", Jet_ILR_Dim_2);
+  Output().Get("Training_Tree").Field("Jet_isTTbarJet", Jet_isTTbarJet);
+  Output().Get("Training_Tree").Field("Jet_ttbarJet_idx", Jet_ttbarJet_idx);
+  Output().Get("Training_Tree").Field("Jet_Pt", Jet_Pt);
+  Output().Get("Training_Tree").Field("Jet_Eta", Jet_Eta);
+  Output().Get("Training_Tree").Field("Jet_Phi", Jet_Phi);
+  Output().Get("Training_Tree").Field("edge_index_jet_jet0", edge_index_jet_jet0);
+  Output().Get("Training_Tree").Field("edge_index_jet_jet1", edge_index_jet_jet1);
+  Output().Get("Training_Tree").Field("deltaR_jet_jet", deltaR_jet_jet);
+  Output().Get("Training_Tree").Field("invM_jet_jet", invM_jet_jet);
+  Output().Get("Training_Tree").Field("cosTheta_jet_jet", cosTheta_jet_jet);
+  Output().Get("Training_Tree").Field("edge_index_jet_lepton0", edge_index_jet_lepton0);
+  Output().Get("Training_Tree").Field("edge_index_jet_lepton1", edge_index_jet_lepton1);
+  Output().Get("Training_Tree").Field("deltaR_jet_lepton", deltaR_jet_lepton);
+  Output().Get("Training_Tree").Field("invM_jet_lepton", invM_jet_lepton);
+  Output().Get("Training_Tree").Field("cosTheta_jet_lepton", cosTheta_jet_lepton);
+  Output().Get("Training_Tree").Field("edge_index_jet_neutrino0", edge_index_jet_neutrino0);
+  Output().Get("Training_Tree").Field("edge_index_jet_neutrino1", edge_index_jet_neutrino1);
+  Output().Get("Training_Tree").Field("deltaR_jet_neutrino", deltaR_jet_neutrino);
+  Output().Get("Training_Tree").Field("invM_jet_neutrino", invM_jet_neutrino);
+  Output().Get("Training_Tree").Field("cosTheta_jet_neutrino", cosTheta_jet_neutrino);
+  Output().Get("Training_Tree").Field("edge_index_lepton_neutrino0", edge_index_lepton_neutrino0);
+  Output().Get("Training_Tree").Field("edge_index_lepton_neutrino1", edge_index_lepton_neutrino1);
+  Output().Get("Training_Tree").Field("deltaR_lepton_neutrino", deltaR_lepton_neutrino);
+  Output().Get("Training_Tree").Field("invM_lepton_neutrino", invM_lepton_neutrino);
+  Output().Get("Training_Tree").Field("cosTheta_lepton_neutrino", cosTheta_lepton_neutrino);
+  Output().Get("Training_Tree").Field("Index_Hard_Process", parton_jet_assignment);
 }
 
 void Vcb_SL::CreateTemplateTrainingTree() {
@@ -449,7 +449,7 @@ void Vcb_SL::CreateTemplateTrainingTree() {
     return;
   RVec<TString> keeps = {};
   RVec<TString> drops = {"*"};
-  BookTree("Template_Training_Tree", keeps, drops);
+  Output().Book("Template_Training_Tree");
 }
 
 RVec<RVec<unsigned int>>
@@ -853,71 +853,71 @@ void Vcb_SL::FillTrainingTree() {
 
   float weight = MCNormalization();
   // weight *= systHelper->calculateWeight()["Central"];
-  OutputTree("Training_Tree").Set( "index_fold",
+  Output().Get("Training_Tree").Set( "index_fold",
             static_cast<int>(rle_bucket(RunNumber, luminosityBlock, event, 4)));
-  OutputTree("Training_Tree").Set( "weight", weight);
-  OutputTree("Training_Tree").Set( "genTtbarId", genTtbarId);
-  OutputTree("Training_Tree").Set( "Met_Pt", MET.Pt());
-  OutputTree("Training_Tree").Set( "Met_Phi", MET.Phi());
-  OutputTree("Training_Tree").Set( "HT", HT);
-  OutputTree("Training_Tree").Set( "n_jets", n_jets);
-  OutputTree("Training_Tree").Set( "n_b_tagged_jets", n_b_tagged_jets);
-  OutputTree("Training_Tree").Set( "n_c_tagged_jets", n_c_tagged_jets);
-  OutputTree("Training_Tree").Set( "find_all_jets", find_all_jets);
-  OutputTree("Training_Tree").Set( "decay_mode", (tt_decay_code / 100));
-  OutputTree("Training_Tree").Set( "run", static_cast<int>(RunNumber));
-  OutputTree("Training_Tree").Set( "event", static_cast<int>(event));
-  OutputTree("Training_Tree").Set( "lumi", static_cast<int>(luminosityBlock));
+  Output().Get("Training_Tree").Set( "weight", weight);
+  Output().Get("Training_Tree").Set( "genTtbarId", genTtbarId);
+  Output().Get("Training_Tree").Set( "Met_Pt", MET.Pt());
+  Output().Get("Training_Tree").Set( "Met_Phi", MET.Phi());
+  Output().Get("Training_Tree").Set( "HT", HT);
+  Output().Get("Training_Tree").Set( "n_jets", n_jets);
+  Output().Get("Training_Tree").Set( "n_b_tagged_jets", n_b_tagged_jets);
+  Output().Get("Training_Tree").Set( "n_c_tagged_jets", n_c_tagged_jets);
+  Output().Get("Training_Tree").Set( "find_all_jets", find_all_jets);
+  Output().Get("Training_Tree").Set( "decay_mode", (tt_decay_code / 100));
+  Output().Get("Training_Tree").Set( "run", static_cast<int>(RunNumber));
+  Output().Get("Training_Tree").Set( "event", static_cast<int>(event));
+  Output().Get("Training_Tree").Set( "lumi", static_cast<int>(luminosityBlock));
 
   // for (size_t i = 0; i <= 8; i++)
   // {
   //     if (i < n_jets)
   //     {
-  //         OutputTree("Training_Tree").Set( "Jet_Pt_" + std::to_string(i),
-  //         Jets[i].Pt()); OutputTree("Training_Tree").Set( "Jet_Eta_" +
-  //         std::to_string(i), Jets[i].Eta()); OutputTree("Training_Tree").Set(
+  //         Output().Get("Training_Tree").Set( "Jet_Pt_" + std::to_string(i),
+  //         Jets[i].Pt()); Output().Get("Training_Tree").Set( "Jet_Eta_" +
+  //         std::to_string(i), Jets[i].Eta()); Output().Get("Training_Tree").Set(
   //         "Jet_Phi_" + std::to_string(i), Jets[i].Phi());
-  //         OutputTree("Training_Tree").Set( "Jet_M_" + std::to_string(i),
-  //         Jets[i].M()); OutputTree("Training_Tree").Set( "Jet_BvsC_" +
+  //         Output().Get("Training_Tree").Set( "Jet_M_" + std::to_string(i),
+  //         Jets[i].M()); Output().Get("Training_Tree").Set( "Jet_BvsC_" +
   //         std::to_string(i), JetBScore(Jets[i]));
-  //         OutputTree("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i),
-  //         JetCvBScore(Jets[i])); OutputTree("Training_Tree").Set( "Jet_CvsL_" +
+  //         Output().Get("Training_Tree").Set( "Jet_CvsB_" + std::to_string(i),
+  //         JetCvBScore(Jets[i])); Output().Get("Training_Tree").Set( "Jet_CvsL_" +
   //         std::to_string(i), JetCvLScore(Jets[i]));
   //         // Tagging WP
-  //         OutputTree("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i),
-  //         GetPassedBTaggingWP(Jets[i])); OutputTree("Training_Tree").Set(
+  //         Output().Get("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i),
+  //         GetPassedBTaggingWP(Jets[i])); Output().Get("Training_Tree").Set(
   //         "Jet_C_WP_" + std::to_string(i), GetPassedCTaggingWP(Jets[i]));
 
   //         auto it = find(ttbar_jet_indices.begin(),
   //         ttbar_jet_indices.end(), i); if (it != ttbar_jet_indices.end())
   //         {
-  //             OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" +
-  //             std::to_string(i), int(1)); OutputTree("Training_Tree").Set(
+  //             Output().Get("Training_Tree").Set( "Jet_isTTbarJet_" +
+  //             std::to_string(i), int(1)); Output().Get("Training_Tree").Set(
   //             "Jet_ttbarJet_idx_" + std::to_string(i), int(it -
   //             ttbar_jet_indices.begin()));
   //         }
   //         else
   //         {
-  //             OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" +
-  //             std::to_string(i), int(0)); OutputTree("Training_Tree").Set(
+  //             Output().Get("Training_Tree").Set( "Jet_isTTbarJet_" +
+  //             std::to_string(i), int(0)); Output().Get("Training_Tree").Set(
   //             "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
   //         }
   //     }
   //     else
   //     {
-  //         OutputTree("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), -999.);
-  //         OutputTree("Training_Tree").Set( "Jet_Eta_" + std::to_string(i),
-  //         -999.); OutputTree("Training_Tree").Set( "Jet_Phi_" +
-  //         std::to_string(i), -999.); OutputTree("Training_Tree").Set( "Jet_M_" +
-  //         std::to_string(i), -999.); OutputTree("Training_Tree").Set( "Jet_BvsC_"
-  //         + std::to_string(i), -999.); OutputTree("Training_Tree").Set(
+  //         Output().Get("Training_Tree").Set( "Jet_Pt_" + std::to_string(i), -999.);
+  //         Output().Get("Training_Tree").Set( "Jet_Eta_" + std::to_string(i),
+  //         -999.); Output().Get("Training_Tree").Set( "Jet_Phi_" +
+  //         std::to_string(i), -999.); Output().Get("Training_Tree").Set( "Jet_M_" +
+  //         std::to_string(i), -999.); Output().Get("Training_Tree").Set( "Jet_BvsC_"
+  //         + std::to_string(i), -999.); Output().Get("Training_Tree").Set(
   //         "Jet_CvsB_" + std::to_string(i), -999.);
-  //         OutputTree("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i),
-  //         -999.); OutputTree("Training_Tree").Set( "Jet_isTTbarJet_" +
-  //         std::to_string(i), int(-999)); OutputTree("Training_Tree").Set(
+  //         Output().Get("Training_Tree").Set( "Jet_CvsL_" + std::to_string(i),
+  //         -999.); Output().Get("Training_Tree").Set( "Jet_isTTbarJet_" +
+  //         std::to_string(i), int(-999)); Output().Get("Training_Tree").Set(
   //         "Jet_ttbarJet_idx_" + std::to_string(i), int(-999));
-  //         OutputTree("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i),
-  //         -999); OutputTree("Training_Tree").Set( "Jet_C_WP_" +
+  //         Output().Get("Training_Tree").Set( "Jet_B_WP_" + std::to_string(i),
+  //         -999); Output().Get("Training_Tree").Set( "Jet_C_WP_" +
   //         std::to_string(i), -999);
   //     }
   // }
@@ -971,21 +971,21 @@ void Vcb_SL::FillTrainingTree() {
   TLorentzVector neutrino_p4;
   neutrino_p4.SetXYZM(MET.Px(), MET.Py(), best_KF_result.best_neu_pz, 0.);
   Particle neutrino(neutrino_p4);
-  OutputTree("Training_Tree").Set( "neutrino_Pt", neutrino.Pt());
-  OutputTree("Training_Tree").Set( "neutrino_Eta", neutrino.Eta());
-  OutputTree("Training_Tree").Set( "neutrino_Phi", neutrino.Phi());
-  OutputTree("Training_Tree").Set( "neutrino_M", neutrino.M());
-  OutputTree("Training_Tree").Set( "neutrino_Px", neutrino.Px());
-  OutputTree("Training_Tree").Set( "neutrino_Py", neutrino.Py());
-  OutputTree("Training_Tree").Set( "neutrino_Pz", neutrino.Pz());
-  OutputTree("Training_Tree").Set( "neutrino_E", neutrino.E());
-  OutputTree("Training_Tree").Set( "gen_neutrino_Pt", gen_neutrino.Pt());
-  OutputTree("Training_Tree").Set( "gen_neutrino_Eta", gen_neutrino.Eta());
-  OutputTree("Training_Tree").Set( "gen_neutrino_Phi", gen_neutrino.Phi());
-  OutputTree("Training_Tree").Set( "gen_neutrino_Px", gen_neutrino.Px());
-  OutputTree("Training_Tree").Set( "gen_neutrino_Py", gen_neutrino.Py());
-  OutputTree("Training_Tree").Set( "gen_neutrino_Pz", gen_neutrino.Pz());
-  OutputTree("Training_Tree").Set( "gen_neutrino_E", gen_neutrino.E());
+  Output().Get("Training_Tree").Set( "neutrino_Pt", neutrino.Pt());
+  Output().Get("Training_Tree").Set( "neutrino_Eta", neutrino.Eta());
+  Output().Get("Training_Tree").Set( "neutrino_Phi", neutrino.Phi());
+  Output().Get("Training_Tree").Set( "neutrino_M", neutrino.M());
+  Output().Get("Training_Tree").Set( "neutrino_Px", neutrino.Px());
+  Output().Get("Training_Tree").Set( "neutrino_Py", neutrino.Py());
+  Output().Get("Training_Tree").Set( "neutrino_Pz", neutrino.Pz());
+  Output().Get("Training_Tree").Set( "neutrino_E", neutrino.E());
+  Output().Get("Training_Tree").Set( "gen_neutrino_Pt", gen_neutrino.Pt());
+  Output().Get("Training_Tree").Set( "gen_neutrino_Eta", gen_neutrino.Eta());
+  Output().Get("Training_Tree").Set( "gen_neutrino_Phi", gen_neutrino.Phi());
+  Output().Get("Training_Tree").Set( "gen_neutrino_Px", gen_neutrino.Px());
+  Output().Get("Training_Tree").Set( "gen_neutrino_Py", gen_neutrino.Py());
+  Output().Get("Training_Tree").Set( "gen_neutrino_Pz", gen_neutrino.Pz());
+  Output().Get("Training_Tree").Set( "gen_neutrino_E", gen_neutrino.E());
 
   parton_jet_assignment.clear();
   parton_jet_assignment = {static_cast<int>(ttbar_jet_indices[0]),  // hb
@@ -1064,23 +1064,23 @@ void Vcb_SL::FillTrainingTree() {
   invM_lepton_neutrino.push_back((lepton + neutrino).M());
   cosTheta_lepton_neutrino.push_back(TMath::Cos(vlepton.Angle(vneutrino)));
 
-  OutputTree("Training_Tree").Set( "Lepton_Pt", lepton.Pt());
-  OutputTree("Training_Tree").Set( "Lepton_Eta", lepton.Eta());
-  OutputTree("Training_Tree").Set( "Lepton_Phi", lepton.Phi());
-  OutputTree("Training_Tree").Set( "Lepton_Mass", lepton.M());
-  OutputTree("Training_Tree").Set( "Lepton_Px", lepton.Px());
-  OutputTree("Training_Tree").Set( "Lepton_Py", lepton.Py());
-  OutputTree("Training_Tree").Set( "Lepton_Pz", lepton.Pz());
-  OutputTree("Training_Tree").Set( "Lepton_E", lepton.E());
-  OutputTree("Training_Tree").Set( "Lepton_Charge", lepton.Charge());
-  OutputTree("Training_Tree").Set( "Lepton_isMuon", int(channel == Channel::Mu));
-  OutputTree("Training_Tree").Set( "Lepton_isElectron", int(channel == Channel::El));
+  Output().Get("Training_Tree").Set( "Lepton_Pt", lepton.Pt());
+  Output().Get("Training_Tree").Set( "Lepton_Eta", lepton.Eta());
+  Output().Get("Training_Tree").Set( "Lepton_Phi", lepton.Phi());
+  Output().Get("Training_Tree").Set( "Lepton_Mass", lepton.M());
+  Output().Get("Training_Tree").Set( "Lepton_Px", lepton.Px());
+  Output().Get("Training_Tree").Set( "Lepton_Py", lepton.Py());
+  Output().Get("Training_Tree").Set( "Lepton_Pz", lepton.Pz());
+  Output().Get("Training_Tree").Set( "Lepton_E", lepton.E());
+  Output().Get("Training_Tree").Set( "Lepton_Charge", lepton.Charge());
+  Output().Get("Training_Tree").Set( "Lepton_isMuon", int(channel == Channel::Mu));
+  Output().Get("Training_Tree").Set( "Lepton_isElectron", int(channel == Channel::El));
 
-  OutputTree("Training_Tree").Set( "KF_had_t_b_idx", best_KF_result.best_had_t_b_idx);
-  OutputTree("Training_Tree").Set( "KF_lep_t_b_idx", best_KF_result.best_lep_t_b_idx);
-  OutputTree("Training_Tree").Set( "KF_had_w1_idx", best_KF_result.best_had_w1_idx);
-  OutputTree("Training_Tree").Set( "KF_had_w2_idx", best_KF_result.best_had_w2_idx);
-  OutputTree("Training_Tree").Set( "KF_chi2", best_KF_result.chi2);
+  Output().Get("Training_Tree").Set( "KF_had_t_b_idx", best_KF_result.best_had_t_b_idx);
+  Output().Get("Training_Tree").Set( "KF_lep_t_b_idx", best_KF_result.best_lep_t_b_idx);
+  Output().Get("Training_Tree").Set( "KF_had_w1_idx", best_KF_result.best_had_w1_idx);
+  Output().Get("Training_Tree").Set( "KF_had_w2_idx", best_KF_result.best_had_w2_idx);
+  Output().Get("Training_Tree").Set( "KF_chi2", best_KF_result.chi2);
 
   int answer;
   if (IsDATA)
@@ -1097,10 +1097,10 @@ void Vcb_SL::FillTrainingTree() {
       answer = category_for_training_SL.at("TT+LF");
   } else
     answer = category_for_training_SL["Others"];
-  OutputTree("Training_Tree").Set( "y", answer);
-  OutputTree("Training_Tree").Set( "KF_chi2", best_KF_result.chi2);
+  Output().Get("Training_Tree").Set( "y", answer);
+  Output().Get("Training_Tree").Set( "KF_chi2", best_KF_result.chi2);
 
-  OutputTree("Training_Tree").Fill();
+  Output().Get("Training_Tree").Fill();
 }
 
 void Vcb_SL::EnsureWcbNNEvaluated() {
@@ -1182,33 +1182,32 @@ void Vcb_SL::FillTreeAtThisPoint(
   auto &buffers = buffers_it->second;
 
   if (!buffers.booked) {
-    BookTree(tree_name, {}, {});
-    auto tree = OutputTree(tree_name);
-    tree.Branch("Jet_Pt", buffers.Jet_Pt);
-    tree.Branch("Jet_Eta", buffers.Jet_Eta);
-    tree.Branch("Jet_Phi", buffers.Jet_Phi);
-    tree.Branch("Jet_Mass", buffers.Jet_Mass);
-    tree.Branch("Jet_Category", buffers.Jet_Category);
-    tree.Branch("Jet_ILR_Dim_1", buffers.Jet_ILR_Dim_1);
-    tree.Branch("Jet_ILR_Dim_2", buffers.Jet_ILR_Dim_2);
-    tree.Branch("Lepton_Pt", buffers.Lepton_Pt);
-    tree.Branch("Lepton_Eta", buffers.Lepton_Eta);
-    tree.Branch("Lepton_Phi", buffers.Lepton_Phi);
-    tree.Branch("Lepton_Mass", buffers.Lepton_Mass);
-    tree.Branch("Met_Pt", buffers.Met_Pt);
-    tree.Branch("Met_Eta", buffers.Met_Eta);
-    tree.Branch("Met_Phi", buffers.Met_Phi);
-    tree.Branch("HT", buffers.HT);
-    tree.Branch("n_jets", buffers.n_jets);
-    tree.Branch("n_b_tagged_jets", buffers.n_b_tagged_jets);
-    tree.Branch("n_c_tagged_jets", buffers.n_c_tagged_jets);
-    tree.Branch("nPVsGood", buffers.nPVsGood);
-    tree.Branch("ZCand_Mass", buffers.ZCand_Mass);
-    tree.Branch("ZCand_Pt", buffers.ZCand_Pt);
-    tree.Branch("ZCand_Eta", buffers.ZCand_Eta);
-    tree.Branch("weight_mc", buffers.MCNormalization);
-    tree.Branch("index_fold_spanet", buffers.fold_idx_spanet);
-    tree.Branch("index_fold", buffers.fold_idx_tabnet);
+    auto tree = Output().Book(tree_name, RNTupleOutputProfile::Sparse);
+    tree.Field("Jet_Pt", buffers.Jet_Pt);
+    tree.Field("Jet_Eta", buffers.Jet_Eta);
+    tree.Field("Jet_Phi", buffers.Jet_Phi);
+    tree.Field("Jet_Mass", buffers.Jet_Mass);
+    tree.Field("Jet_Category", buffers.Jet_Category);
+    tree.Field("Jet_ILR_Dim_1", buffers.Jet_ILR_Dim_1);
+    tree.Field("Jet_ILR_Dim_2", buffers.Jet_ILR_Dim_2);
+    tree.Field("Lepton_Pt", buffers.Lepton_Pt);
+    tree.Field("Lepton_Eta", buffers.Lepton_Eta);
+    tree.Field("Lepton_Phi", buffers.Lepton_Phi);
+    tree.Field("Lepton_Mass", buffers.Lepton_Mass);
+    tree.Field("Met_Pt", buffers.Met_Pt);
+    tree.Field("Met_Eta", buffers.Met_Eta);
+    tree.Field("Met_Phi", buffers.Met_Phi);
+    tree.Field("HT", buffers.HT);
+    tree.Field("n_jets", buffers.n_jets);
+    tree.Field("n_b_tagged_jets", buffers.n_b_tagged_jets);
+    tree.Field("n_c_tagged_jets", buffers.n_c_tagged_jets);
+    tree.Field("nPVsGood", buffers.nPVsGood);
+    tree.Field("ZCand_Mass", buffers.ZCand_Mass);
+    tree.Field("ZCand_Pt", buffers.ZCand_Pt);
+    tree.Field("ZCand_Eta", buffers.ZCand_Eta);
+    tree.Field("weight_mc", buffers.MCNormalization);
+    tree.Field("index_fold_spanet", buffers.fold_idx_spanet);
+    tree.Field("index_fold", buffers.fold_idx_tabnet);
 
     std::unordered_map<std::string, float> skeleton_weights(weight_map.begin(),
                                                             weight_map.end());
@@ -1226,7 +1225,7 @@ void Vcb_SL::FillTreeAtThisPoint(
           "weight_" + sanitize_branch_name(kv.first);
       buffers.weight_keys.push_back(kv.first);
       buffers.weight_index.emplace(kv.first, idx);
-      tree.Branch(branch_name, buffers.weight_values[idx]);
+      tree.Field(branch_name, buffers.weight_values[idx]);
       ++idx;
     }
     buffers.booked = true;
@@ -1300,18 +1299,18 @@ void Vcb_SL::FillTreeAtThisPoint(
     const TLorentzVector top = AllGenViews[firstTopIdx].P4();
     const TLorentzVector antiTop = AllGenViews[firstAntiTopIdx].P4();
 
-    OutputTree(tree_name).Set( "Gen_Top_Pt", top.Pt());
-    OutputTree(tree_name).Set( "Gen_AntiTop_Pt", antiTop.Pt());
-    OutputTree(tree_name).Set( "Gen_Top_Eta", top.Eta());
-    OutputTree(tree_name).Set( "Gen_AntiTop_Eta", antiTop.Eta());
-    OutputTree(tree_name).Set( "Gen_Top_Phi", top.Phi());
-    OutputTree(tree_name).Set( "Gen_AntiTop_Phi", antiTop.Phi());
-    OutputTree(tree_name).Set( "Gen_Top_Mass", top.M());
-    OutputTree(tree_name).Set( "Gen_AntiTop_Mass", antiTop.M());
-    OutputTree(tree_name).Set( "Gen_TTbar_Pt", (top + antiTop).Pt());
-    OutputTree(tree_name).Set( "Gen_TTbar_Mass", (top + antiTop).M());
-    OutputTree(tree_name).Set( "Gen_TTbar_Eta", (top + antiTop).Eta());
-    OutputTree(tree_name).Set( "Gen_TTbar_Phi", (top + antiTop).Phi());
+    Output().Get(tree_name).Set( "Gen_Top_Pt", top.Pt());
+    Output().Get(tree_name).Set( "Gen_AntiTop_Pt", antiTop.Pt());
+    Output().Get(tree_name).Set( "Gen_Top_Eta", top.Eta());
+    Output().Get(tree_name).Set( "Gen_AntiTop_Eta", antiTop.Eta());
+    Output().Get(tree_name).Set( "Gen_Top_Phi", top.Phi());
+    Output().Get(tree_name).Set( "Gen_AntiTop_Phi", antiTop.Phi());
+    Output().Get(tree_name).Set( "Gen_Top_Mass", top.M());
+    Output().Get(tree_name).Set( "Gen_AntiTop_Mass", antiTop.M());
+    Output().Get(tree_name).Set( "Gen_TTbar_Pt", (top + antiTop).Pt());
+    Output().Get(tree_name).Set( "Gen_TTbar_Mass", (top + antiTop).M());
+    Output().Get(tree_name).Set( "Gen_TTbar_Eta", (top + antiTop).Eta());
+    Output().Get(tree_name).Set( "Gen_TTbar_Phi", (top + antiTop).Phi());
 
     float w_toppt = myCorr->GetTopPtReweight(top, antiTop);
     auto [topIdx, WTopIdx, BHadTopIdx, antiTopIdx, WAntiTopIdx,
@@ -1353,24 +1352,24 @@ void Vcb_SL::FillTreeAtThisPoint(
           FirstCopyTopBHad, FirstCopyAntiTopBHad, MyCorrection::variation::up);
     }
 
-    OutputTree(tree_name).Set( "weight_top_pt", w_toppt);
-    OutputTree(tree_name).Set( "weight_bfrag", weight_bfrag);
-    OutputTree(tree_name).Set( "weight_bfrag_up", weight_bfrag_up);
-    OutputTree(tree_name).Set( "xb", xb);
-    OutputTree(tree_name).Set( "xb_anti", xb_anti);
+    Output().Get(tree_name).Set( "weight_top_pt", w_toppt);
+    Output().Get(tree_name).Set( "weight_bfrag", weight_bfrag);
+    Output().Get(tree_name).Set( "weight_bfrag_up", weight_bfrag_up);
+    Output().Get(tree_name).Set( "xb", xb);
+    Output().Get(tree_name).Set( "xb_anti", xb_anti);
   } else {
-    OutputTree(tree_name).Set( "weight_top_pt", 1.f);
-    OutputTree(tree_name).Set( "weight_bfrag", 1.f);
-    OutputTree(tree_name).Set( "weight_bfrag_up", 1.f);
-    OutputTree(tree_name).Set( "xb", -1.f);
-    OutputTree(tree_name).Set( "xb_anti", -1.f);
+    Output().Get(tree_name).Set( "weight_top_pt", 1.f);
+    Output().Get(tree_name).Set( "weight_bfrag", 1.f);
+    Output().Get(tree_name).Set( "weight_bfrag_up", 1.f);
+    Output().Get(tree_name).Set( "xb", -1.f);
+    Output().Get(tree_name).Set( "xb_anti", -1.f);
   }
 
-  OutputTree(tree_name).Set( "genTtbarId", genTtbarId);
-  OutputTree(tree_name).Set( "decay_mode", static_cast<int>(tt_decay_code / 100));
-  OutputTree(tree_name).Set( "run", static_cast<int>(RunNumber));
-  OutputTree(tree_name).Set( "luminosityBlock", static_cast<int>(luminosityBlock));
-  OutputTree(tree_name).Set( "event", static_cast<int>(event));
+  Output().Get(tree_name).Set( "genTtbarId", genTtbarId);
+  Output().Get(tree_name).Set( "decay_mode", static_cast<int>(tt_decay_code / 100));
+  Output().Get(tree_name).Set( "run", static_cast<int>(RunNumber));
+  Output().Get(tree_name).Set( "luminosityBlock", static_cast<int>(luminosityBlock));
+  Output().Get(tree_name).Set( "event", static_cast<int>(event));
 
   try {
     InferONNX();
@@ -1394,15 +1393,15 @@ void Vcb_SL::FillTreeAtThisPoint(
   }
 
   for (std::size_t i = 0; i < class_score_logp.size(); ++i) {
-    OutputTree(tree_name).Set( "logp_class_" + std::to_string(i), class_score_logp[i]);
+    Output().Get(tree_name).Set( "logp_class_" + std::to_string(i), class_score_logp[i]);
   }
-  OutputTree(tree_name).Set( "detection_score_logp", detection_score_logp);
-  OutputTree(tree_name).Set( "assignment_logp", assignment_logp);
-  OutputTree(tree_name).Set( "assignment_hb_idx", assignment[0]);
-  OutputTree(tree_name).Set( "assignment_lb_idx", assignment[1]);
-  OutputTree(tree_name).Set( "assignment_w1_idx", assignment[2]);
-  OutputTree(tree_name).Set( "assignment_w2_idx", assignment[3]);
-  OutputTree(tree_name).Set( "onnx_assignment_valid", onnx_assignment_valid);
+  Output().Get(tree_name).Set( "detection_score_logp", detection_score_logp);
+  Output().Get(tree_name).Set( "assignment_logp", assignment_logp);
+  Output().Get(tree_name).Set( "assignment_hb_idx", assignment[0]);
+  Output().Get(tree_name).Set( "assignment_lb_idx", assignment[1]);
+  Output().Get(tree_name).Set( "assignment_w1_idx", assignment[2]);
+  Output().Get(tree_name).Set( "assignment_w2_idx", assignment[3]);
+  Output().Get(tree_name).Set( "onnx_assignment_valid", onnx_assignment_valid);
 
   if (onnx_assignment_valid) {
     try {
@@ -1421,7 +1420,7 @@ void Vcb_SL::FillTreeAtThisPoint(
     tabnet_class_scores.clear();
     tabnet_weighted_scores.clear();
   }
-  OutputTree(tree_name).Set( "Template_MVA_Score", final_template_score);
+  Output().Get(tree_name).Set( "Template_MVA_Score", final_template_score);
   for (std::size_t i = 0; i < 7; ++i) {
     const float logit_value =
         i < tabnet_class_logits.size() ? tabnet_class_logits[i] : -999.f;
@@ -1429,22 +1428,22 @@ void Vcb_SL::FillTreeAtThisPoint(
         i < tabnet_class_scores.size() ? tabnet_class_scores[i] : -999.f;
     const float weighted_score_value =
         i < tabnet_weighted_scores.size() ? tabnet_weighted_scores[i] : -999.f;
-    OutputTree(tree_name).Set( "tabnet_logit_" + std::to_string(i), logit_value);
-    OutputTree(tree_name).Set( "tabnet_score_" + std::to_string(i), score_value);
-    OutputTree(tree_name).Set( "tabnet_weighted_score_" + std::to_string(i),
+    Output().Get(tree_name).Set( "tabnet_logit_" + std::to_string(i), logit_value);
+    Output().Get(tree_name).Set( "tabnet_score_" + std::to_string(i), score_value);
+    Output().Get(tree_name).Set( "tabnet_weighted_score_" + std::to_string(i),
               weighted_score_value);
   }
 
   try {
     EnsureWcbNNEvaluated();
     for (std::size_t i = 0; i < kWcbNNScoreBranchNames.size(); ++i) {
-      OutputTree(tree_name).Set( kWcbNNScoreBranchNames[i], wcb_nn_scores[i]);
+      Output().Get(tree_name).Set( kWcbNNScoreBranchNames[i], wcb_nn_scores[i]);
     }
     for (std::size_t i = 0; i < kWcbNNPreSoftmaxBranchNames.size(); ++i) {
-      OutputTree(tree_name).Set( kWcbNNPreSoftmaxBranchNames[i],
+      Output().Get(tree_name).Set( kWcbNNPreSoftmaxBranchNames[i],
                 wcb_nn_pre_softmax[i]);
     }
-    OutputTree(tree_name).Set( "nn_category", wcb_nn_category);
+    Output().Get(tree_name).Set( "nn_category", wcb_nn_category);
   } catch (const std::exception &e) {
     std::cerr << "[Vcb_SL::FillTreeAtThisPoint] Wcb NN inference failed: "
               << e.what() << "\n";
@@ -1453,25 +1452,25 @@ void Vcb_SL::FillTreeAtThisPoint(
     wcb_nn_category = -1;
     wcb_nn_cache_valid = true;
     for (const char *branch_name : kWcbNNScoreBranchNames) {
-      OutputTree(tree_name).Set( branch_name, 0.f);
+      Output().Get(tree_name).Set( branch_name, 0.f);
     }
     for (const char *branch_name : kWcbNNPreSoftmaxBranchNames) {
-      OutputTree(tree_name).Set( branch_name, 0.f);
+      Output().Get(tree_name).Set( branch_name, 0.f);
     }
-    OutputTree(tree_name).Set( "nn_category", -1);
+    Output().Get(tree_name).Set( "nn_category", -1);
   }
 
-  OutputTree(tree_name).Fill();
+  Output().Get(tree_name).Fill();
 }
 
 void Vcb_SL::FillTemplateTrainingTree(
     const std::unordered_map<std::string, float> &weight_map) {
   for (const auto &kv : weight_map) {
-    OutputTree("Template_Training_Tree").Set( "weight_" + kv.first, kv.second);
+    Output().Get("Template_Training_Tree").Set( "weight_" + kv.first, kv.second);
   }
   ttbar_jet_indices = FindTTbarJetIndices();
   Particle hw(Jets[assignment[2]].P4() + Jets[assignment[3]].P4());
-  OutputTree("Template_Training_Tree").Set( "m_had_w", hw.M());
+  Output().Get("Template_Training_Tree").Set( "m_had_w", hw.M());
   auto fill_category_bits = [](int cat, float &N0, float &L0, float (&C)[5],
                                float (&B)[5]) {
     N0 = L0 = 0.f;
@@ -1498,64 +1497,64 @@ void Vcb_SL::FillTemplateTrainingTree(
   float N0_W2, L0_W2, C_W2[5], B_W2[5];
   fill_category_bits(static_cast<int>(JetCategory(Jets[assignment[3]])), N0_W2,
                      L0_W2, C_W2, B_W2);
-  OutputTree("Template_Training_Tree").Set( "Cat_w_u",
+  Output().Get("Template_Training_Tree").Set( "Cat_w_u",
             static_cast<int>(JetCategory(Jets[assignment[2]])));
-  OutputTree("Template_Training_Tree").Set( "Cat_w_d",
+  Output().Get("Template_Training_Tree").Set( "Cat_w_d",
             static_cast<int>(JetCategory(Jets[assignment[3]])));
-  OutputTree("Template_Training_Tree").Set( "N0_w_u", N0_W1);
-  OutputTree("Template_Training_Tree").Set( "L0_w_u", L0_W1);
-  OutputTree("Template_Training_Tree").Set( "N0_w_d", N0_W2);
-  OutputTree("Template_Training_Tree").Set( "L0_w_d", L0_W2);
+  Output().Get("Template_Training_Tree").Set( "N0_w_u", N0_W1);
+  Output().Get("Template_Training_Tree").Set( "L0_w_u", L0_W1);
+  Output().Get("Template_Training_Tree").Set( "N0_w_d", N0_W2);
+  Output().Get("Template_Training_Tree").Set( "L0_w_d", L0_W2);
   for (int i = 0; i < 5; ++i) {
-    OutputTree("Template_Training_Tree").Set( "C" + std::to_string(i) + "_w_u",
+    Output().Get("Template_Training_Tree").Set( "C" + std::to_string(i) + "_w_u",
               C_W1[i]);
-    OutputTree("Template_Training_Tree").Set( "B" + std::to_string(i) + "_w_u",
+    Output().Get("Template_Training_Tree").Set( "B" + std::to_string(i) + "_w_u",
               B_W1[i]);
-    OutputTree("Template_Training_Tree").Set( "C" + std::to_string(i) + "_w_d",
+    Output().Get("Template_Training_Tree").Set( "C" + std::to_string(i) + "_w_d",
               C_W2[i]);
-    OutputTree("Template_Training_Tree").Set( "B" + std::to_string(i) + "_w_d",
+    Output().Get("Template_Training_Tree").Set( "B" + std::to_string(i) + "_w_d",
               B_W2[i]);
   }
-  OutputTree("Template_Training_Tree").Set( "ilr_dim1_w_u",
+  Output().Get("Template_Training_Tree").Set( "ilr_dim1_w_u",
             JetILRdim1Score(Jets[assignment[2]]));
-  OutputTree("Template_Training_Tree").Set( "ilr_dim2_w_u",
+  Output().Get("Template_Training_Tree").Set( "ilr_dim2_w_u",
             JetILRdim2Score(Jets[assignment[2]]));
-  OutputTree("Template_Training_Tree").Set( "ilr_dim1_w_d",
+  Output().Get("Template_Training_Tree").Set( "ilr_dim1_w_d",
             JetILRdim1Score(Jets[assignment[3]]));
-  OutputTree("Template_Training_Tree").Set( "ilr_dim2_w_d",
+  Output().Get("Template_Training_Tree").Set( "ilr_dim2_w_d",
             JetILRdim2Score(Jets[assignment[3]]));
-  OutputTree("Template_Training_Tree").Set( "pt_w_u", Jets[assignment[2]].Pt());
-  OutputTree("Template_Training_Tree").Set( "pt_w_d", Jets[assignment[3]].Pt());
-  OutputTree("Template_Training_Tree").Set( "eta_w_u", Jets[assignment[2]].Eta());
-  OutputTree("Template_Training_Tree").Set( "eta_w_d", Jets[assignment[3]].Eta());
+  Output().Get("Template_Training_Tree").Set( "pt_w_u", Jets[assignment[2]].Pt());
+  Output().Get("Template_Training_Tree").Set( "pt_w_d", Jets[assignment[3]].Pt());
+  Output().Get("Template_Training_Tree").Set( "eta_w_u", Jets[assignment[2]].Eta());
+  Output().Get("Template_Training_Tree").Set( "eta_w_d", Jets[assignment[3]].Eta());
 
-  OutputTree("Template_Training_Tree").Set( "logp_class_0", class_score_logp[0]);
-  OutputTree("Template_Training_Tree").Set( "logp_class_1", class_score_logp[1]);
-  OutputTree("Template_Training_Tree").Set( "logp_class_2", class_score_logp[2]);
-  OutputTree("Template_Training_Tree").Set( "logp_class_3", class_score_logp[3]);
-  OutputTree("Template_Training_Tree").Set( "logp_class_4", class_score_logp[4]);
-  OutputTree("Template_Training_Tree").Set( "logp_class_5", class_score_logp[5]);
+  Output().Get("Template_Training_Tree").Set( "logp_class_0", class_score_logp[0]);
+  Output().Get("Template_Training_Tree").Set( "logp_class_1", class_score_logp[1]);
+  Output().Get("Template_Training_Tree").Set( "logp_class_2", class_score_logp[2]);
+  Output().Get("Template_Training_Tree").Set( "logp_class_3", class_score_logp[3]);
+  Output().Get("Template_Training_Tree").Set( "logp_class_4", class_score_logp[4]);
+  Output().Get("Template_Training_Tree").Set( "logp_class_5", class_score_logp[5]);
 
-  OutputTree("Template_Training_Tree").Set( "index_fold",
+  Output().Get("Template_Training_Tree").Set( "index_fold",
             static_cast<int>(
                 rle_bucket(luminosityBlock, RunNumber, event,
                            4))); // order of input is intentionally changed
-  OutputTree("Template_Training_Tree").Set( "genTtbarId", genTtbarId);
-  OutputTree("Template_Training_Tree").Set( "decay_mode", (tt_decay_code / 100));
-  OutputTree("Template_Training_Tree").Set( "detection_score_logp",
+  Output().Get("Template_Training_Tree").Set( "genTtbarId", genTtbarId);
+  Output().Get("Template_Training_Tree").Set( "decay_mode", (tt_decay_code / 100));
+  Output().Get("Template_Training_Tree").Set( "detection_score_logp",
             detection_score_logp);
-  OutputTree("Template_Training_Tree").Set( "assignment_logp", assignment_logp);
+  Output().Get("Template_Training_Tree").Set( "assignment_logp", assignment_logp);
   try {
     EnsureWcbNNEvaluated();
     for (std::size_t i = 0; i < kWcbNNScoreBranchNames.size(); ++i) {
-      OutputTree("Template_Training_Tree").Set( kWcbNNScoreBranchNames[i],
+      Output().Get("Template_Training_Tree").Set( kWcbNNScoreBranchNames[i],
                 wcb_nn_scores[i]);
     }
     for (std::size_t i = 0; i < kWcbNNPreSoftmaxBranchNames.size(); ++i) {
-      OutputTree("Template_Training_Tree").Set( kWcbNNPreSoftmaxBranchNames[i],
+      Output().Get("Template_Training_Tree").Set( kWcbNNPreSoftmaxBranchNames[i],
                 wcb_nn_pre_softmax[i]);
     }
-    OutputTree("Template_Training_Tree").Set( "nn_category", wcb_nn_category);
+    Output().Get("Template_Training_Tree").Set( "nn_category", wcb_nn_category);
   } catch (const std::exception &e) {
     std::cerr
         << "[Vcb_SL::FillTemplateTrainingTree] Wcb NN inference failed: "
@@ -1565,12 +1564,12 @@ void Vcb_SL::FillTemplateTrainingTree(
     wcb_nn_category = -1;
     wcb_nn_cache_valid = true;
     for (const char *branch_name : kWcbNNScoreBranchNames) {
-      OutputTree("Template_Training_Tree").Set( branch_name, 0.f);
+      Output().Get("Template_Training_Tree").Set( branch_name, 0.f);
     }
     for (const char *branch_name : kWcbNNPreSoftmaxBranchNames) {
-      OutputTree("Template_Training_Tree").Set( branch_name, 0.f);
+      Output().Get("Template_Training_Tree").Set( branch_name, 0.f);
     }
-    OutputTree("Template_Training_Tree").Set( "nn_category", -1);
+    Output().Get("Template_Training_Tree").Set( "nn_category", -1);
   }
 
   int chk_reco_correct = 0;
@@ -1578,18 +1577,18 @@ void Vcb_SL::FillTemplateTrainingTree(
       ttbar_jet_indices[3] == assignment[3]) {
     chk_reco_correct = 1;
   }
-  OutputTree("Template_Training_Tree").Set( "weight_mc", MCNormalization());
-  OutputTree("Template_Training_Tree").Set( "chk_reco_correct", chk_reco_correct);
-  OutputTree("Template_Training_Tree").Set( "n_bjets", n_loose_b_tagged_jets);
-  OutputTree("Template_Training_Tree").Set( "n_jets", n_jets);
-  OutputTree("Template_Training_Tree").Set( "n_cjets", n_loose_c_tagged_jets);
-  OutputTree("Template_Training_Tree").Set( "ht", HT);
-  OutputTree("Template_Training_Tree").Set( "Met_Pt", MET.Pt());
+  Output().Get("Template_Training_Tree").Set( "weight_mc", MCNormalization());
+  Output().Get("Template_Training_Tree").Set( "chk_reco_correct", chk_reco_correct);
+  Output().Get("Template_Training_Tree").Set( "n_bjets", n_loose_b_tagged_jets);
+  Output().Get("Template_Training_Tree").Set( "n_jets", n_jets);
+  Output().Get("Template_Training_Tree").Set( "n_cjets", n_loose_c_tagged_jets);
+  Output().Get("Template_Training_Tree").Set( "ht", HT);
+  Output().Get("Template_Training_Tree").Set( "Met_Pt", MET.Pt());
 
 
 
 
-  OutputTree("Template_Training_Tree").Fill();
+  Output().Get("Template_Training_Tree").Fill();
 }
 
 RVec<int> Vcb_SL::FindTTbarJetIndices() {

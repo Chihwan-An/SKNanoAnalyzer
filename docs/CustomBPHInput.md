@@ -16,6 +16,7 @@ event-scoped lazy views for these collections:
 - `GetAllDstarToD0PiViews()`
 - `GetAllGenJetBPHViews()`
 - `GetAllGenJetHadronViews()`
+- `GetAllHadronTrackViews()`
 - `GetAllLambdaViews()`
 - `GetAllLambdaCToPKPiViews()`
 
@@ -36,7 +37,15 @@ if (d0s.available()) {
 collection is a configuration error instead of silently looking empty.  Views
 and their rows are event-scoped and reject use after the loader advances.
 
-To add or change a custom branch, edit only `CustomBPHBranches.json` and rebuild.
+Fields listed in `optional_fields` are schema-evolution fields. Missing
+floating or signed values read as `-999`, missing unsigned values read as zero,
+and missing booleans read as false. Required fields still fail during
+collection binding.
+
+The compact production stores daughter kinematics and quality once in
+`HadronTrack`. Candidate `trk*Idx`, `softPiIdx`, `protonIdx`, and `pionIdx`
+values are event-local foreign keys into that collection. To add or change a
+custom branch, edit only `CustomBPHBranches.json` and rebuild.
 The generator updates declarations, registration, reset code, and row accessors
 together.  Validate a production file with:
 

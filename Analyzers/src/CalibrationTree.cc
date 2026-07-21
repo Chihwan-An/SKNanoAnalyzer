@@ -859,44 +859,44 @@ void CalibrationTree::FillTreeAtThisPoint(
     const std::unordered_map<std::string, float> &weight_map) {
 
   const std::string &tree_name = CachedTreeName(treePrefix);
-  BookTree(tree_name, {}, {"*"});
+  auto output = Output().Book(tree_name, RNTupleOutputProfile::Sparse);
   auto safe_log = [](double value) {
     return value > 0. ? static_cast<float>(std::log(value)) : -9999.f;
   };
 
-  OutputTree(tree_name).Set( "log_chi2", log_chi2);
-  OutputTree(tree_name).Set( "ttsl_fit_status", ttsl_fit_status);
-  OutputTree(tree_name).Set( "ttsl_fit_chi2", ttsl_fit_chi2);
-  OutputTree(tree_name).Set( "ttsl_log_fit_chi2", ttsl_log_fit_chi2);
-  OutputTree(tree_name).Set( "ttsl_second_fit_chi2", ttsl_second_fit_chi2);
-  OutputTree(tree_name).Set( "ttsl_delta_chi2", ttsl_delta_chi2);
-  OutputTree(tree_name).Set( "ttsl_prefit_chi2", ttsl_prefit_chi2);
-  OutputTree(tree_name).Set( "ttsl_prefit_mw", ttsl_prefit_mw);
-  OutputTree(tree_name).Set( "ttsl_best_comb_idx", ttsl_best_comb_idx);
-  OutputTree(tree_name).Set( "ttsl_second_comb_idx", ttsl_second_comb_idx);
-  OutputTree(tree_name).Set( "ttsl_best_nu_idx", ttsl_best_nu_idx);
-  OutputTree(tree_name).Set( "ttsl_n_valid_combs", ttsl_n_valid_combs);
-  OutputTree(tree_name).Set( "ttsl_n_prefit_candidates",
+  output.Set( "log_chi2", log_chi2);
+  output.Set( "ttsl_fit_status", ttsl_fit_status);
+  output.Set( "ttsl_fit_chi2", ttsl_fit_chi2);
+  output.Set( "ttsl_log_fit_chi2", ttsl_log_fit_chi2);
+  output.Set( "ttsl_second_fit_chi2", ttsl_second_fit_chi2);
+  output.Set( "ttsl_delta_chi2", ttsl_delta_chi2);
+  output.Set( "ttsl_prefit_chi2", ttsl_prefit_chi2);
+  output.Set( "ttsl_prefit_mw", ttsl_prefit_mw);
+  output.Set( "ttsl_best_comb_idx", ttsl_best_comb_idx);
+  output.Set( "ttsl_second_comb_idx", ttsl_second_comb_idx);
+  output.Set( "ttsl_best_nu_idx", ttsl_best_nu_idx);
+  output.Set( "ttsl_n_valid_combs", ttsl_n_valid_combs);
+  output.Set( "ttsl_n_prefit_candidates",
             ttsl_n_prefit_candidates);
-  OutputTree(tree_name).Set( "ttsl_n_fit_candidates", ttsl_n_fit_candidates);
-  OutputTree(tree_name).Set( "ttsl_met_propagated", ttsl_met_propagated);
-  OutputTree(tree_name).Set( "ttsl_met_pt_before_jet_syst",
+  output.Set( "ttsl_n_fit_candidates", ttsl_n_fit_candidates);
+  output.Set( "ttsl_met_propagated", ttsl_met_propagated);
+  output.Set( "ttsl_met_pt_before_jet_syst",
             ttsl_met_pt_before_jet_syst);
-  OutputTree(tree_name).Set( "ttsl_met_pt_after_jet_syst",
+  output.Set( "ttsl_met_pt_after_jet_syst",
             ttsl_met_pt_after_jet_syst);
-  OutputTree(tree_name).Set( "mmuj0", mmuj0);
-  OutputTree(tree_name).Set( "mmuj1", mmuj1);
-  OutputTree(tree_name).Set( "melj0", melj0);
-  OutputTree(tree_name).Set( "melj1", melj1);
-  OutputTree(tree_name).Set( "log_chi2_had_t",
+  output.Set( "mmuj0", mmuj0);
+  output.Set( "mmuj1", mmuj1);
+  output.Set( "melj0", melj0);
+  output.Set( "melj1", melj1);
+  output.Set( "log_chi2_had_t",
             safe_log(best_KF_result.chi2_thad));
-  OutputTree(tree_name).Set( "log_chi2_lep_t",
+  output.Set( "log_chi2_lep_t",
             safe_log(best_KF_result.chi2_tlep));
-  OutputTree(tree_name).Set( "log_chi2_had_w",
+  output.Set( "log_chi2_had_w",
             safe_log(best_KF_result.chi2_whad));
-  OutputTree(tree_name).Set( "log_chi2_lep_w",
+  output.Set( "log_chi2_lep_w",
             safe_log(best_KF_result.chi2_wlep));
-  OutputTree(tree_name).Set( "log_chi2", log_chi2);
+  output.Set( "log_chi2", log_chi2);
   const auto valid_score = [](float v) { return v >= 0.f && v <= 1.f; };
   using JetTagger = JetTagging::JetFlavTagger;
   using JetScore = JetTagging::JetFlavTaggerScoreType;
@@ -909,7 +909,7 @@ void CalibrationTree::FillTreeAtThisPoint(
     suffix.append(tagger_name);
     suffix.push_back('_');
     suffix.append(score_name);
-    OutputTree(tree_name).Set( CachedJetBranchName(jet_idx, suffix),
+    output.Set( CachedJetBranchName(jet_idx, suffix),
               Jets[jet_idx].GetTaggerResult(tagger, score));
   };
 
@@ -932,7 +932,7 @@ void CalibrationTree::FillTreeAtThisPoint(
   };
 
   for (size_t i = 0; i < Jets.size(); ++i) {
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "Pt"), Jets[i].Pt());
+    output.Set( CachedJetBranchName(i, "Pt"), Jets[i].Pt());
     set_v15_jet_tagger_scores(i);
 
     if (useMyUParTBranches) {
@@ -955,25 +955,25 @@ void CalibrationTree::FillTreeAtThisPoint(
       const float my_bvc = ReadMyUParTValue("Jet_btagMyUParTAK4BvC", source_idx);
       const float my_qvg = ReadMyUParTValue("Jet_btagMyUParTAK4QvG", source_idx);
 
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_B"), my_b);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvB"), my_cvb);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvL"), my_cvl);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvNotB"), my_cvnotb);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_SvCB"), my_svcb);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_SvUDG"), my_svudg);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_probUDG"), my_udg);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_probB"), -1.f);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_probBB"), -1.f);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_B"), my_b);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvB"), my_cvb);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvL"), my_cvl);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvNotB"), my_cvnotb);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvCB"), my_svcb);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvUDG"), my_svudg);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_QvG"), my_qvg);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_probUDG"), my_udg);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_HFvLF"), my_hfvlf);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_BvC"), my_bvc);
+      output.Set( CachedJetBranchName(i, "UParT_B"), my_b);
+      output.Set( CachedJetBranchName(i, "UParT_CvB"), my_cvb);
+      output.Set( CachedJetBranchName(i, "UParT_CvL"), my_cvl);
+      output.Set( CachedJetBranchName(i, "UParT_CvNotB"), my_cvnotb);
+      output.Set( CachedJetBranchName(i, "UParT_SvCB"), my_svcb);
+      output.Set( CachedJetBranchName(i, "UParT_SvUDG"), my_svudg);
+      output.Set( CachedJetBranchName(i, "UParT_probUDG"), my_udg);
+      output.Set( CachedJetBranchName(i, "UParT_probB"), -1.f);
+      output.Set( CachedJetBranchName(i, "UParT_probBB"), -1.f);
+      output.Set( CachedJetBranchName(i, "MyUParT_B"), my_b);
+      output.Set( CachedJetBranchName(i, "MyUParT_CvB"), my_cvb);
+      output.Set( CachedJetBranchName(i, "MyUParT_CvL"), my_cvl);
+      output.Set( CachedJetBranchName(i, "MyUParT_CvNotB"), my_cvnotb);
+      output.Set( CachedJetBranchName(i, "MyUParT_SvCB"), my_svcb);
+      output.Set( CachedJetBranchName(i, "MyUParT_SvUDG"), my_svudg);
+      output.Set( CachedJetBranchName(i, "MyUParT_QvG"), my_qvg);
+      output.Set( CachedJetBranchName(i, "MyUParT_probUDG"), my_udg);
+      output.Set( CachedJetBranchName(i, "MyUParT_HFvLF"), my_hfvlf);
+      output.Set( CachedJetBranchName(i, "MyUParT_BvC"), my_bvc);
 
       float hf = my_hfvlf;
       float bvc = my_bvc;
@@ -999,54 +999,54 @@ void CalibrationTree::FillTreeAtThisPoint(
         cat = static_cast<int>(UParTScore::classify_from_scores(hf, bvc));
       }
 
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_B"), pb);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_C"), pc);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_L"), pl);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "HFvLF"), hf);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "BvC"), bvc);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "Cat"), cat);
-      OutputTree(tree_name).Set( CachedJetBranchName(i, "hadronFlavour"),
+      output.Set( CachedJetBranchName(i, "prob3_B"), pb);
+      output.Set( CachedJetBranchName(i, "prob3_C"), pc);
+      output.Set( CachedJetBranchName(i, "prob3_L"), pl);
+      output.Set( CachedJetBranchName(i, "HFvLF"), hf);
+      output.Set( CachedJetBranchName(i, "BvC"), bvc);
+      output.Set( CachedJetBranchName(i, "Cat"), cat);
+      output.Set( CachedJetBranchName(i, "hadronFlavour"),
                 IsDATA ? -1 : abs(Jets[i].hadronFlavour()));
       continue;
     }
 
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_B"),
+    output.Set( CachedJetBranchName(i, "UParT_B"),
               Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                       JetTagging::JetFlavTaggerScoreType::B));
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvB"),
+    output.Set( CachedJetBranchName(i, "UParT_CvB"),
               Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                       JetTagging::JetFlavTaggerScoreType::CvB));
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "UParT_CvL"),
+    output.Set( CachedJetBranchName(i, "UParT_CvL"),
               Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                       JetTagging::JetFlavTaggerScoreType::CvL));
-    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_CvNotB"),
+    output.Set(CachedJetBranchName(i, "UParT_CvNotB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::CvNotB));
-    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_SvCB"),
+    output.Set(CachedJetBranchName(i, "UParT_SvCB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::SvCB));
-    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_SvUDG"),
+    output.Set(CachedJetBranchName(i, "UParT_SvUDG"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::SvUDG));
-    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_probUDG"),
+    output.Set(CachedJetBranchName(i, "UParT_probUDG"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::probUDG));
-    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_probB"),
+    output.Set(CachedJetBranchName(i, "UParT_probB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::probB));
-    OutputTree(tree_name).Set(CachedJetBranchName(i, "UParT_probBB"),
+    output.Set(CachedJetBranchName(i, "UParT_probBB"),
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
                                 JetTagging::JetFlavTaggerScoreType::probBB));
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_B"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvB"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvL"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_CvNotB"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvCB"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_SvUDG"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_QvG"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_probUDG"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_HFvLF"), -1.f);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "MyUParT_BvC"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_B"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_CvB"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_CvL"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_CvNotB"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_SvCB"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_SvUDG"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_QvG"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_probUDG"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_HFvLF"), -1.f);
+    output.Set( CachedJetBranchName(i, "MyUParT_BvC"), -1.f);
 
     const float probudg =
         Jets[i].GetTaggerResult(JetTagging::JetFlavTagger::ParT,
@@ -1078,64 +1078,64 @@ void CalibrationTree::FillTreeAtThisPoint(
       pl = static_cast<float>(p.pl);
       cat = static_cast<int>(UParTScore::classify_from_scores(hf, bvc));
     }
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_B"), pb);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_C"), pc);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "prob3_L"), pl);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "HFvLF"), hf);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "BvC"), bvc);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "Cat"), cat);
-    OutputTree(tree_name).Set( CachedJetBranchName(i, "hadronFlavour"),
+    output.Set( CachedJetBranchName(i, "prob3_B"), pb);
+    output.Set( CachedJetBranchName(i, "prob3_C"), pc);
+    output.Set( CachedJetBranchName(i, "prob3_L"), pl);
+    output.Set( CachedJetBranchName(i, "HFvLF"), hf);
+    output.Set( CachedJetBranchName(i, "BvC"), bvc);
+    output.Set( CachedJetBranchName(i, "Cat"), cat);
+    output.Set( CachedJetBranchName(i, "hadronFlavour"),
               IsDATA ? -1 : abs(Jets[i].hadronFlavour()));
   }
 
   if (channel == Channel::WCharm_Mu || channel == Channel::WCharm_El) {
-    OutputTree(tree_name).Set( "WCharm_Jet0_nElectrons", wcharm_jet0_nelectrons);
-    OutputTree(tree_name).Set( "WCharm_Jet0_nMuons", wcharm_jet0_nmuons);
-    OutputTree(tree_name).Set( "WCharm_Jet0_nSoftMuons", wcharm_jet0_nsoftmuons);
-    OutputTree(tree_name).Set( "WCharm_Jet0_nSVs", wcharm_jet0_nsv);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_idx", wcharm_sv0_idx);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_idx", wcharm_sv1_idx);
+    output.Set( "WCharm_Jet0_nElectrons", wcharm_jet0_nelectrons);
+    output.Set( "WCharm_Jet0_nMuons", wcharm_jet0_nmuons);
+    output.Set( "WCharm_Jet0_nSoftMuons", wcharm_jet0_nsoftmuons);
+    output.Set( "WCharm_Jet0_nSVs", wcharm_jet0_nsv);
+    output.Set( "WCharm_Jet0_SV0_idx", wcharm_sv0_idx);
+    output.Set( "WCharm_Jet0_SV1_idx", wcharm_sv1_idx);
 
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Pt", wcharm_sv0_pt);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Eta", wcharm_sv0_eta);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Phi", wcharm_sv0_phi);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Mass", wcharm_sv0_mass);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Charge", wcharm_sv0_charge);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Chi2", wcharm_sv0_chi2);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Ndof", wcharm_sv0_ndof);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_NTracks", wcharm_sv0_ntracks);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Dlen", wcharm_sv0_dlen);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_DlenSig", wcharm_sv0_dlenSig);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Dxy", wcharm_sv0_dxy);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_DxySig", wcharm_sv0_dxySig);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_PAngle", wcharm_sv0_pAngle);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_X", wcharm_sv0_x);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Y", wcharm_sv0_y);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV0_Z", wcharm_sv0_z);
+    output.Set( "WCharm_Jet0_SV0_Pt", wcharm_sv0_pt);
+    output.Set( "WCharm_Jet0_SV0_Eta", wcharm_sv0_eta);
+    output.Set( "WCharm_Jet0_SV0_Phi", wcharm_sv0_phi);
+    output.Set( "WCharm_Jet0_SV0_Mass", wcharm_sv0_mass);
+    output.Set( "WCharm_Jet0_SV0_Charge", wcharm_sv0_charge);
+    output.Set( "WCharm_Jet0_SV0_Chi2", wcharm_sv0_chi2);
+    output.Set( "WCharm_Jet0_SV0_Ndof", wcharm_sv0_ndof);
+    output.Set( "WCharm_Jet0_SV0_NTracks", wcharm_sv0_ntracks);
+    output.Set( "WCharm_Jet0_SV0_Dlen", wcharm_sv0_dlen);
+    output.Set( "WCharm_Jet0_SV0_DlenSig", wcharm_sv0_dlenSig);
+    output.Set( "WCharm_Jet0_SV0_Dxy", wcharm_sv0_dxy);
+    output.Set( "WCharm_Jet0_SV0_DxySig", wcharm_sv0_dxySig);
+    output.Set( "WCharm_Jet0_SV0_PAngle", wcharm_sv0_pAngle);
+    output.Set( "WCharm_Jet0_SV0_X", wcharm_sv0_x);
+    output.Set( "WCharm_Jet0_SV0_Y", wcharm_sv0_y);
+    output.Set( "WCharm_Jet0_SV0_Z", wcharm_sv0_z);
 
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Pt", wcharm_sv1_pt);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Eta", wcharm_sv1_eta);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Phi", wcharm_sv1_phi);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Mass", wcharm_sv1_mass);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Charge", wcharm_sv1_charge);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Chi2", wcharm_sv1_chi2);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Ndof", wcharm_sv1_ndof);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_NTracks", wcharm_sv1_ntracks);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Dlen", wcharm_sv1_dlen);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_DlenSig", wcharm_sv1_dlenSig);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Dxy", wcharm_sv1_dxy);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_DxySig", wcharm_sv1_dxySig);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_PAngle", wcharm_sv1_pAngle);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_X", wcharm_sv1_x);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Y", wcharm_sv1_y);
-    OutputTree(tree_name).Set( "WCharm_Jet0_SV1_Z", wcharm_sv1_z);
+    output.Set( "WCharm_Jet0_SV1_Pt", wcharm_sv1_pt);
+    output.Set( "WCharm_Jet0_SV1_Eta", wcharm_sv1_eta);
+    output.Set( "WCharm_Jet0_SV1_Phi", wcharm_sv1_phi);
+    output.Set( "WCharm_Jet0_SV1_Mass", wcharm_sv1_mass);
+    output.Set( "WCharm_Jet0_SV1_Charge", wcharm_sv1_charge);
+    output.Set( "WCharm_Jet0_SV1_Chi2", wcharm_sv1_chi2);
+    output.Set( "WCharm_Jet0_SV1_Ndof", wcharm_sv1_ndof);
+    output.Set( "WCharm_Jet0_SV1_NTracks", wcharm_sv1_ntracks);
+    output.Set( "WCharm_Jet0_SV1_Dlen", wcharm_sv1_dlen);
+    output.Set( "WCharm_Jet0_SV1_DlenSig", wcharm_sv1_dlenSig);
+    output.Set( "WCharm_Jet0_SV1_Dxy", wcharm_sv1_dxy);
+    output.Set( "WCharm_Jet0_SV1_DxySig", wcharm_sv1_dxySig);
+    output.Set( "WCharm_Jet0_SV1_PAngle", wcharm_sv1_pAngle);
+    output.Set( "WCharm_Jet0_SV1_X", wcharm_sv1_x);
+    output.Set( "WCharm_Jet0_SV1_Y", wcharm_sv1_y);
+    output.Set( "WCharm_Jet0_SV1_Z", wcharm_sv1_z);
   }
 
   for (const auto &kv : weight_map) {
-    OutputTree(tree_name).Set( "weight_" + kv.first, kv.second);
+    output.Set( "weight_" + kv.first, kv.second);
   }
-  OutputTree(tree_name).Set( "MCNormalization", MCNormalizationWeight);
-  OutputTree(tree_name).Fill();
+  output.Set( "MCNormalization", MCNormalizationWeight);
+  output.Fill();
 }
 
 void CalibrationTree::executeEvent() {
@@ -1275,36 +1275,8 @@ void CalibrationTree::SkimTree() {
 
 void CalibrationTree::WriteHist() {
   if (HasFlag("Skim")) {
-    if (!skim_passed_global_entries.empty() && fChain) {
-      std::sort(skim_passed_global_entries.begin(),
-                skim_passed_global_entries.end());
-      skim_passed_global_entries.erase(
-          std::unique(skim_passed_global_entries.begin(),
-                      skim_passed_global_entries.end()),
-          skim_passed_global_entries.end());
-
-      fChain->SetBranchStatus("*", 1);
-      fChain->ResetBranchAddresses();
-
-      TEntryList elist("skim_list", "Selected entries");
-      for (Long64_t entry : skim_passed_global_entries) {
-        elist.Enter(entry, fChain);
-      }
-      fChain->SetEntryList(&elist);
-
-      if (TTree *curTree = fChain->GetTree()) {
-        configureTreeCache(curTree);
-      }
-
-      TTree *skimTree = fChain->CopyTree("");
-      if (skimTree) {
-        skimTree->SetName("Events");
-        treemap["Events"] = skimTree;
-      }
-
-      fChain->SetEntryList(0);
-      skim_passed_global_entries.clear();
-    }
+    SnapshotSelectedInput(std::move(skim_passed_global_entries));
+    skim_passed_global_entries.clear();
   }
 
   AnalyzerCore::WriteHist();

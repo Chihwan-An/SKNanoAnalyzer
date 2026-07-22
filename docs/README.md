@@ -12,6 +12,8 @@ the core API documents before changing analyzer or I/O contracts.
   setup for the SNU cluster.
 - [Development Guide](DevelopmentGuide.md): repository workflow, systematic
   APIs, coding conventions, and pull requests.
+- [Analyzer Development](AnalyzerDevelopment.md): framework/common/module
+  ownership, external analyzer builds, and custom input views.
 
 ## Core framework and I/O
 

@@ -9,6 +9,7 @@ endif()
 project(SKNanoAnalyzer VERSION 1.0.0 LANGUAGES CXX)
 
 include(CTest)
+include(${CMAKE_SOURCE_DIR}/cmake/SKNanoAnalysisModule.cmake)
 
 # Once a dependency checkout exists, configure from that pinned checkout.
 # This avoids an implicit network update on every build and still permits the
@@ -150,7 +151,34 @@ add_subdirectory(external/RoccoR)
 add_subdirectory(SKNanoCore)
 add_subdirectory(DataFormats)
 add_subdirectory(AnalyzerTools)
-add_subdirectory(Analyzers)
+add_subdirectory(AnalyzerFramework)
+add_subdirectory(CommonAnalyzers)
+
+set(SKNANO_ANALYSIS_MODULE_DIRS "" CACHE STRING
+    "Semicolon-separated external SKNano analysis module directories")
+set(_sknano_module_index 0)
+foreach(_sknano_module_dir IN LISTS SKNANO_ANALYSIS_MODULE_DIRS)
+    if(NOT IS_ABSOLUTE "${_sknano_module_dir}")
+        set(_sknano_module_dir "${CMAKE_SOURCE_DIR}/${_sknano_module_dir}")
+    endif()
+    if(NOT EXISTS "${_sknano_module_dir}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "SKNano analysis module has no CMakeLists.txt: ${_sknano_module_dir}")
+    endif()
+    math(EXPR _sknano_module_index "${_sknano_module_index} + 1")
+    add_subdirectory("${_sknano_module_dir}"
+        "${CMAKE_BINARY_DIR}/analysis_modules/${_sknano_module_index}")
+endforeach()
+
+get_property(SKNANO_REGISTERED_ANALYZERS GLOBAL
+    PROPERTY SKNANO_REGISTERED_ANALYZERS)
+list(REMOVE_DUPLICATES SKNANO_REGISTERED_ANALYZERS)
+list(SORT SKNANO_REGISTERED_ANALYZERS)
+string(REPLACE ";" "\n" SKNANO_ANALYZER_MANIFEST_CONTENT
+    "${SKNANO_REGISTERED_ANALYZERS}")
+file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/analyzers.manifest
+    CONTENT "${SKNANO_ANALYZER_MANIFEST_CONTENT}\n")
+install(FILES ${CMAKE_BINARY_DIR}/analyzers.manifest DESTINATION share/sknano)
 
 # Fetch external dependencies
 include(FetchContent)

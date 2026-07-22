@@ -7,6 +7,10 @@ the `Events` RNTuple in each input file, and the generated `BranchScalar`,
 `BranchVector`, collection views, and lazy activation APIs bind directly to
 RNTuple fields.
 
+The framework code generator consumes only the canonical NanoAOD schema.
+External modules bind custom scalar and vector fields through typed runtime
+handles and provide their own event-scoped row views.
+
 ## Run an analyzer
 
 ```bash

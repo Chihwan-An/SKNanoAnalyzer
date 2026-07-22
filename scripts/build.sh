@@ -6,6 +6,7 @@ clean_build=0
 jobs="${BUILD_JOBS:-$(nproc)}"
 build_type="${SKNANO_BUILD_TYPE:-Release}"
 use_asan=0
+analysis_module_dirs="${SKNANO_ANALYSIS_MODULE_DIRS:-}"
 
 usage() {
     cat >&2 <<'EOF'
@@ -18,6 +19,8 @@ Options:
       --debug            Shortcut for --build-type Debug
       --relwithdebinfo   Shortcut for --build-type RelWithDebInfo
       --asan             Build with AddressSanitizer
+      --analysis-module-dir DIR
+                         Add an external analyzer module (repeatable)
   -h, --help             Show this help message and exit
 EOF
 }
@@ -47,6 +50,18 @@ while [[ $# -gt 0 ]]; do
             ;;
         --asan)
             use_asan=1
+            ;;
+        --analysis-module-dir)
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "Error: --analysis-module-dir requires an argument" >&2
+                exit 1
+            fi
+            if [[ -n "${analysis_module_dirs}" ]]; then
+                analysis_module_dirs="${analysis_module_dirs};$1"
+            else
+                analysis_module_dirs="$1"
+            fi
             ;;
         -h|--help)
             usage
@@ -111,7 +126,12 @@ cmake_args=(
     -DCMAKE_PREFIX_PATH="${LIBTORCH_INSTALL_DIR}"
     -DCMAKE_BUILD_TYPE="${build_type}"
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    -DSKNANO_ANALYSIS_MODULE_DIRS="${analysis_module_dirs}"
 )
+if [[ -n "${SKNANO_CMAKE_EXTRA_ARGS:-}" ]]; then
+    read -r -a sknano_extra_cmake_args <<< "${SKNANO_CMAKE_EXTRA_ARGS}"
+    cmake_args+=("${sknano_extra_cmake_args[@]}")
+fi
 
 cmake_cmd=(cmake)
 if [ "${use_ninja}" -eq 1 ]; then

@@ -34,13 +34,14 @@ def discover_companion_inputs(
     json_path: Path,
     overlay: Path | None,
     addons: List[Path],
+    auto_addons: bool = True,
 ) -> Tuple[Path | None, List[Path]]:
     """Find optional schema metadata without exposing it to the build system."""
     if overlay is None:
         candidate = json_path.parent / "branch_overlay.json"
         overlay = candidate if candidate.is_file() else None
 
-    if not addons:
+    if auto_addons and not addons:
         addon_dir = json_path.parent / "custom"
         if addon_dir.is_dir():
             addons = sorted(addon_dir.glob("*.json"))
@@ -520,6 +521,9 @@ def main() -> None:
     parser.add_argument(
         "--addon", action="append", type=Path, default=[],
         help="Optional compact custom-branch addon (repeatable)")
+    parser.add_argument(
+        "--no-auto-addons", action="store_true",
+        help="Do not discover custom/*.json next to the canonical schema")
     parser.add_argument("--overlay", type=Path,
                         help="Reviewed metadata for generated input views")
     parser.add_argument("--out-dir", type=Path, help="Dir for generated files")
@@ -532,7 +536,8 @@ def main() -> None:
     out_dir = args.out_dir or json_path.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     overlay_path, addon_paths = discover_companion_inputs(
-        json_path, args.overlay, args.addon)
+        json_path, args.overlay, args.addon,
+        auto_addons=not args.no_auto_addons)
 
     with json_path.open() as jf:
         payload = json.load(jf)

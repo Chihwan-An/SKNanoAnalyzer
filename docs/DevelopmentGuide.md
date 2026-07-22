@@ -20,6 +20,10 @@ git rebase upstream/main
 git checkout -b $DEVBRANCH
 ```
 
+Physics analyzers do not belong in the backend repository. Read
+[Analyzer Development](AnalyzerDevelopment.md) before creating a new analyzer
+or custom NanoAOD view.
+
 ## Systematic-aware corrections
 
 Corrections managed by `SystematicHelper` should end their parameter list with

@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from typing import NamedTuple
 
 
@@ -172,6 +173,84 @@ def validate_inputs(
     return reference or {}, totals, histogram_reference or {}, histogram_totals
 
 
+def _run_hadd(
+    output: Path,
+    inputs: list[Path],
+    jobs: int,
+    temp_dir: Path,
+) -> None:
+    """Run one bounded hadd invocation.
+
+    The caller is responsible for keeping ``inputs`` below the safe batch
+    size.  Do not use hadd's ``-n`` option here: ROOT 6.40.02 produced corrupt
+    histogram keys when its internal excess-file path was exercised.
+    """
+    command = ["hadd", "-fk404", "-v", "0"]
+    workers = min(jobs, len(inputs))
+    # Passing ``-j 1`` still selects hadd's parallel merge path.  Omit -j for
+    # a genuinely sequential merge.
+    if workers > 1:
+        command.extend(["-j", str(workers), "-d", str(temp_dir)])
+    command.append(str(output))
+    command.extend(str(path) for path in inputs)
+    environment = os.environ.copy()
+    environment["TMPDIR"] = str(temp_dir)
+    subprocess.run(command, check=True, env=environment)
+
+
+def _validate_intermediate(root, path: Path) -> None:
+    """Fully deserialize mergeable objects before using a staged partial."""
+    inspect_file(root, path)
+    inspect_histograms(root, path)
+    root_file = root.TFile.Open(str(path), "READ")
+    if not root_file or root_file.IsZombie():
+        raise RuntimeError(f"intermediate ROOT file cannot be reopened: {path}")
+    compression = int(root_file.GetCompressionSettings())
+    root_file.Close()
+    if compression != 404:
+        raise RuntimeError(
+            f"intermediate file compression is {compression}, "
+            f"expected LZ4 level 4 (404): {path}"
+        )
+
+
+def _staged_hadd(
+    root,
+    inputs: list[Path],
+    output: Path,
+    jobs: int,
+    batch_size: int,
+    temp_dir: Path,
+) -> None:
+    """Merge through explicitly bounded and validated intermediate files."""
+    current = inputs
+    stage = 0
+    while len(current) > batch_size:
+        next_stage: list[Path] = []
+        batches = [
+            current[start:start + batch_size]
+            for start in range(0, len(current), batch_size)
+        ]
+        print(
+            f"Merge stage {stage + 1}: {len(current)} inputs -> "
+            f"{len(batches)} validated partials",
+            flush=True,
+        )
+        for batch_index, batch in enumerate(batches):
+            partial = temp_dir / f"stage_{stage:02d}_{batch_index:05d}.root"
+            _run_hadd(partial, batch, jobs, temp_dir)
+            _validate_intermediate(root, partial)
+            next_stage.append(partial)
+        current = next_stage
+        stage += 1
+
+    print(
+        f"Final merge stage: {len(current)} inputs -> {output}",
+        flush=True,
+    )
+    _run_hadd(output, current, jobs, temp_dir)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -182,15 +261,21 @@ def main() -> int:
         help="hadd worker count (default: 1; parallel RNTuple merge is experimental)",
     )
     parser.add_argument(
-        "--max-open-files",
+        "--batch-size",
         type=int,
-        default=256,
-        help="maximum number of files hadd may open at once (default: 256)",
+        default=100,
+        help=(
+            "maximum inputs per explicit hadd stage (default: 100; "
+            "safe maximum: 100)"
+        ),
     )
     parser.add_argument(
         "--temp-dir",
         type=Path,
-        help="directory for hadd parallel partials (default: output directory)",
+        help=(
+            "directory for staged and parallel partials "
+            "(default: output directory)"
+        ),
     )
     parser.add_argument("--delete-inputs", action="store_true")
     parser.add_argument("inputs", nargs="+", type=Path)
@@ -198,8 +283,8 @@ def main() -> int:
 
     if args.jobs < 1:
         parser.error("--jobs must be positive")
-    if args.max_open_files < 2:
-        parser.error("--max-open-files must be at least 2")
+    if not 2 <= args.batch_size <= 100:
+        parser.error("--batch-size must be between 2 and 100")
     inputs = [path.resolve() for path in args.inputs]
     if len(set(inputs)) != len(inputs):
         parser.error("duplicate input paths are not allowed")
@@ -214,15 +299,15 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     temp_parent = (args.temp_dir or output.parent).resolve()
     temp_parent.mkdir(parents=True, exist_ok=True)
-    if args.jobs > 1:
+    if len(inputs) > args.batch_size or args.jobs > 1:
         input_bytes = sum(path.stat().st_size for path in inputs)
-        # Parallel hadd keeps its worker partials while assembling the final
-        # partial, so both generations can coexist on this filesystem.
+        # Staged and parallel merges can keep an intermediate generation while
+        # assembling the next one, so budget for both generations at once.
         required = 2 * input_bytes
         available = shutil.disk_usage(temp_parent).free
         if available < required:
             raise RuntimeError(
-                f"parallel merge temporary directory {temp_parent} has "
+                f"merge temporary directory {temp_parent} has "
                 f"{available} bytes free but needs about {required} bytes "
                 f"for {input_bytes} bytes of input shards"
             )
@@ -230,26 +315,22 @@ def main() -> int:
     schemas, totals, histogram_schemas, histogram_totals = validate_inputs(
         root, inputs
     )
-    partial = output.with_name(f".{output.name}.partial.{os.getpid()}")
-    if partial.exists():
-        partial.unlink()
+    partial = output.with_name(
+        f".{output.name}.partial.{uuid.uuid4().hex}"
+    )
 
     try:
         with tempfile.TemporaryDirectory(
             prefix=f".{output.name}.hadd.", dir=temp_parent
         ) as merge_temp:
-            command = ["hadd", "-fk404", "-n", str(args.max_open_files)]
-            # Passing ``-j 1`` still selects hadd's parallel merge path.  In
-            # particular, ROOT may remove the worker-produced target before
-            # this process can validate it.  Omit -j entirely for a genuinely
-            # sequential merge.
-            if args.jobs > 1:
-                command.extend(["-j", str(args.jobs)])
-            command.append(str(partial))
-            command.extend(str(path) for path in inputs)
-            environment = os.environ.copy()
-            environment["TMPDIR"] = merge_temp
-            subprocess.run(command, check=True, env=environment)
+            _staged_hadd(
+                root,
+                inputs,
+                partial,
+                args.jobs,
+                args.batch_size,
+                Path(merge_temp),
+            )
         merged = inspect_file(root, partial)
         if {name: data.schema for name, data in merged.items()} != schemas:
             raise RuntimeError("merged RNTuple schema differs from the inputs")

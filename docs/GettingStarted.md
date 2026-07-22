@@ -27,6 +27,19 @@ SKNano.py -a ExampleRun -i '[YOUR_PREFIX]*' -e 2022 -n 10 --reduction 10
 - [Setting the Telegram bot](#setting-the-telegram-bot)
 
 ## Setting up the environment
+
+`NanoAODv15` builds the framework and common analyzers. A branch that pins an
+external analyzer module should be cloned with submodules:
+
+```bash
+git submodule update --init --recursive
+source setup.sh
+./scripts/build.sh --clean
+```
+
+Job submission remains unchanged because ROOT discovers installed analyzer
+dictionaries automatically.
+
 ### Preliminary Setup
 For Linux, the recommended environment is micromamba plus Singularity. See
 [Environment Setup](SettingEnv.md) for the cluster-specific instructions.

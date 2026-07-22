@@ -1,6 +1,7 @@
 #!/bin/bash
 
-TARGETs=("Analyzers" 
+TARGETs=("AnalyzerFramework"
+         "CommonAnalyzers"
          "AnalyzerTools" 
          "DataFormats" 
          "external/KinematicFitter" 

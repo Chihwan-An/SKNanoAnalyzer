@@ -12,6 +12,8 @@ the core API documents before changing analyzer or I/O contracts.
   setup for the SNU cluster.
 - [Development Guide](DevelopmentGuide.md): repository workflow, systematic
   APIs, coding conventions, and pull requests.
+- [Analyzer Development](AnalyzerDevelopment.md): framework/common/module
+  ownership, external analyzer builds, and custom input views.
 
 ## Core framework and I/O
 
@@ -30,13 +32,6 @@ These documents describe one connected data path:
 ```text
 NanoAOD input -> event-scoped views -> analyzer tasks -> typed RNTuple/histogram output
 ```
-
-## Analysis-specific guides
-
-- [Custom BPH Input](CustomBPHInput.md): optional 2024 BPH collections and
-  generated lazy views.
-- [HadronAnalyzer](HadronAnalyzer.md): flags, tasks, matching, output fields,
-  and histogram layout.
 
 The YAML files [noSyst.yaml](noSyst.yaml) and
 [ExampleSystematic.yaml](ExampleSystematic.yaml) are small systematic

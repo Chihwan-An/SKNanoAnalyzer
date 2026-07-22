@@ -75,10 +75,6 @@ internal commit.
   corrections, tagging inputs, and modelling/reweighting resources.
 - Updated jet corrections and JES/JER-to-MET propagation, lepton IDs, trigger
   object access, systematic handling, and Vcb calibration workflows.
-- Added the task-based `HadronAnalyzer`, CustomBPH input support, top-to-jet and
-  charm-hadron truth matching, charm-fragmentation observables, and Lambda-c
-  validation utilities.
-
 #### Migration quick start
 
 ```bash

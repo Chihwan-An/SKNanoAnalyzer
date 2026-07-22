@@ -18,6 +18,7 @@ import socket
 import subprocess
 import tarfile
 import hashlib
+import glob
 from pathlib import Path
 
 from tqdm.rich import tqdm
@@ -66,7 +67,8 @@ SOURCE_ARCHIVE_DIRNAME = "code_archive"
 METADATA_SNAPSHOT_DIRNAME = os.path.join("metadata", "data_snapshot")
 RUN_MANIFEST_NAME = "run_manifest.json"
 SOURCE_SNAPSHOT_ENTRIES = [
-    "Analyzers",
+    "AnalyzerFramework",
+    "CommonAnalyzers",
     "AnalyzerTools",
     "DataFormats",
     "PyAnalyzers",
@@ -74,6 +76,8 @@ SOURCE_SNAPSHOT_ENTRIES = [
     "python",
     "templates",
     "scripts",
+    "cmake",
+    "examples/AnalysisModule",
     "docs",
     "ModellingPatch",
     "CMakeLists.txt",
@@ -129,6 +133,25 @@ SOURCE_SNAPSHOT_IGNORE_SUFFIXES = (
 )
 MAX_SOURCE_SNAPSHOT_FILE_BYTES = 20 * 1024 * 1024
 
+def getAnalysisModuleDirs():
+    raw = os.environ.get("SKNANO_ANALYSIS_MODULE_DIRS", "")
+    entries = raw.replace(";", os.pathsep).split(os.pathsep)
+    result = []
+    for entry in entries:
+        if not entry:
+            continue
+        path = os.path.realpath(os.path.expanduser(entry))
+        if os.path.isdir(path) and path not in result:
+            result.append(path)
+    return result
+
+def getModuleSchemaVersions(module_dir):
+    versions = {}
+    for version_file in Path(module_dir).glob("*/schema/VERSION"):
+        versions[version_file.parent.parent.name] = version_file.read_text(
+            encoding="utf-8").strip()
+    return versions
+
 ##############################
 #Load commonSampleInfo.json at start
 sampleInfoJsons = {}
@@ -138,6 +161,28 @@ for era in Run.keys():
     except:
         print(f"\033[93mWarning: {era} CommonSampleInfo.json is not exist\033[0m")
         sampleInfoJsons[era] = {}
+moduleSampleJsons = {era: {} for era in Run.keys()}
+for module_dir in getAnalysisModuleDirs():
+    patterns = [
+        os.path.join(module_dir, "data", "Sample", "*", "*.json"),
+        os.path.join(module_dir, "*", "data", "Sample", "*", "*.json"),
+    ]
+    for pattern in patterns:
+        for sample_path in sorted(glob.glob(pattern)):
+            era = Path(sample_path).parent.name
+            if era not in Run:
+                continue
+            with open(sample_path, encoding="utf-8") as handle:
+                payload = json.load(handle)
+            name = payload.get("name", Path(sample_path).stem)
+            if name in moduleSampleJsons[era]:
+                raise RuntimeError(
+                    f"duplicate external sample '{name}' for era {era}")
+            sampleInfoJsons[era][name] = {
+                key: value for key, value in payload.items()
+                if key not in {"name", "path", "path_glob"}
+            }
+            moduleSampleJsons[era][name] = sample_path
 skimInfoJsons = {}
 
 
@@ -260,6 +305,20 @@ def makeSourceSnapshot(master_dir):
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(source, target)
         copied.append(entry)
+    modules = []
+    for module_dir in getAnalysisModuleDirs():
+        module_name = os.path.basename(module_dir.rstrip(os.sep))
+        target = os.path.join(snapshot_dir, "analysis_modules", module_name)
+        shutil.copytree(module_dir, target, ignore=sourceSnapshotIgnore,
+                        dirs_exist_ok=True)
+        module_git = getGitInfo(module_dir)
+        modules.append({
+            "name": module_name,
+            "source": module_dir,
+            "snapshot": target,
+            "git": module_git,
+            "schema_versions": getModuleSchemaVersions(module_dir),
+        })
     git_info = getGitInfo()
     archive = makeSourceArchive(master_dir, snapshot_dir, git_info)
     return {
@@ -269,14 +328,15 @@ def makeSourceSnapshot(master_dir):
         'max_file_bytes': MAX_SOURCE_SNAPSHOT_FILE_BYTES,
         'archive': archive,
         'git': git_info,
+        'analysis_modules': modules,
     }
 
-def getGitInfo():
+def getGitInfo(repository=SKNANO_HOME):
     def run_git(args):
         try:
             return subprocess.run(
                 ["git"] + args,
-                cwd=SKNANO_HOME,
+                cwd=repository,
                 check=True,
                 text=True,
                 stdout=subprocess.PIPE,
@@ -293,10 +353,32 @@ def getGitInfo():
         'dirty': bool(status),
     }
 
+def validateInstalledAnalyzer(analyzer, python_mode=False):
+    if python_mode:
+        return
+    manifest = os.path.join(SKNANO_INSTALLDIR, "share", "sknano",
+                            "analyzers.manifest")
+    try:
+        with open(manifest) as handle:
+            analyzers = {line.strip() for line in handle if line.strip()}
+    except OSError as exc:
+        raise RuntimeError(
+            f"Analyzer manifest is unavailable ({manifest}); rebuild SKNano") from exc
+    if analyzer not in analyzers:
+        available = ", ".join(sorted(analyzers)) or "<none>"
+        raise RuntimeError(
+            f"Analyzer '{analyzer}' is not installed. Available analyzers: {available}")
+
 def copyMetadataSnapshotFile(master_dir, source_path):
     if not source_path or not os.path.exists(source_path):
         return None
-    relpath = os.path.relpath(source_path, SKNANO_DATA)
+    source_real = os.path.realpath(source_path)
+    data_real = os.path.realpath(SKNANO_DATA)
+    if os.path.commonpath([source_real, data_real]) == data_real:
+        relpath = os.path.relpath(source_real, data_real)
+    else:
+        relpath = os.path.join("analysis_modules", Path(source_path).parent.parent.parent.name,
+                               Path(source_path).parent.name, Path(source_path).name)
     target = os.path.join(master_dir, METADATA_SNAPSHOT_DIRNAME, relpath)
     os.makedirs(os.path.dirname(target), exist_ok=True)
     shutil.copy2(source_path, target)
@@ -340,6 +422,7 @@ def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot
         },
         'git': getGitInfo(),
         'source_snapshot': source_snapshot,
+        'analysis_modules': source_snapshot.get('analysis_modules', []),
         'options': {
             'Analyzer': argparser.Analyzer,
             'InputSample': argparser.InputSample,
@@ -599,7 +682,8 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
         sample = SkimInfo['PD']
     else:
         sampleInfo = sampleInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
-        sample_json_path = os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json')
+        sample_json_path = moduleSampleJsons[era].get(
+            sample, os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json'))
         samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
         metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
         
@@ -1071,6 +1155,7 @@ def getFinalDag(hadd_layer_dicts,skim_postproc_layers,master_dir,argparser):
 if __name__ == '__main__':
     parser = setParser()
     args = parser.parse_args()
+    validateInstalledAnalyzer(args.Analyzer, args.python)
     eras = getEraList(args.Era, args.Run)
     SKIMMING_MODE = args.skimming_mode
     if args.Analyzer.startswith("Skim_") and not SKIMMING_MODE:

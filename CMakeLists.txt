@@ -180,6 +180,11 @@ file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/analyzers.manifest
     CONTENT "${SKNANO_ANALYZER_MANIFEST_CONTENT}\n")
 install(FILES ${CMAKE_BINARY_DIR}/analyzers.manifest DESTINATION share/sknano)
 
+if(BUILD_TESTING)
+    add_test(NAME analyzer_layer_boundaries
+             COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/check_layers.sh)
+endif()
+
 # Fetch external dependencies
 include(FetchContent)
 FetchContent_Declare(

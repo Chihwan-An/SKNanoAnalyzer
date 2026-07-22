@@ -28,6 +28,25 @@ The old flat `Analyzers` directory and flat includes are unsupported. Use:
 An external module calls `sknano_add_analysis_module` from its `CMakeLists.txt`
 and owns its headers, sources, ROOT LinkDef, tests, data, and documentation.
 
+Start by copying `examples/AnalysisModule`, then list every source and header
+explicitly; source globs are not accepted for maintained modules. A minimal
+target is:
+
+```cmake
+sknano_add_analysis_module(
+    NAME MyAnalysis
+    HEADERS include/MyAnalysis/MyAnalyzer.h
+    SOURCES src/MyAnalyzer.cc
+    LINKDEF include/MyAnalysis/LinkDef.hpp
+    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ANALYZERS MyAnalyzer)
+```
+
+The LinkDef needs a `#pragma link C++ class MyAnalyzer+;` entry. Configure,
+build, run CTest, and verify `TClass::GetClass("MyAnalyzer", true, true)` before
+submitting jobs. The installed analyzer must also appear in
+`share/sknano/analyzers.manifest`.
+
 ```bash
 ./scripts/build.sh --analysis-module-dir /path/to/MyAnalysis
 ```
@@ -56,8 +75,38 @@ checked with `available()`. A stale row view fails its event-epoch check.
 Custom views are not backend `DataFormats`; promote an object there only when
 it is stable, persistent, and useful to common analyzers.
 
+Code generators must emit typed handles, collection/count validation,
+event-epoch checks, and an explicit owned `snapshot()` API. Generated files
+belong in the build directory. Schema, generator, schema-version file, and
+generator tests belong in the module repository.
+
 ## Git and submodules
 
 Keep the backend and analysis histories independent. The backend branch records
 only a submodule commit. Update it intentionally, rebuild, run the module smoke
 tests, and commit the new gitlink. Batch run manifests record both revisions.
+
+```bash
+git submodule add git@github.com:ORG/MyAnalyzers.git MyAnalyzers
+git -C MyAnalyzers checkout <reviewed-sha>
+git add .gitmodules MyAnalyzers
+
+# Later update, still pinned to an explicit reviewed commit
+git -C MyAnalyzers fetch origin
+git -C MyAnalyzers checkout <new-reviewed-sha>
+git add MyAnalyzers
+```
+
+## Migration map
+
+| Old form | New form |
+| --- | --- |
+| `Analyzers/AnalyzerCore.*` | `AnalyzerFramework/.../AnalyzerCore.*` |
+| `#include "AnalyzerCore.h"` | `#include <AnalyzerFramework/AnalyzerCore.h>` |
+| concrete analyzer under `Analyzers/` | common analyzer in `CommonAnalyzers/` or an external module |
+| `ExampleViewRun` | `ExampleRun` |
+| monolithic analyzer dictionary/library | one dictionary and library per module |
+| custom fields in backend branch JSON | module-owned schema and typed runtime registration |
+
+Analyzer names and `SKNano.py -a ...` commands do not change. Flat include and
+old library compatibility intentionally do not exist.

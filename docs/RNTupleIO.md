@@ -43,11 +43,13 @@ switch readers at file boundaries while preserving lazy field state.
   writes, page checksums, and bounded compression parallelism from `--ncpu`.
   The sparse multi-dataset profile uses a 4 MiB buffer budget per dataset.
 - Batch merging goes through `scripts/sknano_merge.py`. It checks every shard's
-  RNTuple and histogram schemas, merges with `hadd -fk404`, verifies merged
-  dataset entries, histogram entries, and compression, atomically publishes
-  the target, and deletes shards only after all checks pass. Parallel `hadd`
-  partials are placed under the output filesystem (or `--temp-dir`) so a large
-  merge cannot silently exhaust the node-local `/tmp` filesystem.
+  RNTuple and histogram schemas, explicitly stages `hadd -fk404` in batches of
+  at most 100 inputs, and fully deserializes every intermediate file before it
+  can feed the next stage. It then verifies merged dataset entries, histogram
+  entries, and compression, atomically publishes the target, and deletes
+  shards only after all checks pass. Staged and parallel partials are placed
+  under the output filesystem (or `--temp-dir`) so a large merge cannot
+  silently exhaust the node-local `/tmp` filesystem.
 - Skimming records selected global entries during analysis and writes the
   original input schema through the RNTuple Snapshot backend.
 Set `SKNANO_PERFORMANCE_REPORT=/path/report.json` to collect backend-tagged

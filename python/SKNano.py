@@ -18,6 +18,7 @@ import socket
 import subprocess
 import tarfile
 import hashlib
+import glob
 from pathlib import Path
 
 from tqdm.rich import tqdm
@@ -144,6 +145,13 @@ def getAnalysisModuleDirs():
             result.append(path)
     return result
 
+def getModuleSchemaVersions(module_dir):
+    versions = {}
+    for version_file in Path(module_dir).glob("*/schema/VERSION"):
+        versions[version_file.parent.parent.name] = version_file.read_text(
+            encoding="utf-8").strip()
+    return versions
+
 ##############################
 #Load commonSampleInfo.json at start
 sampleInfoJsons = {}
@@ -153,6 +161,28 @@ for era in Run.keys():
     except:
         print(f"\033[93mWarning: {era} CommonSampleInfo.json is not exist\033[0m")
         sampleInfoJsons[era] = {}
+moduleSampleJsons = {era: {} for era in Run.keys()}
+for module_dir in getAnalysisModuleDirs():
+    patterns = [
+        os.path.join(module_dir, "data", "Sample", "*", "*.json"),
+        os.path.join(module_dir, "*", "data", "Sample", "*", "*.json"),
+    ]
+    for pattern in patterns:
+        for sample_path in sorted(glob.glob(pattern)):
+            era = Path(sample_path).parent.name
+            if era not in Run:
+                continue
+            with open(sample_path, encoding="utf-8") as handle:
+                payload = json.load(handle)
+            name = payload.get("name", Path(sample_path).stem)
+            if name in moduleSampleJsons[era]:
+                raise RuntimeError(
+                    f"duplicate external sample '{name}' for era {era}")
+            sampleInfoJsons[era][name] = {
+                key: value for key, value in payload.items()
+                if key not in {"name", "path", "path_glob"}
+            }
+            moduleSampleJsons[era][name] = sample_path
 skimInfoJsons = {}
 
 
@@ -287,6 +317,7 @@ def makeSourceSnapshot(master_dir):
             "source": module_dir,
             "snapshot": target,
             "git": module_git,
+            "schema_versions": getModuleSchemaVersions(module_dir),
         })
     git_info = getGitInfo()
     archive = makeSourceArchive(master_dir, snapshot_dir, git_info)
@@ -341,7 +372,13 @@ def validateInstalledAnalyzer(analyzer, python_mode=False):
 def copyMetadataSnapshotFile(master_dir, source_path):
     if not source_path or not os.path.exists(source_path):
         return None
-    relpath = os.path.relpath(source_path, SKNANO_DATA)
+    source_real = os.path.realpath(source_path)
+    data_real = os.path.realpath(SKNANO_DATA)
+    if os.path.commonpath([source_real, data_real]) == data_real:
+        relpath = os.path.relpath(source_real, data_real)
+    else:
+        relpath = os.path.join("analysis_modules", Path(source_path).parent.parent.parent.name,
+                               Path(source_path).parent.name, Path(source_path).name)
     target = os.path.join(master_dir, METADATA_SNAPSHOT_DIRNAME, relpath)
     os.makedirs(os.path.dirname(target), exist_ok=True)
     shutil.copy2(source_path, target)
@@ -385,6 +422,7 @@ def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot
         },
         'git': getGitInfo(),
         'source_snapshot': source_snapshot,
+        'analysis_modules': source_snapshot.get('analysis_modules', []),
         'options': {
             'Analyzer': argparser.Analyzer,
             'InputSample': argparser.InputSample,
@@ -644,7 +682,8 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
         sample = SkimInfo['PD']
     else:
         sampleInfo = sampleInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
-        sample_json_path = os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json')
+        sample_json_path = moduleSampleJsons[era].get(
+            sample, os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json'))
         samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
         metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
         

@@ -384,6 +384,15 @@
         "sumW": 161967471676.6117,
         "xsec": 405.685352016
     },
+    "TTLJ_powheg_CustomBPH": {
+        "isMC": 1,
+        "PD": "TTtoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8",
+        "xsec_formula": "923.6*2*3*0.1086*0.6741",
+        "nmc": 484475057.0,
+        "sumsign": 480548627.0,
+        "sumW": 161967471676.6117,
+        "xsec": 405.685352016
+    },
     "TTLJ_Vcb_powheg": {
         "isMC": 1,
         "PD": "TTtoLNuCB_TuneCP5_13p6TeV_powheg-pythia8",

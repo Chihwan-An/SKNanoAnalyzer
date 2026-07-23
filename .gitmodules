@@ -5,3 +5,6 @@
 [submodule "external/jsonpog-integration"]
 	path = external/jsonpog-integration
 	url = ssh://git@gitlab.cern.ch:7999/choij/jsonpog-integration.git
+[submodule "yeonjoon_Analyzers"]
+	path = yeonjoon_Analyzers
+	url = git@github.com:kyj519/yeonjoon_Analyzers.git

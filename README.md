@@ -9,6 +9,35 @@
 - For installation and analysis submission, see [Getting Started](docs/GettingStarted.md).
 - Before contributing code, read the [Development Guide](docs/DevelopmentGuide.md).
 
+## Analyzer development and ownership
+
+SKNano keeps the shared event-processing backend separate from runnable physics
+analyses. Before adding or moving an analyzer, read the full
+[Analyzer development and ownership guide](docs/AnalyzerDevelopment.md).
+
+- `AnalyzerFramework` owns `AnalyzerCore`, loading, branch management, standard
+  NanoAOD views, and output services. Do not add concrete physics analyzers to
+  this directory.
+- `CommonAnalyzers` is only for analyzers that are useful to all SKNano users
+  and have no analysis-group-specific policy. Changes require a normal backend
+  review.
+- Personal and analysis-group analyzers belong in an external module
+  repository. The module owns its CMake target, ROOT dictionary, tests, runtime
+  data, documentation, and custom input schema. Start from
+  `examples/AnalysisModule`.
+- Official NanoAOD schemas and broadly reusable persistent objects belong in
+  the backend. A custom schema stays with its consuming module until multiple
+  independent modules need it; only then should it be promoted to shared
+  input infrastructure.
+- Backend branches pin reviewed external modules as Git submodules. Analyzer
+  names and the usual `SKNano.py -a AnalyzerName ...` submission interface do
+  not change; the installed analyzer manifest validates availability before a
+  job is created.
+
+The old flat `Analyzers/` layout and flat includes such as
+`#include "AnalyzerCore.h"` are unsupported. Use namespaced includes such as
+`#include <AnalyzerFramework/AnalyzerCore.h>`.
+
 ## Changelog
 
 ### [2.0.0] - 2026-07-22

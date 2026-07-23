@@ -125,8 +125,11 @@ export SKNANO_INSTALLDIR=$SKNANO_HOME/install/$SYSTEM
 export PATH=$SKNANO_PYTHON:$PATH
 export PYTHONPATH=$PYTHONPATH:$SKNANO_PYTHON
 export SKNANO_LIB=$SKNANO_INSTALLDIR/lib
-if [[ -f "$SKNANO_HOME/yeonjoon_Analyzers/CMakeLists.txt" ]]; then
-    export SKNANO_ANALYSIS_MODULE_DIRS="${SKNANO_ANALYSIS_MODULE_DIRS:-$SKNANO_HOME/yeonjoon_Analyzers}"
+if [[ -z "$SKNANO_ANALYSIS_MODULE_DIRS" ]]; then
+    _sknano_module_dirs="$(find "$SKNANO_HOME" -maxdepth 1 -type d -name '*_Analyzers' \
+        -exec test -f '{}/CMakeLists.txt' \; -print | paste -sd';' -)"
+    [[ -n "$_sknano_module_dirs" ]] && export SKNANO_ANALYSIS_MODULE_DIRS="$_sknano_module_dirs"
+    unset _sknano_module_dirs
 fi
 export SKNANO_RUN3_NANOAODPATH="/gv0/DATA/SKNano/NanoAODv15/"
 export SKNANO_RUN2_NANOAODPATH="/gv0/DATA/SKNano/NanoAODv15/"

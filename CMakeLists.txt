@@ -155,10 +155,15 @@ add_subdirectory(AnalyzerFramework)
 add_subdirectory(CommonAnalyzers)
 
 set(_sknano_default_analysis_module_dirs "")
-if(EXISTS "${CMAKE_SOURCE_DIR}/yeonjoon_Analyzers/CMakeLists.txt")
-    set(_sknano_default_analysis_module_dirs
-        "${CMAKE_SOURCE_DIR}/yeonjoon_Analyzers")
-endif()
+file(GLOB _sknano_candidate_module_dirs
+    LIST_DIRECTORIES true
+    "${CMAKE_SOURCE_DIR}/*_Analyzers")
+foreach(_sknano_candidate_dir IN LISTS _sknano_candidate_module_dirs)
+    if(IS_DIRECTORY "${_sknano_candidate_dir}"
+       AND EXISTS "${_sknano_candidate_dir}/CMakeLists.txt")
+        list(APPEND _sknano_default_analysis_module_dirs "${_sknano_candidate_dir}")
+    endif()
+endforeach()
 set(SKNANO_ANALYSIS_MODULE_DIRS "${_sknano_default_analysis_module_dirs}"
     CACHE STRING "Semicolon-separated external SKNano analysis module directories")
 set(_sknano_module_index 0)

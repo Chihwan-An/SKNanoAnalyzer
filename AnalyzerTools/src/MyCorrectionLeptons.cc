@@ -60,19 +60,6 @@ float MyCorrection::GetMuonRECOSF(const MuonViewCollection &muons,
 
 float MyCorrection::GetMuonIDSF(const TString &key, const MuonView &muon,
                                 const variation syst) const {
-  if (key == "TopHNT") {
-    auto cset = cset_muon_TopHNT_idsf->at("sf");
-    if (syst == variation::nom)
-      return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "nom"});
-    if (syst == variation::up)
-      return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "up"});
-    if (syst == variation::down)
-      return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "down"});
-    throw runtime_error("[MyCorrection::GetMuonIDSF] Invalid syst value");
-  }
   auto cset = cset_muon->at(string(key));
   return safeEvaluate(
       cset, "GetMuonIDSF",
@@ -202,41 +189,26 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key,
                                     const float eta, const float pt,
                                     const float phi,
                                     const variation syst) const {
-  if (Electron_ID_SF_Key == "TopHNT") {
-    auto cset = cset_electron_TopHNT_idsf->at("sf");
-    if (syst == variation::nom) {
-      return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "nom"});
-    } else if (syst == variation::up) {
-      return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "up"});
-    } else if (syst == variation::down) {
-      return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "down"});
-    } else {
-      throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid syst value");
-    }
-  } else {
-    // POG IDs
-    string key;
-    if (Run == 2)
-      key = "UL-Electron-ID-SF";
-    else if (Run == 3)
-      key = "Electron-ID-SF";
-    else
-      throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid run number");
+  string key;
+  if (Run == 2)
+    key = "UL-Electron-ID-SF";
+  else if (Run == 3)
+    key = "Electron-ID-SF";
+  else
+    throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid run number");
 
-    auto cset = cset_electron->at(key);
-    return safeEvaluate(cset, "GetElectronIDSF",
-                        {DataEra.Data() + std::string("Prompt"),
-                         getSystString_EGM(syst), string(Electron_ID_SF_Key),
-                         eta, pt < 999.9f ? pt : 999.9f});
-  }
+  auto cset = cset_electron->at(key);
+  return safeEvaluate(cset, "GetElectronIDSF",
+                      {DataEra.Data() + std::string("Prompt"),
+                       getSystString_EGM(syst), string(Electron_ID_SF_Key),
+                       eta, pt < 999.9f ? pt : 999.9f});
 }
 
 float MyCorrection::GetElectronIDSF(const TString &key,
                                     const ElectronView &electron,
                                     const variation syst) const {
-  const float eta = key == "TopHNT" ? electron.ScEta()
-                                    : std::fabs(electron.Eta());
-  return GetElectronIDSF(key, eta, electron.Pt(), electron.Phi(), syst);
+  return GetElectronIDSF(key, std::fabs(electron.Eta()), electron.Pt(),
+                         electron.Phi(), syst);
 }
 
 float MyCorrection::GetElectronIDSF(

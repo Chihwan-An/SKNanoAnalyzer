@@ -257,16 +257,6 @@ private:
         string json_met;
         string txt_roccor;
         string golden_json;
-        
-        // Custom
-        string json_muon_TopHNT_idsf;
-        string json_muon_TopHNT_dblmu_leg1_eff;
-        string json_muon_TopHNT_dblmu_leg2_eff;
-        string json_muon_TopHNT_emu_leg1_eff;
-        string json_muon_TopHNT_emu_leg2_eff;
-        string json_electron_TopHNT_idsf;
-        string json_electron_TopHNT_emu_leg1_eff;
-        string json_electron_TopHNT_emu_leg2_eff;
 
         //onnx file location
         string onnx_toppt_reweight;
@@ -397,16 +387,6 @@ private:
     unique_ptr<CorrectionSet> cset_jetvetomap;
     unique_ptr<CorrectionSet> cset_jmar;
     unique_ptr<CorrectionSet> cset_met;
-
-    // custom
-    unique_ptr<CorrectionSet> cset_muon_TopHNT_idsf;
-    unique_ptr<CorrectionSet> cset_muon_TopHNT_dblmu_leg1_eff;
-    unique_ptr<CorrectionSet> cset_muon_TopHNT_dblmu_leg2_eff;
-    unique_ptr<CorrectionSet> cset_muon_TopHNT_emu_leg1_eff;
-    unique_ptr<CorrectionSet> cset_muon_TopHNT_emu_leg2_eff;
-    unique_ptr<CorrectionSet> cset_electron_TopHNT_idsf;
-    unique_ptr<CorrectionSet> cset_electron_TopHNT_emu_leg1_eff;
-    unique_ptr<CorrectionSet> cset_electron_TopHNT_emu_leg2_eff;
 
     unordered_map<string, string> MUO_keys;
     unordered_map<string, string> LUM_keys;

@@ -67,28 +67,6 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
                     true);
   loadCorrectionSet("ctagging R", config.json_ctagging_R, cset_ctagging_R,
                     true);
-  loadCorrectionSet("muon TopHNT idsf", config.json_muon_TopHNT_idsf,
-                    cset_muon_TopHNT_idsf, true);
-  loadCorrectionSet("muon TopHNT dblmu leg1 eff",
-                    config.json_muon_TopHNT_dblmu_leg1_eff,
-                    cset_muon_TopHNT_dblmu_leg1_eff, true);
-  loadCorrectionSet("muon TopHNT dblmu leg2 eff",
-                    config.json_muon_TopHNT_dblmu_leg2_eff,
-                    cset_muon_TopHNT_dblmu_leg2_eff, true);
-  loadCorrectionSet("muon TopHNT emu leg1 eff",
-                    config.json_muon_TopHNT_emu_leg1_eff,
-                    cset_muon_TopHNT_emu_leg1_eff, true);
-  loadCorrectionSet("muon TopHNT emu leg2 eff",
-                    config.json_muon_TopHNT_emu_leg2_eff,
-                    cset_muon_TopHNT_emu_leg2_eff, true);
-  loadCorrectionSet("electron TopHNT idsf", config.json_electron_TopHNT_idsf,
-                    cset_electron_TopHNT_idsf, true);
-  loadCorrectionSet("electron TopHNT emu leg1 eff",
-                    config.json_electron_TopHNT_emu_leg1_eff,
-                    cset_electron_TopHNT_emu_leg1_eff, true);
-  loadCorrectionSet("electron TopHNT emu leg2 eff",
-                    config.json_electron_TopHNT_emu_leg2_eff,
-                    cset_electron_TopHNT_emu_leg2_eff, true);
 
   MLHelper_hDampUp =
       make_unique<MLHelper>(config.onnx_hDampUp, MLHelper::ModelType::ONNX);
@@ -194,15 +172,6 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
   config.onnx_toppt_reweight = sknano_data_str;
   config.onnx_rBnom = sknano_data_str;
   config.onnx_rBUp = sknano_data_str;
-
-  // config.json_muon_custom_TopHNT_idsf = sknano_data_str;
-  // config.json_muon_custom_dblmu_leg1_eff = sknano_data_str;
-  // config.json_muon_custom_dblmu_leg2_eff = sknano_data_str;
-  // config.json_muon_custom_emu_leg1_eff = sknano_data_str;
-  // config.json_muon_custom_emu_leg2_eff = sknano_data_str;
-  // config.json_electron_custom_TopHNT_idsf = sknano_data_str;
-  // config.json_electron_custom_emu_leg1_eff = sknano_data_str;
-  // config.json_electron_custom_emu_leg2_eff = sknano_data_str;
 
   if (era == "2024") {
     const string tag =

@@ -48,6 +48,9 @@ FatJet::FatJet() : Particle() {
     j_tau3 = -999.;
     j_tau4 = -999.;
     j_rawFactor = -999.;
+    jet_rawPt = -999.;
+    jet_originalPt = -999.;
+    j_unsmearedP4.SetPxPyPzE(-999., -999., -999., -999.);
 
 }
 

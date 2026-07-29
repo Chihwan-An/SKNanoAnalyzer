@@ -32,6 +32,12 @@ systematics:
     target: "M_Iso_Weight"
     evtLoopAgain: false
 
+  # LSF3 cut efficiency SF, boosted SR / flavor CR only (weight stays 1 elsewhere).
+  # muon-in-fatjet 1.06 +- 0.10, electron-in-fatjet 1.11 +- 0.11; see GetLSFSF.
+  - syst: "LSF"
+    target: "LSF_Weight"
+    evtLoopAgain: false
+
   - syst: "JER"
     target: "JER_Variation"
     evtLoopAgain: true
@@ -39,6 +45,41 @@ systematics:
   - syst: "JES"
     target: "JES_Variation"
     evtLoopAgain: true
+
+  # --- object-level energy/momentum scale & resolution -------------------------------
+  # evtLoopAgain: true -> the analyzer re-runs the event with the varied collection, see
+  # Reproduce20_002_copy::executeEventFromParameter. Targets are dummies (the variation is
+  # kinematic, not a weight), exactly like JER/JES above.
+
+  # Muon momentum scale: Rochester error below 200 GeV, Generalized Endpoint kappa +- sigma
+  # above. Both are stored on the muon by GetAllMuons via SetMomentumScaleUpDown.
+  - syst: "MuonScale"
+    target: "MuonScale_Variation"
+    evtLoopAgain: true
+
+  # Electron energy scale (EGM total_uncertainty, MC only).
+  - syst: "ElectronScale"
+    target: "ElectronScale_Variation"
+    evtLoopAgain: true
+
+  # Electron energy resolution (EGM err_rho, MC only).
+  - syst: "ElectronRes"
+    target: "ElectronRes_Variation"
+    evtLoopAgain: true
+
+  # AK8 JES / JER. The AK4 counterparts are the JES/JER entries above; AK8 is varied
+  # separately because the two use different correction sets and are not fully correlated.
+  - syst: "FatJetJES"
+    target: "FatJetJES_Variation"
+    evtLoopAgain: true
+
+  - syst: "FatJetJER"
+    target: "FatJetJER_Variation"
+    evtLoopAgain: true
+
+  # TODO MuonRes: the Muon POG has not published the resolution-systematic factors in a
+  # usable form yet (see plots/HNWR/corrections/README.md 2.3), so only the nominal
+  # high-pT smearing is applied and no nuisance is assigned.
 
   # XSec(theory) weight systematics: renormalization/factorization scale, PDF, alpha_S.
   # Pure weight variations (evtLoopAgain: false) -> each becomes its own "<syst>_Up/_Down" directory.
@@ -56,6 +97,53 @@ systematics:
 
   - syst: "AlphaS"
     target: "AlphaS_Weight"
+
+  # DY gen Z-pT correction C(genZpT), NLO/LO. DY MC only; the targets stay at 1
+  # for every other sample, so these directories are empty variations there.
+  #
+  # Only ZPtRw_MC_stat carries C at nominal -- the other three return 1 at
+  # nominal and the ratio C_var/C_nom for their variation. calculateWeight()
+  # multiplies the nominal of every target into the central weight, so four
+  # targets each returning C would apply it four times.
+  #
+  # ZPtRw_MC_stat is the MC statistical error of C, taken from the bin errors of
+  # the nominal ZPTReweight histogram. The other three are the theory variations
+  # of the NLO numerator; LO is held fixed by construction. The four are
+  # disjoint: ZPTReweight_Up/Down in the correction file is the quadrature sum
+  # of the same three theory groups and is NOT used by any target here, because
+  # it would double-count them and drop the statistical error.
+  - syst: "ZPtRw_MC_stat"
+    target: "ZPt_Weight"
+    evtLoopAgain: false
+
+  - syst: "ZPtRwQCDScale"
+    target: "ZPt_QCDScale"
+    evtLoopAgain: false
+
+  - syst: "ZPtRwQCDPDFError"
+    target: "ZPt_QCDPDFError"
+    evtLoopAgain: false
+
+  - syst: "ZPtRwQCDPDFAlphaS"
+    target: "ZPt_QCDPDFAlphaS"
+    evtLoopAgain: false
+
+  # NLO EW correction EW(genZpT), arXiv:1705.04664, ported from SKFlat
+  # HNWRAnalyzer (ZPtEWCorr.root). Same one-factor bookkeeping as C above:
+  # ZPt_EW1 carries EW at nominal (and its e1 variation), ZPt_EW2/EW3 return 1
+  # at nominal and the ratio EW_var/EW_nom, so Central gets EW exactly once.
+  # The three sources are the independent EW uncertainties of the paper
+  # (higher-order Sudakov logs / hard non-Sudakov NNLO / Sudakov approximation).
+  - syst: "ZPtRwEW1"
+    target: "ZPt_EW1"
+    evtLoopAgain: false
+
+  - syst: "ZPtRwEW2"
+    target: "ZPt_EW2"
+    evtLoopAgain: false
+
+  - syst: "ZPtRwEW3"
+    target: "ZPt_EW3"
     evtLoopAgain: false
 
 

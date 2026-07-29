@@ -17,6 +17,18 @@ public:
     void executeEventFromParameter();
     bool RunSyst;
     bool RunWRCut;
+    // DY correction userflags, for the before/after figures in
+    // fig/05_backgrounds/forAN/. Neither flag set is the production default:
+    // C(gen Z pT) and R(reco jet pT) both on.
+    //   NoDYCorr  both off        -> "before"
+    //   ZptOnly   C on, R off     -> "after"
+    // The two are mutually exclusive; setting both is a fatal error rather than
+    // a silent precedence rule, so a mislabelled output directory cannot happen.
+    bool NoDYCorr = false;
+    bool ZptOnly = false;
+    // Remove AK8 jets overlapping (dR < 0.4) any tight lepton.
+    // HNWRAnalyzer does NOT do this, so it is off by default; flip to true to restore.
+    bool CleanFatjetWithTightLeptons = false;
     unique_ptr<SystematicHelper> systHelper;
     
     
@@ -159,15 +171,26 @@ public:
     // Only fills for the Central systematic.
     void FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight);
 
-    // Electron trigger (Target_Trigger_OR: HLT_Ele30_WPTight_Gsf | HLT_Photon200 | HLT_Ele115_CaloIdVT_GsfTrkIdT)
-    // scale factor from the egamma-tnp Tag&Probe measurement (2022/2022EE/2023/2023BPix),
-    // binned in (el_pt, el_eta). Returns 1.0 for eras without a measurement (e.g. 2017).
+    // Electron trigger scale factor: constant per era, split barrel/endcap at SC
+    // |eta| = 1.4442 (EGM high-pT trigger T&P, fit range pT > 130 GeV).
+    // Returns 1.0 for eras without a measurement (e.g. 2017).
     float GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const;
 
-    // HEEP ID (Electron_cutBased_HEEP) scale factor from the egamma-tnp Tag&Probe
-    // measurement, binned in (el_pt, el_eta). Currently 2022 only; returns 1.0
-    // for eras without a measurement (2022EE/2023/2023BPix pending).
+    // High-pT electron ID scale factor from POG/EGM electronID_highPt.json.gz
+    // ("Electron-ID-SF", WP "Tight"), binned in (signed SC eta, pt); pt bins start
+    // at 100 GeV with clamp flow. Returns 1.0 for eras without the JSON (e.g. 2017).
     float GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const;
+
+    // Mini-isolation (miniPFRelIso_all < 0.1) scale factor for the subleading loose
+    // lepton cut in the boosted SR, from the egamma-tnp Tag&Probe measurement
+    // (2022/2022EE/2023/2023BPix), binned in (el_pt, el_eta). Electrons only —
+    // the muon-channel measurement is not available yet. Returns 1.0 for eras
+    // without a measurement (e.g. 2017).
+    //
+    // NOT applied as an event weight yet: the miniIso cut replaces the LSF3 cut in
+    // this analyzer, but the corresponding SF is left out for now (LSF_Weight stays
+    // at 1). Kept here so the table is ready when it is turned on.
+    float GetElectronMiniIsoSF_TnP(double eta, double pt, MyCorrection::variation var) const;
 
     RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;
@@ -178,6 +201,73 @@ public:
     
     RVec<Jet> Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) ;
     RVec<FatJet> Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) ;
+
+    // ------------------------------------------------------------------------
+    // DY corrections. Two event weights on DY MC only:
+    //
+    //     w *= C(genZpT) * R(recoLeadingJetPt)
+    //
+    // C is the gen-level NLO/LO Z-pT ratio, a per-event scalar, so it goes into
+    // `weight` through the systematic machinery and reaches every region.
+    // R is data-driven, from the DY CR, and depends on the reco category --
+    // resolved reads the leading AK4 pT, boosted the leading AK8 pT. The two
+    // categories are NOT exclusive here (is_Resolved_DY_* and is_Boosted_DY_*
+    // can both be set), so R must not be folded into `weight`; it multiplies the
+    // fill weight per block instead.
+    //
+    // Derivation: fig/05_backgrounds/scripts/make_dy_{zpt_nlo_lo,jetpt_ratio}.py.
+    // Both currently exist for 2022 and 2022EE only.
+    // ------------------------------------------------------------------------
+    struct DYCorrections {
+        bool loaded = false;
+        bool apply = false;            // false for data and every non-DY sample
+        // R only. `apply` gates both corrections; this gates R alone, so the
+        // ZptOnly userflag can leave C on. Meaningless when apply is false.
+        bool apply_r = false;
+
+        // C(genZpT): nominal plus the three theory variations, all on one binning
+        std::vector<double> zpt_edges;
+        std::map<std::string, std::vector<double>> zpt;   // key -> bin values
+
+        // MC statistical error of C. make_dy_zpt_nlo_lo.py keeps it in the bin
+        // errors of the nominal ZPTReweight histogram and nowhere else -- the
+        // ZPTReweight_Up/Down pair is the theory quadrature sum, not this.
+        std::vector<double> zpt_stat;
+
+        // R(jet pT), rebinned curves only. Native binning has R < 0 at high pT.
+        std::vector<double> r_edges_res, r_val_res, r_sig_res;
+        std::vector<double> r_edges_boo, r_val_boo, r_sig_boo;
+
+        // Number of usable bins per category, i.e. how many DYReshape nuisances
+        // there are. Bin 0 sits below the jet pT selection and is undefined.
+        int n_nuis_res = 0, n_nuis_boo = 0;
+    } dycorr;
+
+    void LoadDYCorrections();
+
+    // Sum of the two isHardProcess charged leptons. Must stay identical to
+    // DYGenZpT.cc, which is the definition C was derived against. -1 if absent.
+    float GetGenZpT() const;
+
+    // C for one variation key ("ZPTReweight", "ZPTReweight_QCDScaleUp", ...).
+    // Clamps above the top edge; returns 1 for a non-finite or non-positive
+    // entry, never 0 -- a 0 would delete the event rather than leave it alone.
+    float GetZptWeight(float gen_zpt, const std::string &key) const;
+
+    // MC statistical error of C in the bin `gen_zpt` falls in, as an absolute
+    // (not relative) sigma. 0 where C itself is undefined, so that C +- sigma
+    // collapses back onto the nominal there.
+    float GetZptStat(float gen_zpt) const;
+
+    // R for a reco category. `nuis_bin` >= 0 shifts that one bin by
+    // `dir` * sigma and leaves the others at nominal, which is how the per-bin
+    // DYReshape nuisances are built; -1 is the nominal curve.
+    float GetJetPtR(bool resolved, float pt, int nuis_bin = -1, int dir = 0) const;
+
+    // DY samples the corrections apply to: the HT-binned LO set the background
+    // estimate uses. DYJets (amcatnloFXFX) is excluded -- it was the numerator
+    // when C was derived, so correcting it would be circular.
+    bool IsDYSample() const;
     
 
     float dR_Separation = 0.4;

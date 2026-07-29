@@ -1,1 +1,10 @@
-WR*
+TTLL_powheg
+TTLJ_powheg
+ST*
+WJetM*
+DYM*
+ZZ*
+WZ*
+WW*
+ttW*
+ttZ*

@@ -1,4 +1,4 @@
-#include "HNWR_miniiso.h"
+#include "HNWR_miniiso_scan.h"
 
 #include <TFile.h>
 #include <TH1.h>
@@ -8,10 +8,10 @@
 #include <cmath>
 #include <cstdlib>
 
-HNWR_miniiso::HNWR_miniiso() {}
-HNWR_miniiso::~HNWR_miniiso() {}  
+HNWR_miniiso_scan::HNWR_miniiso_scan() {}
+HNWR_miniiso_scan::~HNWR_miniiso_scan() {}  
 
-void HNWR_miniiso::initializeAnalyzer() {
+void HNWR_miniiso_scan::initializeAnalyzer() {
     // if signal ..  # 26 
     // kfactor  # 51
     el_set.AllElectrons.clear();
@@ -77,7 +77,7 @@ void HNWR_miniiso::initializeAnalyzer() {
     NoDYCorr = HasFlag("NoDYCorr");
     ZptOnly = HasFlag("ZptOnly");
     if (NoDYCorr && ZptOnly) {
-        cerr << "[HNWR_miniiso] FATAL: NoDYCorr and ZptOnly are mutually "
+        cerr << "[HNWR_miniiso_scan] FATAL: NoDYCorr and ZptOnly are mutually "
              << "exclusive. Pass one or neither." << endl;
         exit(EXIT_FAILURE);
     }
@@ -143,7 +143,7 @@ using ElMiniIsoSFTable = std::array<std::array<float, 6>, 9>;
 // Probe baseline: HNWR loose electron = (cutBased Loose WP minus isolation cut) OR HEEP,
 //   implemented from Electron_vidNestedWPBitmap (cut 7 skipped) | Electron_cutBased_HEEP,
 //   i.e. the same object as the analysis loose electron (isPassLooseNoIso || cutBased_HEEP,
-//   HNWR_miniiso::Electrons::isPassLooseNoIso).
+//   HNWR_miniiso_scan::Electrons::isPassLooseNoIso).
 // Source: /data6/Users/achihwan/tnp/egamma-tnp/Mini_iso/MiniIso_fit/bpoly/<era>/miniiso_fit_results_<era>_bpoly.json
 // MC is PU-reweighted at histogram level (puWeight*genWeight); DATA is unweighted.
 // Fit: double Crystal Ball signal + Bernstein background, 50 < mll < 130 GeV.
@@ -253,15 +253,15 @@ const ElMiniIsoSFTable ElMiniIsoSFErr_2023BPix = {{
 }};
 }  // namespace
 
-bool HNWR_miniiso::IsDYSample() const {
+bool HNWR_miniiso_scan::IsDYSample() const {
     return !IsDATA && MCSample.Contains("DYMLL");
 }
 
-void HNWR_miniiso::LoadDYCorrections() {
+void HNWR_miniiso_scan::LoadDYCorrections() {
     dycorr = DYCorrections();
     if (!IsDYSample()) return;
     if (NoDYCorr || getenv("DY_NO_CORRECTION")) {
-        cout << "[HNWR_miniiso] DY corrections OFF for " << MCSample
+        cout << "[HNWR_miniiso_scan] DY corrections OFF for " << MCSample
              << " / " << DataEra << " (C=off R=off), requested by "
              << (NoDYCorr ? "userflag NoDYCorr" : "DY_NO_CORRECTION") << "." << endl;
         return;
@@ -272,7 +272,7 @@ void HNWR_miniiso::LoadDYCorrections() {
     const TString zpath = zenv ? zenv : kDefaultZptFile;
     unique_ptr<TFile> zf(TFile::Open(zpath));
     if (!zf || zf->IsZombie()) {
-        cerr << "[HNWR_miniiso] FATAL: cannot open " << zpath << endl;
+        cerr << "[HNWR_miniiso_scan] FATAL: cannot open " << zpath << endl;
         exit(EXIT_FAILURE);
     }
     // Era-specific. There is no combined fallback: reweighting one era with
@@ -284,7 +284,7 @@ void HNWR_miniiso::LoadDYCorrections() {
                             "ZPTReweight_QCDPDFAlphaSUp", "ZPTReweight_QCDPDFAlphaSDown"}) {
         std::vector<double> e, v, s;
         if (!ReadTH1(zf.get(), zdir + key, e, v, &s)) {
-            cerr << "[HNWR_miniiso] FATAL: " << zdir << key << " missing in "
+            cerr << "[HNWR_miniiso_scan] FATAL: " << zdir << key << " missing in "
                  << zpath << ". C is delivered for 2022, 2022EE, 2023 and "
                  << "2023BPix; re-run make_dy_zpt_nlo_lo.py if an era is absent."
                  << endl;
@@ -310,7 +310,7 @@ void HNWR_miniiso::LoadDYCorrections() {
     if (!ZptOnly) {
         unique_ptr<TFile> rf(TFile::Open(rpath));
         if (!rf || rf->IsZombie()) {
-            cerr << "[HNWR_miniiso] FATAL: cannot open " << rpath << endl;
+            cerr << "[HNWR_miniiso_scan] FATAL: cannot open " << rpath << endl;
             exit(EXIT_FAILURE);
         }
         // Era-specific, like C. The "_comb" in the directory name is the flavour
@@ -330,7 +330,7 @@ void HNWR_miniiso::LoadDYCorrections() {
             // make_dy_jetpt_ratio.py writes "rebinned" as a directory, and puts
             // sigma_R (= R_total, stat + non-DY xsec) into R_nominal's bin errors.
             if (!ReadTH1(rf.get(), dir + "rebinned/R_nominal", edges, vals, &sigs)) {
-                cerr << "[HNWR_miniiso] FATAL: " << dir
+                cerr << "[HNWR_miniiso_scan] FATAL: " << dir
                      << "rebinned/R_nominal missing in " << rpath << endl;
                 exit(EXIT_FAILURE);
             }
@@ -346,14 +346,14 @@ void HNWR_miniiso::LoadDYCorrections() {
     // the DYReshape nuisance loops iterate zero times. That is the intent: no R
     // means no R nuisances.
     dycorr.apply_r = !ZptOnly;
-    cout << "[HNWR_miniiso] DY corrections on for " << MCSample << " / "
+    cout << "[HNWR_miniiso_scan] DY corrections on for " << MCSample << " / "
          << DataEra << ": C=on R=" << (dycorr.apply_r ? "on" : "off (userflag ZptOnly)")
          << ", C from " << zpath << " (" << dycorr.zpt_edges.size() - 1
          << " bins), R from " << rpath << " (" << dycorr.n_nuis_res
          << " resolved + " << dycorr.n_nuis_boo << " boosted nuisance bins)" << endl;
 }
 
-float HNWR_miniiso::GetGenZpT() const {
+float HNWR_miniiso_scan::GetGenZpT() const {
     RVec<Gen> hard;
     for (const auto &gen : gen_set.gens) {
         const int abspid = abs(gen.PID());
@@ -365,7 +365,7 @@ float HNWR_miniiso::GetGenZpT() const {
     return (hard.at(0) + hard.at(1)).Pt();
 }
 
-float HNWR_miniiso::GetZptWeight(float gen_zpt, const std::string &key) const {
+float HNWR_miniiso_scan::GetZptWeight(float gen_zpt, const std::string &key) const {
     if (!dycorr.apply || gen_zpt < 0.) return 1.f;
     auto it = dycorr.zpt.find(key);
     if (it == dycorr.zpt.end() || it->second.empty()) return 1.f;
@@ -376,7 +376,7 @@ float HNWR_miniiso::GetZptWeight(float gen_zpt, const std::string &key) const {
     return static_cast<float>(c);
 }
 
-float HNWR_miniiso::GetZptStat(float gen_zpt) const {
+float HNWR_miniiso_scan::GetZptStat(float gen_zpt) const {
     if (!dycorr.apply || gen_zpt < 0.) return 0.f;
     if (dycorr.zpt_stat.empty()) return 0.f;
     const int i = FindBin(dycorr.zpt_edges, gen_zpt);
@@ -388,7 +388,7 @@ float HNWR_miniiso::GetZptStat(float gen_zpt) const {
     return static_cast<float>(s);
 }
 
-float HNWR_miniiso::GetJetPtR(bool resolved, float pt, int nuis_bin, int dir) const {
+float HNWR_miniiso_scan::GetJetPtR(bool resolved, float pt, int nuis_bin, int dir) const {
     if (!dycorr.apply || !dycorr.apply_r || pt < 0.) return 1.f;
     const std::vector<double> &edges = resolved ? dycorr.r_edges_res : dycorr.r_edges_boo;
     const std::vector<double> &vals = resolved ? dycorr.r_val_res : dycorr.r_val_boo;
@@ -412,7 +412,7 @@ float HNWR_miniiso::GetJetPtR(bool resolved, float pt, int nuis_bin, int dir) co
     return static_cast<float>(r);
 }
 
-float HNWR_miniiso::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const {
+float HNWR_miniiso_scan::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     const bool isBarrel = std::fabs(eta) < 1.4442;
 
     float sf, err;
@@ -432,7 +432,7 @@ float HNWR_miniiso::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection
 // High-pT electron ID SF from POG/EGM/<era>/electronID_highPt.json.gz
 // ("Electron-ID-SF", WP "Tight"). pt bins start at 100 GeV with clamp flow,
 // so pt < 100 uses the first bin.
-float HNWR_miniiso::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const {
+float HNWR_miniiso_scan::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     if (DataEra != "2022" && DataEra != "2022EE" && DataEra != "2023" && DataEra != "2023BPix")
         return 1.0; // no EGM high-pT ID SF for this era (e.g. 2017)
     return myCorr->GetElectronHighPtIDSF(eta, pt, var);
@@ -441,7 +441,7 @@ float HNWR_miniiso::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection:
 // Mini-isolation SF for the subleading loose lepton in the fatjet, the cut that
 // replaces LSF3 > 0.75 here. Electrons only. NOT wired into weight_function_map yet:
 // LSF_Weight stays at 1, so this analyzer applies the miniIso *cut* without its SF.
-float HNWR_miniiso::GetElectronMiniIsoSF_TnP(double eta, double pt, MyCorrection::variation var) const {
+float HNWR_miniiso_scan::GetElectronMiniIsoSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     static const double eta_edges[7] = {-2.5, -1.566, -1.4442, 0.0, 1.4442, 1.566, 2.5};
     static const double pt_edges[10] = {53, 60, 70, 80, 100, 150, 200, 300, 500, 1000};
 
@@ -468,7 +468,7 @@ float HNWR_miniiso::GetElectronMiniIsoSF_TnP(double eta, double pt, MyCorrection
     return sf;
 }
 
-void HNWR_miniiso::executeEvent() {
+void HNWR_miniiso_scan::executeEvent() {
 
     el_set.AllElectrons =  GetAllElectrons();
     mu_set.AllMuons = GetAllMuons();
@@ -487,7 +487,7 @@ void HNWR_miniiso::executeEvent() {
 
 }
 
-void HNWR_miniiso::executeEventFromParameter() {
+void HNWR_miniiso_scan::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
     
     Event ev = GetEvent();
@@ -563,7 +563,7 @@ void HNWR_miniiso::executeEventFromParameter() {
     if (dycorr.apply) {
         const float gen_zpt = GetGenZpT();
         if (gen_zpt < 0.) {
-            cerr << "[HNWR_miniiso] FATAL: no isHardProcess lepton pair "
+            cerr << "[HNWR_miniiso_scan] FATAL: no isHardProcess lepton pair "
                  << "(run " << RunNumber << ", event " << EventNumber << ", sample "
                  << MCSample << ", era " << DataEra << "). C assumes 100% coverage."
                  << endl;
@@ -3614,6 +3614,13 @@ void HNWR_miniiso::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_SREEsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_SREEfatjet_lsf3, final_weight, 100, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_SREEsubleadlep_miniiso, final_weight, 200, 0., 1.);
+                // scan build: joint LSF3 x miniIso plane on the un-gated SR baseline.
+                // Central only -- this block runs over ~29 systematics x ~10 pfx variants,
+                // and a 100x200 bin hist for each of those would blow up the file size.
+                if (syst_name == "Central")
+                    FillHist(syst_name + "/" + pfx + "_lsf3_vs_miniiso",
+                             Boost_SREEfatjet_lsf3, Boost_SREEsubleadlep_miniiso, final_weight,
+                             100, 0., 1., 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_SREEdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_SREEdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_SREEpileup_num, final_weight, 80, 0., 80.);
@@ -3661,6 +3668,10 @@ void HNWR_miniiso::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_SRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_SRMMfatjet_lsf3, final_weight, 100, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_SRMMsubleadlep_miniiso, final_weight, 200, 0., 1.);
+                if (syst_name == "Central")
+                    FillHist(syst_name + "/" + pfx + "_lsf3_vs_miniiso",
+                             Boost_SRMMfatjet_lsf3, Boost_SRMMsubleadlep_miniiso, final_weight,
+                             100, 0., 1., 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_SRMMdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_SRMMdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_SRMMpileup_num, final_weight, 80, 0., 80.);
@@ -3806,7 +3817,7 @@ void HNWR_miniiso::executeEventFromParameter() {
     // end ## 1984
     
 
-void HNWR_miniiso::SetSignalFlags() {
+void HNWR_miniiso_scan::SetSignalFlags() {
     sig_isSignal   = false;
     sig_isOffshell = false;
     sig_isOnshell  = false;
@@ -3862,7 +3873,7 @@ void HNWR_miniiso::SetSignalFlags() {
     }
 }
 
-void HNWR_miniiso::FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight) {
+void HNWR_miniiso_scan::FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight) {
     if (this_syst != "Central") return;
     const TString base  = isResolved ? "/Cutflow_for_reseolved_SR" : "/Cutflow_for_Boosted_SR";
     const int     nbins = isResolved ? 10  : 13;
@@ -3880,7 +3891,7 @@ void HNWR_miniiso::FillSignalCutflow(const TString &this_syst, bool isResolved, 
     if (sig_isSignal)              FillHist(this_syst + base + "_signal", binN, weight, nbins, 0., xmax);
 }
 
-bool HNWR_miniiso::Electrons::isPassCustomTightID(const Electron& el, const HNWR_miniiso::Electrons& eset) const {
+bool HNWR_miniiso_scan::Electrons::isPassCustomTightID(const Electron& el, const HNWR_miniiso_scan::Electrons& eset) const {
     if (fabs(el.scEta()) < 1.566) {
         return el.PassID(eset.Electron_Tight_ID[0]);
     }
@@ -3897,7 +3908,7 @@ bool HNWR_miniiso::Electrons::isPassCustomTightID(const Electron& el, const HNWR
     return true;
 }
 
-bool HNWR_miniiso::Electrons::isPassCustomLooseID(const Electron& el) const {
+bool HNWR_miniiso_scan::Electrons::isPassCustomLooseID(const Electron& el) const {
     //if (!(el.hoe() < 0.5)) return false;
 
     if (fabs(el.scEta()) <= 1.479){
@@ -3924,7 +3935,7 @@ bool HNWR_miniiso::Electrons::isPassCustomLooseID(const Electron& el) const {
     return true ;
 }
 
-bool HNWR_miniiso::Electrons::isPassLooseNoIso(const Electron& el) const {
+bool HNWR_miniiso_scan::Electrons::isPassLooseNoIso(const Electron& el) const {
     // Matches Python selectLooseElectrons logic:
     // Evaluate vidNestedWPBitmap with id_level=2 (Loose WP), ignoring isolation (cut index 7)
     //
@@ -3959,7 +3970,7 @@ bool HNWR_miniiso::Electrons::isPassLooseNoIso(const Electron& el) const {
     return true;
 }
 
-RVec<FatJet> HNWR_miniiso::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {
+RVec<FatJet> HNWR_miniiso_scan::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {
     RVec<FatJet> cleanedfatjets;
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet fatjet = fatjets.at(i);
@@ -3978,7 +3989,7 @@ RVec<FatJet> HNWR_miniiso::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & 
     return cleanedfatjets;
 }
 
-RVec<Jet> HNWR_miniiso::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
+RVec<Jet> HNWR_miniiso_scan::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
     RVec<Jet> cleanedjets;
     for (unsigned int i=0 ; i< jets.size(); i ++) {
         Jet jet = jets.at(i);
@@ -3997,7 +4008,7 @@ RVec<Jet> HNWR_miniiso::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, con
     return cleanedjets;
 }
 
-RVec<Jet> HNWR_miniiso::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) {
+RVec<Jet> HNWR_miniiso_scan::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) {
     RVec<Jet> cleanedjets;
     for (unsigned int i=0 ; i< jets.size(); i ++) {
         Jet jet = jets.at(i);
@@ -4016,7 +4027,7 @@ RVec<Jet> HNWR_miniiso::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets,
     return cleanedjets;
 }
 
-RVec<FatJet> HNWR_miniiso::Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) {
+RVec<FatJet> HNWR_miniiso_scan::Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) {
     RVec<FatJet> cleanedfatjets;
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet fatjet = fatjets.at(i);

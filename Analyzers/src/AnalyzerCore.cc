@@ -1,5 +1,26 @@
 #include "AnalyzerCore.h"
-#include <cmath> 
+#include <cmath>
+
+namespace {
+    // Per-object RNG seed for resolution smearing (electrons and high-pT muons).
+    //
+    // It must be (a) unique per object - otherwise every object in an event gets an
+    // identical pull - and (b) reproducible, so that a systematic variation re-draws the
+    // *same* underlying Gaussian and only the width changes. Built from the event number
+    // plus the direction, which no energy/momentum correction modifies (pt would not be
+    // stable). Fixing the seed also keeps a rerun of the same sample bit-identical.
+    inline unsigned int ObjectSmearSeed(long long event, float eta, float phi) {
+        unsigned long long h = static_cast<unsigned long long>(event);
+        h ^= static_cast<unsigned long long>(std::llround(eta*10000.)) * 0x9E3779B97F4A7C15ull;
+        h ^= static_cast<unsigned long long>(std::llround(phi*10000.))   * 0xC2B2AE3D27D4EB4Full;
+        // splitmix64 finalizer
+        h ^= h >> 30; h *= 0xBF58476D1CE4E5B9ull;
+        h ^= h >> 27; h *= 0x94D049BB133111EBull;
+        h ^= h >> 31;
+        return static_cast<unsigned int>(h & 0xFFFFFFFFull);
+    }
+}
+
 AnalyzerCore::AnalyzerCore() {
     myCorr = nullptr;
     outfile = nullptr;
@@ -21,6 +42,58 @@ AnalyzerCore::~AnalyzerCore() {
     if (outfile) delete outfile;
     if (myCorr) delete myCorr;
     // if (pdfReweight) delete pdfReweight;
+}
+
+bool AnalyzerCore::FillingCorrShapes() {
+    // Lazy: the job macro assigns module.Userflags *after* the constructor has run, so the
+    // flag has to be read the first time it is actually needed.
+    if (!corrShapesChecked) {
+        corrShapesChecked = true;
+        fillCorrShapes = HasFlag("corrShapes");
+        if (fillCorrShapes)
+            cout << "[AnalyzerCore] corrShapes: filling correction before/after shapes" << endl;
+    }
+    return fillCorrShapes;
+}
+
+void AnalyzerCore::FillCorrShape(const TString &tag, const TString &var, float before, float after,
+                                 int n_bin, float x_min, float x_max) {
+    if (!FillingCorrShapes()) return;
+    const TString dir = "CorrShapes/" + tag + "/" + var;
+    FillHist(dir + "_before", before, 1., n_bin, x_min, x_max);
+    FillHist(dir + "_after",  after,  1., n_bin, x_min, x_max);
+    if (before != 0.) FillHist(dir + "_factor", after/before, 1., 400, 0.8, 1.2);
+}
+
+void AnalyzerCore::FillCorrWeight(const TString &tag, float sf) {
+    if (!FillingCorrShapes()) return;
+    FillHist("CorrShapes/" + tag + "/sf", sf, 1., 1000, 0., 2.);
+}
+
+void AnalyzerCore::FillCorrInputs(const TString &tag, float eta, float phi, float pt, float factor,
+                                  int charge, float pt_max, float eta_max) {
+    if (!FillingCorrShapes()) return;
+    // Outside the acceptance the analysis actually uses, drop the object entirely rather
+    // than let it fall off the eta axis only: otherwise factor_vs_eta would describe a
+    // different population than factor_vs_phi / factor_vs_pt and the three could not be
+    // compared.
+    if (fabs(eta) > eta_max) return;
+
+    const TString dir = "CorrShapes/" + tag + "/factor_vs_";
+    // y range is deliberately wide enough to keep the GE tails and JER outliers in range
+    const int    NF = 200;
+    const float  F0 = 0.7f, F1 = 1.3f;
+
+    FillHist(dir + "eta", eta, factor, 1.,  96, -eta_max, eta_max, NF, F0, F1);
+    FillHist(dir + "phi", phi, factor, 1.,  72, -M_PI, M_PI, NF, F0, F1);
+    FillHist(dir + "pt",  pt,  factor, 1., 100,  0.,   pt_max, NF, F0, F1);
+
+    if (charge != 0) {
+        const TString q = (charge > 0) ? "_qpos" : "_qneg";
+        FillHist(dir + "eta" + q, eta, factor, 1.,  96, -eta_max, eta_max, NF, F0, F1);
+        FillHist(dir + "phi" + q, phi, factor, 1.,  72, -M_PI, M_PI, NF, F0, F1);
+        FillHist(dir + "pt"  + q, pt,  factor, 1., 100,  0.,   pt_max, NF, F0, F1);
+    }
 }
 
 // https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2
@@ -71,19 +144,38 @@ bool AnalyzerCore::PassNoiseFilter(const RVec<Jet> &Alljets, const Event &ev, co
 
 float AnalyzerCore::GetScaleVariation(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst) {
     if(nLHEScaleWeight == 0) return 1.;
-    if(muF_syst == MyCorrection::variation::down && muR_syst == MyCorrection::variation::down) return LHEScaleWeight[0];
-    else if(muF_syst == MyCorrection::variation::nom && muR_syst == MyCorrection::variation::down) return LHEScaleWeight[1];
-    else if(muF_syst == MyCorrection::variation::up && muR_syst == MyCorrection::variation::down) return LHEScaleWeight[2];
-    else if(muF_syst == MyCorrection::variation::down && muR_syst == MyCorrection::variation::nom) return LHEScaleWeight[3];
-    else if(muF_syst == MyCorrection::variation::up && muR_syst == MyCorrection::variation::nom) return LHEScaleWeight[4];
-    else if(muF_syst == MyCorrection::variation::down && muR_syst == MyCorrection::variation::up) return LHEScaleWeight[5];
-    else if(muF_syst == MyCorrection::variation::nom && muR_syst == MyCorrection::variation::up) return LHEScaleWeight[6];
-    else if(muF_syst == MyCorrection::variation::up && muR_syst == MyCorrection::variation::up) return LHEScaleWeight[7];
-    else if(muF_syst == MyCorrection::variation::nom && muR_syst == MyCorrection::variation::nom) return 1.f;
-    else{
-        cout << "[AnalyzerCore::GetScaleVariation] muF_syst = " << int(muF_syst) << " and muR_syst = " << int(muR_syst) << " is not implemented" << endl;
-        exit(ENODATA);
+
+    // (muF, muR) == (nom, nom) is the central value by definition.
+    if(muF_syst == MyCorrection::variation::nom && muR_syst == MyCorrection::variation::nom) return 1.f;
+
+    // Standard NanoAOD LHEScaleWeight ordering: muR is the outer (slow) index,
+    // muF the inner (fast) index, i.e. index = 3*iR + iF with i in {down,nom,up}.
+    //   9-element samples INCLUDE the nominal (muR=1,muF=1) at index 4.
+    //   8-element samples OMIT the nominal, so every entry from the nominal slot
+    //     onward is shifted down by one.
+    // Map each (muF, muR) request to (iF, iR) in {0,1,2} = {down, nom, up}.
+    auto varIndex = [](const MyCorrection::variation &v) -> int {
+        if(v == MyCorrection::variation::down) return 0;
+        if(v == MyCorrection::variation::up)   return 2;
+        return 1; // nom
+    };
+    const int iF = varIndex(muF_syst);
+    const int iR = varIndex(muR_syst);
+
+    if(nLHEScaleWeight == 9) {
+        // nominal present at index 4; direct 3x3 grid.
+        return LHEScaleWeight[3 * iR + iF];
     }
+    if(nLHEScaleWeight == 8) {
+        // nominal (iR=1,iF=1) removed; shift indices at/after the nominal slot.
+        int idx = 3 * iR + iF;   // position in the notional 9-element grid
+        return LHEScaleWeight[idx > 4 ? idx - 1 : idx];
+    }
+
+    // Unexpected multiplicity: don't guess an index — return the central value.
+    cout << "[AnalyzerCore::GetScaleVariation] unexpected nLHEScaleWeight = "
+         << nLHEScaleWeight << " (expected 8 or 9); returning nominal weight 1." << endl;
+    return 1.f;
 }
 
 float AnalyzerCore::GetPSWeight(const MyCorrection::variation &ISR_syst, const MyCorrection::variation &FSR_syst){
@@ -236,7 +328,8 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
         float this_corr = 1.;
         const float this_jer = myCorr->GetJER(this_jet.Eta(), this_jet.Pt(), fixedGridRhoFastjetAll);
         const float this_sf = myCorr->GetJERSF(this_jet.Eta(), this_jet.Pt(), syst, source);
-        if (matched_idx[i] > 0 && matched_idx[i] < genjets.size()) {
+        // GenJetMatching returns -999 for unmatched jets, so index 0 is a *valid* match.
+        if (matched_idx[i] >= 0 && matched_idx[i] < static_cast<int>(genjets.size())) {
             // found matched jet
             const float matched_genjet_pt = genjets[matched_idx[i]].Pt();
             this_corr += (this_sf-1.) * (1.-matched_genjet_pt/this_jet.Pt());
@@ -246,7 +339,15 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
         // To avoid flipping direction (this_corr < 0)
         const float min_corr = MIN_JET_ENERGY/this_jet.E();
         this_corr = max(this_corr, min_corr);
-        
+
+        {   // JER validation: tag by variation so Up/Down can be checked against nom
+            const TString jer_tag = TString("jet_jer_") + (syst == MyCorrection::variation::up   ? "up"
+                                                         : syst == MyCorrection::variation::down ? "down" : "nom");
+            FillCorrShape(jer_tag, "pt",   this_jet.Pt(), this_jet.Pt()*this_corr, 500, 0., 1000.);
+            FillCorrShape(jer_tag, "mass", this_jet.M(),  this_jet.M()*this_corr,  200, 0., 200.);
+            FillCorrInputs(jer_tag, this_jet.Eta(), this_jet.Phi(), this_jet.Pt(), this_corr, 0, 1000., 2.5);
+        }
+
         /*
         if(matched_idx[i] < 0) {
             // if the jet is not matched to any genjet, do stochastic smearing
@@ -269,22 +370,50 @@ RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &gen
     }
     return smeared_jets;
 }
-/*
-RVec<Jet> AnalyzerCore::SmearFatJets(const RVec<Jet> &jets, const RVec<GenJetAK8> &genjets, const TString &syst, const TString &source){
-    if (syst == "nominal") return jets;
-    else if (syst == "up") return SmearFatJets(jets, genjets, MyCorrection::variation::up, source);
-    else if (syst == "down") return SmearFatJets(jets, genjets, MyCorrection::variation::down, source);
-    else throw runtime_error("[AnalyzerCore::SmearJets] Invalid syst value");
+unordered_map<int, int> AnalyzerCore::GenJetAK8Matching(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjets, const float &rho, const float dR, const float pTJerCut){
+    unordered_map<int, int> matched_genjet_idx;
+    RVec<tuple<int,int,float,float>> possible_matches;
+
+    for(size_t i = 0; i < fatjets.size(); i++){
+        for(size_t j = 0; j < genjets.size(); j++){
+            const float this_DeltaR = fatjets[i].DeltaR(genjets[j]);
+            const float this_pt_diff = fabs(fatjets[i].Pt() - genjets[j].Pt());
+            float this_jer = myCorr->GetFJER(fatjets[i].Eta(), fatjets[i].Pt(), rho);
+            this_jer *= fatjets[i].Pt();
+            if(this_DeltaR < dR && this_pt_diff < pTJerCut*this_jer){
+                possible_matches.emplace_back(i, j, this_DeltaR, this_pt_diff);
+            }
+        }
+    }
+    sort(possible_matches.begin(), possible_matches.end(), [](const tuple<int,int,float,float> &a, const tuple<int,int,float,float> &b){
+        if(get<2>(a) == get<2>(b)) return get<3>(a) < get<3>(b);
+        return get<2>(a) < get<2>(b);
+    });
+    RVec<bool> used_fatjet(fatjets.size(), false);
+    RVec<bool> used_genjet(genjets.size(), false);
+    for(const auto &match: possible_matches){
+        const int fatjet_idx = get<0>(match);
+        const int genjet_idx = get<1>(match);
+        if(used_fatjet[fatjet_idx] || used_genjet[genjet_idx]) continue;
+        matched_genjet_idx[fatjet_idx] = genjet_idx;
+        used_fatjet[fatjet_idx] = true;
+        used_genjet[genjet_idx] = true;
+    }
+    for(size_t i = 0; i < fatjets.size(); i++){
+        if(used_fatjet[i]) continue;
+        else matched_genjet_idx[i] = -999;
+    }
+    return matched_genjet_idx;
 }
-*/
-/*
-RVec<FatJet> AnalyzerCore::SmearFatJets(const RVec<FatJet> &jets, const RVec<GenJetAK8> &genjets, const MyCorrection::variation &syst, const TString &source) {
-    unordered_map<int, int> matched_idx = GenJetMatching(jets, genjets, fixedGridRhoFastjetAll);
+
+RVec<FatJet> AnalyzerCore::SmearFatJets(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjets, const MyCorrection::variation &syst, const TString &source) {
+    unordered_map<int, int> matched_idx = GenJetAK8Matching(fatjets, genjets, fixedGridRhoFastjetAll);
     RVec<FatJet> smeared_fatjets;
-    gRandom->SetSeed(int(MET_pt*1e6));
+    // Offset the seed w.r.t. SmearJets so AK4 and AK8 do not share a random stream.
+    gRandom->SetSeed(int(MET_pt*1e6)+1);
     const float MIN_JET_ENERGY=1e-2;
-    for(size_t i = 0; i < jets.size(); i++){
-        FatJet this_jet = jets.at(i);
+    for(size_t i = 0; i < fatjets.size(); i++){
+        FatJet this_jet = fatjets.at(i);
 
         // backward smearing for systematic variation
         if (this_jet.GetUnsmearedP4().E() < 0) {
@@ -296,44 +425,50 @@ RVec<FatJet> AnalyzerCore::SmearFatJets(const RVec<FatJet> &jets, const RVec<Gen
             this_jet *= backward_factor;
         }
 
-        // Following the procedures in https://github.com/choij1589/SKFlatMaker/blob/master/SKFlatMaker/src/SKFlatMaker.cc#L3378-L3419
         float this_corr = 1.;
         const float this_jer = myCorr->GetFJER(this_jet.Eta(), this_jet.Pt(), fixedGridRhoFastjetAll);
         const float this_sf = myCorr->GetFJERSF(this_jet.Eta(), this_jet.Pt(), syst, source);
-        if (matched_idx[i] > 0 && matched_idx[i] < genjets.size()) {
-            // found matched jet
+        if (matched_idx[i] >= 0 && matched_idx[i] < static_cast<int>(genjets.size())) {
+            // found matched genjet -> scaling method
             const float matched_genjet_pt = genjets[matched_idx[i]].Pt();
             this_corr += (this_sf-1.) * (1.-matched_genjet_pt/this_jet.Pt());
         } else {
+            // no match -> stochastic method
             this_corr += (gRandom->Gaus(0., this_jer))*sqrt(max(this_sf*this_sf-1., 0.));
         }
         // To avoid flipping direction (this_corr < 0)
         const float min_corr = MIN_JET_ENERGY/this_jet.E();
         this_corr = max(this_corr, min_corr);
-        
-        /*
-        if(matched_idx[i] < 0) {
-            // if the jet is not matched to any genjet, do stochastic smearing
-            if(this_sf < 1.) {
-                this_corr = MIN_JET_ENERGY / this_jet.E();
-            } else{
-                this_corr += (gRandom->Gaus(0, this_jer)) * sqrt(max(this_sf * this_sf - 1., 0.0));
-                float new_corr = MIN_JET_ENERGY / this_jet.E();
-                this_corr = max(this_corr, new_corr);
-            }
-        } else {
-            float this_genjet_pt = genjets[matched_idx[i]].Pt();
-            this_corr += (this_sf - 1.) * (1. - this_genjet_pt / this_jet.Pt());
-            float new_corr = MIN_JET_ENERGY / this_jet.E();
-            this_corr = max(this_corr, new_corr);
+
+        {
+            const TString fjer_tag = TString("fatjet_jer_") + (syst == MyCorrection::variation::up   ? "up"
+                                                             : syst == MyCorrection::variation::down ? "down" : "nom");
+            FillCorrShape(fjer_tag, "pt",      this_jet.Pt(),      this_jet.Pt()*this_corr,      500, 0., 2000.);
+            FillCorrShape(fjer_tag, "mass",    this_jet.M(),       this_jet.M()*this_corr,       300, 0., 300.);
+            // SDMass is a stored NanoAOD quantity, not scaled by the p4 multiplication.
+            FillCorrShape(fjer_tag, "sdmass",  this_jet.SDMass(),  this_jet.SDMass(),            300, 0., 300.);
+            FillCorrInputs(fjer_tag, this_jet.Eta(), this_jet.Phi(), this_jet.Pt(), this_corr, 0, 2000., 2.5);
         }
-        
+
         this_jet *= this_corr;
         smeared_fatjets.push_back(this_jet);
     }
     return smeared_fatjets;
 }
-*/
+
+RVec<FatJet> AnalyzerCore::ScaleFatJets(const RVec<FatJet> &fatjets, const MyCorrection::variation &syst, const TString &source) {
+    if(syst == MyCorrection::variation::nom) return fatjets;
+
+    RVec<FatJet> scaled_fatjets;
+    for(const auto &fatjet: fatjets){
+        FatJet this_jet = fatjet;
+        const float this_factor = myCorr->GetFJESUncertainty(this_jet.Eta(), this_jet.Pt(), syst, source);
+        this_jet *= this_factor;
+        scaled_fatjets.push_back(this_jet);
+    }
+    return scaled_fatjets;
+}
+
 RVec<Jet> AnalyzerCore::SmearJets(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const TString &syst, const TString &source){
     if (syst == "nominal") return jets;
     else if (syst == "up") return SmearJets(jets, genjets, MyCorrection::variation::up, source);
@@ -573,27 +708,76 @@ RVec<Muon> AnalyzerCore::GetAllMuons() {
         muon.SetPtEtaPhiM(Muon_pt[i], Muon_eta[i], Muon_phi[i], Muon_mass[i]);
         muon.SetCharge(Muon_charge[i]);
         muon.SetNTrackerLayers(Muon_nTrackerLayers[i]);
-        float roccor = 1.;
-        float roccor_err = 0.;
-        float tunep = Muon_tunepRelPt[i];
-        float muon_tunept = Muon_pt[i] * tunep ;
-        /*
-        if (Muon_pt[i] < 200) {
-            if (IsDATA) {
-            roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom);
-            roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up) - roccor;
-            } else {
-                Gen matched_gen = GetGenMatchedMuon(muon, truth);
-                float matched_pt = matched_gen.Pt();
-                roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom, matched_pt);
-                roccor_err = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up, matched_pt) - roccor;
-            }
-            muon.SetMomentumScaleUpDown(muon.Pt()*(roccor+roccor_err), muon.Pt()*(roccor-roccor_err)); 
+        const float muon_tunept = Muon_pt[i] * Muon_tunepRelPt[i];
+
+        // --- muon momentum scale & resolution, split at 200 GeV -----------------------
+        // Muon POG prescription (approach 1 of "High pT: Momentum Scale"):
+        //   pT < 200 : medium-pT regime. Tracker/PF pT with Rochester scale (DATA) or
+        //              scale+smearing (MC); systematic from the Rochester error.
+        //   pT > 200 : high-pT regime. TuneP pT, then the Generalized Endpoint scale
+        //              correction on DATA (Run3 recommendation is to correct, not just
+        //              assign an uncertainty) and the high-pT resolution smearing on MC.
+        // The regime is chosen on the TuneP pT, which is the momentum the analysis would
+        // otherwise use throughout.
+        const unsigned int mu_seed = ObjectSmearSeed(EventNumber, muon.Eta(), muon.Phi());
+
+        if (muon_tunept < MyCorrection::HIGHPT_MUON_MIN_PT) {
+            // ---- medium-pT: Rochester on the default (tracker/PF) pT, not TuneP -------
+            float matched_pt = 0.;
+            if (!IsDATA) matched_pt = GetGenMatchedMuon(muon, truth).Pt();
+            const float roccor = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::nom, matched_pt, mu_seed);
+            const float roccor_up = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::up, matched_pt, mu_seed);
+            const float roccor_dn = myCorr->GetMuonScaleSF(muon, MyCorrection::variation::down, matched_pt, mu_seed);
+            muon.SetMomentumScaleUpDown(muon.Pt()*roccor_up, muon.Pt()*roccor_dn);
+            FillCorrShape("muon_rochester", "pt", muon.Pt(), muon.Pt()*roccor, 400, 0., 400.);
+            FillCorrInputs("muon_rochester", muon.Eta(), muon.Phi(), muon.Pt(), roccor,
+                           static_cast<int>(muon.Charge()), 400.);
             muon.SetPtEtaPhiM(muon.Pt()*roccor, muon.Eta(), muon.Phi(), muon.M());
+        } else {
+            // ---- high-pT: TuneP, then GE (DATA) / resolution smearing (MC) ------------
+            FillCorrShape("muon_tunep", "pt", Muon_pt[i], muon_tunept, 500, 0., 2000.);
+            FillCorrInputs("muon_tunep", Muon_eta[i], Muon_phi[i], Muon_pt[i],
+                           Muon_pt[i] > 0. ? muon_tunept/Muon_pt[i] : 1., 0, 2000.);
+            muon.SetPtEtaPhiM(muon_tunept, muon.Eta(), muon.Phi(), muon.M());
+
+            // GE kappa_b +- sigma, re-run through the GE formula (shifting pT by a flat
+            // percentage instead would get the pT dependence wrong). Computed for BOTH
+            // samples: data also takes the nominal correction, MC takes only the nuisance -
+            // the same convention as the EGM electron scale.
+            const int q = static_cast<int>(muon.Charge());
+            const float ge_ref = muon.Pt();
+            const float ge_nom = myCorr->GetMuonGEScaledPt(ge_ref, muon.Eta(), muon.Phi(), q,
+                                                           MyCorrection::variation::nom);
+            const float ge_up = myCorr->GetMuonGEScaledPt(ge_ref, muon.Eta(), muon.Phi(), q,
+                                                          MyCorrection::variation::up);
+            const float ge_dn = myCorr->GetMuonGEScaledPt(ge_ref, muon.Eta(), muon.Phi(), q,
+                                                          MyCorrection::variation::down);
+            // store as ratios so they can be re-applied on top of whatever the nominal
+            // momentum ends up being (GE-corrected for data, smeared for MC)
+            const float r_up = (ge_ref > 0.) ? ge_up/ge_ref : 1.;
+            const float r_dn = (ge_ref > 0.) ? ge_dn/ge_ref : 1.;
+
+            if (IsDATA) {
+                FillCorrShape("muon_ge_scale", "pt", ge_ref, ge_nom, 500, 0., 2000.);
+                // charge split: the GE bias is a single shift in curvature, so mu+ and mu-
+                // must move in OPPOSITE directions once expressed in pT.
+                FillCorrInputs("muon_ge_scale", muon.Eta(), muon.Phi(), ge_ref,
+                               ge_ref > 0. ? ge_nom/ge_ref : 1., q, 2000.);
+                muon.SetPtEtaPhiM(ge_nom, muon.Eta(), muon.Phi(), muon.M());
+            } else {
+                // The wiki writes the smearing in terms of the full momentum p; see the
+                // UNRESOLVED note in MyCorrection.cc if this should be pT instead.
+                const float smear = myCorr->GetMuonHighPtSmearFactor(muon.P(), muon.Eta(), mu_seed);
+                FillCorrShape("muon_smearing", "pt", muon.Pt(), muon.Pt()*smear, 500, 0., 2000.);
+                FillCorrInputs("muon_smearing", muon.Eta(), muon.Phi(), muon.Pt(), smear, 0, 2000.);
+                muon.SetPtEtaPhiM(muon.Pt()*smear, muon.Eta(), muon.Phi(), muon.M());
+            }
+            // applied to the final nominal pT, so ScaleMuons() is well defined for MC too
+            muon.SetMomentumScaleUpDown(muon.Pt()*r_up, muon.Pt()*r_dn);
         }
-        */
-        muon.SetPtEtaPhiM(muon_tunept, muon.Eta(), muon.Phi(), muon.M());
-        
+        // The two regimes use different momentum estimators, so a discontinuity at 200 GeV
+        // is possible by construction. Check the muon pT and m(lljj) spectra for a kink.
+
         muon.SetOriginalPt(muon.Pt());
         muon.SetTkRelIso(Muon_tkRelIso[i]);
         muon.SetPfRelIso03(Muon_pfRelIso03_all[i]);
@@ -727,8 +911,16 @@ RVec<Electron> AnalyzerCore::GetAllElectrons(){
         const float fscEta = fabs(Electron_scEta[i]);
         if (1.444 < fscEta && fscEta < 1.566) continue;
 
+        // Nominal EGM energy-scale correction. Run3 NanoAOD does not have the EGM
+        // scale&smearing calibration applied, so DATA needs the scale correction here
+        // (MC instead gets the scale uncertainty via ScaleElectrons, and the resolution
+        // smearing via SmearElectrons). Returns 1 for MC and for Run2.
+        const float egmScale = myCorr->GetElectronScaleCorr(Electron_scEta[i], Electron_seedGain[i], RunNumber, Electron_r9[i], Electron_pt[i]);
+        FillCorrShape("electron_scale", "pt", Electron_pt[i], Electron_pt[i]*egmScale, 500, 0., 1000.);
+        FillCorrInputs("electron_scale", Electron_scEta[i], Electron_phi[i], Electron_pt[i], egmScale, 0, 1000., 2.5);
+
         Electron electron;
-        electron.SetPtEtaPhiM(Electron_pt[i], Electron_eta[i], Electron_phi[i], Electron_mass[i]);
+        electron.SetPtEtaPhiM(Electron_pt[i]*egmScale, Electron_eta[i], Electron_phi[i], Electron_mass[i]);
         electron.SetCharge(Electron_charge[i]);
         electron.SetScEta(Electron_scEta[i]);
         electron.SetDeltaEtaInSC(Electron_deltaEtaInSC[i]);
@@ -791,6 +983,18 @@ RVec<Electron> AnalyzerCore::GetAllElectrons(){
             throw runtime_error("[AnalyzerCore::GetAllElectrons] Invalid run number");
         }
 
+
+        // Nominal EGM resolution smearing (MC, Run3 only). Run3 NanoAOD ships
+        // uncorrected Electron_pt, so without this the MC resolution stays narrower
+        // than data. Run2 already has it applied upstream, and DATA is never smeared
+        // (GetElectronSmearUnc returns 1 for both).
+        if (!IsDATA && Run == 3) {
+            const float smear = myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::nom,
+                                                            ObjectSmearSeed(EventNumber, electron.scEta(), electron.Phi()));
+            FillCorrShape("electron_smearing", "pt", electron.Pt(), electron.Pt()*smear, 500, 0., 1000.);
+            FillCorrInputs("electron_smearing", electron.scEta(), electron.Phi(), electron.Pt(), smear, 0, 1000., 2.5);
+            electron.SetPtEtaPhiM(electron.Pt()*smear, electron.Eta(), electron.Phi(), electron.M());
+        }
 
         electrons.push_back(electron);
     }
@@ -873,18 +1077,29 @@ RVec<Electron> AnalyzerCore::SmearElectrons(const RVec<Electron> &electrons, con
                 smeared_electrons.emplace_back(smeared_electron);
             }
             break;
-        case 3: 
+        case 3:
+            // GetAllElectrons already applied the nominal smearing, so here we only apply
+            // the *ratio* variation/nominal. Both draws share a seed, so the underlying
+            // Gaussian pull is identical and only its width changes - the variation is a
+            // coherent shift rather than an independent re-smearing.
             for (const auto &electron: electrons) {
                 float smeared_pt = electron.Pt();
+                MyCorrection::variation var;
                 if (syst == "nom") {
-                    smeared_pt *= myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::nom, int(electron.Rho()));
+                    // already applied upstream
+                    smeared_electrons.emplace_back(electron);
+                    continue;
                 } else if (syst == "up") {
-                    smeared_pt *= myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::up, int(electron.Rho()));
+                    var = MyCorrection::variation::up;
                 } else if (syst == "down") {
-                    smeared_pt *= myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::down, int(electron.Rho()));
+                    var = MyCorrection::variation::down;
                 } else {
                     throw runtime_error("[AnalyzerCore::SmearElectrons] Invalid variation");
                 }
+                const unsigned int seed = ObjectSmearSeed(EventNumber, electron.scEta(), electron.Phi());
+                const float nom_factor = myCorr->GetElectronSmearUnc(electron, MyCorrection::variation::nom, seed);
+                const float var_factor = myCorr->GetElectronSmearUnc(electron, var, seed);
+                if (nom_factor > 0.) smeared_pt *= var_factor/nom_factor;
                 Electron smeared_electron = electron;
                 smeared_electron.SetPtEtaPhiM(smeared_pt, electron.Eta(), electron.Phi(), electron.M());
                 smeared_electrons.emplace_back(smeared_electron);
@@ -1005,6 +1220,12 @@ RVec<Jet> AnalyzerCore::GetAllJets() {
         const float JESSF = myCorr->GetJESSF(Jet_area[i], Jet_eta[i], rawPt, Jet_phi[i], fixedGridRhoFastjetAll, RunNumber);
         const float correctedPt = rawPt * JESSF;
         const float correctedMass = rawMass * JESSF;
+        // "before" is the NanoAOD pT; this JEC re-derivation was already in place, the
+        // hook is here so the AK4 reference shape sits next to the AK8 one.
+        FillCorrShape("jet_jes", "pt",   Jet_pt[i],   correctedPt,   500, 0., 1000.);
+        FillCorrShape("jet_jes", "mass", Jet_mass[i], correctedMass, 200, 0., 200.);
+        FillCorrInputs("jet_jes", Jet_eta[i], Jet_phi[i], Jet_pt[i],
+                       Jet_pt[i] > 0. ? correctedPt/Jet_pt[i] : 1., 0, 1000., 2.5);
         jet.SetPtEtaPhiM(correctedPt, Jet_eta[i], Jet_phi[i], correctedMass);
         jet.SetRawPt(rawPt);
         jet.SetOriginalPt(Jet_pt[i]);
@@ -1311,12 +1532,20 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets() {
             fatjet.SetJetID(static_cast<unsigned char>(FatJet_jetId_RunII[i]));
             if(!IsDATA) fatjet.SetGenMatchIDs(static_cast<short>(FatJet_genJetAK8Idx_RunII[i]), static_cast<short>(FatJet_subJetIdx1_RunII[i]), static_cast<short>(FatJet_subJetIdx2_RunII[i]));
         }
-        //const float rawPt = FatJet_pt[i] * (1.-FatJet_rawFactor[i]);
-        //const float rawMass = FatJet_mass[i] * (1.-FatJet_rawFactor[i]);
-        //const float JESSF = myCorr->GetFJESSF(FatJet_area[i], FatJet_eta[i], rawPt, FatJet_phi[i], fixedGridRhoFastjetAll, RunNumber);
-        //const float correctedPt = rawPt * JESSF;
-        //const float correctedmMass = rawMass * JESSF;
-        fatjet.SetPtEtaPhiM(FatJet_pt[i], FatJet_eta[i], FatJet_phi[i], FatJet_mass[i]);
+        // Re-apply the AK8 JEC from the raw pT, mirroring GetAllJets for AK4.
+        const float rawPt = FatJet_pt[i] * (1.-FatJet_rawFactor[i]);
+        const float rawMass = FatJet_mass[i] * (1.-FatJet_rawFactor[i]);
+        const float JESSF = myCorr->GetFJESSF(FatJet_area[i], FatJet_eta[i], rawPt, FatJet_phi[i], fixedGridRhoFastjetAll, RunNumber);
+        const float correctedPt = rawPt * JESSF;
+        const float correctedMass = rawMass * JESSF;
+        // "before" is the NanoAOD pT, i.e. what this collection used to return.
+        FillCorrShape("fatjet_jes", "pt",   FatJet_pt[i],   correctedPt,   500, 0., 2000.);
+        FillCorrShape("fatjet_jes", "mass", FatJet_mass[i], correctedMass, 300, 0., 300.);
+        FillCorrInputs("fatjet_jes", FatJet_eta[i], FatJet_phi[i], FatJet_pt[i],
+                       FatJet_pt[i] > 0. ? correctedPt/FatJet_pt[i] : 1., 0, 2000., 2.5);
+        fatjet.SetPtEtaPhiM(correctedPt, FatJet_eta[i], FatJet_phi[i], correctedMass);
+        fatjet.SetRawPt(rawPt);
+        fatjet.SetOriginalPt(FatJet_pt[i]);
         fatjet.SetArea(FatJet_area[i]);
         fatjet.SetSDMass(FatJet_msoftdrop[i]);
         fatjet.SetLSF3(FatJet_lsf3[i]);
@@ -1329,6 +1558,24 @@ RVec<FatJet> AnalyzerCore::GetAllFatJets() {
         FatJets.push_back(fatjet);
     }
     return FatJets;
+}
+
+RVec<GenJet> AnalyzerCore::GetAllGenJetAK8() {
+
+    RVec<GenJet> GenJetAK8s;
+    if(IsDATA) return GenJetAK8s;
+
+    for (int i = 0; i < nGenJetAK8; i++) {
+
+        GenJet genjet;
+
+        // Kinematics only: GenJetAK8_partonFlavour is never bound in SKNanoLoader, so it
+        // would be uninitialised. JER matching needs pt/eta/phi/mass anyway.
+        genjet.SetPtEtaPhiM(GenJetAK8_pt[i], GenJetAK8_eta[i], GenJetAK8_phi[i], GenJetAK8_mass[i]);
+        GenJetAK8s.push_back(genjet);
+    }
+
+    return GenJetAK8s;
 }
 
 RVec<GenJet> AnalyzerCore::GetAllGenJets() {

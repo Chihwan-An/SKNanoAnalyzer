@@ -2,6 +2,7 @@
 #This it the preliminary version of SKFlat.py
 #Using htcondor python binding and DAGMAN workflow manager
 import os, shutil
+import shlex
 import warnings
 import argparse
 import htcondor
@@ -154,6 +155,36 @@ def getUserFlagsList(Userflags):
     UserflagsList = [x for x in UserflagsList if x != ""]
     return UserflagsList
 
+# job 은 singularity 안에서 run.sh 로 환경을 처음부터 만든다. 즉 제출 shell 에서
+# "FOO=1 SKNano.py ..." 로 준 변수는 job 에 전달되지 않는다. 분석기가 getenv() 로
+# 읽는 변수는 여기에 적어두면 값이 있을 때 자동으로 실려간다.
+AUTO_FORWARD_ENV = [
+    "DY_NO_CORRECTION",
+    "DY_ZPT_CORRECTION",
+    "DY_JETPT_CORRECTION",
+]
+
+def getExtraEnvExports(EnvArgs):
+    # returns (shell export block, {name: value})
+    env = {}
+    for name in AUTO_FORWARD_ENV:
+        if os.environ.get(name):
+            env[name] = os.environ[name]
+    for spec in (EnvArgs or []):
+        for item in spec.split(","):
+            item = item.strip()
+            if not item:
+                continue
+            if "=" not in item:
+                raise SystemExit(f"--env 는 NAME=VALUE 형식이어야 한다: {item}")
+            name, value = item.split("=", 1)
+            env[name.strip()] = value
+    if not env:
+        return "", env
+    lines = ["", "# forwarded from the submitting shell / --env"]
+    lines += [f"export {name}={shlex.quote(value)}" for name, value in env.items()]
+    return "\n".join(lines) + "\n", env
+
 def getTimeStamp():
     ## TimeStamp
 
@@ -185,6 +216,11 @@ def setParser():
     parser.add_argument('--batchname', dest='BatchName', default="")
     parser.add_argument('--skimming_mode', action='store_true', default=False, help="Enable this option when anlyzer is skimmer.")
     parser.add_argument('--no_exec', action='store_true', default=False, help="only produce working area, not submitting to the condor pool")
+    parser.add_argument('--env', dest='Env', action='append', default=None,
+                        help="NAME=VALUE 를 job 환경에 export 한다. 콤마 구분, 여러 번 지정 가능. "
+                             "job 은 컨테이너 안에서 run.sh 로 환경을 새로 만들기 때문에 "
+                             "제출 shell 의 환경변수는 그냥은 전달되지 않는다. "
+                             "예: --env DY_NO_CORRECTION=1")
     
     #Note: this option will change the behavior of the script. output directory will be changed to Your GV0, hadd will be disabled, and will create the info json of skimmed tree   
     return parser
@@ -404,6 +440,8 @@ def makeMainAnalyzerJobs(working_dir,abs_MasterDirectoryName,totalNumberOfJobs, 
     run_content = run_content.replace("[WORKDIR]", working_dir)
     run_content = run_content.replace("[SKNANO_RUNLOG_LIB]", os.path.join(abs_MasterDirectoryName, 'lib'))
     run_content = run_content.replace("[ROOT_INCLUDE_PATH]", inclpath)
+    extra_env_block, _ = getExtraEnvExports(getattr(argparse, 'Env', None))
+    run_content = run_content.replace("[EXTRA_ENV]", extra_env_block)
     with open(os.path.join(working_dir,"run.sh"),'w') as f:
         f.write(run_content)
 
@@ -442,7 +480,7 @@ def makeHaddJobs(working_dir,argparser,sample):
     job_dict['output'] = os.path.join(working_dir,"hadd.out")
     job_dict['error'] = os.path.join(working_dir,"hadd.err")
     job_dict['request_cpus'] = 8
-    job_dict['request_memory'] = 8192
+    job_dict['request_memory'] = 16384
 
     return job_dict
 
@@ -621,6 +659,9 @@ if __name__ == '__main__':
 
     
     userflags = getUserFlagsList(args.Userflags)
+    _, forwarded_env = getExtraEnvExports(args.Env)
+    for name, value in forwarded_env.items():
+        print('\033[93m' + f"Forwarding to jobs: {name}={value}" + '\033[0m')
     timestamp, string_JobStartTime = getTimeStamp()
     _, abs_MasterDirectoryName= getMasterDirectoryName(timestamp, args.Analyzer, userflags)
     InputSamplelist = getInputSampleList(args.InputSample)

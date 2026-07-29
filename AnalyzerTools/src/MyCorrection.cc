@@ -25,6 +25,7 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
     loadCorrectionSet("btagging eff", config.json_btagging_eff, cset_btagging_eff, false);
     loadCorrectionSet("ctagging eff", config.json_ctagging_eff, cset_ctagging_eff, false);
     loadCorrectionSet("electron", config.json_electron, cset_electron, false);
+    loadCorrectionSet("electron highPt ID", config.json_electron_highPt, cset_electron_highPt, true);
     loadCorrectionSet("electron variation", config.json_electron_variation, cset_electron_variation, false);
     loadCorrectionSet("photon", config.json_photon, cset_photon, false);
     loadCorrectionSet("jerc", config.json_jerc, cset_jerc, false);
@@ -77,6 +78,16 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
     JME_JER_GT["2017"] = "Summer19UL17_JRV2_MC_######_AK4PFchs";
     JME_JER_GT["2016postVFP"] = "Summer20UL16_JRV3_MC_######_AK4PFchs";
     JME_JER_GT["2016preVFP"] = "Summer20UL16APV_JRV3_MC_######_AK4PFchs";
+
+    // AK8 counterpart of JME_JER_GT. Keys verified against POG/JME/<era>/fatJet_jerc.json.gz.
+    JME_FJER_GT["2023BPix"] = "Summer23BPixPrompt23_RunD_JRV1_MC_######_AK8PFPuppi";
+    JME_FJER_GT["2023"] = "Summer23Prompt23_RunCv1234_JRV1_MC_######_AK8PFPuppi";
+    JME_FJER_GT["2022EE"] = "Summer22EE_22Sep2023_JRV1_MC_######_AK8PFPuppi";
+    JME_FJER_GT["2022"] = "Summer22_22Sep2023_JRV1_MC_######_AK8PFPuppi";
+    JME_FJER_GT["2018"] = "Summer19UL18_JRV2_MC_######_AK8PFPuppi";
+    JME_FJER_GT["2017"] = "Summer19UL17_JRV2_MC_######_AK8PFPuppi";
+    JME_FJER_GT["2016postVFP"] = "Summer20UL16_JRV3_MC_######_AK8PFPuppi";
+    JME_FJER_GT["2016preVFP"] = "Summer20UL16APV_JRV3_MC_######_AK8PFPuppi";
     
     // JES tags
     // ###### as placeholder
@@ -98,6 +109,10 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
         JME_FJES_GT["2023"] = "Summer23Prompt23_V2_DATA_######_AK8PFPuppi";
         JME_FJES_GT["2022EE"] = "Summer22EE_22Sep2023_Run"+period+"_V2_DATA_######_AK8PFPuppi";
         JME_FJES_GT["2022"] = "Summer22_22Sep2023_RunCD_V2_DATA_######_AK8PFPuppi";
+        JME_FJES_GT["2018"] = "Summer19UL18_Run"+period+"_V5_DATA_######_AK8PFPuppi";
+        JME_FJES_GT["2017"] = "Summer19UL17_Run"+period+"_V5_DATA_######_AK8PFPuppi";
+        JME_FJES_GT["2016postVFP"] = "Summer19UL16_RunFGH_V7_DATA_######_AK8PFPuppi";
+        JME_FJES_GT["2016preVFP"] = "Summer19UL16APV_Run"+period+"_V7_DATA_######_AK8PFPuppi";
     } else { // MC
         JME_JES_GT["2023BPix"] = "Summer23BPixPrompt23_V3_MC_######_AK4PFPuppi";
         JME_JES_GT["2023"] = "Summer23Prompt23_V2_MC_######_AK4PFPuppi";
@@ -112,6 +127,10 @@ MyCorrection::MyCorrection(const TString &era, const TString &period, const TStr
         JME_FJES_GT["2023"] = "Summer23Prompt23_V2_MC_######_AK8PFPuppi";
         JME_FJES_GT["2022EE"] = "Summer22EE_22Sep2023_V2_MC_######_AK8PFPuppi";
         JME_FJES_GT["2022"] = "Summer22_22Sep2023_V2_MC_######_AK8PFPuppi";
+        JME_FJES_GT["2018"] = "Summer19UL18_V5_MC_######_AK8PFPuppi";
+        JME_FJES_GT["2017"] = "Summer19UL17_V5_MC_######_AK8PFPuppi";
+        JME_FJES_GT["2016postVFP"] = "Summer19UL16_V7_MC_######_AK8PFPuppi";
+        JME_FJES_GT["2016preVFP"] = "Summer19UL16APV_V7_MC_######_AK8PFPuppi";
     }
     
     // Jet VetpMap
@@ -266,6 +285,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_btagging_R += "/2022/BTV/" + btagging_R_file;
         config.json_ctagging_R += "/2022/BTV/" + ctagging_R_file;
         config.json_electron += "/2022_Summer22/electron.json.gz";
+        config.json_electron_highPt = json_pog_path_str + "/POG/EGM/2022_Summer22/electronID_highPt.json.gz";
         config.json_electron_variation = json_pog_path_str + "/POG/EGM/2022_Summer22/electronSS.json.gz";
         config.json_electron_hlt += "/2022_Summer22/electronHlt.json.gz";
         config.json_photon += "/2022_Summer22/photon.json.gz";
@@ -285,6 +305,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_btagging_R += "/2022EE/BTV/" + btagging_R_file;
         config.json_ctagging_R += "/2022EE/BTV/" + ctagging_R_file;
         config.json_electron += "/2022_Summer22EE/electron.json.gz";
+        config.json_electron_highPt = json_pog_path_str + "/POG/EGM/2022_Summer22EE/electronID_highPt.json.gz";
         config.json_electron_variation = json_pog_path_str + "/POG/EGM/2022_Summer22EE/electronSS.json.gz";
         config.json_electron_hlt += "/2022_Summer22EE/electronHlt.json.gz";
         config.json_photon += "/2022_Summer22EE/photon.json.gz";
@@ -304,6 +325,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_btagging_R += "/2023/BTV/" + btagging_R_file;
         config.json_ctagging_R += "/2023/BTV/" + ctagging_R_file;
         config.json_electron += "/2023_Summer23/electron.json.gz";
+        config.json_electron_highPt = json_pog_path_str + "/POG/EGM/2023_Summer23/electronID_highPt.json.gz";
         config.json_electron_variation = json_pog_path_str + "/POG/EGM/2023_Summer23/electronSS.json.gz";
         config.json_electron_hlt += "/2023_Summer23/electronHlt.json.gz";
         config.json_photon += "/2023_Summer23/photon.json.gz";
@@ -324,6 +346,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
         config.json_btagging_R += "/2023BPix/BTV/" + btagging_R_file;
         config.json_ctagging_R += "/2023BPix/BTV/" + ctagging_R_file;
         config.json_electron += "/2023_Summer23BPix/electron.json.gz";
+        config.json_electron_highPt = json_pog_path_str + "/POG/EGM/2023_Summer23BPix/electronID_highPt.json.gz";
         config.json_electron_variation = json_pog_path_str + "/POG/EGM/2023_Summer23BPix/electronSS.json.gz";
         config.json_electron_hlt += "/2023_Summer23BPix/electronHlt.json.gz";
         config.json_photon += "/2023_Summer23BPix/photon.json.gz";
@@ -341,7 +364,7 @@ MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era, const string &bt
 
 // Muon
 // Rochestor correction
-float MyCorrection::GetMuonScaleSF(const Muon &muon, const variation syst, const float matched_pt) const {
+float MyCorrection::GetMuonScaleSF(const Muon &muon, const variation syst, const float matched_pt, const unsigned int seed) const {
     float roccor = 1.;
     float roccor_err = 0.;
 
@@ -353,9 +376,11 @@ float MyCorrection::GetMuonScaleSF(const Muon &muon, const variation syst, const
         roccor = rc.kScaleDT(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), 0, 0);
         roccor_err = rc.kScaleDTerror(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi());
     } else {
-        // Random seed is initialized in SKNanoLoader::Init()
-        gRandom->SetSeed(int(muon.Pt()/muon.Eta()));
-        float u = gRandom->Rndm();
+        // Deterministic per-muon uniform. The caller supplies the seed (built from the
+        // event number and the muon direction); the old int(pt/eta) seed collapsed to a
+        // handful of distinct values and correlated every muon in an event.
+        TRandom3 rng(seed);
+        const float u = rng.Rndm();
         if (matched_pt > 0) { // matched
             roccor = rc.kSpreadMC(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), matched_pt, 0, 0);
             roccor_err = rc.kSpreadMCerror(muon.Charge(), muon.Pt(), muon.Eta(), muon.Phi(), matched_pt);
@@ -427,6 +452,172 @@ float MyCorrection::GetMuonIDSF(const TString &Muon_ID_SF_Key, const RVec<Muon> 
 // For Run2, scale uncertainty is not stored in the NanoAODv9.
 // Should patch from https://github.com/cms-egamma/ScaleFactorsJSON
 // https://twiki.cern.ch/twiki/bin/view/CMS/EgammSFandSSRun3
+// ============================================================================
+//  High-pT muon momentum scale (Generalized Endpoint) and resolution smearing
+//  Source: CMS Muon POG wiki, "High pT: Momentum Scale" / "High pT: Momentum Resolution"
+//  Methodology: AN-2018/008
+//
+//  Target sample: the wiki says the GE method "injects a range of additive biases (kappa_b)
+//  ... to the simulation and minimize the difference from data in the q/pT distribution",
+//  so kappa_b is what MC needs in order to look like data - i.e. the bias belongs to DATA.
+//  It is therefore removed from data here: k_true = k_meas - kappa_b, giving
+//  pT_corr = pT / (1 - q * kappa_b * pT). Run3 recommends correcting the pT, not just
+//  assigning an uncertainty.
+//
+//  UNRESOLVED - verify before using these for a result:
+//   (1) Whether the smearing formula's momentum variable is p or pT. Implemented as the
+//       full momentum p, following the wiki wording literally.
+//   (2) The resolution-systematic factors are not published in text form yet, so only the
+//       nominal smearing is implemented (see GetMuonHighPtSmearFactor).
+//   (3) 2024/2025 kappa_b maps are not loaded (not needed for now); those eras are a no-op.
+// ============================================================================
+namespace {
+    struct GECell { float kappa; float sigma; };   // kappa_b in TeV^-1
+
+    // [phi bin][eta bin]; phi bins are [-180,-60), [-60,60), [60,180] degrees and eta bins
+    // are [-2.4,-2.1), [-2.1,-1.2), [-1.2,0), [0,1.2), [1.2,2.1), [2.1,2.4]. eta keeps its
+    // sign - do NOT fold to |eta|.
+    using GEMap = array<array<GECell, 6>, 3>;
+
+    const unordered_map<string, GEMap> GE_KAPPA = {
+        // 2022 preEE
+        {"2022", {{
+            {{{-0.16f,0.10f},{-0.03f,0.05f},{-0.05f,0.04f},{ 0.00f,0.04f},{ 0.07f,0.06f},{-0.06f,0.11f}}},
+            {{{ 0.11f,0.10f},{-0.01f,0.06f},{ 0.06f,0.04f},{ 0.02f,0.03f},{ 0.05f,0.05f},{-0.06f,0.10f}}},
+            {{{ 0.17f,0.11f},{ 0.16f,0.04f},{-0.04f,0.04f},{-0.01f,0.03f},{ 0.04f,0.06f},{-0.00f,0.09f}}},
+        }}},
+        // 2022 postEE
+        {"2022EE", {{
+            {{{-0.12f,0.05f},{-0.03f,0.03f},{ 0.013f,0.022f},{ 0.029f,0.023f},{-0.04f,0.03f},{-0.28f,0.05f}}},
+            {{{ 0.24f,0.05f},{ 0.10f,0.03f},{-0.006f,0.022f},{-0.047f,0.022f},{-0.14f,0.03f},{-0.48f,0.05f}}},
+            {{{ 0.28f,0.05f},{ 0.07f,0.03f},{-0.028f,0.022f},{ 0.018f,0.022f},{ 0.07f,0.03f},{ 0.05f,0.05f}}},
+        }}},
+        // 2023 preBPix
+        {"2023", {{
+            {{{-0.21f,0.06f},{-0.01f,0.04f},{ 0.010f,0.027f},{-0.045f,0.030f},{ 0.01f,0.04f},{ 0.00f,0.07f}}},
+            {{{ 0.08f,0.07f},{-0.04f,0.04f},{ 0.070f,0.025f},{ 0.030f,0.027f},{-0.13f,0.04f},{-0.36f,0.06f}}},
+            {{{ 0.27f,0.07f},{ 0.05f,0.04f},{ 0.054f,0.026f},{ 0.020f,0.027f},{ 0.00f,0.04f},{-0.04f,0.06f}}},
+        }}},
+        // 2023 postBPix
+        {"2023BPix", {{
+            {{{-0.25f,0.08f},{ 0.07f,0.05f},{ 0.02f,0.04f},{-0.02f,0.04f},{ 0.08f,0.06f},{ 0.12f,0.09f}}},
+            {{{-0.05f,0.08f},{ 0.00f,0.05f},{ 0.05f,0.03f},{-0.05f,0.04f},{-0.17f,0.05f},{-0.33f,0.09f}}},
+            {{{ 0.24f,0.09f},{ 0.09f,0.05f},{-0.01f,0.03f},{ 0.03f,0.04f},{ 0.04f,0.06f},{-0.20f,0.07f}}},
+        }}},
+    };
+
+    // sigma(p, eta) = a0 + a1 p + a2 p^2 + a3 p^3, p in GeV. [0] = |eta|<1.2, [1] = 1.2-2.4.
+    struct ResPoly { double a0, a1, a2, a3; };
+    const unordered_map<string, array<ResPoly, 2>> MUON_RES_POLY = {
+        {"2022",     {{{0.01152, 5.95e-5, -2.92e-8, 5.14e-12}, {0.01405, 5.28e-5, -1.90e-8, 3.01e-12}}}},
+        {"2022EE",   {{{0.0126,  5.89e-5, -2.85e-8, 4.92e-12}, {0.0150,  4.81e-5, -1.42e-8, 1.95e-12}}}},
+        {"2023",     {{{0.0172,  6.15e-5, -3.14e-8, 5.82e-12}, {0.01424, 5.31e-5, -1.92e-8, 3.21e-12}}}},
+        {"2023BPix", {{{0.0118,  6.14e-5, -3.12e-8, 5.74e-12}, {0.0141,  5.38e-5, -2.00e-8, 3.42e-12}}}},
+    };
+
+    // Smearing factor f = sqrt((1+x)^2 - 1) for a target degradation x. A zero means MC is
+    // not better than data there, and smearing can only ever degrade resolution.
+    const unordered_map<string, array<float, 2>> MUON_SMEAR_F = {
+        {"2022",     {{0.000f, 0.320f}}},   // central: none,  forward: 5%
+        {"2022EE",   {{0.320f, 0.460f}}},   // 5%, 10%
+        {"2023",     {{0.320f, 0.460f}}},   // 5%, 10%
+        {"2023BPix", {{0.000f, 0.568f}}},   // none, 15%
+    };
+
+    inline int GEPhiBin(const float phi_rad) {
+        const float deg = phi_rad * 180.f / static_cast<float>(M_PI);
+        if (deg < -60.f) return 0;
+        if (deg <  60.f) return 1;
+        return 2;
+    }
+    // -1 if outside the tracker acceptance covered by the map
+    inline int GEEtaBin(const float eta) {
+        if (eta < -2.4f || eta > 2.4f) return -1;
+        if (eta < -2.1f) return 0;
+        if (eta < -1.2f) return 1;
+        if (eta <  0.0f) return 2;
+        if (eta <  1.2f) return 3;
+        if (eta <  2.1f) return 4;
+        return 5;
+    }
+}
+
+float MyCorrection::GetMuonGEScaledPt(const float pt, const float eta, const float phi, const int charge,
+                                      const variation syst) const {
+    if (pt < HIGHPT_MUON_MIN_PT) return pt;
+
+    const auto it = GE_KAPPA.find(GetEra().Data());
+    if (it == GE_KAPPA.end()) return pt;          // no map for this era (e.g. Run2, 2024+)
+
+    const int ieta = GEEtaBin(eta);
+    if (ieta < 0) return pt;
+    const GECell &cell = it->second[GEPhiBin(phi)][ieta];
+
+    float kappa = cell.kappa;
+    if (syst == variation::up)        kappa += cell.sigma;
+    else if (syst == variation::down) kappa -= cell.sigma;
+
+    // k_meas = k_true + kappa  =>  pT_corr = pT / (1 - q * kappa * pT), pT in TeV
+    const float pt_TeV = pt / 1000.f;
+    const float denom = 1.f - static_cast<float>(charge) * kappa * pt_TeV;
+
+    // Guard the pole: kappa*pT -> 1 blows the correction up (e.g. kappa = -0.48 TeV^-1 at
+    // pT = 2 TeV). Keep the raw pT rather than emit a runaway muon.
+    if (fabs(denom) < 0.1f) {
+        cerr << "[MyCorrection::GetMuonGEScaledPt] Near-singular GE correction (denom = "
+             << denom << ", kappa = " << kappa << " TeV^-1, pT = " << pt
+             << " GeV, q = " << charge << "); keeping the uncorrected pT." << endl;
+        return pt;
+    }
+    return pt / denom;
+}
+
+float MyCorrection::GetMuonHighPtResolution(const float p, const float eta) const {
+    const auto it = MUON_RES_POLY.find(GetEra().Data());
+    if (it == MUON_RES_POLY.end()) return 0.;
+    const ResPoly &c = it->second[fabs(eta) < 1.2f ? 0 : 1];
+    const double x = p;
+    return static_cast<float>(c.a0 + c.a1*x + c.a2*x*x + c.a3*x*x*x);
+}
+
+float MyCorrection::GetMuonHighPtSmearFactor(const float p, const float eta, const unsigned int seed) const {
+    if (IsDATA) return 1.;                        // smearing is MC-only by construction
+    if (fabs(eta) > 2.4f) return 1.;
+
+    const auto itf = MUON_SMEAR_F.find(GetEra().Data());
+    if (itf == MUON_SMEAR_F.end()) return 1.;
+    const float f = itf->second[fabs(eta) < 1.2f ? 0 : 1];
+    if (f <= 0.f) return 1.;                      // MC already no better than data here
+
+    const float sigma = GetMuonHighPtResolution(p, eta);
+    if (!(sigma > 0.f)) return 1.;
+
+    TRandom3 rng(seed);
+    return 1.f + rng.Gaus(0., sigma*f);
+}
+
+float MyCorrection::GetElectronScaleCorr(const float scEta, const unsigned char seedGain, const unsigned int runNumber, const float r9, const float pt) const {
+    // EGM convention: the energy-scale correction is applied to DATA only; MC instead
+    // carries the scale uncertainty as a nuisance (see GetElectronScaleUnc).
+    if (!IsDATA) return 1.0;
+    // Run2 (NanoAODv9) already has the EGM scale&smearing calibration applied to
+    // Electron_pt, and EGM_ScaleUnc.json ships uncertainties only - re-applying would
+    // double-count.
+    if (Run != 3) return 1.0;
+
+    const string key = (GetEra().Contains("2022")) ? "Scale" : EGM_keys.at(GetEra().Data())+"_ScaleJSON";
+    auto cset = cset_electron_variation->at(key);
+    vector<correction::Variable::Type> args = {
+        "total_correction",
+        static_cast<int>(seedGain),
+        static_cast<float>(runNumber),
+        scEta,
+        r9,
+        pt
+    };
+    return safeEvaluate(cset, "GetElectronScaleCorr", args);
+}
+
 float MyCorrection::GetElectronScaleUnc(const float scEta, const unsigned char seedGain, const unsigned int runNumber, const float r9, const float pt, const variation syst) const {
     if (IsDATA) return 1.0;
     
@@ -556,6 +747,13 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key, const flo
             return safeEvaluate(cset, "GetElectronIDSF", {EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(Electron_ID_SF_Key), eta, pt, phi});
         }
     }
+}
+
+float MyCorrection::GetElectronHighPtIDSF(const float scEta, const float pt, const variation syst, const TString &workingPoint) const {
+    if (!cset_electron_highPt)
+        throw runtime_error("[MyCorrection::GetElectronHighPtIDSF] electronID_highPt.json.gz not loaded for era " + string(GetEra().Data()));
+    auto cset = cset_electron_highPt->at("Electron-ID-SF");
+    return safeEvaluate(cset, "GetElectronHighPtIDSF", {EGM_keys.at(GetEra().Data()), getSystString_EGM(syst), string(workingPoint.Data()), scEta, pt});
 }
 
 float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key, const RVec<Electron> &electrons, const variation syst) const {
@@ -1335,7 +1533,8 @@ float MyCorrection::GetFJESUncertainty(const float eta, const float pt, const va
     correction::Correction::Ref cset = nullptr;
     string cset_string = JME_FJES_GT.at(GetEra().Data());
     cset_string.replace(cset_string.find("######"), 6, source);
-    cset = cset_jerc->at(cset_string);
+    // AK8 keys live in the fatjet correction set, not the AK4 one.
+    cset = cset_jerc_fatjet->at(cset_string);
     float this_factor = 1.;
     this_factor += (int_syst * safeEvaluate(cset, "GetFJESUncertainty", {eta, pt}));
     return this_factor;

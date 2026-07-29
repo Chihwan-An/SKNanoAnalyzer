@@ -1,0 +1,16 @@
+# Systematics for jet_pt_reweight.
+#
+# Deliberately empty. This analyzer exists to produce the four DY CR jet-pT
+# histograms that R is derived from, and R's uncertainty is data statistics, MC
+# statistics and the non-DY cross sections -- nothing that a per-event weight
+# variation would produce (DY_CORRECTION_SPEC.md A2).
+#
+# Object and theory nuisances were dropped from R's band on purpose: a datacard
+# nuisance that moves the reco jet pT makes the R lookup land in a different bin,
+# so those variations are re-derived at fit time. Filling them here would double
+# count them.
+#
+# With no entries, SystematicHelper yields a single Central pass and
+# calculateWeight() returns the nominal weight only. The scale factors
+# themselves still apply -- they are in the weight, not in this list.
+systematics: []

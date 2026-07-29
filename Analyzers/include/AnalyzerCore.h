@@ -102,6 +102,7 @@ public:
     RVec<Tau> GetAllTaus();
     RVec<FatJet> GetAllFatJets();
     RVec<GenJet> GetAllGenJets();
+    RVec<GenJet> GetAllGenJetAK8();
     RVec<GenDressedLepton> GetAllGenDressedLeptons();
     RVec<GenIsolatedPhoton> GetAllGenIsolatedPhotons();
     RVec<GenVisTau> GetAllGenVisTaus();
@@ -147,6 +148,8 @@ public:
     void METType1Propagation(Particle &MET, RVec<Particle> &original_objects, RVec<Particle> &corrected_objects);
     float GetL1PrefireWeight(MyCorrection::variation syst = MyCorrection::variation::nom);
     unordered_map<int, int> GenJetMatching(const RVec<Jet> &jets, const RVec<GenJet> &genjets, const float &rho, const float dR = 0.2, const float pTJerCut = 3.);
+    // AK8 counterpart. Default cone is R/2 = 0.4 for AK8 (vs 0.2 for AK4).
+    unordered_map<int, int> GenJetAK8Matching(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjets, const float &rho, const float dR = 0.4, const float pTJerCut = 3.);
     unordered_map<int, int> deltaRMatching(const RVec<Particle> &objs1, const RVec<Particle> &objs2, const float dR = 0.4);
     RVec<Muon> ScaleMuons(const RVec<Muon> &muons, const TString &syst );
     RVec<Electron> ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const TString &syst);
@@ -157,8 +160,10 @@ public:
     RVec<Jet> ScaleJets(const RVec<Jet> &jets, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
     RVec<Jet> ScaleJets(const RVec<Jet> &jets, const TString &syst, const TString &source="total");
     
-    //RVec<FatJet> SmearFatJets(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjetsak8, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
-    //RVec<FatJet> SmearFatJets(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjetsak8, const TString &syst, const TString &source="total");
+    RVec<FatJet> SmearFatJets(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjetsak8, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "total");
+    // "Total" is the JES uncertainty envelope key in fatJet_jerc.json (capitalised, unlike
+    // the AK4 path which sums individual sources).
+    RVec<FatJet> ScaleFatJets(const RVec<FatJet> &fatjets, const MyCorrection::variation &syst=MyCorrection::variation::nom, const TString &source = "Total");
 
     // Type-I MET correction with correlated object variations
     Particle ApplyTypeICorrection(const Particle& MET,
@@ -178,6 +183,29 @@ public:
         static int storedMaxCutN = maxCutN;
         FillHist("CutFlow", val, 1., storedMaxCutN, 0, storedMaxCutN);
     }
+    // --- correction validation ---------------------------------------------------
+    // Enabled by running the analyzer with --userflags corrShapes; off in production.
+    //
+    // Evaluated lazily on first use, NOT in the constructor: the generated job macro sets
+    // module.Userflags only after the module is constructed, so anything that reads
+    // HasFlag() from a constructor always sees an empty list.
+    bool FillingCorrShapes();
+    // Fills CorrShapes/<tag>/<var>_before, _after and CorrShapes/<tag>/<var>_factor.
+    // No-op unless fillCorrShapes is set. Derived analyzers may call this for composite
+    // variables (mll, mlljj, ...) that AnalyzerCore cannot see.
+    void FillCorrShape(const TString &tag, const TString &var, float before, float after,
+                       int n_bin, float x_min, float x_max);
+    // Weight-type corrections (scale factors) do not change kinematics, so instead of a
+    // before/after pair we record the SF value itself: CorrShapes/<tag>/sf.
+    void FillCorrWeight(const TString &tag, float sf);
+    // Correction factor resolved against the inputs the correction actually depends on:
+    // CorrShapes/<tag>/factor_vs_{eta,phi,pt} as TH2 (input on x, factor on y). A flat band
+    // means the correction ignores that input; structure means it is being looked up.
+    // charge != 0 additionally fills the _qpos / _qneg split, which is what exposes a
+    // charge-dependent bias such as the muon Generalized Endpoint.
+    void FillCorrInputs(const TString &tag, float eta, float phi, float pt, float factor,
+                        int charge = 0, float pt_max = 1000., float eta_max = 2.4);
+
     void FillHist(const TString &histname, float value, float weight, int n_bin, float x_min, float x_max);
     void FillHist(const TString &histname, float value, float weight, int n_bin, float *xbins);
     void FillHist(const TString &histname, float value_x, float value_y, float weight, 
@@ -230,6 +258,8 @@ public:
 
 private:
     bool useTH1F = false;
+    bool fillCorrShapes = false;
+    bool corrShapesChecked = false;
     unordered_map<string, TH1*> histmap1d;
     unordered_map<string, TH2*> histmap2d;
     unordered_map<string, TH3*> histmap3d;

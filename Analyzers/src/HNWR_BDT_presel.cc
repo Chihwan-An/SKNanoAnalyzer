@@ -144,17 +144,53 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     // --- JES/JER object variation (MC only): vary the AK4 jets so every
     // jet-derived BDT input (jet pT/mass, mjj, mlljj, ht, st, dR_lep_jet, ...)
     // is recomputed under the variation. MET is left at its nominal value.
+    // JER smearing is NOT pre-applied in NanoAOD, so the nominal smearing must be
+    // applied to every MC event; JER_Up/Down only swap the JER scale factor. Doing it
+    // only for the variations would leave Central un-smeared, making both variations
+    // shift in the same direction instead of bracketing Central.
     if (!IsDATA) {
-        if (this_syst.Contains("JER_Up")) {
-            RVec<GenJet> genjets = GetAllGenJets();
-            jets = SmearJets(jets, genjets, MyCorrection::variation::up, "total");
-        } else if (this_syst.Contains("JER_Down")) {
-            RVec<GenJet> genjets = GetAllGenJets();
-            jets = SmearJets(jets, genjets, MyCorrection::variation::down, "total");
-        } else if (this_syst.Contains("JES_Up")) {
+        RVec<GenJet> genjets = GetAllGenJets();
+        MyCorrection::variation jer_var = MyCorrection::variation::nom;
+        if (this_syst.Contains("JER_Up"))        jer_var = MyCorrection::variation::up;
+        else if (this_syst.Contains("JER_Down")) jer_var = MyCorrection::variation::down;
+        jets = SmearJets(jets, genjets, jer_var, "total");
+
+        RVec<GenJet> genjetsak8 = GetAllGenJetAK8();
+        fatjets = SmearFatJets(fatjets, genjetsak8, jer_var, "total");
+
+        if (this_syst.Contains("JES_Up") && !this_syst.Contains("FatJetJES")) {
             jets = ScaleJets(jets, MyCorrection::variation::up, "total");
-        } else if (this_syst.Contains("JES_Down")) {
+        } else if (this_syst.Contains("JES_Down") && !this_syst.Contains("FatJetJES")) {
             jets = ScaleJets(jets, MyCorrection::variation::down, "total");
+        }
+
+        // --- AK8 scale / resolution, decorrelated from AK4 --------------------------
+        if (this_syst.Contains("FatJetJES_Up")) {
+            fatjets = ScaleFatJets(fatjets, MyCorrection::variation::up);
+        } else if (this_syst.Contains("FatJetJES_Down")) {
+            fatjets = ScaleFatJets(fatjets, MyCorrection::variation::down);
+        } else if (this_syst.Contains("FatJetJER_Up")) {
+            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::up, "total");
+        } else if (this_syst.Contains("FatJetJER_Down")) {
+            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::down, "total");
+        }
+
+        // --- lepton energy/momentum variations --------------------------------------
+        // Muon scale: MomentumScaleUp/Down were filled by GetAllMuons (Rochester error
+        // below 200 GeV, GE kappa +- sigma above), so one nuisance covers both regimes.
+        if (this_syst.Contains("MuonScale_Up")) {
+            all_muons = ScaleMuons(all_muons, "up");
+        } else if (this_syst.Contains("MuonScale_Down")) {
+            all_muons = ScaleMuons(all_muons, "down");
+        }
+        if (this_syst.Contains("ElectronScale_Up")) {
+            all_electrons = ScaleElectrons(ev, all_electrons, "up");
+        } else if (this_syst.Contains("ElectronScale_Down")) {
+            all_electrons = ScaleElectrons(ev, all_electrons, "down");
+        } else if (this_syst.Contains("ElectronRes_Up")) {
+            all_electrons = SmearElectrons(all_electrons, "up");
+        } else if (this_syst.Contains("ElectronRes_Down")) {
+            all_electrons = SmearElectrons(all_electrons, "down");
         }
     }
 
@@ -740,6 +776,13 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     };
     weight_function_map["JER_Variation"] = dummy_sf;
     weight_function_map["JES_Variation"] = dummy_sf;
+    // Object-level kinematic variations: the systematic is applied by re-running the event
+    // with a varied collection, so the weight target is a dummy (see docs/MCLRSM.yaml).
+    weight_function_map["MuonScale_Variation"]     = dummy_sf;
+    weight_function_map["ElectronScale_Variation"] = dummy_sf;
+    weight_function_map["ElectronRes_Variation"]   = dummy_sf;
+    weight_function_map["FatJetJES_Variation"]     = dummy_sf;
+    weight_function_map["FatJetJER_Variation"]     = dummy_sf;
 
     // XSec(theory) weight systematics (reuse AnalyzerCore::GetScaleVariation + LHE PDF weights).
     // muF: vary factorization scale, keep renormalization scale nominal.
@@ -772,6 +815,32 @@ void HNWR_BDT_presel::executeEventFromParameter() {
         if (var == MyCorrection::variation::down) return LHEPdfWeight[101];
         return 1.0f;
     };
+
+    // Validation hook (--userflags corrShapes): decorate every weight function so its
+    // nominal scale factor is histogrammed into CorrShapes/weight_<name>/sf. Wrapping the
+    // map here covers all entries generically - no need to touch each lambda, and new
+    // weights are picked up automatically.
+    if (FillingCorrShapes() && !IsDATA) {
+        for (auto &kv : weight_function_map) {
+            const TString wname = TString("weight_") + kv.first;
+            if (auto *f2 = std::get_if<std::function<float(MyCorrection::variation, TString)>>(&kv.second)) {
+                auto inner = *f2;
+                kv.second = std::function<float(MyCorrection::variation, TString)>(
+                    [this, wname, inner](MyCorrection::variation var, TString src) -> float {
+                        const float sf = inner(var, src);
+                        if (var == MyCorrection::variation::nom) FillCorrWeight(wname, sf);
+                        return sf;
+                    });
+            } else if (auto *f0 = std::get_if<std::function<float()>>(&kv.second)) {
+                auto inner = *f0;
+                kv.second = std::function<float()>([this, wname, inner]() -> float {
+                    const float sf = inner();
+                    FillCorrWeight(wname, sf);
+                    return sf;
+                });
+            }
+        }
+    }
 
     std::unordered_map<std::string, float> weight_map;
     if (!IsDATA) {

@@ -1,5 +1,11 @@
 #include "Reproduce20_002_copy.h"
-#include <array>
+
+#include <TFile.h>
+#include <TH1.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 
 Reproduce20_002_copy::Reproduce20_002_copy() {}
 Reproduce20_002_copy::~Reproduce20_002_copy() {}  
@@ -31,28 +37,28 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 35.;
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;
     }
     if (DataEra == "2022EE")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 35.;
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;
     }
     if (DataEra == "2023")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 35.;
     }
     if (DataEra == "2023BPix")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
-        el_set.Ele_Trigger = {"HLT_Ele30_WPTight_Gsf","HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
         el_set.Ele_Trigger_Safe_Pt_Cut = 35.;
     }
 
@@ -67,319 +73,315 @@ void Reproduce20_002_copy::initializeAnalyzer() {
         systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM.yaml", MCSample, DataEra);
     }
 
+    NoDYCorr = HasFlag("NoDYCorr");
+    ZptOnly = HasFlag("ZptOnly");
+    if (NoDYCorr && ZptOnly) {
+        cerr << "[Reproduce20_002_copy] FATAL: NoDYCorr and ZptOnly are mutually "
+             << "exclusive. Pass one or neither." << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    LoadDYCorrections();
 }
 
+// eta MUST be the supercluster eta (Electron::scEta()), not the track eta: the
+// barrel/endcap split is at the SC crack edge |eta| = 1.4442.
+// Constant HLT SF from the EGM high-pT electron trigger T&P (fit range pT > 130 GeV):
+//   era        barrel          endcap
+//   2022       0.995 +- 0.004  0.991 +- 0.009
+//   2022EE     0.990 +- 0.007  0.981 +- 0.017
+//   2023       0.992 +- 0.006  0.979 +- 0.019
+//   2023BPix   0.993 +- 0.001  0.978 +- 0.019
+// ---------------------------------------------------------------------------
+// DY corrections: C(gen Z pT), EW(gen Z pT) and R(reco jet pT)
+// ---------------------------------------------------------------------------
 namespace {
-    using ElTrigSFTable = std::array<std::array<float, 6>, 13>;
+// Paths are overridable so a re-derived correction can be tested without a
+// rebuild. Defaults point at the staging area the derivation writes to.
+const char *kDefaultZptFile =
+    "/data9/Users/achihwan/25-020/AN-25-020/chihwan/fig/05_backgrounds/"
+    "corrections/zpt/dy_zpt_nlo_lo.root";
+const char *kDefaultRFile =
+    "/data9/Users/achihwan/25-020/AN-25-020/chihwan/fig/05_backgrounds/"
+    "corrections/jetpt/dy_jetpt_ratio.root";
+// NLO EW correction EW(genZpT), arXiv:1705.04664, copied verbatim from
+// SKFlatAnalyzer data/Run2Legacy_v4/2018/HNWRDYPtReweight/ZPtEWCorr.root
+// (the 2016/2017/2018 files are byte-identical: pure theory, era-independent,
+// so unlike C and R there is no per-era directory inside).
+const char *kDefaultEWFile =
+    "/data9/Users/achihwan/25-020/AN-25-020/chihwan/fig/05_backgrounds/"
+    "corrections/zpt_ew/ZPtEWCorr.root";
+// isHardProcess lepton pair, LHE_HT > 40 -- the variant C is delivered in.
+const char *kZptVariant = "Zpt_hardproc_HT40";
 
-    // egamma-tnp Tag&Probe results: fitter_plots_<era>/fitter_results_<era>.json
-    // Target_Trigger_OR = HLT_Ele30_WPTight_Gsf | HLT_Photon200 | HLT_Ele115_CaloIdVT_GsfTrkIdT
-    // Binning: el_eta_bins = [-2.5,-1.566,-1.4442,0.,1.4442,1.566,2.5] (6 bins)
-    //          el_pt_bins  = [10,20,30,40,50,60,70,90,100,120,140,200,300,400] (13 bins)
-    // Rows are pt bins (low->high), columns are eta bins (low->high).
-    // pt bins [10,20) and [20,30) have no T&P data (probe pt cut is 30 GeV); the [30,40)
-    // value is carried down since Ele_Trigger_Safe_Pt_Cut keeps analysis electrons above that anyway.
-    // The eta-crack bin (1.4442-1.566 in magnitude) at pt [300,400) failed the MC fit (0 MC entries)
-    // in 2022/2023/2023BPix, so it is replaced by the neighboring pt [200,300) value for that column.
-    const ElTrigSFTable ElTrigSF_2022 = {{
-        {0.9448f, 0.9617f, 0.9732f, 0.9725f, 0.9655f, 0.9255f},
-        {0.9448f, 0.9617f, 0.9732f, 0.9725f, 0.9655f, 0.9255f},
-        {0.9448f, 0.9617f, 0.9732f, 0.9725f, 0.9655f, 0.9255f},
-        {0.9544f, 0.9803f, 0.9837f, 0.9838f, 0.9645f, 0.9367f},
-        {0.9600f, 0.9760f, 0.9894f, 0.9891f, 0.9752f, 0.9471f},
-        {0.9680f, 0.9826f, 0.9933f, 0.9918f, 0.9980f, 0.9532f},
-        {0.9780f, 0.9714f, 0.9899f, 0.9903f, 0.9829f, 0.9595f},
-        {0.9750f, 0.9698f, 0.9882f, 0.9891f, 1.0000f, 0.9537f},
-        {0.9723f, 0.9706f, 0.9921f, 0.9917f, 0.9599f, 0.9574f},
-        {0.9794f, 1.0200f, 0.9919f, 0.9900f, 0.9524f, 0.9748f},
-        {0.9867f, 1.0149f, 0.9901f, 0.9910f, 1.0169f, 0.9828f},
-        {0.9922f, 1.0000f, 0.9918f, 0.9884f, 1.1429f, 0.9892f},
-        {1.0070f, 1.0000f, 0.9935f, 0.9953f, 1.0000f, 0.9804f},
-    }};
-    const ElTrigSFTable ElTrigSFErr_2022 = {{
-        {0.0008f, 0.0070f, 0.0004f, 0.0004f, 0.0036f, 0.0009f},
-        {0.0008f, 0.0070f, 0.0004f, 0.0004f, 0.0036f, 0.0009f},
-        {0.0008f, 0.0070f, 0.0004f, 0.0004f, 0.0036f, 0.0009f},
-        {0.0006f, 0.0020f, 0.0003f, 0.0003f, 0.0017f, 0.0005f},
-        {0.0010f, 0.0112f, 0.0002f, 0.0005f, 0.0075f, 0.0010f},
-        {0.0016f, 0.0047f, 0.0009f, 0.0008f, 0.0051f, 0.0020f},
-        {0.0020f, 0.0221f, 0.0011f, 0.0011f, 0.0151f, 0.0004f},
-        {0.0044f, 0.0511f, 0.0020f, 0.0017f, 0.0364f, 0.0060f},
-        {0.0044f, 0.0288f, 0.0018f, 0.0016f, 0.0498f, 0.0007f},
-        {0.0010f, 0.0202f, 0.0024f, 0.0023f, 0.0460f, 0.0065f},
-        {0.0041f, 0.0150f, 0.0024f, 0.0022f, 0.0431f, 0.0027f},
-        {0.0067f, 0.0964f, 0.0012f, 0.0031f, 0.2395f, 0.0076f},
-        {0.0071f, 0.0964f, 0.0071f, 0.0014f, 0.6784f, 0.0000f},
-    }};
+// Read a TH1 into (edges, values, errors).
+bool ReadTH1(TFile *f, const TString &path, std::vector<double> &edges,
+             std::vector<double> &vals, std::vector<double> *errs = nullptr) {
+    TH1 *h = dynamic_cast<TH1 *>(f->Get(path));
+    if (!h) return false;
+    const int n = h->GetNbinsX();
+    edges.resize(n + 1);
+    vals.resize(n);
+    if (errs) errs->resize(n);
+    for (int i = 1; i <= n; i++) {
+        edges[i - 1] = h->GetBinLowEdge(i);
+        vals[i - 1] = h->GetBinContent(i);
+        if (errs) (*errs)[i - 1] = h->GetBinError(i);
+    }
+    edges[n] = h->GetBinLowEdge(n) + h->GetBinWidth(n);
+    return true;
+}
 
-    const ElTrigSFTable ElTrigSF_2022EE = {{
-        {0.9284f, 0.9540f, 0.9728f, 0.9714f, 0.9661f, 0.9090f},
-        {0.9284f, 0.9540f, 0.9728f, 0.9714f, 0.9661f, 0.9090f},
-        {0.9284f, 0.9540f, 0.9728f, 0.9714f, 0.9661f, 0.9090f},
-        {0.9378f, 0.9704f, 0.9838f, 0.9821f, 0.9733f, 0.9214f},
-        {0.9496f, 0.9824f, 0.9915f, 0.9899f, 0.9829f, 0.9442f},
-        {0.9570f, 0.9886f, 0.9932f, 0.9919f, 0.9741f, 0.9491f},
-        {0.9625f, 0.9935f, 0.9924f, 0.9906f, 0.9806f, 0.9423f},
-        {0.9696f, 1.0362f, 0.9945f, 0.9906f, 0.9898f, 0.9551f},
-        {0.9684f, 1.0075f, 0.9920f, 0.9912f, 1.0233f, 0.9571f},
-        {0.9745f, 1.0121f, 0.9923f, 0.9940f, 1.0076f, 0.9687f},
-        {0.9947f, 0.9896f, 0.9930f, 0.9919f, 1.0122f, 0.9877f},
-        {0.9882f, 1.0159f, 0.9966f, 0.9955f, 1.0000f, 0.9864f},
-        {0.9946f, 1.0000f, 0.9972f, 0.9977f, 1.0000f, 0.9943f},
-    }};
-    const ElTrigSFTable ElTrigSFErr_2022EE = {{
-        {0.0005f, 0.0039f, 0.0002f, 0.0002f, 0.0045f, 0.0002f},
-        {0.0005f, 0.0039f, 0.0002f, 0.0002f, 0.0045f, 0.0002f},
-        {0.0005f, 0.0039f, 0.0002f, 0.0002f, 0.0045f, 0.0002f},
-        {0.0003f, 0.0010f, 0.0002f, 0.0002f, 0.0027f, 0.0003f},
-        {0.0006f, 0.0041f, 0.0003f, 0.0003f, 0.0041f, 0.0010f},
-        {0.0012f, 0.0073f, 0.0005f, 0.0006f, 0.0093f, 0.0014f},
-        {0.0013f, 0.0031f, 0.0006f, 0.0006f, 0.0105f, 0.0017f},
-        {0.0016f, 0.0169f, 0.0011f, 0.0012f, 0.0039f, 0.0033f},
-        {0.0026f, 0.0073f, 0.0011f, 0.0009f, 0.0096f, 0.0030f},
-        {0.0033f, 0.0132f, 0.0014f, 0.0012f, 0.0174f, 0.0037f},
-        {0.0018f, 0.0265f, 0.0012f, 0.0012f, 0.0087f, 0.0027f},
-        {0.0009f, 0.0392f, 0.0017f, 0.0016f, 0.0304f, 0.0047f},
-        {0.0078f, 0.1570f, 0.0034f, 0.0028f, 0.0000f, 0.0082f},
-    }};
+int FindBin(const std::vector<double> &edges, double x) {
+    if (edges.size() < 2) return -1;
+    if (x >= edges.back()) return static_cast<int>(edges.size()) - 2;  // clamp
+    if (x < edges.front()) return 0;
+    int i = 0;
+    while (i + 2 < static_cast<int>(edges.size()) && x >= edges[i + 1]) i++;
+    return i;
+}
+}  // namespace
 
-    const ElTrigSFTable ElTrigSF_2023 = {{
-        {0.9348f, 0.9706f, 0.9741f, 0.9745f, 0.9764f, 0.9337f},
-        {0.9348f, 0.9706f, 0.9741f, 0.9745f, 0.9764f, 0.9337f},
-        {0.9348f, 0.9706f, 0.9741f, 0.9745f, 0.9764f, 0.9337f},
-        {0.9423f, 0.9804f, 0.9869f, 0.9885f, 0.9863f, 0.9343f},
-        {0.9423f, 0.9840f, 0.9956f, 0.9959f, 0.9893f, 0.9418f},
-        {0.9557f, 0.9855f, 1.0001f, 1.0005f, 0.9869f, 0.9554f},
-        {0.9604f, 1.0043f, 0.9990f, 0.9999f, 0.9918f, 0.9562f},
-        {0.9623f, 0.9910f, 0.9999f, 0.9954f, 0.9787f, 0.9649f},
-        {0.9796f, 1.0009f, 0.9961f, 0.9985f, 0.9966f, 0.9633f},
-        {0.9826f, 0.9861f, 0.9940f, 0.9990f, 0.8767f, 0.9686f},
-        {0.9962f, 1.0128f, 0.9970f, 0.9970f, 0.9829f, 0.9954f},
-        {0.9936f, 1.0455f, 1.0002f, 0.9991f, 1.0667f, 0.9955f},
-        {1.0000f, 1.0455f, 0.9961f, 1.0010f, 1.0000f, 0.9870f},
-    }};
-    const ElTrigSFTable ElTrigSFErr_2023 = {{
-        {0.0007f, 0.0051f, 0.0003f, 0.0003f, 0.0032f, 0.0006f},
-        {0.0007f, 0.0051f, 0.0003f, 0.0003f, 0.0032f, 0.0006f},
-        {0.0007f, 0.0051f, 0.0003f, 0.0003f, 0.0032f, 0.0006f},
-        {0.0004f, 0.0032f, 0.0002f, 0.0003f, 0.0030f, 0.0004f},
-        {0.0010f, 0.0051f, 0.0004f, 0.0004f, 0.0033f, 0.0009f},
-        {0.0014f, 0.0085f, 0.0007f, 0.0007f, 0.0083f, 0.0018f},
-        {0.0022f, 0.0122f, 0.0008f, 0.0008f, 0.0113f, 0.0021f},
-        {0.0035f, 0.0222f, 0.0014f, 0.0013f, 0.0210f, 0.0037f},
-        {0.0023f, 0.0182f, 0.0012f, 0.0012f, 0.0188f, 0.0034f},
-        {0.0040f, 0.0140f, 0.0011f, 0.0007f, 0.0670f, 0.0047f},
-        {0.0020f, 0.0227f, 0.0014f, 0.0013f, 0.0126f, 0.0028f},
-        {0.0045f, 0.0611f, 0.0011f, 0.0019f, 0.0487f, 0.0046f},
-        {0.0058f, 0.0611f, 0.0058f, 0.0047f, 0.0000f, 0.0129f},
-    }};
+bool Reproduce20_002_copy::IsDYSample() const {
+    return !IsDATA && MCSample.Contains("DYMLL");
+}
 
-    const ElTrigSFTable ElTrigSF_2023BPix = {{
-        {0.9317f, 0.9676f, 0.9732f, 0.9659f, 0.9779f, 0.9248f},
-        {0.9317f, 0.9676f, 0.9732f, 0.9659f, 0.9779f, 0.9248f},
-        {0.9317f, 0.9676f, 0.9732f, 0.9659f, 0.9779f, 0.9248f},
-        {0.9317f, 0.9686f, 0.9860f, 0.9876f, 0.9820f, 0.9270f},
-        {0.9392f, 0.9847f, 0.9948f, 0.9965f, 0.9893f, 0.9296f},
-        {0.9449f, 1.0018f, 0.9991f, 0.9998f, 0.9848f, 0.9434f},
-        {0.9599f, 0.9690f, 1.0013f, 0.9976f, 0.9930f, 0.9439f},
-        {0.9553f, 1.0429f, 0.9949f, 0.9960f, 0.9697f, 0.9611f},
-        {0.9660f, 1.0000f, 0.9959f, 0.9934f, 1.0000f, 0.9646f},
-        {0.9765f, 1.0312f, 0.9898f, 0.9930f, 1.0000f, 0.9702f},
-        {0.9908f, 1.0000f, 1.0012f, 0.9945f, 1.0192f, 0.9905f},
-        {1.0007f, 1.0000f, 0.9951f, 0.9850f, 1.0000f, 0.9934f},
-        {1.0075f, 1.0000f, 0.9988f, 1.0049f, 1.0000f, 0.9762f},
-    }};
-    const ElTrigSFTable ElTrigSFErr_2023BPix = {{
-        {0.0008f, 0.0070f, 0.0004f, 0.0002f, 0.0064f, 0.0009f},
-        {0.0008f, 0.0070f, 0.0004f, 0.0002f, 0.0064f, 0.0009f},
-        {0.0008f, 0.0070f, 0.0004f, 0.0002f, 0.0064f, 0.0009f},
-        {0.0002f, 0.0043f, 0.0003f, 0.0003f, 0.0041f, 0.0002f},
-        {0.0010f, 0.0070f, 0.0006f, 0.0005f, 0.0040f, 0.0012f},
-        {0.0019f, 0.0060f, 0.0009f, 0.0010f, 0.0099f, 0.0021f},
-        {0.0024f, 0.0176f, 0.0012f, 0.0011f, 0.0125f, 0.0030f},
-        {0.0053f, 0.0293f, 0.0020f, 0.0021f, 0.0296f, 0.0051f},
-        {0.0044f, 0.0142f, 0.0017f, 0.0018f, 0.0126f, 0.0047f},
-        {0.0056f, 0.0492f, 0.0025f, 0.0023f, 0.0000f, 0.0062f},
-        {0.0037f, 0.0000f, 0.0019f, 0.0021f, 0.0194f, 0.0015f},
-        {0.0045f, 0.0000f, 0.0034f, 0.0054f, 0.0000f, 0.0066f},
-        {0.0138f, 0.0000f, 0.0096f, 0.0036f, 0.0000f, 0.0234f},
-    }};
+void Reproduce20_002_copy::LoadDYCorrections() {
+    dycorr = DYCorrections();
+    if (!IsDYSample()) return;
+    if (NoDYCorr || getenv("DY_NO_CORRECTION")) {
+        cout << "[Reproduce20_002_copy] DY corrections OFF for " << MCSample
+             << " / " << DataEra << " (C=off R=off), requested by "
+             << (NoDYCorr ? "userflag NoDYCorr" : "DY_NO_CORRECTION") << "." << endl;
+        return;
+    }
 
-    using ElHEEPSFTable = std::array<std::array<float, 6>, 11>;
+    // --- C
+    const char *zenv = getenv("DY_ZPT_CORRECTION");
+    const TString zpath = zenv ? zenv : kDefaultZptFile;
+    unique_ptr<TFile> zf(TFile::Open(zpath));
+    if (!zf || zf->IsZombie()) {
+        cerr << "[Reproduce20_002_copy] FATAL: cannot open " << zpath << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Era-specific. There is no combined fallback: reweighting one era with
+    // another's curve would be silently wrong.
+    const TString zdir = TString(kZptVariant) + "/" + DataEra + "/";
+    for (const char *key : {"ZPTReweight", "ZPTReweight_Up", "ZPTReweight_Down",
+                            "ZPTReweight_QCDScaleUp", "ZPTReweight_QCDScaleDown",
+                            "ZPTReweight_QCDPDFErrorUp", "ZPTReweight_QCDPDFErrorDown",
+                            "ZPTReweight_QCDPDFAlphaSUp", "ZPTReweight_QCDPDFAlphaSDown"}) {
+        std::vector<double> e, v, s;
+        if (!ReadTH1(zf.get(), zdir + key, e, v, &s)) {
+            cerr << "[Reproduce20_002_copy] FATAL: " << zdir << key << " missing in "
+                 << zpath << ". C is delivered for 2022, 2022EE, 2023 and "
+                 << "2023BPix; re-run make_dy_zpt_nlo_lo.py if an era is absent."
+                 << endl;
+            exit(EXIT_FAILURE);
+        }
+        if (dycorr.zpt_edges.empty()) dycorr.zpt_edges = e;
+        dycorr.zpt[key] = v;
+        // The MC statistical error of C is carried by the bin errors of the
+        // nominal histogram alone; every other key is written with zero errors
+        // (make_dy_zpt_nlo_lo.py:597-603). ZPTReweight_Up/Down is the quadrature
+        // sum of the three theory groups and contains no statistical component,
+        // which is why the ZPtRw_MC_stat nuisance is built from this instead.
+        if (std::string(key) == "ZPTReweight") dycorr.zpt_stat = s;
+    }
 
-    // egamma-tnp HEEP ID Tag&Probe, SIGNAL+BACKGROUND FIT (not cut-and-count).
-    // Source: /data6/Users/achihwan/tnp/egamma-tnp/Heep_fit/bpoly_puw/<era>/heep_fit_results_<era>_bpoly.json
-    // MC is PU-reweighted (puWeight*genWeight); DATA fit unchanged. See PU_REWEIGHT_RERUN.md.
-    // Fit: double Crystal Ball signal + Bernstein background, 50 < mll < 130 GeV.
-    // The old cut-and-count numbers did not subtract background; its Fail probes are
-    // ~30% background at high pt, which biased SF low there. See 2026.07.13_summary.md.
-    // Errors: fit stat (+) background-model systematic |SF(bpoly) - SF(cms)| in quadrature.
-    //   In the handful of bins where the cms fit itself broke down (wrong minimum, eps
-    //   parked at 1, or singular Hessian) its deviation is not a systematic, so those
-    //   bins take the era's median systematic instead.
-    // Binning: el_eta_bins = [-2.5,-1.566,-1.4442,0.,1.4442,1.566,2.5] (6 bins)
-    //          el_pt_bins  = [35,40,45,50,60,70,80,90,100,200,300,1000] (11 bins)
-    // Crack columns (|eta| 1.4442-1.566) have no T&P data -> 1.0 +- 0.
+    // --- R. Rebinned curves only; the bin error is sigma_R, the single band
+    // that already contains statistics and the non-DY cross sections.
+    // The ZptOnly userflag skips R entirely rather than loading it and
+    // multiplying by 1: n_nuis_res/boo then stay 0, so the DYReshape nuisances
+    // disappear too, which is what "R is not applied" has to mean.
+    const char *renv = getenv("DY_JETPT_CORRECTION");
+    const TString rpath = ZptOnly ? "(not loaded)" : (renv ? renv : kDefaultRFile);
+    if (!ZptOnly) {
+        unique_ptr<TFile> rf(TFile::Open(rpath));
+        if (!rf || rf->IsZombie()) {
+            cerr << "[Reproduce20_002_copy] FATAL: cannot open " << rpath << endl;
+            exit(EXIT_FAILURE);
+        }
+        // Era-specific, like C. The "_comb" in the directory name is the flavour
+        // sum: ee and mumu agree within one sigma, so no flavour-split correction
+        // is used. The era, however, is not summed over -- in the resolved category
+        // the four eras scatter around a common R by chi2/ndf = 3.3, too much for
+        // their statistics, so a combined curve would be wrong by more than its own
+        // band (make_dy_jetpt_ratio.py writes that test into its run log). The file
+        // still carries a "combined" key for that comparison; reading it here would
+        // silently apply a four-era average.
+        for (int cat = 0; cat < 2; cat++) {
+            const TString dir =
+                TString(cat == 0 ? "resolved_comb/" : "boosted_comb/") + DataEra + "/";
+            std::vector<double> &edges = cat == 0 ? dycorr.r_edges_res : dycorr.r_edges_boo;
+            std::vector<double> &vals = cat == 0 ? dycorr.r_val_res : dycorr.r_val_boo;
+            std::vector<double> &sigs = cat == 0 ? dycorr.r_sig_res : dycorr.r_sig_boo;
+            // make_dy_jetpt_ratio.py writes "rebinned" as a directory, and puts
+            // sigma_R (= R_total, stat + non-DY xsec) into R_nominal's bin errors.
+            if (!ReadTH1(rf.get(), dir + "rebinned/R_nominal", edges, vals, &sigs)) {
+                cerr << "[Reproduce20_002_copy] FATAL: " << dir
+                     << "rebinned/R_nominal missing in " << rpath << endl;
+                exit(EXIT_FAILURE);
+            }
+            int n = 0;
+            for (double v : vals) if (std::isfinite(v) && v > 0.) n++;
+            (cat == 0 ? dycorr.n_nuis_res : dycorr.n_nuis_boo) = n;
+        }
+    }
 
-    // 2022: median systematic substituted in 3 bin(s): bin00, bin03, bin48
-    const ElHEEPSFTable ElHEEPIDSF_2022 = {{
-        {1.0005f, 1.0000f, 0.9890f, 0.9843f, 1.0000f, 0.9941f},
-        {0.9972f, 1.0000f, 0.9840f, 0.9794f, 1.0000f, 0.9935f},
-        {0.9979f, 1.0000f, 0.9855f, 0.9800f, 1.0000f, 0.9867f},
-        {0.9977f, 1.0000f, 0.9882f, 0.9839f, 1.0000f, 1.0000f},
-        {1.0020f, 1.0000f, 0.9897f, 0.9914f, 1.0000f, 1.0053f},
-        {1.0190f, 1.0000f, 1.0053f, 0.9926f, 1.0000f, 1.0069f},
-        {1.0212f, 1.0000f, 1.0040f, 1.0014f, 1.0000f, 1.0078f},
-        {1.0353f, 1.0000f, 0.9943f, 1.0009f, 1.0000f, 0.9845f},
-        {1.0066f, 1.0000f, 1.0021f, 0.9967f, 1.0000f, 0.9991f},
-        {1.0143f, 1.0000f, 1.0478f, 1.0023f, 1.0000f, 0.9845f},
-        {1.0345f, 1.0000f, 1.0196f, 1.0658f, 1.0000f, 0.8581f},
-    }};
-    const ElHEEPSFTable ElHEEPIDSFErr_2022 = {{
-        {0.0031f, 0.0000f, 0.0067f, 0.0027f, 0.0000f, 0.0080f},
-        {0.0026f, 0.0000f, 0.0061f, 0.0020f, 0.0000f, 0.0022f},
-        {0.0050f, 0.0000f, 0.0016f, 0.0123f, 0.0000f, 0.0023f},
-        {0.0030f, 0.0000f, 0.0017f, 0.0012f, 0.0000f, 0.0054f},
-        {0.0062f, 0.0000f, 0.0041f, 0.0049f, 0.0000f, 0.0078f},
-        {0.0099f, 0.0000f, 0.0070f, 0.0049f, 0.0000f, 0.0100f},
-        {0.0125f, 0.0000f, 0.0069f, 0.0069f, 0.0000f, 0.0127f},
-        {0.0163f, 0.0000f, 0.0087f, 0.0089f, 0.0000f, 0.0167f},
-        {0.0118f, 0.0000f, 0.0059f, 0.0060f, 0.0000f, 0.0106f},
-        {0.0363f, 0.0000f, 0.0247f, 0.0204f, 0.0000f, 0.0342f},
-        {0.1107f, 0.0000f, 0.0486f, 0.0604f, 0.0000f, 0.0440f},
-    }};
+    // --- EW. Applied alongside C exactly as in SKFlat HNWRAnalyzer: whenever
+    // the Z-pT correction is on, EW is on (ZptOnly turns off R, not EW). The
+    // nominal sits in the bin CONTENTS of hist_v; the three uncertainty sources
+    // of arXiv:1705.04664 sit in the bin ERRORS of hist_e1/e2/e3 (their
+    // contents duplicate hist_v and are not read).
+    const char *ewenv = getenv("DY_ZPT_EW_CORRECTION");
+    const TString ewpath = ewenv ? ewenv : kDefaultEWFile;
+    unique_ptr<TFile> ewf(TFile::Open(ewpath));
+    if (!ewf || ewf->IsZombie()) {
+        cerr << "[Reproduce20_002_copy] FATAL: cannot open " << ewpath << endl;
+        exit(EXIT_FAILURE);
+    }
+    {
+        std::vector<double> dummy_e, dummy_v;
+        if (!ReadTH1(ewf.get(), "hist_v", dycorr.ew_edges, dycorr.ew_val) ||
+            !ReadTH1(ewf.get(), "hist_e1", dummy_e, dummy_v, &dycorr.ew_e1) ||
+            !ReadTH1(ewf.get(), "hist_e2", dummy_e, dummy_v, &dycorr.ew_e2) ||
+            !ReadTH1(ewf.get(), "hist_e3", dummy_e, dummy_v, &dycorr.ew_e3)) {
+            cerr << "[Reproduce20_002_copy] FATAL: hist_v/e1/e2/e3 missing in "
+                 << ewpath << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
 
-    // 2022EE: median systematic substituted in 3 bin(s): bin32, bin57, bin59
-    const ElHEEPSFTable ElHEEPIDSF_2022EE = {{
-        {1.0091f, 1.0000f, 0.9701f, 0.9636f, 1.0000f, 1.0063f},
-        {1.0047f, 1.0000f, 0.9692f, 0.9637f, 1.0000f, 1.0012f},
-        {1.0054f, 1.0000f, 0.9695f, 0.9655f, 1.0000f, 1.0001f},
-        {1.0042f, 1.0000f, 0.9743f, 0.9708f, 1.0000f, 1.0018f},
-        {1.0177f, 1.0000f, 0.9843f, 0.9800f, 1.0000f, 1.0065f},
-        {1.0121f, 1.0000f, 0.9967f, 0.9881f, 1.0000f, 1.0136f},
-        {1.0135f, 1.0000f, 0.9931f, 0.9978f, 1.0000f, 1.0114f},
-        {0.9953f, 1.0000f, 0.9925f, 0.9972f, 1.0000f, 1.0023f},
-        {1.0109f, 1.0000f, 0.9969f, 0.9842f, 1.0000f, 0.9914f},
-        {1.0327f, 1.0000f, 1.0180f, 0.9965f, 1.0000f, 1.0294f},
-        {0.9048f, 1.0000f, 1.0027f, 0.9783f, 1.0000f, 0.9397f},
-    }};
-    const ElHEEPSFTable ElHEEPIDSFErr_2022EE = {{
-        {0.0112f, 0.0000f, 0.0072f, 0.0056f, 0.0000f, 0.0076f},
-        {0.0018f, 0.0000f, 0.0019f, 0.0018f, 0.0000f, 0.0179f},
-        {0.0151f, 0.0000f, 0.0077f, 0.0038f, 0.0000f, 0.0021f},
-        {0.0073f, 0.0000f, 0.0042f, 0.0049f, 0.0000f, 0.0068f},
-        {0.0076f, 0.0000f, 0.0038f, 0.0039f, 0.0000f, 0.0084f},
-        {0.0077f, 0.0000f, 0.0048f, 0.0062f, 0.0000f, 0.0079f},
-        {0.0074f, 0.0000f, 0.0046f, 0.0041f, 0.0000f, 0.0083f},
-        {0.0091f, 0.0000f, 0.0057f, 0.0052f, 0.0000f, 0.0116f},
-        {0.0066f, 0.0000f, 0.0048f, 0.0050f, 0.0000f, 0.0067f},
-        {0.0249f, 0.0000f, 0.0135f, 0.0119f, 0.0000f, 0.0295f},
-        {0.0411f, 0.0000f, 0.0242f, 0.0230f, 0.0000f, 0.0391f},
-    }};
+    dycorr.loaded = true;
+    dycorr.apply = true;
+    // With ZptOnly the R curves were never read, so n_nuis_res/boo stay 0 and
+    // the DYReshape nuisance loops iterate zero times. That is the intent: no R
+    // means no R nuisances.
+    dycorr.apply_r = !ZptOnly;
+    dycorr.apply_ew = true;
+    cout << "[Reproduce20_002_copy] DY corrections on for " << MCSample << " / "
+         << DataEra << ": C=on R=" << (dycorr.apply_r ? "on" : "off (userflag ZptOnly)")
+         << " EW=on, C from " << zpath << " (" << dycorr.zpt_edges.size() - 1
+         << " bins), R from " << rpath << " (" << dycorr.n_nuis_res
+         << " resolved + " << dycorr.n_nuis_boo << " boosted nuisance bins)"
+         << ", EW from " << ewpath << " (" << dycorr.ew_edges.size() - 1
+         << " bins)" << endl;
+}
 
-    // 2023: median systematic substituted in 7 bin(s): bin05, bin12, bin17, bin23, bin33, bin59, bin63
-    const ElHEEPSFTable ElHEEPIDSF_2023 = {{
-        {1.0026f, 1.0000f, 1.0218f, 1.0196f, 1.0000f, 0.9971f},
-        {0.9916f, 1.0000f, 1.0114f, 1.0090f, 1.0000f, 0.9923f},
-        {0.9881f, 1.0000f, 1.0054f, 1.0022f, 1.0000f, 0.9840f},
-        {0.9882f, 1.0000f, 1.0031f, 1.0029f, 1.0000f, 0.9844f},
-        {0.9902f, 1.0000f, 1.0063f, 1.0024f, 1.0000f, 0.9869f},
-        {1.0177f, 1.0000f, 0.9994f, 1.0100f, 1.0000f, 1.0192f},
-        {1.0133f, 1.0000f, 0.9993f, 1.0047f, 1.0000f, 1.0069f},
-        {0.9894f, 1.0000f, 0.9963f, 0.9981f, 1.0000f, 0.9961f},
-        {1.0026f, 1.0000f, 1.0029f, 1.0041f, 1.0000f, 0.9870f},
-        {1.0863f, 1.0000f, 1.0028f, 1.0126f, 1.0000f, 1.0060f},
-        {1.0581f, 1.0000f, 1.0109f, 0.9922f, 1.0000f, 0.9291f},
-    }};
-    const ElHEEPSFTable ElHEEPIDSFErr_2023 = {{
-        {0.0048f, 0.0000f, 0.0076f, 0.0075f, 0.0000f, 0.0034f},
-        {0.0032f, 0.0000f, 0.0019f, 0.0126f, 0.0000f, 0.0023f},
-        {0.0033f, 0.0000f, 0.0013f, 0.0022f, 0.0000f, 0.0033f},
-        {0.0057f, 0.0000f, 0.0051f, 0.0032f, 0.0000f, 0.0037f},
-        {0.0080f, 0.0000f, 0.0044f, 0.0037f, 0.0000f, 0.0075f},
-        {0.0112f, 0.0000f, 0.0056f, 0.0059f, 0.0000f, 0.0117f},
-        {0.0129f, 0.0000f, 0.0067f, 0.0078f, 0.0000f, 0.0141f},
-        {0.0142f, 0.0000f, 0.0093f, 0.0093f, 0.0000f, 0.0160f},
-        {0.0106f, 0.0000f, 0.0065f, 0.0062f, 0.0000f, 0.0105f},
-        {0.0453f, 0.0000f, 0.0194f, 0.0203f, 0.0000f, 0.0340f},
-        {0.1452f, 0.0000f, 0.0409f, 0.0360f, 0.0000f, 0.0542f},
-    }};
+float Reproduce20_002_copy::GetGenZpT() const {
+    RVec<Gen> hard;
+    for (const auto &gen : gen_set.gens) {
+        const int abspid = abs(gen.PID());
+        if (abspid != 11 && abspid != 13 && abspid != 15) continue;
+        if (!gen.isHardProcess()) continue;
+        hard.emplace_back(gen);
+    }
+    if (hard.size() != 2) return -1.;
+    return (hard.at(0) + hard.at(1)).Pt();
+}
 
-    // 2023BPix: median systematic substituted in 7 bin(s): bin02, bin06, bin21, bin26, bin56, bin60, bin65
-    const ElHEEPSFTable ElHEEPIDSF_2023BPix = {{
-        {0.9936f, 1.0000f, 1.0315f, 1.0297f, 1.0000f, 1.0005f},
-        {0.9931f, 1.0000f, 1.0185f, 1.0130f, 1.0000f, 0.9935f},
-        {0.9889f, 1.0000f, 1.0106f, 1.0076f, 1.0000f, 0.9867f},
-        {0.9864f, 1.0000f, 1.0069f, 1.0056f, 1.0000f, 0.9889f},
-        {0.9861f, 1.0000f, 1.0054f, 0.9981f, 1.0000f, 0.9954f},
-        {1.0159f, 1.0000f, 1.0111f, 1.0073f, 1.0000f, 1.0018f},
-        {1.0096f, 1.0000f, 0.9894f, 0.9992f, 1.0000f, 1.0199f},
-        {0.9807f, 1.0000f, 0.9926f, 1.0097f, 1.0000f, 0.9819f},
-        {1.0471f, 1.0000f, 1.0083f, 1.0060f, 1.0000f, 1.0268f},
-        {0.9355f, 1.0000f, 1.0364f, 1.0000f, 1.0000f, 0.9843f},
-        {0.9572f, 1.0000f, 1.0499f, 0.9588f, 1.0000f, 1.1266f},
-    }};
-    const ElHEEPSFTable ElHEEPIDSFErr_2023BPix = {{
-        {0.0088f, 0.0000f, 0.0028f, 0.0071f, 0.0000f, 0.0077f},
-        {0.0030f, 0.0000f, 0.0020f, 0.0021f, 0.0000f, 0.0023f},
-        {0.0019f, 0.0000f, 0.0023f, 0.0132f, 0.0000f, 0.0037f},
-        {0.0056f, 0.0000f, 0.0055f, 0.0030f, 0.0000f, 0.0071f},
-        {0.0063f, 0.0000f, 0.0042f, 0.0041f, 0.0000f, 0.0107f},
-        {0.0120f, 0.0000f, 0.0063f, 0.0057f, 0.0000f, 0.0123f},
-        {0.0152f, 0.0000f, 0.0079f, 0.0080f, 0.0000f, 0.0162f},
-        {0.0192f, 0.0000f, 0.0106f, 0.0107f, 0.0000f, 0.0201f},
-        {0.0161f, 0.0000f, 0.0076f, 0.0071f, 0.0000f, 0.0153f},
-        {0.0372f, 0.0000f, 0.0288f, 0.0206f, 0.0000f, 0.0381f},
-        {0.0812f, 0.0000f, 0.0540f, 0.0427f, 0.0000f, 0.1888f},
-    }};
+float Reproduce20_002_copy::GetZptWeight(float gen_zpt, const std::string &key) const {
+    if (!dycorr.apply || gen_zpt < 0.) return 1.f;
+    auto it = dycorr.zpt.find(key);
+    if (it == dycorr.zpt.end() || it->second.empty()) return 1.f;
+    const int i = FindBin(dycorr.zpt_edges, gen_zpt);
+    if (i < 0 || i >= static_cast<int>(it->second.size())) return 1.f;
+    const double c = it->second[i];
+    if (!std::isfinite(c) || c <= 0.) return 1.f;
+    return static_cast<float>(c);
+}
+
+float Reproduce20_002_copy::GetZptStat(float gen_zpt) const {
+    if (!dycorr.apply || gen_zpt < 0.) return 0.f;
+    if (dycorr.zpt_stat.empty()) return 0.f;
+    const int i = FindBin(dycorr.zpt_edges, gen_zpt);
+    if (i < 0 || i >= static_cast<int>(dycorr.zpt_stat.size())) return 0.f;
+    const double s = dycorr.zpt_stat[i];
+    // NaN where C is NaN (empty LO denominator). GetZptWeight falls back to 1
+    // there, so the variation has to be 0 to stay on top of that fallback.
+    if (!std::isfinite(s) || s < 0.) return 0.f;
+    return static_cast<float>(s);
+}
+
+float Reproduce20_002_copy::GetZptEW(float gen_zpt, int which, int dir) const {
+    if (!dycorr.apply || !dycorr.apply_ew || gen_zpt < 0.) return 1.f;
+    if (dycorr.ew_val.empty()) return 1.f;
+    // FindBin clamps both sides, which reproduces the SKFlat clipping
+    // (pT<30 -> first bin, pT>=6500 -> last bin) without explicit ifs.
+    const int i = FindBin(dycorr.ew_edges, gen_zpt);
+    if (i < 0 || i >= static_cast<int>(dycorr.ew_val.size())) return 1.f;
+    double v = dycorr.ew_val[i];
+    if (!std::isfinite(v) || v <= 0.) return 1.f;
+    if (which >= 1 && which <= 3 && dir != 0) {
+        const std::vector<double> &errs =
+            which == 1 ? dycorr.ew_e1 : which == 2 ? dycorr.ew_e2 : dycorr.ew_e3;
+        if (i < static_cast<int>(errs.size()) && std::isfinite(errs[i]))
+            v += dir * errs[i];
+        // Same guard as the C stat variation: never hand back <= 0, that
+        // would delete the event instead of down-weighting it.
+        if (v <= 0.) v = 1e-3;
+    }
+    return static_cast<float>(v);
+}
+
+float Reproduce20_002_copy::GetJetPtR(bool resolved, float pt, int nuis_bin, int dir) const {
+    if (!dycorr.apply || !dycorr.apply_r || pt < 0.) return 1.f;
+    const std::vector<double> &edges = resolved ? dycorr.r_edges_res : dycorr.r_edges_boo;
+    const std::vector<double> &vals = resolved ? dycorr.r_val_res : dycorr.r_val_boo;
+    const std::vector<double> &sigs = resolved ? dycorr.r_sig_res : dycorr.r_sig_boo;
+    if (vals.empty()) return 1.f;
+    const int i = FindBin(edges, pt);
+    if (i < 0 || i >= static_cast<int>(vals.size())) return 1.f;
+
+    double r = vals[i];
+    // Undefined bins are NaN in the file. 1.0 means "no correction"; 0 would
+    // delete the DY prediction instead.
+    if (!std::isfinite(r) || r <= 0.) return 1.f;
+
+    // Per-bin nuisance: only the requested bin moves.
+    if (nuis_bin >= 0 && nuis_bin == i && dir != 0) {
+        const double s = (i < static_cast<int>(sigs.size()) && std::isfinite(sigs[i]))
+                             ? sigs[i] : 0.;
+        r += (dir > 0 ? s : -s);
+        if (!std::isfinite(r) || r <= 0.) return 1.f;
+    }
+    return static_cast<float>(r);
 }
 
 float Reproduce20_002_copy::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const {
-    static const double eta_edges[7] = {-2.5, -1.566, -1.4442, 0.0, 1.4442, 1.566, 2.5};
-    static const double pt_edges[14]  = {10, 20, 30, 40, 50, 60, 70, 90, 100, 120, 140, 200, 300, 400};
+    const bool isBarrel = std::fabs(eta) < 1.4442;
 
-    const ElTrigSFTable *sf_table, *err_table;
-    if      (DataEra == "2022")     { sf_table = &ElTrigSF_2022;     err_table = &ElTrigSFErr_2022; }
-    else if (DataEra == "2022EE")   { sf_table = &ElTrigSF_2022EE;   err_table = &ElTrigSFErr_2022EE; }
-    else if (DataEra == "2023")     { sf_table = &ElTrigSF_2023;     err_table = &ElTrigSFErr_2023; }
-    else if (DataEra == "2023BPix") { sf_table = &ElTrigSF_2023BPix; err_table = &ElTrigSFErr_2023BPix; }
-    else return 1.0; // no egamma-tnp measurement for this era (e.g. 2017)
-
-    int eta_idx = 5;
-    for (int i = 0; i < 6; i++) { if (eta < eta_edges[i+1]) { eta_idx = i; break; } }
-
-    int pt_idx = 12;
-    for (int i = 0; i < 13; i++) { if (pt < pt_edges[i+1]) { pt_idx = i; break; } }
-
-    const float sf  = (*sf_table)[pt_idx][eta_idx];
-    const float err = (*err_table)[pt_idx][eta_idx];
+    float sf, err;
+    if      (DataEra == "2022")     { sf = isBarrel ? 0.995f : 0.991f; err = isBarrel ? 0.004f : 0.009f; }
+    else if (DataEra == "2022EE")   { sf = isBarrel ? 0.990f : 0.981f; err = isBarrel ? 0.007f : 0.017f; }
+    else if (DataEra == "2023")     { sf = isBarrel ? 0.992f : 0.979f; err = isBarrel ? 0.006f : 0.019f; }
+    else if (DataEra == "2023BPix") { sf = isBarrel ? 0.993f : 0.978f; err = isBarrel ? 0.001f : 0.019f; }
+    else return 1.0; // no measurement for this era (e.g. 2017)
 
     if (var == MyCorrection::variation::up)   return sf + err;
     if (var == MyCorrection::variation::down) return sf - err;
     return sf;
 }
 
+// eta MUST be the supercluster eta (Electron::scEta()): the EGM SF is binned in signed
+// SC eta with crack bins at |eta| 1.4442-1.566.
+// High-pT electron ID SF from POG/EGM/<era>/electronID_highPt.json.gz
+// ("Electron-ID-SF", WP "Tight"). pt bins start at 100 GeV with clamp flow,
+// so pt < 100 uses the first bin.
 float Reproduce20_002_copy::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const {
-    static const double eta_edges[7] = {-2.5, -1.566, -1.4442, 0.0, 1.4442, 1.566, 2.5};
-    static const double pt_edges[12] = {35, 40, 45, 50, 60, 70, 80, 90, 100, 200, 300, 1000};
+    if (DataEra != "2022" && DataEra != "2022EE" && DataEra != "2023" && DataEra != "2023BPix")
+        return 1.0; // no EGM high-pT ID SF for this era (e.g. 2017)
+    return myCorr->GetElectronHighPtIDSF(eta, pt, var);
+}
 
-    const ElHEEPSFTable *sf_table, *err_table;
-    if      (DataEra == "2022")     { sf_table = &ElHEEPIDSF_2022;     err_table = &ElHEEPIDSFErr_2022; }
-    else if (DataEra == "2022EE")   { sf_table = &ElHEEPIDSF_2022EE;   err_table = &ElHEEPIDSFErr_2022EE; }
-    else if (DataEra == "2023")     { sf_table = &ElHEEPIDSF_2023;     err_table = &ElHEEPIDSFErr_2023; }
-    else if (DataEra == "2023BPix") { sf_table = &ElHEEPIDSF_2023BPix; err_table = &ElHEEPIDSFErr_2023BPix; }
-    else return 1.0; // no egamma-tnp HEEP measurement for this era (e.g. 2017)
-
-    int eta_idx = 5;
-    for (int i = 0; i < 6; i++) { if (eta < eta_edges[i+1]) { eta_idx = i; break; } }
-
-    // pt below the first measured bin (HEEP requires Et > 35) uses the first bin
-    int pt_idx = 10;
-    for (int i = 0; i < 11; i++) { if (pt < pt_edges[i+1]) { pt_idx = i; break; } }
-
-    const float sf  = (*sf_table)[pt_idx][eta_idx];
-    const float err = (*err_table)[pt_idx][eta_idx];
-
+// LSF3 cut efficiency scale factor, keyed by the flavor of the lepton inside the fatjet:
+//   muon-in-fatjet     (measured in the e-mujet flavor CR): 1.06 +- 0.10
+//   electron-in-fatjet (measured in the mu-ejet flavor CR): 1.11 +- 0.11
+// Applied only in the boosted SR (SR MM -> mujet, SR EE -> ejet) and the boosted flavor CR.
+float Reproduce20_002_copy::GetLSFSF(bool muonInFatJet, MyCorrection::variation var) const {
+    const float sf  = muonInFatJet ? 1.06f : 1.11f;
+    const float err = muonInFatJet ? 0.10f : 0.11f;
     if (var == MyCorrection::variation::up)   return sf + err;
     if (var == MyCorrection::variation::down) return sf - err;
     return sf;
@@ -428,7 +430,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     // Jet Targets (object variations, not weight variations)
     weight_function_map["JER_Variation"] = dummy_sf;
     weight_function_map["JES_Variation"] = dummy_sf;
+    // Object-level kinematic variations: the systematic is applied by re-running the event
+    // with a varied collection, so the weight target is a dummy (see docs/MCLRSM.yaml).
+    weight_function_map["MuonScale_Variation"]     = dummy_sf;
+    weight_function_map["ElectronScale_Variation"] = dummy_sf;
+    weight_function_map["ElectronRes_Variation"]   = dummy_sf;
+    weight_function_map["FatJetJES_Variation"]     = dummy_sf;
+    weight_function_map["FatJetJER_Variation"]     = dummy_sf;
     weight_function_map["M_Iso_Weight"]  = dummy_sf;
+    // LSF3 cut efficiency SF: assigned only in the boosted SR / flavor CR branches
+    weight_function_map["LSF_Weight"]    = dummy_sf;
 
     // XSec(theory) weight targets
     weight_function_map["ScaleWeight_muF"] = dummy_sf;
@@ -436,12 +447,107 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     weight_function_map["PDF_Weight"]      = dummy_sf;
     weight_function_map["AlphaS_Weight"]   = dummy_sf;
 
+    // DY gen Z-pT correction targets: assigned below for DY MC, left at 1 for
+    // everything else.
+    weight_function_map["ZPt_Weight"]       = dummy_sf;
+    weight_function_map["ZPt_QCDScale"]     = dummy_sf;
+    weight_function_map["ZPt_QCDPDFError"]  = dummy_sf;
+    weight_function_map["ZPt_QCDPDFAlphaS"] = dummy_sf;
+    weight_function_map["ZPt_EW1"]          = dummy_sf;
+    weight_function_map["ZPt_EW2"]          = dummy_sf;
+    weight_function_map["ZPt_EW3"]          = dummy_sf;
+
 
 
 
     weight_function_map["PU_Weight"] = [&](MyCorrection::variation var, TString source) {
         return myCorr->GetPUWeight(ev.nTrueInt(), var);
     };
+
+    // --- C(gen Z pT), DY MC only.
+    //
+    // Four targets, but only ZPt_Weight returns C at nominal; the other three
+    // return 1 there and the ratio C_var/C_nom for their variation. That is
+    // deliberate: calculateWeight() multiplies the nominal of *every* target
+    // into the central weight, so having all four return C would apply it four
+    // times over. This way Central carries exactly one factor of C, and each
+    // variation swaps in its own curve.
+    //
+    // The four are also disjoint in what they vary: ZPt_Weight is the MC
+    // statistical error of C, the other three are the theory variations of its
+    // NLO numerator. Nothing here uses ZPTReweight_Up/Down -- that pair is the
+    // quadrature sum of the same three theory groups, so it overlaps them
+    // completely and is kept in the file for plotting only.
+    if (dycorr.apply) {
+        const float gen_zpt = GetGenZpT();
+        if (gen_zpt < 0.) {
+            cerr << "[Reproduce20_002_copy] FATAL: no isHardProcess lepton pair "
+                 << "(run " << RunNumber << ", event " << EventNumber << ", sample "
+                 << MCSample << ", era " << DataEra << "). C assumes 100% coverage."
+                 << endl;
+            exit(EXIT_FAILURE);
+        }
+        const float c_nom = GetZptWeight(gen_zpt, "ZPTReweight");
+        // ZPt_Weight carries C at nominal and its MC STATISTICAL error as the
+        // variation (nuisance ZPtRw_MC_stat). It deliberately does NOT use
+        // ZPTReweight_Up/Down: those are QCDScale (+) QCDPDFError (+)
+        // QCDPDFAlphaS added in quadrature, i.e. exactly the three theory
+        // targets below, so using them here would count the theory band twice
+        // and leave the statistical error of C out of the fit entirely.
+        const float c_stat = GetZptStat(gen_zpt);
+        weight_function_map["ZPt_Weight"] = [&, gen_zpt, c_nom, c_stat](MyCorrection::variation var, TString source) -> float {
+            if (var == MyCorrection::variation::up)
+                return c_nom + c_stat;
+            if (var == MyCorrection::variation::down)
+                // sigma_stat stays well below C over the delivered range (worst
+                // bin ~17% of C), but never let the weight reach 0: that would
+                // delete the event rather than down-weight it.
+                return std::max(c_nom - c_stat, 1e-3f);
+            return c_nom;
+        };
+        auto zpt_ratio_target = [&, gen_zpt, c_nom](const char *up_key, const char *dn_key) {
+            return [this, gen_zpt, c_nom, up_key, dn_key](MyCorrection::variation var, TString source) -> float {
+                if (c_nom <= 0.) return 1.f;
+                if (var == MyCorrection::variation::up)
+                    return GetZptWeight(gen_zpt, up_key) / c_nom;
+                if (var == MyCorrection::variation::down)
+                    return GetZptWeight(gen_zpt, dn_key) / c_nom;
+                return 1.f;
+            };
+        };
+        weight_function_map["ZPt_QCDScale"] =
+            zpt_ratio_target("ZPTReweight_QCDScaleUp", "ZPTReweight_QCDScaleDown");
+        weight_function_map["ZPt_QCDPDFError"] =
+            zpt_ratio_target("ZPTReweight_QCDPDFErrorUp", "ZPTReweight_QCDPDFErrorDown");
+        weight_function_map["ZPt_QCDPDFAlphaS"] =
+            zpt_ratio_target("ZPTReweight_QCDPDFAlphaSUp", "ZPTReweight_QCDPDFAlphaSDown");
+
+        // --- EW(gen Z pT), same one-factor-of-EW bookkeeping as C above:
+        // ZPt_EW1 carries the EW nominal and its e1 variation; EW2/EW3 return
+        // 1 at nominal and the ratio EW_var/EW_nom, so Central picks up the
+        // EW correction exactly once and each of the three uncertainty
+        // sources of arXiv:1705.04664 varies independently.
+        const float ew_nom = GetZptEW(gen_zpt);
+        weight_function_map["ZPt_EW1"] = [this, gen_zpt, ew_nom](MyCorrection::variation var, TString source) -> float {
+            if (var == MyCorrection::variation::up)
+                return GetZptEW(gen_zpt, 1, +1);
+            if (var == MyCorrection::variation::down)
+                return GetZptEW(gen_zpt, 1, -1);
+            return ew_nom;
+        };
+        auto ew_ratio_target = [this, gen_zpt, ew_nom](int which) {
+            return [this, gen_zpt, ew_nom, which](MyCorrection::variation var, TString source) -> float {
+                if (ew_nom <= 0.) return 1.f;
+                if (var == MyCorrection::variation::up)
+                    return GetZptEW(gen_zpt, which, +1) / ew_nom;
+                if (var == MyCorrection::variation::down)
+                    return GetZptEW(gen_zpt, which, -1) / ew_nom;
+                return 1.f;
+            };
+        };
+        weight_function_map["ZPt_EW2"] = ew_ratio_target(2);
+        weight_function_map["ZPt_EW3"] = ew_ratio_target(3);
+    }
 
     // --- XSec(theory) weight systematics ---
     // Each function returns the absolute event weight for the given variation (nom == 1),
@@ -483,7 +589,13 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     ///DY CR
     bool is_Resolved_DY_EE(false);
     bool is_Resolved_DY_MM(false);
-    
+
+    // DY CR split in mll: CR1 = 60-100, CR2 = 100-150 (subsets of the 60-150 DY CR)
+    bool is_Resolved_DY_EE_CR1(false);
+    bool is_Resolved_DY_EE_CR2(false);
+    bool is_Resolved_DY_MM_CR1(false);
+    bool is_Resolved_DY_MM_CR2(false);
+
     bool is_Resolved_DY_EE_SS(false);
     bool is_Resolved_DY_EE_SS_2e_tight(false);
     bool is_Resolved_DY_EE_SS_1e_tight(false);
@@ -549,7 +661,13 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     /// DY CR
     bool is_Boosted_DY_EE(false);
     bool is_Boosted_DY_MM(false);
-    
+
+    // DY CR split in mll: CR1 = 60-100, CR2 = 100-150 (subsets of the 60-150 DY CR)
+    bool is_Boosted_DY_EE_CR1(false);
+    bool is_Boosted_DY_EE_CR2(false);
+    bool is_Boosted_DY_MM_CR1(false);
+    bool is_Boosted_DY_MM_CR2(false);
+
     bool is_Boosted_DY_EE_SS(false);
     bool is_Boosted_DY_EE_SS_2e_tight(false);
     bool is_Boosted_DY_EE_SS_1e_tight(false);
@@ -1012,6 +1130,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     RVec<Electron> electrons = el_set.AllElectrons;
     RVec<Muon> muons = mu_set.AllMuons;
     RVec<Jet> jets = jet_set.AllJets;
+    RVec<FatJet> fatjets = fatjet_set.AllFatJets;
     RVec<LHE> lhe = lhe_set.lhe_parts;
     // Apply JES and JER systematic variations
     if (!IsDATA) {
@@ -1019,18 +1138,53 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         for (const auto& jet : jets) {
             FillHist(this_syst + "/JESJER_before_jetpt",jet.Pt(), weight, 2000, 0., 2000.);
         }
-        if (this_syst.Contains("JER_Up")) {
-            RVec<GenJet> genjets = GetAllGenJets();
-            jets = SmearJets(jets, genjets, MyCorrection::variation::up, "total");
-        } else if (this_syst.Contains("JER_Down")) {
-            RVec<GenJet> genjets = GetAllGenJets();
-            jets = SmearJets(jets, genjets, MyCorrection::variation::down, "total");
-        }
-        // Apply JES systematics
-        else if (this_syst.Contains("JES_Up")) {
+        // JER smearing is NOT pre-applied in NanoAOD, so the nominal smearing must be
+        // applied to every MC event; JER_Up/Down only swap the JER scale factor. Doing it
+        // only for the variations would leave Central un-smeared, making both variations
+        // shift in the same direction instead of bracketing Central.
+        RVec<GenJet> genjets = GetAllGenJets();
+        MyCorrection::variation jer_var = MyCorrection::variation::nom;
+        if (this_syst.Contains("JER_Up"))        jer_var = MyCorrection::variation::up;
+        else if (this_syst.Contains("JER_Down")) jer_var = MyCorrection::variation::down;
+        jets = SmearJets(jets, genjets, jer_var, "total");
+
+        RVec<GenJet> genjetsak8 = GetAllGenJetAK8();
+        fatjets = SmearFatJets(fatjets, genjetsak8, jer_var, "total");
+
+        // Apply JES systematics (AK4 only; AK8 has its own FatJetJES nuisance below)
+        if (this_syst.Contains("JES_Up") && !this_syst.Contains("FatJetJES")) {
             jets = ScaleJets(jets, MyCorrection::variation::up, "total");
-        } else if (this_syst.Contains("JES_Down")) {
+        } else if (this_syst.Contains("JES_Down") && !this_syst.Contains("FatJetJES")) {
             jets = ScaleJets(jets, MyCorrection::variation::down, "total");
+        }
+
+        // --- AK8 scale / resolution, decorrelated from AK4 --------------------------
+        if (this_syst.Contains("FatJetJES_Up")) {
+            fatjets = ScaleFatJets(fatjets, MyCorrection::variation::up);
+        } else if (this_syst.Contains("FatJetJES_Down")) {
+            fatjets = ScaleFatJets(fatjets, MyCorrection::variation::down);
+        } else if (this_syst.Contains("FatJetJER_Up")) {
+            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::up, "total");
+        } else if (this_syst.Contains("FatJetJER_Down")) {
+            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::down, "total");
+        }
+
+        // --- lepton energy/momentum variations --------------------------------------
+        // Muon scale: MomentumScaleUp/Down were filled by GetAllMuons (Rochester error
+        // below 200 GeV, GE kappa +- sigma above), so one nuisance covers both regimes.
+        if (this_syst.Contains("MuonScale_Up")) {
+            muons = ScaleMuons(muons, "up");
+        } else if (this_syst.Contains("MuonScale_Down")) {
+            muons = ScaleMuons(muons, "down");
+        }
+        if (this_syst.Contains("ElectronScale_Up")) {
+            electrons = ScaleElectrons(ev, electrons, "up");
+        } else if (this_syst.Contains("ElectronScale_Down")) {
+            electrons = ScaleElectrons(ev, electrons, "down");
+        } else if (this_syst.Contains("ElectronRes_Up")) {
+            electrons = SmearElectrons(electrons, "up");
+        } else if (this_syst.Contains("ElectronRes_Down")) {
+            electrons = SmearElectrons(electrons, "down");
         }
         if (this_syst.Contains("JER_Up") || this_syst.Contains("JER_Down") || this_syst.Contains("JES_Up") || this_syst.Contains("JES_Down")) {
             for (const auto& jet : jets) {
@@ -1039,7 +1193,6 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         }
     }
 
-    RVec<FatJet> fatjets = fatjet_set.AllFatJets;
     if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) return;
     FillHist(this_syst + "/Cutflow_for_reseolved_SR", 2.0 , weight, 10, 0., 10.);
     FillSignalCutflow(this_syst, true, 2.0, weight);
@@ -1135,8 +1288,14 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     FillHist(this_syst + "/Jet_num_total_before_clean_looselep", jets.size() , weight, 10, 0., 10.);
     FillHist(this_syst + "/Fatjet_num_total_before_clean_tightlep", fatjets.size() , weight, 10, 0., 10.);
     // Leptons cleaned with fatjet(tight lepton) and jets(loose lepton)
-    // HNWRAnalyzer does NOT clean fatjets with tight leptons → removed to match
-    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, Tight_leps);
+    // HNWRAnalyzer does NOT clean fatjets with tight leptons → off by default
+    // (CleanFatjetWithTightLeptons in the header; set to true to restore).
+    // Rationale: the boosted selection already requires |dPhi(LeadLep, J)| > 2.0, so the
+    // leading tight lepton can never be inside the away fatjet (dR < 0.4 is impossible);
+    // the cleaning only ever removed fatjets overlapping a *subleading* tight lepton,
+    // which is exactly the merged-lepton topology LSF3 is meant to select. Overlap is
+    // instead handled at 4-vector level (dR(J,l) < 0.8 → Ncand = J only).
+    if (CleanFatjetWithTightLeptons) fatjets = Clean_Fatjet_with_tight_leptons(fatjets, Tight_leps);
     jets = Clean_jet_with_loose_leptons(jets, Loose_leps);
     FillHist(this_syst + "/Jet_num_total_after_clean_looselep", jets.size() , weight, 10, 0., 10.);
     FillHist(this_syst + "/Fatjet_num_total_after_clean_tightlep", fatjets.size() , weight, 10, 0., 10.);
@@ -1213,13 +1372,13 @@ void Reproduce20_002_copy::executeEventFromParameter() {
 
 
     ////cout << ev.nTrueInt()<< "pilepu num"<<endl;
-    // Requires 2 tight leptons , l1 > 60 
-    // Def of resolved event 
+    // Requires 2 tight leptons , l1 > 130 (electron-led) / 60 (muon-led)
+    // Def of resolved event
     bool IsResolvedEvent = false;
     bool this_trigger_pass(false);
     bool tmp_isEE(false), tmp_isMM(false), tmp_isEM(false);
     FillHist(this_syst + "/Cutflow_for_skim", 7.0 , 1.0, 10, 0., 10.);
-    if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > 60.0)  && (Tight_leps[1]->Pt() > 53.0)) {
+    if ( (n_Tight_leptons == 2 ) && (Tight_leps[0]->Pt() > (Tight_leps[0]->IsElectron() ? 130.0 : 60.0))  && (Tight_leps[1]->Pt() > 53.0)) {
         
         
         if ( (Tight_electrons.size() == 2) && ( Tight_muons.size() == 0 )) {
@@ -1234,8 +1393,8 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             weight_function_map["E_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                 // HEEP ID SF from egamma-tnp T&P, (pt, eta) binned; up/down varied
                 // coherently for both electrons (single systematic source)
-                return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), var)
-                     * GetElectronHEEPIDSF_TnP(Tight_electrons[1]->Eta(), Tight_electrons[1]->Pt(), var);
+                return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var)
+                     * GetElectronHEEPIDSF_TnP(Tight_electrons[1]->scEta(), Tight_electrons[1]->Pt(), var);
             };
     }
     
@@ -1256,7 +1415,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             electron1_tight_charge = Tight_electrons[0]->TightCharge();
             weight_function_map["E_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                 // HEEP ID SF from egamma-tnp T&P, (pt, eta) binned
-                return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), var);
+                return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
             };
         /*
         weight_function_map["M_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float   {
@@ -1317,11 +1476,11 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     if(tmp_isEE){
                         
                         weight_function_map["E_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) * myCorr->GetElectronRECOSF(Tight_electrons[1]->Eta(), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi(),var);
+                            return (myCorr->GetElectronRECOSF(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) * myCorr->GetElectronRECOSF(Tight_electrons[1]->scEta(), Tight_electrons[1]->Pt(), Tight_electrons[1]->Phi(),var);
                         };
                         if (DataEra != "2017") {
                         weight_function_map["E_Trig_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return GetElectronTriggerSF_TnP(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), var);
+                            return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                         };
                         }
 
@@ -1361,7 +1520,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     if(tmp_isEM){
                         
                         weight_function_map["E_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return    (myCorr->GetElectronRECOSF(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) ;
+                            return    (myCorr->GetElectronRECOSF(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) ;
                         };
                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
                             return  myCorr->GetMuonRECOSF(*Tight_muons[0], var);
@@ -1533,21 +1692,27 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     }
                 }
             // DY CR1 ( 60 < mll < 100)
+            // Subset of the 60-150 DY CR above, so the Resolve_DYCR{EE,MM}* kinematics
+            // are already cached there; only the region flag is needed here.
                 if ( DiLepMass60to100 && WRCand.M() > 800.0 ){
                     if (tmp_isEE)
                     {
+                        is_Resolved_DY_EE_CR1 = true;
                     }
                     if (tmp_isMM)
                     {
+                        is_Resolved_DY_MM_CR1 = true;
                     }
                 }
             // DY CR2 ( 100 < mll < 150)
                 if ( DiLepMass100to150 && WRCand.M() > 800.0 ){
                     if (tmp_isEE)
                     {
+                        is_Resolved_DY_EE_CR2 = true;
                     }
                     if (tmp_isMM)
                     {
+                        is_Resolved_DY_MM_CR2 = true;
                     }
                 }
                 // Flavor CR
@@ -1829,7 +1994,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
 
         FillHist(this_syst + "/Boost_cutflow_DY", 1 , weight, 20,-10,10.);
         FillHist(this_syst + "/Boost_cutflow_FLV", 1 , weight, 20,-10,10.);
-        if ((n_Tight_leptons >0 ) && (Tight_leps[0]->Pt() > 60.0)) {
+        if ((n_Tight_leptons >0 ) && (Tight_leps[0]->Pt() > (Tight_leps[0]->IsElectron() ? 130.0 : 60.0))) {
             FillHist(this_syst + "/Boost_cutflow_DY", 2 , weight, 20,-10,10.);
             FillHist(this_syst + "/Boost_cutflow_FLV", 2 , weight, 20,-10,10.);
             bool this_trigger_pass_boost(false);
@@ -1848,7 +2013,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 this_trigger_pass_boost = pass_trig_elec;
                 weight_function_map["E_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                     // HEEP ID SF from egamma-tnp T&P, (pt, eta) binned
-                    return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), var);
+                    return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                 };
             }
             else if ( LeadLep->IsMuon()){
@@ -1941,10 +2106,10 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                     if(is_tmp_lead_el){
                                         
                                             weight_function_map["E_Reco_Weight"] = [&](MyCorrection::variation var, TString source) {
-                                            return (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
+                                            return (myCorr->GetElectronRECOSF(((Electron *)LeadLep)->scEta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
                                             if (DataEra != "2017") {
                                             weight_function_map["E_Trig_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                return GetElectronTriggerSF_TnP(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), var);
+                                                return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                                             };
                                         }
 
@@ -2107,17 +2272,23 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                         }
                                     }
                                 
+                                // Subsets of the 60-150 DY CR above, so the Boost_DYCR{EE,MM}*
+                                // kinematics are already cached there; only the flag is needed.
                                 if (lowmllmass < 100){
-                            // Boosted CR1    
-                                    if (is_tmp_lead_el){ // ee 
+                            // Boosted CR1
+                                    if (is_tmp_lead_el){ // ee
+                                        is_Boosted_DY_EE_CR1 = true;
                                     }
                                     if (is_tmp_lead_mu){// mumu
+                                        is_Boosted_DY_MM_CR1 = true;
                                     }
                                 }
                                 else{ // 100 < lowmllmass < 150
-                                    if (is_tmp_lead_el){ // ee 
+                                    if (is_tmp_lead_el){ // ee
+                                        is_Boosted_DY_EE_CR2 = true;
                                     }
                                     if (is_tmp_lead_mu){// mumu
+                                        is_Boosted_DY_MM_CR2 = true;
                                     }
                             // Boosted CR2
                                 }
@@ -2268,12 +2439,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     FillSignalCutflow(this_syst, false, 12.0, weight);
                                                     
                                                     weight_function_map["E_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                    return (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
+                                                    return (myCorr->GetElectronRECOSF(((Electron *)LeadLep)->scEta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
                                                     if (DataEra != "2017") {
                                                     weight_function_map["E_Trig_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                        return GetElectronTriggerSF_TnP(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), var);
+                                                        return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                                                     };
                                                 }
+                                                    // SR EE: electron inside the fatjet
+                                                    weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                        return GetLSFSF(false, var);
+                                                    };
 
                                                 }
                                                 if(is_tmp_lead_mu){
@@ -2300,12 +2475,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                         trig_muons.push_back((Muon*)SFLooseLepton);
                                                         if (DataEra=="2017") return 1.0;
                                                     return myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes", trig_muons, var);};
-                                                    
+
                                                     weight_function_map["M_Iso_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                                                     if (DataEra=="2017") return 1.0;
                                                         return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
-                                                    
-                                                    
+
+                                                    // SR MM: muon inside the fatjet
+                                                    weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                        return GetLSFSF(true, var);
+                                                    };
+
                                                 }
                                             }
                                                 if (is_tmp_lead_el) {
@@ -2508,12 +2687,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                         //cout<<"ok1"<<endl;
                                                         
                                                         weight_function_map["E_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                        return (myCorr->GetElectronRECOSF(LeadLep->Eta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
+                                                        return (myCorr->GetElectronRECOSF(((Electron *)LeadLep)->scEta(), LeadLep->Pt(), LeadLep->Phi(),var)) ;};
                                                         if (DataEra != "2017") {
                                                         weight_function_map["E_Trig_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                            return GetElectronTriggerSF_TnP(Tight_electrons[0]->Eta(), Tight_electrons[0]->Pt(), var);
+                                                            return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                                                         };
                                                     }
+                                                        // Flavor CR e-mujet: muon inside the fatjet
+                                                        weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                            return GetLSFSF(true, var);
+                                                        };
                                                 }
                                                 if(is_tmp_lead_mu){
                                                     ////cout<<"ok11"<<endl;
@@ -2527,11 +2710,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                                                     if (DataEra=="2017") return 1.0;
                                                         return (myCorr->GetMuonTriggerSF("NUM_HLT_DEN_HighPtLooseRelIsoProbes",*Tight_muons[0],var));};
-                                                    
+
                                                     weight_function_map["M_Iso_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                                                         if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
-                                                    
+
+                                                    // Flavor CR mu-ejet: electron inside the fatjet
+                                                    weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                        return GetLSFSF(false, var);
+                                                    };
+
                                                 }
                                         }
                                         if (is_tmp_lead_el) {
@@ -2850,23 +3038,94 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         }
         } // boost lead lep pt cut end
     }// boost selected event end
+    // Validation hook (--userflags corrShapes): decorate every weight function so its
+    // nominal scale factor is histogrammed into CorrShapes/weight_<name>/sf. Wrapping the
+    // map generically covers all entries and picks up new ones automatically.
+    if (FillingCorrShapes() && !IsDATA) {
+        for (auto &kv : weight_function_map) {
+            const TString wname = TString("weight_") + kv.first;
+            if (auto *f2 = std::get_if<std::function<float(MyCorrection::variation, TString)>>(&kv.second)) {
+                auto inner = *f2;
+                kv.second = std::function<float(MyCorrection::variation, TString)>(
+                    [this, wname, inner](MyCorrection::variation var, TString src) -> float {
+                        const float sf = inner(var, src);
+                        if (var == MyCorrection::variation::nom) FillCorrWeight(wname, sf);
+                        return sf;
+                    });
+            } else if (auto *f0 = std::get_if<std::function<float()>>(&kv.second)) {
+                auto inner = *f0;
+                kv.second = std::function<float()>([this, wname, inner]() -> float {
+                    const float sf = inner();
+                    FillCorrWeight(wname, sf);
+                    return sf;
+                });
+            }
+        }
+    }
+
     systHelper->assignWeightFunctionMap(weight_function_map);
-    
+
     //if (!exist_data) return;
     {
-        std::vector<std::pair<std::string, float>> fill_targets;
+        // (name, weight, R_resolved, R_boosted). R is carried alongside rather
+        // than folded into the weight because is_Resolved_DY_* and
+        // is_Boosted_DY_* are not exclusive -- one event can be filled into both
+        // -- so the two categories need different factors on the same event.
+        //
+        // R is looked up from THIS pass's jet collections, so an object
+        // systematic that moves the jet pT automatically moves where R is read.
+        std::vector<std::tuple<std::string, float, float, float>> fill_targets;
+        const float R_res_nom = (dycorr.apply && selected_jets.size() > 0)
+            ? GetJetPtR(true, selected_jets[0].Pt()) : 1.0f;
+        const float R_boo_nom = (dycorr.apply && fatjets.size() > 0)
+            ? GetJetPtR(false, fatjets[0].Pt()) : 1.0f;
+
         if (!IsDATA) {
             auto weight_map = systHelper->calculateWeight();
             for (const auto& [sn, sf_val] : weight_map) {
-                fill_targets.push_back({sn, weight * sf_val});
+                fill_targets.push_back({sn, weight * sf_val, R_res_nom, R_boo_nom});
             }
         } else {
-            fill_targets.push_back({std::string(this_syst), 1.0f});
+            fill_targets.push_back({std::string(this_syst), 1.0f, 1.0f, 1.0f});
         }
-        for (const auto& [syst_name, final_weight] : fill_targets) {
+
+        // Per-bin DYReshape nuisances. Only in the Central pass: they are a
+        // property of R, not of the object variations, and crossing them with
+        // every JES/JER pass would multiply the output for no gain. Each moves
+        // one bin by its sigma_R -- statistics and the non-DY cross sections
+        // already folded into a single band, following the Run 2 AN treatment --
+        // and leaves the other bins nominal.
+        if (!IsDATA && dycorr.apply && this_syst == "Central") {
+            const float w_central = weight * systHelper->calculateWeight()["Central"];
+            for (int b = 0; b < dycorr.n_nuis_res; b++) {
+                for (int d = -1; d <= 1; d += 2) {
+                    const TString nm = TString::Format("ResolvedDYReshapeBin%d_%s",
+                                                       b + 1, d > 0 ? "Up" : "Down");
+                    fill_targets.push_back({std::string(nm), w_central,
+                        selected_jets.size() > 0
+                            ? GetJetPtR(true, selected_jets[0].Pt(), b, d) : 1.0f,
+                        R_boo_nom});
+                }
+            }
+            for (int b = 0; b < dycorr.n_nuis_boo; b++) {
+                for (int d = -1; d <= 1; d += 2) {
+                    const TString nm = TString::Format("BoostedDYReshapeBin%d_%s",
+                                                       b + 1, d > 0 ? "Up" : "Down");
+                    fill_targets.push_back({std::string(nm), w_central, R_res_nom,
+                        fatjets.size() > 0
+                            ? GetJetPtR(false, fatjets[0].Pt(), b, d) : 1.0f});
+                }
+            }
+        }
+
+        for (const auto& [syst_name, final_weight_noR, R_res, R_boo] : fill_targets) {
         //resolved
         //DY CR
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_res;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_pt", Resolve_DYCREEpt, final_weight, 100, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_pt", Resolve_DYCREEleadjetpt, final_weight, 200, 0., 2000.);
@@ -2874,7 +3133,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_mlljj", Resolve_DYCREEmlljj, final_weight, 800, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Resolve_DYCREEleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Resolve_DYCREEsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Resolve_DYCREEmass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Resolve_DYCREEmass, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Resolve_DYCREEeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Resolve_DYCREEphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_eta", Resolve_DYCREEleadjeteta, final_weight, 100, -2.5, 2.5);
@@ -2915,9 +3174,16 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 {is_Resolved_DY_EE_SS_2e_tight, "DYCR_Resolved_EE_SS_2e_tight"},
                 {is_Resolved_DY_EE_SS_1e_tight, "DYCR_Resolved_EE_SS_1e_tight"},
                 {is_Resolved_DY_EE_SS_0e_tight, "DYCR_Resolved_EE_SS_0e_tight"},
+                // mll-split DY CRs: CR1 = 60-100, CR2 = 100-150
+                {is_Resolved_DY_EE_CR1,                          "DYCR1_Resolved_EE"},
+                {is_Resolved_DY_EE_CR2,                          "DYCR2_Resolved_EE"},
             }) { if (cond) fill(pfx); }
         }
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_res;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_pt", Resolve_DYCRMMpt, final_weight, 100, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_pt", Resolve_DYCRMMleadjetpt, final_weight, 200, 0., 2000.);
@@ -2925,7 +3191,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_mlljj", Resolve_DYCRMMmlljj, final_weight, 800, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Resolve_DYCRMMleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Resolve_DYCRMMsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Resolve_DYCRMMmass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Resolve_DYCRMMmass, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Resolve_DYCRMMeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Resolve_DYCRMMphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_eta", Resolve_DYCRMMleadjeteta, final_weight, 100, -2.5, 2.5);
@@ -2964,10 +3230,17 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 {is_Resolved_DY_MM_SS,           "DYCR_Resolved_MM_SS"},
                 {is_Resolved_DY_MM_SS_tight,     "DYCR_Resolved_MM_SS_tight"},
                 {is_Resolved_DY_MM_SS_not_tight, "DYCR_Resolved_MM_SS_not_tight"},
+                // mll-split DY CRs: CR1 = 60-100, CR2 = 100-150
+                {is_Resolved_DY_MM_CR1,                          "DYCR1_Resolved_MM"},
+                {is_Resolved_DY_MM_CR2,                          "DYCR2_Resolved_MM"},
             }) { if (cond) fill(pfx); }
         }
         //SR
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_res;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Resolve_SREEpt, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_pt", Resolve_SREEleadjetpt, final_weight, 8000, 0., 8000.);
@@ -2975,7 +3248,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_mlljj", Resolve_SREEmlljj, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Resolve_SREEleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Resolve_SREEsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Resolve_SREEmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Resolve_SREEmass, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Resolve_SREEeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Resolve_SREEphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_eta", Resolve_SREEleadjeteta, final_weight, 100, -2.5, 2.5);
@@ -3019,6 +3292,10 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             }) { if (cond) fill(pfx); }
         }
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_res;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Resolve_SRMMpt, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_pt", Resolve_SRMMleadjetpt, final_weight, 8000, 0., 8000.);
@@ -3026,7 +3303,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_mlljj", Resolve_SRMMmlljj, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Resolve_SRMMleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Resolve_SRMMsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Resolve_SRMMmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Resolve_SRMMmass, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Resolve_SRMMeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Resolve_SRMMphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_eta", Resolve_SRMMleadjeteta, final_weight, 100, -2.5, 2.5);
@@ -3070,6 +3347,10 @@ void Reproduce20_002_copy::executeEventFromParameter() {
 
         //Flav
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_res;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Resolve_FlavCRpt, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_pt", Resolve_FlavCRleadjetpt, final_weight, 2000, 0., 2000.);
@@ -3077,7 +3358,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_mlljj", Resolve_FlavCRmlljj, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Resolve_FlavCRleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Resolve_FlavCRsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Resolve_FlavCRmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Resolve_FlavCRmass, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Resolve_FlavCReta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Resolve_FlavCRphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_leading_jet_eta", Resolve_FlavCRleadjeteta, final_weight, 100, -2.5, 2.5);
@@ -3132,19 +3413,23 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         //Boosted
         //DY CR EE
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_boo;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Boost_DYCREEpt, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_leading_fatjet_pt", Boost_DYCREEfatjetpt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_mlljj", Boost_DYCREEmlljj, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Boost_DYCREEleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Boost_DYCREEsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Boost_DYCREEmass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Boost_DYCREEmass, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Boost_DYCREEeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Boost_DYCREEphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_eta", Boost_DYCREEfatjeteta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_fatjet_phi", Boost_DYCREEfatjetphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_SDM", Boost_DYCREEfatjetSDM, final_weight, 100, 0., 200.);
-                FillHist(syst_name + "/" + pfx + "_mll", Boost_DYCREEmll, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/" + pfx + "_mll", Boost_DYCREEmll, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_WR_pt", Boost_DYCREEWRpt, final_weight, 200, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_WR_eta", Boost_DYCREEWReta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_WR_phi", Boost_DYCREEWRphi, final_weight, 100, -3.14, 3.14);
@@ -3170,23 +3455,30 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 {is_Boosted_DY_EE_SS_2e_tight, "DYCR_Boosted_EE_SS_2e_tight"},
                 {is_Boosted_DY_EE_SS_1e_tight, "DYCR_Boosted_EE_SS_1e_tight"},
                 {is_Boosted_DY_EE_SS_0e_tight, "DYCR_Boosted_EE_SS_0e_tight"},
+                // mll-split DY CRs: CR1 = 60-100, CR2 = 100-150
+                {is_Boosted_DY_EE_CR1,                         "DYCR1_Boosted_EE"},
+                {is_Boosted_DY_EE_CR2,                         "DYCR2_Boosted_EE"},
             }) { if (cond) fill(pfx); }
         }
         //DY CR MM
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_boo;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Boost_DYCRMMpt, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_leading_fatjet_pt", Boost_DYCRMMfatjetpt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_mlljj", Boost_DYCRMMmlljj, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Boost_DYCRMMleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Boost_DYCRMMsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Boost_DYCRMMmass, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Boost_DYCRMMmass, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Boost_DYCRMMeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Boost_DYCRMMphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_eta", Boost_DYCRMMfatjeteta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_fatjet_phi", Boost_DYCRMMfatjetphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_SDM", Boost_DYCRMMfatjetSDM, final_weight, 100, 0., 200.);
-                FillHist(syst_name + "/" + pfx + "_mll", Boost_DYCRMMmll, final_weight, 100, 0., 1000.);
+                FillHist(syst_name + "/" + pfx + "_mll", Boost_DYCRMMmll, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_WR_pt", Boost_DYCRMMWRpt, final_weight, 200, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_WR_eta", Boost_DYCRMMWReta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_WR_phi", Boost_DYCRMMWRphi, final_weight, 100, -3.14, 3.14);
@@ -3210,23 +3502,30 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 {is_Boosted_DY_MM_SS,           "DYCR_Boosted_MM_SS"},
                 {is_Boosted_DY_MM_SS_tight,     "DYCR_Boosted_MM_SS_tight"},
                 {is_Boosted_DY_MM_SS_not_tight, "DYCR_Boosted_MM_SS_not_tight"},
+                // mll-split DY CRs: CR1 = 60-100, CR2 = 100-150
+                {is_Boosted_DY_MM_CR1,                         "DYCR1_Boosted_MM"},
+                {is_Boosted_DY_MM_CR2,                         "DYCR2_Boosted_MM"},
             }) { if (cond) fill(pfx); }
         }
         //SR EE
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_boo;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Boost_SREEpt, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_fatjet_pt", Boost_SREEfatjetpt, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_mlljj", Boost_SREEmlljj, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Boost_SREEleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Boost_SREEsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Boost_SREEmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Boost_SREEmass, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Boost_SREEeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Boost_SREEphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_eta", Boost_SREEfatjeteta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_fatjet_phi", Boost_SREEfatjetphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_SDM", Boost_SREEfatjetSDM, final_weight, 100, 0., 200.);
-                FillHist(syst_name + "/" + pfx + "_mll", Boost_SREEmll, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mll", Boost_SREEmll, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_WR_pt", Boost_SREEWRpt, final_weight, 800, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_WR_eta", Boost_SREEWReta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_WR_phi", Boost_SREEWRphi, final_weight, 100, -3.14, 3.14);
@@ -3256,19 +3555,23 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         }
         //SR MM
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_boo;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Boost_SRMMpt, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_fatjet_pt", Boost_SRMMfatjetpt, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_mlljj", Boost_SRMMmlljj, final_weight, 8000, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_leading_lep_pt", Boost_SRMMleadleppt, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_pt", Boost_SRMMsubleadleppt, final_weight, 2000, 0., 2000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Boost_SRMMmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Boost_SRMMmass, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Boost_SRMMeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Boost_SRMMphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_eta", Boost_SRMMfatjeteta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_fatjet_phi", Boost_SRMMfatjetphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_SDM", Boost_SRMMfatjetSDM, final_weight, 100, 0., 200.);
-                FillHist(syst_name + "/" + pfx + "_mll", Boost_SRMMmll, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mll", Boost_SRMMmll, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_WR_pt", Boost_SRMMWRpt, final_weight, 800, 0., 8000.);
                 FillHist(syst_name + "/" + pfx + "_WR_eta", Boost_SRMMWReta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_WR_phi", Boost_SRMMWRphi, final_weight, 100, -3.14, 3.14);
@@ -3296,6 +3599,10 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         }
         //Flav EMJ
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_boo;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Boost_FlavEMJpt, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_leading_fatjet_pt", Boost_FlavEMJleadfatjetpt, final_weight, 2000, 0., 2000.);
@@ -3312,7 +3619,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_mll", Boost_FlavEMJmll, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_fatjet_pt", Boost_FlavEMJfatjetpt, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_WR_pt", Boost_FlavEMJWRpt, final_weight, 1000, 0., 1000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Boost_FlavEMJmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Boost_FlavEMJmass, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Boost_FlavEMJeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Boost_FlavEMJphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_WR_eta", Boost_FlavEMJWReta, final_weight, 100, -5., 5.);
@@ -3346,6 +3653,10 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         }
         //Flav MEJ
         {
+            // R multiplies the fill weight, not `weight`: an event can be in
+            // both a resolved and a boosted region, and they take different
+            // factors. Non-DY and data have R = 1.
+            const float final_weight = final_weight_noR * R_boo;
             auto fill = [&](const char* pfx) {
                 FillHist(syst_name + "/" + pfx + "_ll_pt", Boost_FlavMEJpt, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_leading_fatjet_pt", Boost_FlavMEJleadfatjetpt, final_weight, 2000, 0., 2000.);
@@ -3362,7 +3673,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_mll", Boost_FlavMEJmll, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_fatjet_pt", Boost_FlavMEJfatjetpt, final_weight, 1000, 0., 1000.);
                 FillHist(syst_name + "/" + pfx + "_WR_pt", Boost_FlavMEJWRpt, final_weight, 1000, 0., 1000.);
-                FillHist(syst_name + "/" + pfx + "_mass", Boost_FlavMEJmass, final_weight, 100, 0., 2000.);
+                FillHist(syst_name + "/" + pfx + "_mass", Boost_FlavMEJmass, final_weight, 2000, 0., 2000.);
                 FillHist(syst_name + "/" + pfx + "_eta", Boost_FlavMEJeta, final_weight, 100, -5., 5.);
                 FillHist(syst_name + "/" + pfx + "_phi", Boost_FlavMEJphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_WR_eta", Boost_FlavMEJWReta, final_weight, 100, -5., 5.);
@@ -3473,6 +3784,10 @@ void Reproduce20_002_copy::FillSignalCutflow(const TString &this_syst, bool isRe
     const TString base  = isResolved ? "/Cutflow_for_reseolved_SR" : "/Cutflow_for_Boosted_SR";
     const int     nbins = isResolved ? 10  : 13;
     const double  xmax  = isResolved ? 10. : 13.;
+    // Raw (unweighted) event count per cut stage. TH1 only stores sum(w) and
+    // sum(w^2) per bin, so the actual number of events surviving each cut is
+    // not recoverable from the weighted cutflow and needs its own histogram.
+    FillHist(this_syst + base + "_raw", binN, 1.0, nbins, 0., xmax);
     if (sig_isOffshell) FillHist(this_syst + base + "_offshell", binN, weight, nbins, 0., xmax);
     if (sig_isOnshell)  FillHist(this_syst + base + "_onshell",  binN, weight, nbins, 0., xmax);
     if (sig_isTb)       FillHist(this_syst + base + "_tb",       binN, weight, nbins, 0., xmax);

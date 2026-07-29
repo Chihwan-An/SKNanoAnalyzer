@@ -46,6 +46,11 @@ public:
     float GetRawPt() const { return jet_rawPt; };
     float GetOriginalPt() const { return jet_originalPt; };
 
+    // Pre-JER p4, used by AnalyzerCore::SmearFatJets to undo the nominal smearing
+    // before re-smearing for a systematic variation (mirrors Jet).
+    inline void SetUnsmearedP4(FatJet fatjet) { j_unsmearedP4 = fatjet; };
+    inline TLorentzVector GetUnsmearedP4() const { return j_unsmearedP4; };
+
 
     inline bool PassSelector( unsigned int s ) const { return (j_jetId & s)==s; }
     inline bool PassLoose() const { return PassSelector(Loose); }
@@ -99,6 +104,7 @@ private:
     float j_rawFactor;
     float jet_rawPt;
     float jet_originalPt;
+    TLorentzVector j_unsmearedP4;
     bool j_looseJetId;
     bool j_tightJetID;
     bool j_tightLepVetoJetID;

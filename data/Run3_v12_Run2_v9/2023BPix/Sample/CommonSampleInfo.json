@@ -11,9 +11,9 @@
         "isMC": 1,
         "PD": "DYto2L-4Jets_MLL-50to120_HT-70to100_TuneCP5_13p6TeV_madgraphMLM-pythia8",
         "xsec": 212.4379778,
-        "nmc": 57235953.0,
-        "sumsign": 57235953.0,
-        "sumW": 50541951553.1709
+        "nmc": 34678834.0,
+        "sumsign": 34678834.0,
+        "sumW": 30630765686.520508
     },
     "DYMLL50to120HT100to400": {
         "isMC": 1,

@@ -6,6 +6,9 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
+#include <array>
+#include <cmath>
 #include <variant>
 using namespace std;
 
@@ -46,7 +49,9 @@ public:
     ~MyCorrection();
 
     // Muon
-    float GetMuonScaleSF(const Muon &muon, const variation syst = variation::nom, const float matched_pt=0) const;
+    // Rochester (medium-pT) muon momentum scale/smearing. `seed` makes the MC smearing
+    // draw deterministic and unique per muon - see AnalyzerCore::ObjectSmearSeed.
+    float GetMuonScaleSF(const Muon &muon, const variation syst = variation::nom, const float matched_pt=0, const unsigned int seed=0) const;
     float GetMuonRECOSF(const Muon &muon, const variation syst = variation::nom) const;
     float GetMuonRECOSF(const RVec<Muon> &muons, const variation syst = variation::nom) const;
     inline float GetMuonISOSF(const TString &Muon_ISO_SF_Key, const Muon &muon, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_ISO_SF_Key, muon, syst); }
@@ -55,13 +60,33 @@ public:
     float GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon, const variation syst = variation::nom) const;
     float GetMuonIDSF(const TString &Muon_ID_SF_Key, const RVec<Muon> &muons, const variation syst = variation::nom) const;
 
+    // --- high-pT muon momentum scale & resolution (Muon POG, Run3) -------------------
+    // Only defined above this pT; below it the medium-pT (Rochester) prescription applies.
+    static constexpr float HIGHPT_MUON_MIN_PT = 200.;
+    // Generalized Endpoint: corrects the curvature bias kappa_b(phi, eta) measured on data.
+    // Returns the corrected pT (GeV). syst shifts kappa by +-sigma of the cell, which is
+    // NOT the same as shifting pT by a fixed percentage. Returns pt unchanged below
+    // HIGHPT_MUON_MIN_PT, outside |eta| < 2.4, or for eras with no map.
+    float GetMuonGEScaledPt(const float pt, const float eta, const float phi, const int charge,
+                            const variation syst = variation::nom) const;
+    // MC resolution smearing: returns the multiplicative factor 1 + N(0, sigma(p,eta)*f).
+    // Returns 1 for eras/eta regions where MC is not better than data (f = 0).
+    float GetMuonHighPtSmearFactor(const float p, const float eta, const unsigned int seed) const;
+    // Relative momentum resolution sigma(p, eta) - exposed for the smearing systematic.
+    float GetMuonHighPtResolution(const float p, const float eta) const;
+
     // electron
+    // Nominal EGM energy-scale correction. DATA only (returns 1 for MC, and for Run2
+    // where the calibration is already baked into NanoAOD's Electron_pt).
+    float GetElectronScaleCorr(const float scEta, const unsigned char seedGain, const unsigned int runNumber, const float r9, const float pt) const;
     float GetElectronScaleUnc(const float scEta, const unsigned char seedGain, const unsigned int runNumber, const float r9, const float pt, const variation syst = variation::nom) const;
     float GetElectronSmearUnc(const Electron &electron, const variation syst = variation::nom, const unsigned int seed=999) const;
     float GetElectronRECOSF(const float abseta, const float pt, const float phi, const variation syst = variation::nom) const;
     float GetElectronRECOSF(const RVec<Electron> &electrons, const variation syst = variation::nom) const;
     float GetElectronIDSF(const TString &Electron_ID_SF_Key, const float abseta, const float pt, const float phi, const variation syst = variation::nom) const;
     float GetElectronIDSF(const TString &Electron_ID_SF_Key, const RVec<Electron> &electrons, const variation syst = variation::nom) const;
+    // EGM electronID_highPt.json.gz (Run3 only): signed SC eta, pt binned from 100 GeV with clamp flow
+    float GetElectronHighPtIDSF(const float scEta, const float pt, const variation syst = variation::nom, const TString &workingPoint = "Tight") const;
     // Electron의 내부 변수(eta, pt, phi)를 풀어서 전달
     inline float GetElectronsTriggerSF(const TString &Electron_Trigger_SF_Key, const Electron &electron, const variation syst = variation::nom, const TString &source = "") { 
     return GetElectronIDSF(Electron_Trigger_SF_Key, fabs(electron.Eta()), electron.Pt(), electron.Phi(), syst); };
@@ -204,6 +229,7 @@ private:
         string json_btagging_R;
         string json_ctagging_R;
         string json_electron;
+        string json_electron_highPt;
         string json_electron_hlt;
         string json_electron_variation;
         string json_photon;
@@ -306,6 +332,7 @@ private:
     unique_ptr<CorrectionSet> cset_btagging_R;
     unique_ptr<CorrectionSet> cset_ctagging_R;
     unique_ptr<CorrectionSet> cset_electron;
+    unique_ptr<CorrectionSet> cset_electron_highPt;
     unique_ptr<CorrectionSet> cset_electron_hlt;
     unique_ptr<CorrectionSet> cset_electron_variation;
     unique_ptr<CorrectionSet> cset_photon;

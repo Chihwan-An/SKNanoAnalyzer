@@ -1,5 +1,5 @@
-#ifndef Reproduce20_002_copy_h
-#define Reproduce20_002_copy_h
+#ifndef HNWR_miniiso_scan_h
+#define HNWR_miniiso_scan_h
 
 #include "AnalyzerCore.h"
 #include "SystematicHelper.h"
@@ -7,10 +7,10 @@
 #include "Electron.h"
 #include "LHE.h"
 
-class Reproduce20_002_copy : public AnalyzerCore {
+class HNWR_miniiso_scan : public AnalyzerCore {
 public:
-    Reproduce20_002_copy();
-    ~Reproduce20_002_copy();
+    HNWR_miniiso_scan();
+    ~HNWR_miniiso_scan();
 
     void initializeAnalyzer();
     void executeEvent();
@@ -100,7 +100,7 @@ public:
         bool Electron_UseMini = false;
         bool Electron_UsePtCone = false;
         bool isPassCustomLooseID(const Electron& el) const;
-        bool isPassCustomTightID(const Electron& el , const Reproduce20_002_copy::Electrons& eset) const;
+        bool isPassCustomTightID(const Electron& el , const HNWR_miniiso_scan::Electrons& eset) const;
         // Loose ID without isolation (matches Python vidNestedWPBitmap with id_level=2, ignoring isolation)
         bool isPassLooseNoIso(const Electron& el) const;
     }el_set;
@@ -144,7 +144,11 @@ public:
     struct FatJets{
         RVec<FatJet> AllFatJets;
         TString FatJet_ID ="Tight";
-        float Fatjet_LSF = 0.75;
+        float Fatjet_LSF = 0.75; // not used in HNWR_miniiso_scan (replaced by Sublead_MiniIso)
+        // scan build: the miniIso gate is a pass-through so that the boosted SR is the
+        // common baseline with NEITHER discriminant applied. Both LSF3 and miniIso are
+        // then scannable from the SR histograms (see SR_Boosted_*_lsf3_vs_miniiso).
+        float Sublead_MiniIso = 999.;
         float FatJet_MinPt = 200.;
         float FatJet_MaxEta = 2.5;
         float FatJet_SDM = 40;
@@ -180,10 +184,16 @@ public:
     // at 100 GeV with clamp flow. Returns 1.0 for eras without the JSON (e.g. 2017).
     float GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const;
 
-    // LSF3 cut efficiency SF by in-fatjet lepton flavor: muon-in-fatjet 1.06 +- 0.10
-    // (from e-mujet flavor CR), electron-in-fatjet 1.11 +- 0.11 (from mu-ejet flavor CR).
-    // Applied only in the boosted SR and boosted flavor CR.
-    float GetLSFSF(bool muonInFatJet, MyCorrection::variation var) const;
+    // Mini-isolation (miniPFRelIso_all < 0.1) scale factor for the subleading loose
+    // lepton cut in the boosted SR, from the egamma-tnp Tag&Probe measurement
+    // (2022/2022EE/2023/2023BPix), binned in (el_pt, el_eta). Electrons only —
+    // the muon-channel measurement is not available yet. Returns 1.0 for eras
+    // without a measurement (e.g. 2017).
+    //
+    // NOT applied as an event weight yet: the miniIso cut replaces the LSF3 cut in
+    // this analyzer, but the corresponding SF is left out for now (LSF_Weight stays
+    // at 1). Kept here so the table is ready when it is turned on.
+    float GetElectronMiniIsoSF_TnP(double eta, double pt, MyCorrection::variation var) const;
 
     RVec<FatJet> Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) ;
     RVec<Jet> Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) ;
@@ -196,14 +206,12 @@ public:
     RVec<FatJet> Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) ;
 
     // ------------------------------------------------------------------------
-    // DY corrections. Three event weights on DY MC only:
+    // DY corrections. Two event weights on DY MC only:
     //
-    //     w *= C(genZpT) * EW(genZpT) * R(recoLeadingJetPt)
+    //     w *= C(genZpT) * R(recoLeadingJetPt)
     //
     // C is the gen-level NLO/LO Z-pT ratio, a per-event scalar, so it goes into
     // `weight` through the systematic machinery and reaches every region.
-    // EW is the NLO electroweak correction of arXiv:1705.04664, also a
-    // per-event scalar on gen Z pT, applied through the same machinery.
     // R is data-driven, from the DY CR, and depends on the reco category --
     // resolved reads the leading AK4 pT, boosted the leading AK8 pT. The two
     // categories are NOT exclusive here (is_Resolved_DY_* and is_Boosted_DY_*
@@ -236,15 +244,6 @@ public:
         // Number of usable bins per category, i.e. how many DYReshape nuisances
         // there are. Bin 0 sits below the jet pT selection and is undefined.
         int n_nuis_res = 0, n_nuis_boo = 0;
-
-        // EW(genZpT): NLO EW correction from arXiv:1705.04664, ported from
-        // SKFlatAnalyzer data/Run2Legacy_v4/<year>/HNWRDYPtReweight/ZPtEWCorr.root
-        // (identical for all years -- pure theory, era-independent). Nominal in
-        // ew_val; the three EW uncertainty sources of the paper live in the bin
-        // ERRORS of hist_e1/e2/e3, stored here as absolute sigmas.
-        bool apply_ew = false;
-        std::vector<double> ew_edges;
-        std::vector<double> ew_val, ew_e1, ew_e2, ew_e3;
     } dycorr;
 
     void LoadDYCorrections();
@@ -262,12 +261,6 @@ public:
     // (not relative) sigma. 0 where C itself is undefined, so that C +- sigma
     // collapses back onto the nominal there.
     float GetZptStat(float gen_zpt) const;
-
-    // EW correction at nominal (which == 0) or shifted by dir*sigma of EW
-    // uncertainty source `which` (1, 2 or 3; dir = +1/-1). Same clamping as
-    // GetZptWeight: below 30 GeV the first bin (~1.004) is used, above the top
-    // edge the last bin -- identical to the SKFlat HNWRAnalyzer clipping.
-    float GetZptEW(float gen_zpt, int which = 0, int dir = 0) const;
 
     // R for a reco category. `nuis_bin` >= 0 shifts that one bin by
     // `dir` * sigma and leaves the others at nominal, which is how the per-bin

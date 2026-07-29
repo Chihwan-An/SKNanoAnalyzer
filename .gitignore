@@ -47,7 +47,13 @@ TTLJ_test.json
 jet_jerc.json
 
 #Temporary Added to my personal temp files
-DataCOPY/** 
+DataCOPY/**
 MCCOPY/**
 .vscode/**
 .cursor/**
+
+# Local agent guidance (per-user, not shared)
+CLAUDE.md
+AGENTS.md
+.claude/settings.local.json
+unrelated_analysis_results*/

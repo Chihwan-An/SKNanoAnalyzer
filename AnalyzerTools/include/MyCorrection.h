@@ -3,9 +3,11 @@
 
 #include <array>
 #include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <vector>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
@@ -35,6 +37,25 @@ using namespace std;
 
 using correction::CorrectionSet;
 
+namespace SKNano {
+
+// Heterogeneous lookup: lets a memo be probed with a string_view so the hot
+// path never materialises a std::string for an already-bound key.  At
+// namespace scope because rootcling has to name it when it generates the
+// dictionary for the maps that use it.
+struct TransparentStringHash {
+    using is_transparent = void;
+    std::size_t operator()(std::string_view key) const noexcept {
+        return std::hash<std::string_view>{}(key);
+    }
+};
+
+using CorrectionRefCache =
+    std::unordered_map<std::string, correction::Correction::Ref,
+                       TransparentStringHash, std::equal_to<>>;
+
+} // namespace SKNano
+
 class MyCorrection {
 public:
     using variation = SKNano::Variation;
@@ -53,14 +74,6 @@ public:
     struct JERSFVariations {
         float up = 1.f;
         float down = 1.f;
-    };
-
-    enum class POG {
-        MUO,
-        LUM,
-        BTV,
-        EGM,
-        JME
     };
 
     enum class XYCorrection_MetType {
@@ -160,7 +173,7 @@ public:
     // jerc_fatjet
     
     // jetvetomap
-    bool IsJetVetoZone(const float eta, const float phi, TString mapCategory) const;
+    bool IsJetVetoZone(const float eta, const float phi, const TString &mapCategory) const;
     
     // MET
     void METXYCorrection(Particle &Met, const int RunNumber, const int npvs, const XYCorrection_MetType MetType);
@@ -172,48 +185,23 @@ public:
                             const TLorentzVector &FirstCopyBHadronFromTop, const TLorentzVector &FirstCopyBHadronFromAntiTop, const variation &syst) const;
     // helper function for getbfrag
     std::array<size_t, 6> GetGenIdxofTopDecayProducts(const GenViewCollection &gens) const;
-    // Safe evaluation function for correction sets with comprehensive error handling
-    template<typename... Args>
-    inline float safeEvaluate(const correction::Correction::Ref &cset, 
-                              const string &function_name,
+    // Safe evaluation for both Correction::Ref and CompoundCorrection::Ref.
+    // function_name is a string_view so that the (very common) string-literal
+    // call sites cost nothing on the success path; it is only materialised
+    // when an error message actually has to be built.
+    template <typename CorrectionRef>
+    inline float safeEvaluate(const CorrectionRef &cset,
+                              std::string_view function_name,
                               const vector<correction::Variable::Type> &args) const {
-        if (!cset) {
-            throw SKNano::ConfigError("[MyCorrection::" + function_name + "] Correction set is null");
-        }
-        
-        try {
-            return cset->evaluate(args);
-        } catch (const std::exception &e) {
-            std::ostringstream oss;
-            oss << "[MyCorrection::" << function_name << "] Error during evaluation: "
-                << e.what() << "; arguments (" << args.size() << "): ";
-            for (const auto &arg : args) {
-                std::visit([&oss](const auto &value) { oss << value << " "; }, arg);
-            }
-            throw SKNano::CorrectionError(oss.str());
-        }
-    }
+        if (!cset)
+            throwNullCorrection(function_name);
 
-    // Overload for CompoundCorrection
-    template<typename... Args>
-    inline float safeEvaluate(const correction::CompoundCorrection::Ref &cset, 
-                              const string &function_name,
-                              const vector<correction::Variable::Type> &args) const {
-        if (!cset) {
-            throw SKNano::ConfigError("[MyCorrection::" + function_name + "] CompoundCorrection set is null");
-        }
-        
         try {
             return cset->evaluate(args);
         } catch (const std::exception &e) {
-            std::ostringstream oss;
-            oss << "[MyCorrection::" << function_name << "] Error during evaluation: "
-                << e.what() << "; arguments (" << args.size() << "): ";
-            for (const auto &arg : args) {
-                std::visit([&oss](const auto &value) { oss << value << " "; }, arg);
-            }
-            throw SKNano::CorrectionError(oss.str());
+            throwEvaluationError(function_name, e, args);
         }
+        return 1.f; // unreachable; throwEvaluationError is [[noreturn]]
     }
 
     // correctionlib's public evaluator accepts a vector<variant>.  JEC calls
@@ -222,7 +210,7 @@ public:
     // vector for every correction level of every jet.
     template <typename CorrectionRef, std::size_t N>
     inline float safeEvaluateFloats(const CorrectionRef &cset,
-                                    const string &function_name,
+                                    std::string_view function_name,
                                     const std::array<float, N> &values) const {
         static thread_local vector<correction::Variable::Type> args(N);
         if (args.size() != N)
@@ -233,39 +221,36 @@ public:
     }
 
 private:
-    struct EraConfig {
-        string json_muon;
-        string json_muon_trig_sf;
-        string json_muon_trig_eff;
-        string json_puWeights;
-        string json_btagging;
-        string json_ctagging;
-        string json_btagging_eff;
-        string json_ctagging_eff;
-        string json_btagging_R;
-        string json_ctagging_R;
-        string json_electron;
-        string json_electron_id;
-        string json_electron_hlt;
-        string json_electron_variation;
-        string json_photon;
-        string json_jetid;
-        string json_jerc;
-        string json_jerc_fatjet;
-        string json_jetvetomap;
-        string json_jmar;
-        string json_met;
-        string txt_roccor;
-        string golden_json;
+    [[noreturn]] void throwNullCorrection(std::string_view function_name) const;
+    [[noreturn]] void
+    throwEvaluationError(std::string_view function_name, const std::exception &e,
+                         const vector<correction::Variable::Type> &args) const;
 
-        //onnx file location
-        string onnx_toppt_reweight;
-        string onnx_hDampUp;
-        string onnx_hDampDown;
-        string onnx_rBnom;
-        string onnx_rBUp;
+    // Everything era-dependent, read from
+    // $SKNANO_DATA/<era>/Correction/era_config.yml.  Adding an era is a new
+    // yml file, not a code change.
+    struct EraConfig {
+        // Logical correction name -> resolved absolute path.  A name that is
+        // absent from the yml is absent here too, and gets skipped at load.
+        unordered_map<string, string> paths;
+        unordered_set<string> required;
+        unordered_map<string, string> keys;        // LUM, EGM, JME_vetomap
+        unordered_map<string, string> global_tags; // JER, JES_MC, JES_DATA
+
+        string path(const string &name) const {
+            const auto it = paths.find(name);
+            return it == paths.end() ? string() : it->second;
+        }
+        string key(const string &name) const {
+            const auto it = keys.find(name);
+            return it == keys.end() ? string() : it->second;
+        }
+        string globalTag(const string &name) const {
+            const auto it = global_tags.find(name);
+            return it == global_tags.end() ? string() : it->second;
+        }
     };
-    EraConfig GetEraConfig(TString era, const string &btagging_eff_file, const string &ctagging_eff_file, const string &btagging_R_file, const string &ctagging_R_file) const;
+    EraConfig GetEraConfig(TString era) const;
 
     inline void SetEra(TString era) {
         DataEra = era;
@@ -278,15 +263,24 @@ private:
         }
     }
     inline void SetPeriod(TString period) { DataPeriod = period; }
-    inline TString GetEra() const { return DataEra; }
-    inline TString GetPeriod() const { return DataPeriod; }
+    inline const TString &GetEra() const { return DataEra; }
+    inline const TString &GetPeriod() const { return DataPeriod; }
     inline void SetSample(TString sample) { Sample = sample; }
     inline void setIsData(bool isData) { IsDATA = isData; }
 
-    inline bool loadCorrectionSet(const string &name,
-                                  const string &file,
-                                  unique_ptr<CorrectionSet> &cset,
-                                  bool optional = false) {
+    inline bool loadCorrectionSet(const EraConfig &config, const string &name,
+                                  unique_ptr<CorrectionSet> &cset) {
+        const string file = config.path(name);
+        const bool optional = config.required.count(name) == 0;
+        if (file.empty()) {
+            if (!optional)
+                throw SKNano::ConfigError(
+                    "[MyCorrection::loadCorrectionSet] Required correction '" +
+                    name + "' is not configured for era " + string(GetEra().Data()));
+            cout << "[MyCorrection::loadCorrectionSet] " << name
+                 << ": not configured for this era, skipping" << endl;
+            return false;
+        }
         cout << "[MyCorrection::loadCorrectionSet] " << name << ": " << file << endl;
         try {
             cset = CorrectionSet::from_file(file);
@@ -334,25 +328,46 @@ private:
         }
     }
 
-    inline bool isInputInCorrection(const string &key, const correction::Correction::Ref &cset) const {
-        vector<string> inputs;
-        for (const auto &input : cset->inputs()) {
-            inputs.push_back(input.name());
+    // correction::Variable::name() returns by value, so this allocates one
+    // string per declared input.  Only call it while binding a cached ref,
+    // never per object.
+    bool isInputInCorrection(std::string_view key, const correction::Correction::Ref &cset) const;
+
+    // CorrectionSet::at() hashes the key and returns a shared_ptr copy, and
+    // every call site here would otherwise have to build the key string
+    // first.  Bind each ref once and reuse it for the rest of the job.
+    class LazyRef {
+    public:
+        const correction::Correction::Ref &
+        get(const unique_ptr<CorrectionSet> &set, const char *key) const {
+            if (!ref_)
+                ref_ = set->at(key);
+            return ref_;
         }
-        return find(inputs.begin(), inputs.end(), key) != inputs.end();
-    }
+
+    private:
+        mutable correction::Correction::Ref ref_;
+    };
+
+    using CorrectionRefCache = SKNano::CorrectionRefCache;
+
+    const correction::Correction::Ref &
+    cachedRefByKey(CorrectionRefCache &cache,
+                   const unique_ptr<CorrectionSet> &set,
+                   std::string_view key) const;
 
     const correction::Correction::Ref &getJERPtResolutionCorrection() const;
     const correction::Correction::Ref &getJERScaleFactorCorrection() const;
     const correction::Correction::Ref &getJERSFUncertaintyCorrection() const;
-    const correction::Correction::Ref &getJESUncertaintyCorrection(const string &source) const;
-    float safeEvaluate2D(const correction::Correction::Ref &cset, const string &function_name, float x, float y) const;
-    float safeEvaluate3D(const correction::Correction::Ref &cset, const string &function_name, float x, float y, float z) const;
+    const correction::Correction::Ref &getJESUncertaintyCorrection(std::string_view source) const;
+    float safeEvaluate2D(const correction::Correction::Ref &cset, std::string_view function_name, float x, float y) const;
+    float safeEvaluate3D(const correction::Correction::Ref &cset, std::string_view function_name, float x, float y, float z) const;
 
     JetTagging::JetFlavTaggerWP global_wp;
     JetTagging::JetFlavTagger global_tagger;
     string global_wpStr;
     string global_taggerStr;
+    string global_wpValuesKey; // global_taggerStr + "_wp_values"
     TString DataEra;
     TString DataPeriod;
     int Run;
@@ -373,166 +388,124 @@ private:
     unique_ptr<CorrectionSet> cset_btagging;
     unique_ptr<CorrectionSet> cset_ctagging;
     unique_ptr<CorrectionSet> cset_btagging_eff;
-    unique_ptr<CorrectionSet> cset_ctagging_eff;
-    unique_ptr<CorrectionSet> cset_btagging_R;
     unique_ptr<CorrectionSet> cset_ctagging_R;
     unique_ptr<CorrectionSet> cset_electron;
-    unique_ptr<CorrectionSet> cset_electron_id;
     unique_ptr<CorrectionSet> cset_electron_hlt;
     unique_ptr<CorrectionSet> cset_electron_variation;
-    unique_ptr<CorrectionSet> cset_photon;
     unique_ptr<CorrectionSet> cset_jetid;
     unique_ptr<CorrectionSet> cset_jerc;
-    unique_ptr<CorrectionSet> cset_jerc_fatjet;
     unique_ptr<CorrectionSet> cset_jetvetomap;
-    unique_ptr<CorrectionSet> cset_jmar;
     unique_ptr<CorrectionSet> cset_met;
 
-    unordered_map<string, string> MUO_keys;
-    unordered_map<string, string> LUM_keys;
-    unordered_map<string, string> BTV_keys;
-    unordered_map<string, string> EGM_keys;
-    unordered_map<string, string> JME_JER_GT;
-    unordered_map<string, string> JME_JES_GT;
-    unordered_map<string, string> JME_vetomap_keys;
-    unordered_map<string, string> JME_PILEUP_keys;
-    unordered_map<string, string> JME_MET_keys;
+    // The configured era's correction keys, resolved from the era yml at
+    // construction.  The era cannot change afterwards, so looking these up per
+    // event only cost a hash and a string construction.
+    string LUM_era_key;      // pileup profile, e.g. "Collisions24_..._goldenJSON"
+    string EGM_era_key;      // EGM campaign tag, e.g. "2024Prompt"
+    string EGM_era_scale_key;
+    string EGM_era_prompt;   // era + "Prompt", the Run3 electron SF campaign key
+    string JME_vetomap_key;
+    // JERC global tags, still carrying the "######" level placeholder.
+    string JER_global_tag;
+    string JES_global_tag;
 
     mutable correction::Correction::Ref cachedJERPtResolution;
     mutable correction::Correction::Ref cachedJERScaleFactor;
     mutable correction::Correction::Ref cachedJERSFUncertainty;
-    mutable unordered_map<string, correction::Correction::Ref> cachedJESUncertaintyCorrections;
-    // Immutable for a configured era/data mode.  The first JEC request binds
-    // the correctionlib refs once instead of doing string construction and
-    // CorrectionSet lookups for every jet.
+    mutable CorrectionRefCache cachedJESUncertaintyCorrections;
+    mutable CorrectionRefCache cachedMuonIDSF;
+    mutable CorrectionRefCache cachedMuonTriggerEff;
+
+    LazyRef cachedPUWeight;
+    LazyRef cachedJetVetoMap;
+    LazyRef cachedJetIDTight;
+    LazyRef cachedJetIDTightLepVeto;
+    LazyRef cachedFatJetIDTight;
+    LazyRef cachedFatJetIDTightLepVeto;
+    LazyRef cachedElectronIDSF;
+    LazyRef cachedElectronHltSF;
+    LazyRef cachedElectronHltDataEff;
+    LazyRef cachedElectronHltMcEff;
+    LazyRef cachedBTaggingWP;
+    LazyRef cachedCTaggingWP;
+
+    // Whether the electron HLT corrections declare a "phi" input.  Probing
+    // this per electron used to allocate a vector of all input names.
+    mutable int electronHltSFHasPhi = -1;
+    mutable int electronHltDataEffHasPhi = -1;
+    mutable int electronHltMcEffHasPhi = -1;
+
+    // Which inputs the era's JES correction takes.  Resolved together with the
+    // refs below so the per-jet path is a switch on an enum rather than a
+    // chain of era string comparisons.
+    enum class JESLayout {
+        Factorized,          // L1/L2/L3 (+L2L3Residual) applied in sequence
+        CompoundAreaEtaPtRho,
+        CompoundAreaEtaPtRhoPhi,
+        CompoundAreaEtaPtRhoRun,
+        CompoundAreaEtaPtRhoPhiRun
+    };
+
+    // The first JEC request binds the correctionlib refs once instead of doing
+    // string construction and CorrectionSet lookups for every jet.
     mutable bool preparedJESValid = false;
-    mutable string preparedJESEra;
-    mutable bool preparedJESIsData = false;
+    mutable JESLayout preparedJESLayout = JESLayout::Factorized;
     mutable correction::CompoundCorrection::Ref preparedJESCompound;
     mutable correction::Correction::Ref preparedJESL1;
     mutable correction::Correction::Ref preparedJESL2;
     mutable correction::Correction::Ref preparedJESL3;
     mutable correction::Correction::Ref preparedJESResidual;
-    
+
     RoccoR rc;
     unique_ptr<GoldenJsonParser> golden_json_parser;
-    // All POG choose different string for the systematics, so we need to convert the enum to the string....
-    // Here I implement every single function instead of a general one, because heavy use of switch-case might be slow.
-    inline string getSystString_CUSTOM(const variation syst) const {
-        string sys_string = "nom";
-        switch (syst) {
-        case variation::nom:
-            sys_string = "nom";
-            break;
-        case variation::up:
-            sys_string = "up";
-            break;
-        case variation::down:
-            sys_string = "down";
-            break;
-        };
-        return sys_string;
-    };
+    // Every POG spells the systematics differently, so the enum has to be
+    // mapped per POG.  These return a string literal rather than a
+    // std::string: correctionlib takes the value as a variant alternative and
+    // builds its own string, so returning by value only added one heap
+    // allocation per scale-factor evaluation.
+    static inline const char *pickSystString(const variation syst,
+                                             const char (&table)[3][12]) {
+        return table[static_cast<int>(syst)];
+    }
 
-    inline string getSystString_MUO(const variation syst) const {
-        string sys_string = "nominal";
-        switch (syst) {
-        case variation::nom:
-            sys_string = "nominal";
-            break;
-        case variation::up:
-            sys_string = "systup";
-            break;
-        case variation::down:
-            sys_string = "systdown";
-            break;
-        };
-        return sys_string;
-    };
+    inline const char *getSystString_CUSTOM(const variation syst) const {
+        static constexpr char table[3][12] = {"nom", "up", "down"};
+        return pickSystString(syst, table);
+    }
 
-    inline string getSystString_LUM(const variation syst) const {
-        string sys_string = "nominal";
-        switch (syst) {
-        case variation::nom:
-            sys_string = "nominal";
-            break;
-        case variation::up:
-            sys_string = "up";
-            break;
-        case variation::down:
-            sys_string = "down";
-            break;
-        };
-        return sys_string;
-    };
+    inline const char *getSystString_MUO(const variation syst) const {
+        static constexpr char table[3][12] = {"nominal", "systup", "systdown"};
+        return pickSystString(syst, table);
+    }
 
-    inline string getSystString_BTV(const variation syst) const {
-        string sys_string = "central";
-        switch (syst) {
-        case variation::nom:
-            sys_string = "central";
-            break;
-        case variation::up:
-            sys_string = "up";
-            break;
-        case variation::down:
-            sys_string = "down";
-            break;
-        };
-        return sys_string;
-    };
+    inline const char *getSystString_LUM(const variation syst) const {
+        static constexpr char table[3][12] = {"nominal", "up", "down"};
+        return pickSystString(syst, table);
+    }
 
-    inline string getSystString_EGM(const variation syst) const {
-        string sys_string = "sf";
-        switch (syst) {
-        case variation::nom:
-            sys_string = "sf";
-            break;
-        case variation::up:
-            sys_string = "sfup";
-            break;
-        case variation::down:
-            sys_string = "sfdown";
-            break;
-        };
-        return sys_string;
-    };
-    
-    inline string getSystString_EGMScale(const variation syst) const {
+    inline const char *getSystString_BTV(const variation syst) const {
+        static constexpr char table[3][12] = {"central", "up", "down"};
+        return pickSystString(syst, table);
+    }
+
+    inline const char *getSystString_EGM(const variation syst) const {
+        static constexpr char table[3][12] = {"sf", "sfup", "sfdown"};
+        return pickSystString(syst, table);
+    }
+
+    inline const char *getSystString_EGMScale(const variation syst) const {
         // Only for Run2
-        if (! (Run == 2)) {
+        if (!(Run == 2)) {
             throw runtime_error("[MyCorrection::getSystString_EGMScale] Use getSystString_EGM for Run3");
         }
-        string sys_string = "";
-        switch(syst) {
-        case variation::nom:
-            sys_string = "";
-            break;
-        case variation::up:
-            sys_string = "scaleup";
-            break;
-        case variation::down:
-            sys_string = "scaledown";
-            break;
-        };
-        return sys_string;
+        static constexpr char table[3][12] = {"", "scaleup", "scaledown"};
+        return pickSystString(syst, table);
     }
-    
-    inline string getSystString_JME(const variation syst) const {
-        string sys_string = "nom";
-        switch (syst) {
-        case variation::nom:
-            sys_string = "nom";
-            break;
-        case variation::up:
-            sys_string = "up";
-            break;
-        case variation::down:
-            sys_string = "down";
-            break;
-        };
-        return sys_string;
-    };
+
+    inline const char *getSystString_JME(const variation syst) const {
+        static constexpr char table[3][12] = {"nom", "up", "down"};
+        return pickSystString(syst, table);
+    }
 };
 
 #endif

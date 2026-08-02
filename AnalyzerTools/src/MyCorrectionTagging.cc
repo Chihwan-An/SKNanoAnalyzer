@@ -13,36 +13,36 @@ void MyCorrection::SetTaggingParam(JetTagging::JetFlavTagger tagger,
   global_wp = wp;
   global_taggerStr = JetTagging::GetTaggerCorrectionLibStr(tagger);
   global_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp);
+  global_wpValuesKey = global_taggerStr + "_wp_values";
 }
 
 float MyCorrection::GetBTaggingWP() const {
   try {
-    correction::Correction::Ref cset =
-        cset_btagging->at(global_taggerStr + "_wp_values");
+    const auto &cset =
+        cachedBTaggingWP.get(cset_btagging, global_wpValuesKey.c_str());
     return safeEvaluate(cset, "GetBTaggingWP", {global_wpStr});
   } catch (const exception &e) {
-    cerr << "[Correction::GetBTaggingWP] Warning: Failed to evaluate WP '"
-         << global_wpStr << "' for tagger '" << global_taggerStr << endl;
-    throw runtime_error(e.what());
-    return 1.f;
+    cerr << "[MyCorrection::GetBTaggingWP] Failed to evaluate WP '"
+         << global_wpStr << "' for tagger '" << global_taggerStr << "'" << endl;
+    throw;
   }
 }
 
 float MyCorrection::GetBTaggingWP(JetTagging::JetFlavTagger tagger,
                                   JetTagging::JetFlavTaggerWP wp) const {
   // Convert enumerations to strings
-  string this_taggerStr = JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
-  string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
+  const string this_taggerStr =
+      JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
+  const string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
 
   try {
     correction::Correction::Ref cset =
         cset_btagging->at(this_taggerStr + "_wp_values");
     return safeEvaluate(cset, "GetBTaggingWP", {this_wpStr});
   } catch (const exception &e) {
-    cerr << "[Correction::GetBTaggingWP] Warning: Failed to evaluate WP '"
-         << this_wpStr << "' for tagger '" << this_taggerStr << endl;
-    throw runtime_error(e.what());
-    return 1.f;
+    cerr << "[MyCorrection::GetBTaggingWP] Failed to evaluate WP '" << this_wpStr
+         << "' for tagger '" << this_taggerStr << "'" << endl;
+    throw;
   }
 }
 
@@ -51,56 +51,48 @@ float MyCorrection::GetBTaggingEff(const float eta, const float pt,
                                    JetTagging::JetFlavTagger tagger,
                                    JetTagging::JetFlavTaggerWP wp,
                                    const variation syst) {
-  string this_taggerStr = JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
-  string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
+  const string this_taggerStr =
+      JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
+  const string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
   auto cset = cset_btagging_eff->at(this_taggerStr);
   return safeEvaluate(cset, "GetBTaggingSF",
-                      {"central", this_wpStr, flav, fabs(eta), pt});
+                      {getSystString_BTV(syst), this_wpStr, flav, fabs(eta),
+                       pt});
 }
 
 pair<float, float> MyCorrection::GetCTaggingWP() const {
   try {
-    correction::Correction::Ref cset =
-        cset_ctagging->at(global_taggerStr + "_wp_values");
-    float valCvB = safeEvaluate(cset, "GetCTaggingWP", {global_wpStr, "CvB"});
-    float valCvL = safeEvaluate(cset, "GetCTaggingWP", {global_wpStr, "CvL"});
+    const auto &cset =
+        cachedCTaggingWP.get(cset_ctagging, global_wpValuesKey.c_str());
+    const float valCvB =
+        safeEvaluate(cset, "GetCTaggingWP", {global_wpStr, "CvB"});
+    const float valCvL =
+        safeEvaluate(cset, "GetCTaggingWP", {global_wpStr, "CvL"});
     return make_pair(valCvB, valCvL);
   } catch (const exception &e) {
-    // If the requested WP is not found or any other error occurs,
-    // log a warning and return (1.f, 1.f) as a fallback.
-    cerr << "[Correction::GetCTaggingWP] Warning: Failed to evaluate WP '"
-         << global_wpStr << "' for tagger '" << global_taggerStr << endl;
-    throw runtime_error(e.what());
-    return make_pair(1.f, 1.f);
+    cerr << "[MyCorrection::GetCTaggingWP] Failed to evaluate WP '"
+         << global_wpStr << "' for tagger '" << global_taggerStr << "'" << endl;
+    throw;
   }
 }
 
 pair<float, float>
 MyCorrection::GetCTaggingWP(JetTagging::JetFlavTagger tagger,
                             JetTagging::JetFlavTaggerWP wp) const {
-  // Convert enumerations to strings using your existing utility functions
-  string this_taggerStr = JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
-  string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
-
-  // Retrieve the relevant correction set
-  correction::Correction::Ref cset =
-      cset_ctagging->at(this_taggerStr + "_wp_values");
+  const string this_taggerStr =
+      JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
+  const string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
 
   try {
-    // Evaluate the corrections. If the WP does not exist, an exception might be
-    // thrown
-    float valCvB = safeEvaluate(cset, "GetCTaggingWP", {this_wpStr, "CvB"});
-    float valCvL = safeEvaluate(cset, "GetCTaggingWP", {this_wpStr, "CvL"});
-
-    // If everything is fine, return the pair
+    correction::Correction::Ref cset =
+        cset_ctagging->at(this_taggerStr + "_wp_values");
+    const float valCvB = safeEvaluate(cset, "GetCTaggingWP", {this_wpStr, "CvB"});
+    const float valCvL = safeEvaluate(cset, "GetCTaggingWP", {this_wpStr, "CvL"});
     return make_pair(valCvB, valCvL);
   } catch (const exception &e) {
-    // In case the WP is not found (or any other error occurs),
-    // print a warning (optional) and return default values
-    cerr << "[Correction::GetCTaggingWP] Warning: WP '" << this_wpStr
-         << "' not found for tagger '" << this_taggerStr << endl;
-    throw runtime_error(e.what());
-    return make_pair(1.f, 1.f);
+    cerr << "[MyCorrection::GetCTaggingWP] WP '" << this_wpStr
+         << "' not found for tagger '" << this_taggerStr << "'" << endl;
+    throw;
   }
 }
 
@@ -109,15 +101,16 @@ float MyCorrection::GetCTaggingEff(const float eta, const float pt,
                                    JetTagging::JetFlavTagger tagger,
                                    JetTagging::JetFlavTaggerWP wp,
                                    const variation syst) {
+  // No c-tagging efficiency map is produced for the supported eras yet; the
+  // body that used to follow this return was dead and read the *b*-tagging
+  // file.  Restore it together with the ctagging_eff entry in the era yml.
+  static_cast<void>(eta);
+  static_cast<void>(pt);
+  static_cast<void>(flav);
+  static_cast<void>(tagger);
+  static_cast<void>(wp);
+  static_cast<void>(syst);
   return 1.;
-  string this_taggerStr = JetTagging::GetTaggerCorrectionLibStr(tagger).Data();
-  string this_wpStr = JetTagging::GetTaggerCorrectionWPStr(wp).Data();
-  correction::Correction::Ref cset = cset_btagging_eff->at(this_taggerStr);
-  return safeEvaluate(cset, "GetBTaggingEff",
-                      {
-                          getSystString_BTV(syst),
-                          this_wpStr,
-                      });
 }
 
 float MyCorrection::GetCTaggingR(const float nTrueInt, const float HT,

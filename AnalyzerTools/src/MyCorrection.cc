@@ -1,10 +1,13 @@
 #include "MyCorrection.h"
 #include "MLHelper.h"
 
+#include <yaml-cpp/yaml.h>
+
 #include <TLorentzVector.h>
 #include <algorithm>
 #include <execution>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <vector>
 
@@ -22,202 +25,210 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   SetSample(sample);
   setIsData(IsData);
 
-  EraConfig config = GetEraConfig(era, btagging_eff_file, ctagging_eff_file,
-                                  btagging_R_file, ctagging_R_file);
-  struct CorrectionInfo {
-    string name;
-    string path;
-    unique_ptr<CorrectionSet> &cset;
-    bool isOptional;
+  static_cast<void>(btagging_eff_file);
+  static_cast<void>(ctagging_eff_file);
+  static_cast<void>(btagging_R_file);
+  static_cast<void>(ctagging_R_file);
+
+  const EraConfig config = GetEraConfig(era);
+
+  // Load correction sets.  Which ones are required, and which are simply not
+  // published for this era yet, is decided by the era yml.
+  loadCorrectionSet(config, "jetid", cset_jetid);
+  loadCorrectionSet(config, "jerc", cset_jerc);
+  loadCorrectionSet(config, "jetvetomap", cset_jetvetomap);
+  loadCorrectionSet(config, "muon", cset_muon);
+  loadCorrectionSet(config, "muon_trig_eff", cset_muon_trig_eff);
+  loadCorrectionSet(config, "muon_trig_sf", cset_muon_trig_sf);
+  loadCorrectionSet(config, "puWeights", cset_puWeights);
+  loadCorrectionSet(config, "btagging", cset_btagging);
+  loadCorrectionSet(config, "ctagging", cset_ctagging);
+  loadCorrectionSet(config, "btagging_eff", cset_btagging_eff);
+  loadCorrectionSet(config, "ctagging_R", cset_ctagging_R);
+  loadCorrectionSet(config, "electron", cset_electron);
+  loadCorrectionSet(config, "electron_variation", cset_electron_variation);
+  loadCorrectionSet(config, "electron_hlt", cset_electron_hlt);
+  loadCorrectionSet(config, "met", cset_met);
+
+  loadRoccoR(config.path("roccor"), true);
+  loadGoldenJson(config.path("golden_json"), true);
+
+  const auto loadModel = [&config](const string &name) {
+    const string file = config.path(name);
+    return file.empty() ? nullptr
+                        : make_unique<MLHelper>(file, MLHelper::ModelType::ONNX);
   };
+  MLHelper_hDampUp = loadModel("onnx_hDampUp");
+  MLHelper_hDampDown = loadModel("onnx_hDampDown");
+  MLHelper_TopPtReweight = loadModel("onnx_toppt_reweight");
+  MLHelper_rBnom = loadModel("onnx_rBnom");
+  MLHelper_rBUp = loadModel("onnx_rBUp");
 
-  // load correction sets
-  // only jetid and jet, jerc are available for 2024 for now, I change optional
-  // flag to true for other sets
-  loadCorrectionSet("muon SF", config.json_muon, cset_muon, true);
-  loadCorrectionSet("puWeights", config.json_puWeights, cset_puWeights, true);
-  loadCorrectionSet("btagging", config.json_btagging, cset_btagging, true);
-  loadCorrectionSet("ctagging", config.json_ctagging, cset_ctagging, true);
-  loadCorrectionSet("btagging eff", config.json_btagging_eff, cset_btagging_eff,
-                    true);
-  loadCorrectionSet("ctagging eff", config.json_ctagging_eff, cset_ctagging_eff,
-                    true);
-  loadCorrectionSet("electron", config.json_electron, cset_electron, true);
-  loadCorrectionSet("electron variation", config.json_electron_variation,
-                    cset_electron_variation, true);
-  loadCorrectionSet("photon", config.json_photon, cset_photon, true);
-  loadCorrectionSet("jetid", config.json_jetid, cset_jetid, false);
-  loadCorrectionSet("jerc", config.json_jerc, cset_jerc, false);
-  loadCorrectionSet("jerc_fatjet", config.json_jerc_fatjet, cset_jerc_fatjet,
-                    true);
-  loadCorrectionSet("jetvetomap", config.json_jetvetomap, cset_jetvetomap,
-                    false);
-  // Optional files
-  loadRoccoR(config.txt_roccor, true);
-  loadGoldenJson(config.golden_json, true);
-  loadCorrectionSet("jmar", config.json_jmar, cset_jmar, true);
-  loadCorrectionSet("muon trig eff", config.json_muon_trig_eff,
-                    cset_muon_trig_eff, true);
-  loadCorrectionSet("muon trig sf", config.json_muon_trig_sf, cset_muon_trig_sf,
-                    true); // temporary due to no mu trig sf for 2024
-  loadCorrectionSet("electron hlt", config.json_electron_hlt, cset_electron_hlt,
-                    true);
-  loadCorrectionSet("met", config.json_met, cset_met, true);
-  loadCorrectionSet("btagging R", config.json_btagging_R, cset_btagging_R,
-                    true);
-  loadCorrectionSet("ctagging R", config.json_ctagging_R, cset_ctagging_R,
-                    true);
+  // The era is fixed for the lifetime of this object, so its correction keys
+  // are resolved once here.  These used to be era->key map lookups performed
+  // per event, per lepton or per jet.
+  LUM_era_key = config.key("LUM");
+  EGM_era_key = config.key("EGM");
+  EGM_era_scale_key = EGM_era_key + "_ScaleJSON";
+  EGM_era_prompt = string(GetEra().Data()) + "Prompt";
+  JME_vetomap_key = config.key("JME_vetomap");
 
-  MLHelper_hDampUp =
-      make_unique<MLHelper>(config.onnx_hDampUp, MLHelper::ModelType::ONNX);
-  MLHelper_hDampDown =
-      make_unique<MLHelper>(config.onnx_hDampDown, MLHelper::ModelType::ONNX);
-  MLHelper_TopPtReweight = make_unique<MLHelper>(config.onnx_toppt_reweight,
-                                                 MLHelper::ModelType::ONNX);
-  MLHelper_rBnom =
-      make_unique<MLHelper>(config.onnx_rBnom, MLHelper::ModelType::ONNX);
-  MLHelper_rBUp =
-      make_unique<MLHelper>(config.onnx_rBUp, MLHelper::ModelType::ONNX);
-
-  LUM_keys["2024"] = "Collisions24_BCDEFGHI_goldenJSON";
-  LUM_keys["2023BPix"] = "Collisions2023_369803_370790_eraD_GoldenJson";
-  LUM_keys["2023"] = "Collisions2023_366403_369802_eraBC_GoldenJson";
-  LUM_keys["2022EE"] = "Collisions2022_359022_362760_eraEFG_GoldenJson";
-  LUM_keys["2022"] = "Collisions2022_355100_357900_eraBCD_GoldenJson";
-  LUM_keys["2018"] = "Collisions18_UltraLegacy_goldenJSON";
-  LUM_keys["2017"] = "Collisions17_UltraLegacy_goldenJSON";
-  LUM_keys["2016postVFP"] = "Collisions16_UltraLegacy_goldenJSON";
-  LUM_keys["2016preVFP"] = "Collisions16_UltraLegacy_goldenJSON";
-
-  EGM_keys["2024"] = "2024Prompt";
-  EGM_keys["2023BPix"] = "2023PromptD";
-  EGM_keys["2023"] = "2023PromptC";
-  EGM_keys["2022EE"] = "2022Re-recoE+PromptFG";
-  EGM_keys["2022"] = "2022Re-recoBCD";
-  EGM_keys["2016preVFP"] = "2016preVFP";
-  EGM_keys["2016postVFP"] = "2016postVFP";
-  EGM_keys["2017"] = "2017";
-  EGM_keys["2018"] = "2018";
-
-  // Please use ###### as placeholder
-  if (!IsData) {
-    JME_JER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK4PFPuppi";
-    JME_JES_GT["2024"] = "Summer24Prompt24_V5_MC_######_AK4PFPuppi";
-  } else {
-    JME_JER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK4PFPuppi";
-    JME_JES_GT["2024"] = "Summer24Prompt24_V5_DATA_######_AK4PFPuppi";
-  }
-
-  JME_vetomap_keys["2024"] = "Summer24Prompt24_RunBCDEFGHI_V1";
-
-  JME_PILEUP_keys["2016preVFP"] = "PUJetID_eff";
-  JME_PILEUP_keys["2016postVFP"] = "PUJetID_eff";
-  JME_PILEUP_keys["2017"] = "PUJetID_eff";
-  JME_PILEUP_keys["2018"] = "PUJetID_eff";
+  // "######" is substituted with the correction level by the JERC accessors.
+  JER_global_tag = config.globalTag("JER");
+  JES_global_tag = config.globalTag(IsData ? "JES_DATA" : "JES_MC");
 }
 
 MyCorrection::~MyCorrection() {}
 
-MyCorrection::EraConfig
-MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
-                           const string &ctagging_eff_file,
-                           const string &btagging_R_file,
-                           const string &ctagging_R_file) const {
-  EraConfig config;
-
+MyCorrection::EraConfig MyCorrection::GetEraConfig(TString era) const {
   const char *json_pog_path = getenv("JSONPOG_REPO_PATH");
   const char *sknano_data = getenv("SKNANO_DATA");
   const char *external_roccor = getenv("ROCCOR_PATH");
-  cout << "[MyCorrection::GetEraConfig] json_pog_path: "
-       << (json_pog_path ? json_pog_path : "NULL") << endl;
-  cout << "[MyCorrection::GetEraConfig] sknano_data: "
-       << (sknano_data ? sknano_data : "NULL") << endl;
-  cout << "[MyCorrection::GetEraConfig] external_roccor: "
-       << (external_roccor ? external_roccor : "NULL") << endl;
   if (!json_pog_path || !sknano_data || !external_roccor) {
-    throw runtime_error(
-        "JSONPOG_REPO_PATH or SKNANO_DATA or ROCCOR_PATH is not set");
+    throw SKNano::ConfigError(
+        "[MyCorrection::GetEraConfig] JSONPOG_REPO_PATH, SKNANO_DATA or "
+        "ROCCOR_PATH is not set");
   }
 
-  const string json_pog_path_str(json_pog_path);
-  const string sknano_data_str(sknano_data);
-  const string external_roccor_str(external_roccor);
+  const string era_dir = string(sknano_data) + "/" + era.Data();
+  const string config_path = era_dir + "/Correction/era_config.yml";
+  cout << "[MyCorrection::GetEraConfig] era config: " << config_path << endl;
 
-  config.json_muon = json_pog_path_str + "/MUO";
-  config.json_muon_trig_eff = sknano_data_str;
-  config.json_muon_trig_sf =
-      json_pog_path_str + "/MUO"; // temporary due to no mu trig sf for 2024
-  config.json_puWeights = json_pog_path_str + "/LUM";
-  config.json_btagging = json_pog_path_str + "/BTV";
-  config.json_ctagging = json_pog_path_str + "/BTV";
-  config.json_btagging_eff = sknano_data_str;
-  config.json_ctagging_eff = sknano_data_str;
-  config.json_btagging_R = sknano_data_str;
-  config.json_ctagging_R = sknano_data_str;
-  config.json_electron = json_pog_path_str + "/EGM";
-  config.json_electron_hlt = config.json_electron;
-  config.json_electron_variation = json_pog_path_str + "/EGM";
-  config.json_photon = json_pog_path_str + "/EGM";
-  config.json_jetid = json_pog_path_str + "/JME";
-  config.json_jerc = json_pog_path_str + "/JME";
-  config.json_jerc_fatjet = json_pog_path_str + "/JME";
-  config.json_jetvetomap = json_pog_path_str + "/JME";
-  config.json_jmar = json_pog_path_str + "/JME";
-  config.json_met = json_pog_path_str + "/JME";
-  config.txt_roccor = external_roccor_str;
-  config.golden_json = sknano_data_str;
-
-  config.onnx_hDampDown = sknano_data_str;
-  config.onnx_hDampUp = sknano_data_str;
-  config.onnx_toppt_reweight = sknano_data_str;
-  config.onnx_rBnom = sknano_data_str;
-  config.onnx_rBUp = sknano_data_str;
-
-  if (era == "2024") {
-    const string tag =
-        "/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/";
-    const string tag_temp = "/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/";
-    config.json_muon += tag + "muon_Z.json.gz";
-    config.json_muon_trig_eff += "/2024/MUO/muon_trig.json";
-    config.json_muon_trig_sf += tag + "muon_Z.json.gz";
-    config.json_puWeights += tag + "puWeights_BCDEFGHI.json.gz";
-    config.json_btagging += tag + "btagging.json.gz";
-    // config.json_ctagging += "/2023_Summer23BPix/ctagging.json.gz";
-    // config.json_btagging_eff += "/2023BPix/BTV/" + btagging_eff_file;
-    // config.json_ctagging_eff += "/2023BPix/BTV/" + ctagging_eff_file;
-    // config.json_btagging_R += "/2023BPix/BTV/" + btagging_R_file;
-    // config.json_ctagging_R += "/2023BPix/BTV/" + ctagging_R_file;
-    config.json_electron += tag + "electron.json.gz";
-    config.json_electron_variation = tag + "electronSS_EtDependent.json.gz";
-    config.json_electron_hlt += tag + "electronHlt.json.gz";
-    // config.json_photon += "/2023_Summer23BPix/photon.json.gz";
-    config.json_jetid += tag + "jetid.json.gz";
-    config.json_jerc += tag + "jet_jerc.json.gz";
-    // config.json_jerc_fatjet += "/2023_Summer23BPix/fatJet_jerc.json.gz";
-    config.json_jetvetomap += tag + "jetvetomaps.json.gz";
-    // config.json_met += "/2023_Summer23BPix/met.json.gz";
-    config.txt_roccor += "/RoccoR2023BPix.txt";
-    config.golden_json +=
-        "/2024/LUM/Cert_Collisions2024_378981_386951_Golden.json";
-
-    config.onnx_hDampDown += "/2024/ONNX/mymodel12_hdamp_down_13.6TeV.onnx";
-    config.onnx_hDampUp += "/2024/ONNX/mymodel12_hdamp_up_13.6TeV.onnx";
-    config.onnx_toppt_reweight +=
-        "/2024/ONNX/mymodel12_13TeV_MiNNLO_afterShower.onnx";
-    config.onnx_rBnom += "/2024/ONNX/mymodel12_rB_nom_CP5_2M.onnx";
-    config.onnx_rBUp += "/2024/ONNX/mymodel12_rB_up_CP5_2M.onnx";
-
-    // print in red
-    cout << "\033[1;31m[MyCorrection::GetEraConfig] Warning: ONNX models for "
-            "TopPt reweight is for 13TeV! Please update the models for "
-            "13.6TeV!\033[0m"
-         << endl;
-
-  } else {
-    throw invalid_argument("[MyCorrection::GetEraConfig] Invalid era: " + era);
+  YAML::Node yaml;
+  try {
+    yaml = YAML::LoadFile(config_path);
+  } catch (const exception &e) {
+    throw SKNano::ConfigError(
+        "[MyCorrection::GetEraConfig] Cannot read era config for era " +
+        string(era.Data()) + " (" + config_path + "): " + e.what());
   }
+
+  EraConfig config;
+
+  const string campaign = yaml["campaign"].as<string>("");
+  if (campaign.empty())
+    throw SKNano::ConfigError("[MyCorrection::GetEraConfig] " + config_path +
+                              " has no 'campaign'");
+  cout << "[MyCorrection::GetEraConfig] campaign: " << campaign << endl;
+
+  for (const auto &warning : yaml["warnings"]) {
+    cout << "\033[1;31m[MyCorrection::GetEraConfig] Warning: "
+         << warning.as<string>() << "\033[0m" << endl;
+  }
+
+  for (const auto &entry : yaml["keys"])
+    config.keys[entry.first.as<string>()] = entry.second.as<string>();
+  for (const auto &entry : yaml["global_tags"])
+    config.global_tags[entry.first.as<string>()] = entry.second.as<string>();
+
+  // Each POG publishes on its own cadence, so the snapshot is resolved per
+  // POG (and optionally per file).  SKNANO_CORRECTION_TAG forces one snapshot
+  // everywhere, for one-off comparisons against a different sync.
+  const char *tag_override = getenv("SKNANO_CORRECTION_TAG");
+  const YAML::Node snapshots = yaml["snapshots"];
+  const string default_snapshot =
+      snapshots ? snapshots["default"].as<string>("latest") : "latest";
+
+  const auto resolveSnapshot = [&](const string &pog,
+                                   const YAML::Node &spec) -> string {
+    if (tag_override)
+      return string(tag_override);
+    if (spec["snapshot"])
+      return spec["snapshot"].as<string>();
+    if (snapshots && snapshots[pog])
+      return snapshots[pog].as<string>();
+    return default_snapshot;
+  };
+
+  // $JSONPOG_REPO_PATH/<pog>/<campaign>/<snapshot>/<name>
+  std::map<string, string> resolved_snapshots; // pog -> snapshot, for the log
+  std::vector<string> unpinned;
+  for (const auto &entry : yaml["pog_files"]) {
+    const string name = entry.first.as<string>();
+    const YAML::Node &spec = entry.second;
+    const string pog = spec["pog"].as<string>();
+    const string snapshot = resolveSnapshot(pog, spec);
+
+    config.paths[name] = string(json_pog_path) + "/" + pog + "/" + campaign +
+                         "/" + snapshot + "/" + spec["name"].as<string>();
+    if (spec["required"].as<bool>(false))
+      config.required.insert(name);
+
+    const auto inserted = resolved_snapshots.emplace(pog, snapshot);
+    if (!inserted.second && inserted.first->second != snapshot)
+      inserted.first->second += ", " + name + ":" + snapshot;
+    if (snapshot == "latest")
+      unpinned.push_back(name);
+  }
+
+  for (const auto &entry : resolved_snapshots) {
+    cout << "[MyCorrection::GetEraConfig] snapshot " << entry.first << ": "
+         << entry.second << endl;
+  }
+  if (!unpinned.empty()) {
+    cout << "\033[1;33m[MyCorrection::GetEraConfig] Warning: "
+         << unpinned.size()
+         << " correction(s) read from the unpinned 'latest' snapshot; results "
+            "are not reproducible. Pin dated snapshots in "
+         << config_path << ". Affected:";
+    for (const auto &name : unpinned)
+      cout << " " << name;
+    cout << "\033[0m" << endl;
+  }
+
+  // $SKNANO_DATA/<era>/<path>
+  for (const auto &entry : yaml["data_files"]) {
+    const string name = entry.first.as<string>();
+    config.paths[name] = era_dir + "/" + entry.second.as<string>();
+    config.required.insert(name);
+  }
+  config.required.erase("golden_json"); // absent for MC-only campaigns
+
+  if (yaml["roccor"])
+    config.paths["roccor"] =
+        string(external_roccor) + "/" + yaml["roccor"].as<string>();
 
   return config;
+}
+
+void MyCorrection::throwNullCorrection(std::string_view function_name) const {
+  string message = "[MyCorrection::";
+  message.append(function_name);
+  message += "] Correction set is null";
+  throw SKNano::ConfigError(message);
+}
+
+void MyCorrection::throwEvaluationError(
+    std::string_view function_name, const std::exception &e,
+    const vector<correction::Variable::Type> &args) const {
+  std::ostringstream oss;
+  oss << "[MyCorrection::" << function_name
+      << "] Error during evaluation: " << e.what() << "; arguments ("
+      << args.size() << "): ";
+  for (const auto &arg : args)
+    std::visit([&oss](const auto &value) { oss << value << " "; }, arg);
+  throw SKNano::CorrectionError(oss.str());
+}
+
+bool MyCorrection::isInputInCorrection(
+    std::string_view key, const correction::Correction::Ref &cset) const {
+  if (!cset)
+    return false;
+  for (const auto &input : cset->inputs()) {
+    if (input.name() == key)
+      return true;
+  }
+  return false;
+}
+
+const correction::Correction::Ref &
+MyCorrection::cachedRefByKey(CorrectionRefCache &cache,
+                             const unique_ptr<CorrectionSet> &set,
+                             std::string_view key) const {
+  auto it = cache.find(key);
+  if (it == cache.end())
+    it = cache.emplace(string(key), set->at(string(key))).first;
+  return it->second;
 }
 
 // GoldenLumi

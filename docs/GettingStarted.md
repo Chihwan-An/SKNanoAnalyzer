@@ -250,6 +250,8 @@ Important submission options are:
 - `--ncpu`: requested CPU count; the default is 1.
 - `--userflags`: comma-separated analyzer flags.
 - `--batchname`: custom batch name.
+- `--no-hadd`: skip the per-sample merge step and move the individual shards
+  to `SKNANO_OUTPUT/<Analyzer>/<era>/<sample>/hists_*.root`.
 - `--skimming_mode`: enable skimming output and post-processing.
 
 ## How to make a sample list

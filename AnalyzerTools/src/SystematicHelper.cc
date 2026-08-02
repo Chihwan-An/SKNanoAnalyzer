@@ -1,6 +1,6 @@
 #include "SystematicHelper.h"
 #include <yaml-cpp/yaml.h>
-#include <memory>
+#include <algorithm>
 
 namespace {
 
@@ -19,43 +19,15 @@ std::string strip_variation_suffix(const std::string &syst_name) {
     return syst_name;
 }
 
-struct NominalWeightPlan {
-    std::vector<std::string> targets;
-    std::vector<float> factors;
-    std::unique_ptr<SKNano::StableWeightProductPlan<float>> stableProduct;
-    std::unordered_map<std::string, std::size_t> index;
-    float product = 1.f;
-};
-
-NominalWeightPlan make_nominal_weight_plan(
-    const std::vector<SystematicHelper::SYST> &systematics,
-    const std::unordered_map<std::string, float> &nominal) {
-    NominalWeightPlan plan;
-    for (const auto &systematic : systematics) {
-        if (plan.index.count(systematic.target))
-            continue;
-        const auto found = nominal.find(systematic.target);
-        if (found == nominal.end())
-            throw SKNano::LogicError(
-                "[SystematicHelper] missing nominal weight for target " +
-                systematic.target);
-        plan.index.emplace(systematic.target, plan.targets.size());
-        plan.targets.push_back(systematic.target);
-        plan.factors.push_back(found->second);
-        plan.product *= found->second;
+const char *variation_suffix(MyCorrection::variation variation) {
+    switch (variation) {
+    case MyCorrection::variation::up:
+        return "_Up";
+    case MyCorrection::variation::down:
+        return "_Down";
+    default:
+        return "";
     }
-    plan.stableProduct =
-        std::make_unique<SKNano::StableWeightProductPlan<float>>(plan.factors);
-    return plan;
-}
-
-float product_excluding(const NominalWeightPlan &plan,
-                        const std::unordered_set<std::string> &excluded) {
-    std::vector<std::size_t> indices;
-    for (std::size_t index = 0; index < plan.targets.size(); ++index)
-        if (excluded.count(plan.targets[index]))
-            indices.push_back(index);
-    return plan.stableProduct->productExcluding(indices);
 }
 
 } // namespace
@@ -74,13 +46,8 @@ SystematicHelper::compileVariationPlan() const {
 SystematicHelper::SystematicHelper(std::string yaml_path,
     TString sample,
     TString Era)
-: sample(sample.Data()),  
+: sample(sample.Data()),
 Era(Era.Data()){
-    variation_prefix = {
-        {MyCorrection::variation::nom, ""},
-        {MyCorrection::variation::up, "_Up"},
-        {MyCorrection::variation::down, "_Down"}};
-
     YAML::Node config = YAML::LoadFile(yaml_path);
     for (const auto &node : config["systematics"])
     {
@@ -164,18 +131,20 @@ Era(Era.Data()){
             correlation.member_ptrs.push_back(source_ptr);
         }
         correlations[name] = correlation;
+        correlation_order.push_back(name);
     }
 
     make_map_dedicatedSample();
     isDedicatedSample = IsDedicatedSample();
     checkBadSystematics();
     make_Iter_obj_EvtLoopAgain();
-    current_Iter_obj.clone(systematics_evtLoopAgain[0]); // Central
+    buildSchedule();
+    current_lane = 0; // Central
     std::cout << "[SystematicHelper::SystematicHelper] SystematicHelper is created for " <<  sample << std::endl;
     std::cout << "[SystematicHelper::SystematicHelper] Iterator has " << systematics_evtLoopAgain.size() << " elements" << std::endl;
     for (const auto &syst : systematics_evtLoopAgain)
     {
-        std::cout << "[SystematicHelper::SystematicHelper] " << syst.iter_name << " " << syst.syst_name << " " << variation_prefix[syst.variation] << std::endl;
+        std::cout << "[SystematicHelper::SystematicHelper] " << syst.iter_name << " " << syst.syst_name << " " << variation_suffix(syst.variation) << std::endl;
     }
     std::cout << "[SystematicHelper::SystematicHelper] All systematics are: " << std::endl;
     for (const auto &syst : systematics)
@@ -183,9 +152,9 @@ Era(Era.Data()){
         std::cout << "[SystematicHelper::SystematicHelper] " << syst.syst << " " << syst.source << " " << syst.evtLoopAgain << " " << syst.oneSided << " " << syst.hasDedicatedSample << " " << syst.dedicatedSampleKey_up << " " << syst.dedicatedSampleKey_down << std::endl;
     }
     std::cout << "[SystematicHelper::SystematicHelper] isDedicatedSample: " << isDedicatedSample << std::endl;
-    std::cout << "[SystematicHelper::SystematicHelper] Current systematic: " << current_Iter_obj.iter_name << std::endl;
-    std::cout << "[SystematicHelper::SystematicHelper] Current systematic source: " << current_Iter_obj.syst_name << std::endl;
-    std::cout << "[SystematicHelper::SystematicHelper] Current systematic variation: " << variation_prefix[current_Iter_obj.variation] << std::endl;
+    std::cout << "[SystematicHelper::SystematicHelper] Current systematic: " << getCurrentIter().iter_name << std::endl;
+    std::cout << "[SystematicHelper::SystematicHelper] Current systematic source: " << getCurrentIter().syst_name << std::endl;
+    std::cout << "[SystematicHelper::SystematicHelper] Current systematic variation: " << variation_suffix(getCurrentIter().variation) << std::endl;
 }
 
 SystematicHelper::~SystematicHelper() {}
@@ -268,19 +237,21 @@ void SystematicHelper::make_Iter_obj_EvtLoopAgain()
     obj_central.syst_source = "total";
     obj_central.variation = MyCorrection::variation::nom;
     systematics_evtLoopAgain.push_back(obj_central);
+    lane_syst_index.push_back(-1);
 
     // if systematic sample is provided, only loop over central
     if (isDedicatedSample)
         return;
 
-    for (const auto &syst : systematics)
+    for (std::size_t index = 0; index < systematics.size(); ++index)
     {
+        const auto &syst = systematics[index];
         if (syst.evtLoopAgain)
         {
             SystematicHelper::Iter_obj obj_up;
             SystematicHelper::Iter_obj obj_down;
-            obj_up.iter_name = syst.syst + variation_prefix[MyCorrection::variation::up];
-            obj_down.iter_name = syst.syst + variation_prefix[MyCorrection::variation::down];
+            obj_up.iter_name = syst.syst + variation_suffix(MyCorrection::variation::up);
+            obj_down.iter_name = syst.syst + variation_suffix(MyCorrection::variation::down);
             obj_up.syst_name = syst.syst;
             obj_up.syst_source = syst.source;
             obj_up.variation = MyCorrection::variation::up;
@@ -290,6 +261,8 @@ void SystematicHelper::make_Iter_obj_EvtLoopAgain()
 
             systematics_evtLoopAgain.push_back(obj_up);
             systematics_evtLoopAgain.push_back(obj_down);
+            lane_syst_index.push_back(static_cast<std::ptrdiff_t>(index));
+            lane_syst_index.push_back(static_cast<std::ptrdiff_t>(index));
         }
         else if (!syst.hasDedicatedSample)
         {
@@ -305,8 +278,187 @@ void SystematicHelper::make_map_dedicatedSample()
     {
         if (syst.hasDedicatedSample)
         {
-            map_dedicatesamplekey_systname[syst.dedicatedSampleKey_up] = syst.syst + variation_prefix[MyCorrection::variation::up];
-            map_dedicatesamplekey_systname[syst.dedicatedSampleKey_down] = syst.syst + variation_prefix[MyCorrection::variation::down];
+            map_dedicatesamplekey_systname[syst.dedicatedSampleKey_up] = syst.syst + variation_suffix(MyCorrection::variation::up);
+            map_dedicatesamplekey_systname[syst.dedicatedSampleKey_down] = syst.syst + variation_suffix(MyCorrection::variation::down);
+        }
+    }
+}
+
+std::size_t SystematicHelper::indexOfSystematic(const SYST *syst) const
+{
+    const std::ptrdiff_t offset = syst - systematics.data();
+    if (offset < 0 || static_cast<std::size_t>(offset) >= systematics.size())
+        throw SKNano::ConfigError(
+            "[SystematicHelper] correlation refers to an unknown systematic");
+    return static_cast<std::size_t>(offset);
+}
+
+// Resolves everything that does not depend on the event: which nominal factor
+// each systematic owns, which systematics move together, and the exact key set
+// each event-loop lane reports.  The event loop then only multiplies floats.
+void SystematicHelper::buildSchedule()
+{
+    const std::size_t syst_count = systematics.size();
+
+    target_names.clear();
+    target_index.clear();
+    syst_slots.assign(syst_count, SystSlot{});
+    for (std::size_t index = 0; index < syst_count; ++index)
+    {
+        const auto &syst = systematics[index];
+        auto inserted = target_index.emplace(syst.target, target_names.size());
+        if (inserted.second)
+            target_names.push_back(syst.target);
+
+        SystSlot &slot = syst_slots[index];
+        slot.target_slot = inserted.first->second;
+        slot.source = syst.source.c_str();
+        slot.kind = (syst.hasDedicatedSample || syst.evtLoopAgain)
+                        ? WeightKind::Inert
+                        : (syst.oneSided ? WeightKind::OneSided
+                                         : WeightKind::TwoSided);
+    }
+
+    const std::size_t target_count = target_names.size();
+    nominal_factors.assign(target_count, 1.);
+    up_factors.assign(syst_count, 1.);
+    down_factors.assign(syst_count, 1.);
+    prefix.assign(target_count + 1, 1.);
+    suffix.assign(target_count + 1, 1.);
+    twosided_fn.assign(syst_count, nullptr);
+    onesided_fn.assign(syst_count, nullptr);
+
+    // Correlations, kept in YAML declaration order so lane -> group resolution
+    // is deterministic even when a systematic appears in several of them.
+    corr_groups.clear();
+    std::vector<std::ptrdiff_t> syst_group(syst_count, -1);
+    for (const auto &name : correlation_order)
+    {
+        const CORRELATION &correlation = correlations.at(name);
+        CorrGroup group;
+        for (const SYST *member : correlation.member_ptrs)
+        {
+            if (!member)
+                continue;
+            const std::size_t index = indexOfSystematic(member);
+            group.member_systs.push_back(index);
+            group.excluded_targets.push_back(syst_slots[index].target_slot);
+            if (syst_slots[index].kind == WeightKind::Inert)
+                group.skipped = true;
+            if (syst_group[index] < 0)
+                syst_group[index] = static_cast<std::ptrdiff_t>(corr_groups.size());
+        }
+        std::sort(group.excluded_targets.begin(), group.excluded_targets.end());
+        group.excluded_targets.erase(
+            std::unique(group.excluded_targets.begin(), group.excluded_targets.end()),
+            group.excluded_targets.end());
+        corr_groups.push_back(std::move(group));
+    }
+
+    solo_entries.clear();
+    for (std::size_t index = 0; index < syst_count; ++index)
+    {
+        if (syst_group[index] >= 0)
+            continue;
+        if (syst_slots[index].kind == WeightKind::Inert)
+            continue;
+        SoloEntry entry;
+        entry.syst_slot = index;
+        entry.target_slot = syst_slots[index].target_slot;
+        solo_entries.push_back(entry);
+    }
+
+    // Pre-populate the per-lane result maps.  All insertions happen here so the
+    // float* handles taken below stay valid for the lifetime of the helper.
+    const std::size_t lane_count = systematics_evtLoopAgain.size();
+    lane_results.assign(lane_count, {});
+    lane_recipes.assign(lane_count, LaneRecipe{});
+
+    auto &central_result = lane_results[0];
+    lane_recipes[0].central = true;
+    if (isDedicatedSample)
+    {
+        central_result.emplace(dedicated_iter_name, 1.f);
+    }
+    else
+    {
+        central_result.emplace(central_name, 1.f);
+        for (std::size_t group_index = 0; group_index < corr_groups.size(); ++group_index)
+        {
+            if (corr_groups[group_index].skipped)
+                continue;
+            const std::string &rep_name = correlations.at(correlation_order[group_index]).rep_name;
+            central_result.emplace(rep_name + variation_suffix(MyCorrection::variation::up), 1.f);
+            central_result.emplace(rep_name + variation_suffix(MyCorrection::variation::down), 1.f);
+        }
+        for (const auto &entry : solo_entries)
+        {
+            const std::string &syst_name = systematics[entry.syst_slot].syst;
+            central_result.emplace(syst_name + variation_suffix(MyCorrection::variation::up), 1.f);
+            central_result.emplace(syst_name + variation_suffix(MyCorrection::variation::down), 1.f);
+        }
+    }
+
+    for (std::size_t lane = 1; lane < lane_count; ++lane)
+    {
+        lane_results[lane].emplace(systematics_evtLoopAgain[lane].iter_name, 1.f);
+        const std::ptrdiff_t syst_index = lane_syst_index[lane];
+        lane_recipes[lane].corr_group =
+            syst_index >= 0 ? syst_group[static_cast<std::size_t>(syst_index)] : -1;
+    }
+
+    // Bind the output handles now that no further rehashing can occur.
+    if (isDedicatedSample)
+    {
+        central_out = &central_result.at(dedicated_iter_name);
+    }
+    else
+    {
+        central_out = &central_result.at(central_name);
+        for (std::size_t group_index = 0; group_index < corr_groups.size(); ++group_index)
+        {
+            if (corr_groups[group_index].skipped)
+                continue;
+            const std::string &rep_name = correlations.at(correlation_order[group_index]).rep_name;
+            corr_groups[group_index].out_up =
+                &central_result.at(rep_name + variation_suffix(MyCorrection::variation::up));
+            corr_groups[group_index].out_down =
+                &central_result.at(rep_name + variation_suffix(MyCorrection::variation::down));
+        }
+        for (auto &entry : solo_entries)
+        {
+            const std::string &syst_name = systematics[entry.syst_slot].syst;
+            entry.out_up = &central_result.at(syst_name + variation_suffix(MyCorrection::variation::up));
+            entry.out_down = &central_result.at(syst_name + variation_suffix(MyCorrection::variation::down));
+        }
+    }
+    for (std::size_t lane = 1; lane < lane_count; ++lane)
+        lane_recipes[lane].out = &lane_results[lane].at(systematics_evtLoopAgain[lane].iter_name);
+}
+
+void SystematicHelper::bindWeightFunctions()
+{
+    for (std::size_t index = 0; index < systematics.size(); ++index)
+    {
+        const auto &target = systematics[index].target;
+        twosided_fn[index] = nullptr;
+        onesided_fn[index] = nullptr;
+        switch (syst_slots[index].kind)
+        {
+        case WeightKind::OneSided: {
+            auto it = weight_functions_onesided.find(target);
+            if (it != weight_functions_onesided.end())
+                onesided_fn[index] = &it->second;
+            break;
+        }
+        case WeightKind::TwoSided: {
+            auto it = weight_functions.find(target);
+            if (it != weight_functions.end())
+                twosided_fn[index] = &it->second;
+            break;
+        }
+        case WeightKind::Inert:
+            break;
         }
     }
 }
@@ -317,9 +469,6 @@ void SystematicHelper::assignWeightFunctionMap(const unordered_map<std::string, 
     // clear weight functions
     weight_functions.clear();
     weight_functions_onesided.clear();
-    std::unordered_set<std::string> all_targets;
-    for (const auto &syst : systematics)
-        all_targets.insert(syst.target);
     for (const auto &syst : systematics)
     {
         if (syst.hasDedicatedSample || syst.evtLoopAgain)
@@ -364,212 +513,171 @@ void SystematicHelper::assignWeightFunctionMap(const unordered_map<std::string, 
         missing += "are not assigned";
         throw SKNano::ConfigError(missing);
     }
+    bindWeightFunctions();
     weight_functions_assigned = true;
+}
+
+void SystematicHelper::evaluateWeightSlots(bool dry_run)
+{
+    for (std::size_t index = 0; index < syst_slots.size(); ++index)
+    {
+        const SystSlot &slot = syst_slots[index];
+        switch (slot.kind)
+        {
+        case WeightKind::Inert:
+            nominal_factors[slot.target_slot] = 1.;
+            up_factors[index] = 1.;
+            down_factors[index] = 1.;
+            break;
+        case WeightKind::OneSided: {
+            float weight = 1.f;
+            if (!dry_run)
+            {
+                if (!onesided_fn[index])
+                    throw SKNano::ConfigError(
+                        "[SystematicHelper] missing one-sided weight function for " +
+                        systematics[index].syst);
+                weight = (*onesided_fn[index])();
+            }
+            // A one-sided variation means "drop this correction", so the up
+            // side removes it from the product and the down side is nominal.
+            nominal_factors[slot.target_slot] = weight;
+            up_factors[index] = 1.;
+            down_factors[index] = weight;
+            break;
+        }
+        case WeightKind::TwoSided: {
+            float nominal = 1.f;
+            float up = 1.f;
+            float down = 1.f;
+            if (!dry_run)
+            {
+                if (!twosided_fn[index])
+                    throw SKNano::ConfigError(
+                        "[SystematicHelper] missing weight function for " +
+                        systematics[index].syst);
+                const auto &weight_function = *twosided_fn[index];
+                nominal = weight_function(MyCorrection::variation::nom, "total");
+                up = weight_function(MyCorrection::variation::up, slot.source);
+                down = weight_function(MyCorrection::variation::down, slot.source);
+            }
+            nominal_factors[slot.target_slot] = nominal;
+            up_factors[index] = up;
+            down_factors[index] = down;
+            break;
+        }
+        }
+    }
+}
+
+void SystematicHelper::buildNominalProducts()
+{
+    const std::size_t count = nominal_factors.size();
+    for (std::size_t index = 0; index < count; ++index)
+        prefix[index + 1] = prefix[index] * nominal_factors[index];
+    suffix[count] = 1.;
+    for (std::size_t index = count; index > 0; --index)
+        suffix[index - 1] = nominal_factors[index - 1] * suffix[index];
+}
+
+// Product of every nominal factor whose target is not in `sorted_targets`,
+// assembled from the prefix/suffix tables so no division is involved.
+double SystematicHelper::productExcluding(
+    const std::vector<std::size_t> &sorted_targets) const
+{
+    if (sorted_targets.empty())
+        return prefix.back();
+    double result = prefix[sorted_targets.front()];
+    for (std::size_t position = 1; position < sorted_targets.size(); ++position)
+        for (std::size_t index = sorted_targets[position - 1] + 1;
+             index < sorted_targets[position]; ++index)
+            result *= nominal_factors[index];
+    return result * suffix[sorted_targets.back() + 1];
+}
+
+void SystematicHelper::fillCentralWeights()
+{
+    *central_out = static_cast<float>(prefix.back());
+    if (isDedicatedSample)
+        return;
+
+    for (const auto &group : corr_groups)
+    {
+        if (group.skipped)
+            continue;
+        const double base = productExcluding(group.excluded_targets);
+        double up = base;
+        double down = base;
+        for (const auto index : group.member_systs)
+        {
+            up *= up_factors[index];
+            down *= down_factors[index];
+        }
+        *group.out_up = static_cast<float>(up);
+        *group.out_down = static_cast<float>(down);
+    }
+
+    for (const auto &entry : solo_entries)
+    {
+        const double base = prefix[entry.target_slot] * suffix[entry.target_slot + 1];
+        *entry.out_up = static_cast<float>(base * up_factors[entry.syst_slot]);
+        *entry.out_down = static_cast<float>(base * down_factors[entry.syst_slot]);
+    }
+}
+
+void SystematicHelper::fillLaneWeight(const LaneRecipe &recipe)
+{
+    if (recipe.corr_group < 0)
+    {
+        *recipe.out = static_cast<float>(prefix.back());
+        return;
+    }
+
+    const CorrGroup &group = corr_groups[static_cast<std::size_t>(recipe.corr_group)];
+    double weight = productExcluding(group.excluded_targets);
+    const auto variation = getCurrentIter().variation;
+    if (variation != MyCorrection::variation::nom)
+    {
+        const std::vector<double> &varied =
+            variation == MyCorrection::variation::down ? down_factors : up_factors;
+        for (const auto index : group.member_systs)
+            weight *= varied[index];
+    }
+    *recipe.out = static_cast<float>(weight);
+}
+
+const std::unordered_map<std::string, float> &
+SystematicHelper::calculateWeightRef(bool dry_run)
+{
+    if (!weight_functions_assigned && !dry_run)
+    {
+        throw SKNano::ConfigError("Weight functions are not assigned");
+    }
+
+    evaluateWeightSlots(dry_run);
+    buildNominalProducts();
+
+    const LaneRecipe &recipe = lane_recipes[current_lane];
+    if (recipe.central)
+        fillCentralWeights();
+    else
+        fillLaneWeight(recipe);
+
+    return lane_results[current_lane];
 }
 
 std::unordered_map<std::string, float> SystematicHelper::calculateWeight(bool dry_run)
 {
-    if(!weight_functions_assigned && !dry_run)
-    {
-        throw SKNano::ConfigError("Weight functions are not assigned");
-    }
-    for (const auto &syst : systematics)
-    {
-        if (syst.hasDedicatedSample || syst.evtLoopAgain)
-        {
-            weight_map_nominal[syst.target] = 1.;
-            weight_map_up[syst.target] = 1.;
-            weight_map_down[syst.target] = 1.;
-        }
-        else if (syst.oneSided)
-        {
-            float weight = 1.;
-            auto weight_function = weight_functions_onesided[syst.target];
-            if(!dry_run) weight = weight_function();
-
-            weight_map_nominal[syst.target] = weight;
-            weight_map_up[syst.syst] = 1.;
-            weight_map_down[syst.syst] = weight;
-        }
-        else
-        {
-            float weight_up = 1.;
-            float weight_down = 1.;
-            float weight_nominal = 1.;
-
-            auto weight_function = weight_functions[syst.target];
-            if(!dry_run)
-            {
-                weight_nominal = weight_function(MyCorrection::variation::nom, "total");
-                weight_up = weight_function(MyCorrection::variation::up, syst.source);
-                weight_down = weight_function(MyCorrection::variation::down, syst.source);
-            }
-
-            weight_map_nominal[syst.target] = weight_nominal;
-            weight_map_up[syst.syst] = weight_up;
-            weight_map_down[syst.syst] = weight_down;
-        }
-    }
-    unordered_map<std::string, float> weights;
-    if (current_Iter_obj.variation == MyCorrection::variation::nom)
-    {
-        weights = calculateWeight_central_case();
-    }
-    else
-    {
-        weights = calculateWeight_non_central_case();
-    }
-
-    return weights;
-}
-
-unordered_map<std::string, float> SystematicHelper::calculateWeight_central_case()
-{
-    std::vector<string> all_weight_systs;
-    unordered_map<std::string, float> weights;
-    const auto nominalPlan =
-        make_nominal_weight_plan(systematics, weight_map_nominal);
-    const float nominal_weight = nominalPlan.product;
-
-    for (const auto &syst : systematics)
-    {
-        all_weight_systs.push_back(syst.syst);
-    }
-
-    weights[central_name] = nominal_weight;
-
-    for (const auto &correlation : correlations)
-    {
-        const auto &member_ptrs = correlation.second.member_ptrs;
-        std::unordered_set<std::string> replacedTargets;
-        // If current Iter_obj is Central and correlation include systematic that has dedicated sample of require evtLoopAgain, skip.
-        // that correlation set will be calculated in that situation
-        bool correlation_should_be_skipped = false;
-        for (const auto *sources_in_table : member_ptrs)
-        {
-            if (!sources_in_table)
-                continue;
-            if (sources_in_table->hasDedicatedSample || sources_in_table->evtLoopAgain)
-            {
-                correlation_should_be_skipped = true;
-                break;
-            }
-            replacedTargets.insert(sources_in_table->target);
-        }
-        float weight_up = product_excluding(nominalPlan, replacedTargets);
-        float weight_down = weight_up;
-        for (const auto *sources_in_table : member_ptrs)
-        {
-            if (!sources_in_table)
-                continue;
-            weight_up *= weight_map_up[sources_in_table->syst];
-            weight_down *= weight_map_down[sources_in_table->syst];
-            auto it = find(all_weight_systs.begin(), all_weight_systs.end(), sources_in_table->syst);
-            if (it != all_weight_systs.end())
-            {
-                all_weight_systs.erase(it);
-            }
-        }
-        if (correlation_should_be_skipped) continue;
-        weights[correlation.second.rep_name + variation_prefix[MyCorrection::variation::up]] = weight_up;
-        weights[correlation.second.rep_name + variation_prefix[MyCorrection::variation::down]] = weight_down;
-    }
-
-    // systematic that not in correlation table
-    for (const auto &syst_name : all_weight_systs)
-    {
-        SystematicHelper::SYST *syst_ptr = findSystematic(syst_name);
-        if (!syst_ptr)
-            continue;
-        if(syst_ptr->hasDedicatedSample || syst_ptr->evtLoopAgain)
-        {
-            continue;
-        }
-        const std::string &this_target = syst_ptr->target;
-        const auto targetIndex = nominalPlan.index.at(this_target);
-        const float weight_up = nominalPlan.stableProduct->productExcluding(targetIndex) *
-                                weight_map_up[syst_ptr->syst];
-        const float weight_down = nominalPlan.stableProduct->productExcluding(targetIndex) *
-                                  weight_map_down[syst_ptr->syst];
-        weights[syst_ptr->syst + variation_prefix[MyCorrection::variation::up]] = weight_up;
-        weights[syst_ptr->syst + variation_prefix[MyCorrection::variation::down]] = weight_down;
-    }
-    if(isDedicatedSample)
-    {
-        for (const auto &dedicatedSample : map_dedicatesamplekey_systname)
-        {
-            std::string this_key = dedicatedSample.first;
-            // Check if sample is found as a substring of this_sample
-            if (sample.find(this_key) != std::string::npos)
-            {
-                float central_weight = weights[central_name];
-                weights.clear();
-                weights[dedicatedSample.second] = central_weight; // Use value from "Central"
-                return weights;
-            }
-        }
-        throw std::runtime_error("[SystematicHelper::calculateWeight_central_case] Dedicated sample not found");
-    }
-    return weights;
-}
-
-unordered_map<std::string, float> SystematicHelper::calculateWeight_non_central_case()
-{
-    // first check current Iter_obj is in correlation table
-    bool Iter_obj_in_correlation = false;
-    CORRELATION this_correlation;
-    unordered_map<std::string, float> weights;
-    const auto nominalPlan =
-        make_nominal_weight_plan(systematics, weight_map_nominal);
-    for (const auto &correlation : correlations)
-    {
-        if (correlation.second.rep_name == current_Iter_obj.syst_name)
-        {
-            Iter_obj_in_correlation = true;
-            this_correlation = correlation.second;
-            break;
-        }
-        for (const auto &child_syst : correlation.second.child_syst_names)
-        {
-            if (child_syst == current_Iter_obj.syst_name)
-            {
-                Iter_obj_in_correlation = true;
-                this_correlation = correlation.second;
-                break;
-            }
-        }
-    }
-
-    weights[current_Iter_obj.iter_name] = nominalPlan.product;
-    if (!Iter_obj_in_correlation)
-        return weights;
-    else
-    {
-
-        std::unordered_set<std::string> replacedTargets;
-        for (const auto *systematic : this_correlation.member_ptrs)
-            if (systematic)
-                replacedTargets.insert(systematic->target);
-        float variedWeight = product_excluding(nominalPlan, replacedTargets);
-        for (const auto *systematic : this_correlation.member_ptrs) {
-            if (!systematic)
-                continue;
-            if (current_Iter_obj.variation == MyCorrection::variation::up)
-                variedWeight *= weight_map_up[systematic->syst];
-            else if (current_Iter_obj.variation == MyCorrection::variation::down)
-                variedWeight *= weight_map_down[systematic->syst];
-        }
-        weights[current_Iter_obj.iter_name] = variedWeight;
-    }
-    return weights;
+    return calculateWeightRef(dry_run);
 }
 
 bool SystematicHelper::IsDedicatedSample()
-{ 
+{
     for (const auto &dedicatedSample : map_dedicatesamplekey_systname)
     {
         if (sample.find(dedicatedSample.first) != std::string::npos)
         {
+            dedicated_iter_name = dedicatedSample.second;
             return true;
         }
     }
@@ -585,7 +693,7 @@ std::vector<std::string> SystematicHelper::get_targets_from_name(const std::stri
     }
     std::string syst_name_no_variation = strip_variation_suffix(syst_name);
     SYST *syst = findSystematic(syst_name_no_variation);
-    
+
     //check if syst is in correlation table
     for (const auto &correlation : correlations)
     {
@@ -616,7 +724,7 @@ std::vector<std::string> SystematicHelper::get_sources_from_name(const std::stri
     std::string syst_name_no_variation = strip_variation_suffix(syst_name);
 
     SYST *syst = findSystematic(syst_name_no_variation);
-    
+
     //check if syst is in correlation table
     for (const auto &correlation : correlations)
     {

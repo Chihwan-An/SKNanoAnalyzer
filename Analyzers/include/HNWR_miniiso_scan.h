@@ -206,12 +206,14 @@ public:
     RVec<FatJet> Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) ;
 
     // ------------------------------------------------------------------------
-    // DY corrections. Two event weights on DY MC only:
+    // DY corrections. Three event weights on DY MC only:
     //
-    //     w *= C(genZpT) * R(recoLeadingJetPt)
+    //     w *= C(genZpT) * EW(genZpT) * R(recoLeadingJetPt)
     //
     // C is the gen-level NLO/LO Z-pT ratio, a per-event scalar, so it goes into
     // `weight` through the systematic machinery and reaches every region.
+    // EW is the NLO electroweak correction of arXiv:1705.04664, also a
+    // per-event scalar on gen Z pT, applied through the same machinery.
     // R is data-driven, from the DY CR, and depends on the reco category --
     // resolved reads the leading AK4 pT, boosted the leading AK8 pT. The two
     // categories are NOT exclusive here (is_Resolved_DY_* and is_Boosted_DY_*
@@ -244,9 +246,52 @@ public:
         // Number of usable bins per category, i.e. how many DYReshape nuisances
         // there are. Bin 0 sits below the jet pT selection and is undefined.
         int n_nuis_res = 0, n_nuis_boo = 0;
+
+        // EW(genZpT): NLO EW correction from arXiv:1705.04664, ported from
+        // SKFlatAnalyzer data/Run2Legacy_v4/<year>/HNWRDYPtReweight/ZPtEWCorr.root
+        // (identical for all years -- pure theory, era-independent). Nominal in
+        // ew_val; the three EW uncertainty sources of the paper live in the bin
+        // ERRORS of hist_e1/e2/e3, stored here as absolute sigmas.
+        bool apply_ew = false;
+        std::vector<double> ew_edges;
+        std::vector<double> ew_val, ew_e1, ew_e2, ew_e3;
     } dycorr;
 
     void LoadDYCorrections();
+
+    // --- acceptance-only theory nuisances ---------------------------------------------
+    // Inclusive normalisation K_var of each LHE weight index for THIS sample, read from
+    // $SKNANO_DATA/<era>/HNWR/TheoryNormK.json (produced by AN-25-020
+    // tables/06_systematics/theory_norm_split/make_theory_norm_k.py).
+    //
+    // LHEScaleWeight / LHEPdfWeight are w_var / w_nom, i.e. the inclusive cross-section
+    // change TIMES the acceptance change. These four nuisances are signal-only in the
+    // datacards, so by convention they must carry the acceptance alone -- the inclusive
+    // piece belongs in the theory band of the exclusion plot, not in the fit. Dividing an
+    // event weight by K_var cancels the inclusive part exactly: sum(w * R / K) == sum(w)
+    // before any selection, so only the shape / selection efficiency change survives.
+    //
+    // Empty when the sample has no entry -- every background (the table is signal-only,
+    // and the Runs-tree K it is built from assumes |genWeight| = const, which holds for
+    // the LO madgraph signal but not for amcatnlo backgrounds) and the signal aliases
+    // shipping only 101 PDF members. GetTheoryNormK then returns 1 and the weights keep
+    // their previous, un-normalised behaviour.
+    std::vector<float> theoryK_scale;   // 9 entries, index = 3*iR + iF (GetScaleVariationIndex)
+    std::vector<float> theoryK_pdf;     // 103 entries, LHEPdfWeight member order
+    void LoadTheoryNormK();
+
+    // userflag RunXsecSyst: also write PDFmem<i>/<region>_mlljj, one directory per PDF
+    // Hessian member. The PDF envelope is a quadrature sum over members OF THE OBSERVABLE
+    // -- sqrt(sum_i (N_i(bin) - N_0(bin))^2) -- and cannot be formed from a single
+    // per-event weight the way the PDF_Weight target does it. Members shift every event in
+    // the same direction, so the sum over events largely cancels; taking the envelope per
+    // event instead adds |shift| with no cancellation and overestimates by ~200x on
+    // WR4000 (measured 0.73 vs 0.0034 before selection, where closure demands 0).
+    // Keeping one histogram per member is exactly what SKFlat HNWRAnalyzer.C:1785 does.
+    bool RunXsecSyst = false;
+    // K for one index; 1 when unavailable, non-finite or non-positive (never 0 -- that
+    // would delete the event instead of leaving its weight alone).
+    float GetTheoryNormK(const std::vector<float> &K, int idx) const;
 
     // Sum of the two isHardProcess charged leptons. Must stay identical to
     // DYGenZpT.cc, which is the definition C was derived against. -1 if absent.
@@ -261,6 +306,12 @@ public:
     // (not relative) sigma. 0 where C itself is undefined, so that C +- sigma
     // collapses back onto the nominal there.
     float GetZptStat(float gen_zpt) const;
+
+    // EW correction at nominal (which == 0) or shifted by dir*sigma of EW
+    // uncertainty source `which` (1, 2 or 3; dir = +1/-1). Same clamping as
+    // GetZptWeight: below 30 GeV the first bin (~1.004) is used, above the top
+    // edge the last bin -- identical to the SKFlat HNWRAnalyzer clipping.
+    float GetZptEW(float gen_zpt, int which = 0, int dir = 0) const;
 
     // R for a reco category. `nuis_bin` >= 0 shifts that one bin by
     // `dir` * sigma and leaves the others at nominal, which is how the per-bin

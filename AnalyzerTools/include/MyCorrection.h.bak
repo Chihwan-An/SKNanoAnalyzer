@@ -54,9 +54,6 @@ public:
     float GetMuonScaleSF(const Muon &muon, const variation syst = variation::nom, const float matched_pt=0, const unsigned int seed=0) const;
     float GetMuonRECOSF(const Muon &muon, const variation syst = variation::nom) const;
     float GetMuonRECOSF(const RVec<Muon> &muons, const variation syst = variation::nom) const;
-    // 고-pT 뮤온의 tracker-muon -> global-muon 효율 SF. GetMuonRECOSF 와 별개 함수인
-    // 이유는 README.md 참조 (기존 함수는 다른 analyzer 10개가 쓰므로 건드리지 않는다).
-    float GetMuonHighPtRECOSF(const Muon &muon, const variation syst = variation::nom) const;
     inline float GetMuonISOSF(const TString &Muon_ISO_SF_Key, const Muon &muon, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_ISO_SF_Key, muon, syst); }
     inline float GetMuonTriggerSF(const TString &Muon_Trigger_SF_Key, const Muon &muon, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_Trigger_SF_Key, muon, syst); };
     inline float GetMuonISOSF(const TString &Muon_ISO_SF_Key, const RVec<Muon> &muons, const variation syst = variation::nom, const TString &source = "") { return GetMuonIDSF(Muon_ISO_SF_Key, muons, syst); }
@@ -74,10 +71,7 @@ public:
                             const variation syst = variation::nom) const;
     // MC resolution smearing: returns the multiplicative factor 1 + N(0, sigma(p,eta)*f).
     // Returns 1 for eras/eta regions where MC is not better than data (f = 0).
-    // syst up/down widen/narrow f by the POG's flat 10% additional smearing; pass the same
-    // seed for nom and var so the Gaussian pull is shared and only its width moves.
-    float GetMuonHighPtSmearFactor(const float p, const float eta, const unsigned int seed,
-                                   const variation syst = variation::nom) const;
+    float GetMuonHighPtSmearFactor(const float p, const float eta, const unsigned int seed) const;
     // Relative momentum resolution sigma(p, eta) - exposed for the smearing systematic.
     float GetMuonHighPtResolution(const float p, const float eta) const;
 

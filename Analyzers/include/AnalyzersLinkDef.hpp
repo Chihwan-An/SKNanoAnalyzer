@@ -25,6 +25,7 @@
 #pragma link C++ class ttbar_hadronic+;
 #pragma link C++ class Reproduce20_002+;
 #pragma link C++ class Reproduce20_002_copy+;
+#pragma link C++ class WRGenRecoMass+;
 #pragma link C++ class jet_pt_reweight+;
 #pragma link C++ class HNWR_miniiso+;
 #pragma link C++ class HNWR_miniiso_scan+;

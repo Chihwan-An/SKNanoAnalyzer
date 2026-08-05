@@ -1,0 +1,5 @@
+# Central-only systematic config for MC (no systematics, no weight targets).
+# Used by HNWR_BDT_presel with the "NoSyst" userflag, e.g. for the raw
+# Cutflow_BDT_Boosted_raw check — avoids the SystematicHelper exit(1) on
+# MCLRSM.yaml targets this analyzer never assigns (LSF_Weight, ZPt_*).
+systematics:

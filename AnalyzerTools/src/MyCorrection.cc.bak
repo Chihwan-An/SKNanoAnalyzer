@@ -419,57 +419,6 @@ float MyCorrection::GetMuonRECOSF(const RVec<Muon> &muons, const variation syst)
     return weight;
 }
 
-// High-pT muon "reco" scale factor: the tracker-muon -> global-muon step.
-//
-// Why this is separate from GetMuonRECOSF(): that one returns 1 for Run3 because
-// the tracker-muon reconstruction efficiency w.r.t. generator tracks really is ~1
-// there (muon-wiki, cited in its body), and ten other analyzers call it. What it
-// does NOT cover is the global-muon requirement. The analysis applies
-// NUM_HighPtID_DEN_GlobalMuonProbes for the ID, whose DENOMINATOR is already a
-// global-muon probe, so without this factor the tracker->global efficiency is
-// missing from the chain entirely. This is the Run3 counterpart of the SKFlat
-// HNWRAnalyzer "HighPtMuonRecoSF" (HNWRAnalyzer.C:1030), which is likewise
-// evaluated in the muon MOMENTUM p, not pT.
-//
-// Binning (muon_HighPt.json.gz): |eta| in {0, 1.6, 2.4}, p in
-// {50, 100, 150, 200, 300, 400, 600, 1500, inf}, flow = "error" -> both inputs
-// must be clamped before evaluating or correctionlib throws.
-//
-// The top p bin [1500, inf) is statistics-starved: 2022 barrel reads
-// 1.0191 +- 0.6115 and 2022EE barrel 0.8494 +- 0.2917. Using it as measured would
-// hand the fit a ~60% per-muon nuisance driven by nothing. By default p is
-// therefore clamped into the [600, 1500) bin. Flip kUseTopPBin to use it as
-// published; see README.md for the numbers behind this choice.
-float MyCorrection::GetMuonHighPtRECOSF(const Muon &muon, const variation syst) const {
-    // Run2 loads muon_Z.json.gz, which has no NUM_GlobalMuons_DEN_TrackerMuonProbes.
-    if (Run != 3) return 1.;
-
-    static constexpr bool kUseTopPBin = false;
-    static constexpr float kMinP = 50.1f;
-    static constexpr float kMaxP = kUseTopPBin ? 2000.f : 1499.f;
-
-    // |eta| = 2.4 is the upper edge with flow = error. The analysis selects
-    // |eta| < 2.4 already, but a muon smeared onto the edge must not throw.
-    const float abseta = std::fabs(muon.Eta());
-    if (abseta >= 2.4f) return 1.;
-
-    // p is built from OriginalPt(), NOT from the live 4-vector, on purpose.
-    // ScaleMuons() rewrites Pt() for the MuonScale_Up/Down variations while leaving
-    // OriginalPt() at the nominal value, which is exactly why the ID and ISO SFs are
-    // evaluated at OriginalPt(). MuonScale is declared as dummy_sf in the analyzers,
-    // i.e. a purely kinematic nuisance, so letting this SF follow the varied momentum
-    // would contaminate it. eta is untouched by ScaleMuons, so p = pT * cosh(eta)
-    // reconstructs the nominal momentum. At nominal OriginalPt() == Pt(), so this is
-    // numerically identical to muon.P() there -- only the variations differ.
-    float p = muon.OriginalPt() * std::cosh(muon.Eta());
-    if (p < kMinP) p = kMinP;
-    if (p > kMaxP) p = kMaxP;
-
-    auto cset = cset_muon->at("NUM_GlobalMuons_DEN_TrackerMuonProbes");
-    return safeEvaluate(cset, "GetMuonHighPtRECOSF",
-                        {muon.Eta(), p, getSystString_MUO(syst)});
-}
-
 float MyCorrection::GetMuonIDSF(const TString &Muon_ID_SF_Key, const Muon &muon, const variation syst) const {
     if (Muon_ID_SF_Key == "TopHNT") {
         auto cset = cset_muon_TopHNT_idsf->at("sf");
@@ -515,21 +464,12 @@ float MyCorrection::GetMuonIDSF(const TString &Muon_ID_SF_Key, const RVec<Muon> 
 //  pT_corr = pT / (1 - q * kappa_b * pT). Run3 recommends correcting the pT, not just
 //  assigning an uncertainty.
 //
-//  RESOLVED (2026-07-30, from the Schulte & Zhong resolution deck 2024/06/03):
-//   (1) The smearing variable is the full momentum p, not pT. The deck fits the MC residual
-//       (1/p - 1/p_gen)/(1/p_gen) "in bins of p" and parametrises sigma as a polynomial in p
-//       (slides 6-11, x axes labelled "p (GeV)"). The implementation already did this.
-//   (2) The resolution systematic IS published: a flat 10% additional smearing, same for
-//       both eta regions and all eras. Implemented in GetMuonHighPtSmearFactor.
-//
 //  UNRESOLVED - verify before using these for a result:
+//   (1) Whether the smearing formula's momentum variable is p or pT. Implemented as the
+//       full momentum p, following the wiki wording literally.
+//   (2) The resolution-systematic factors are not published in text form yet, so only the
+//       nominal smearing is implemented (see GetMuonHighPtSmearFactor).
 //   (3) 2024/2025 kappa_b maps are not loaded (not needed for now); those eras are a no-op.
-//   (4) Coverage: the resolution measurement's pT bins stop at 800 GeV and the 2023 /
-//       2023BPix recommendations hold "if [we] drop the high Pt bins", while the GE scale is
-//       measured at the Z peak. WR signal muons run well past that, so both the smearing and
-//       the scale are extrapolations there. The POG asks for a separate sanity check for any
-//       analysis with muon candidates above 500 GeV (shift pT by the measured bias and look
-//       at the effect); that check is NOT done yet.
 // ============================================================================
 namespace {
     struct GECell { float kappa; float sigma; };   // kappa_b in TeV^-1
@@ -640,39 +580,13 @@ float MyCorrection::GetMuonHighPtResolution(const float p, const float eta) cons
     return static_cast<float>(c.a0 + c.a1*x + c.a2*x*x + c.a3*x*x*x);
 }
 
-// Resolution systematic. Schulte & Zhong, "High-pT muon resolution measurement for 2022 and
-// 2023" (2024/06/03), conclusion slide: "An overall systematic uncertainty of 10% will be
-// assigned, that will be applied as additional smearing of the momenta as well", and per era
-// "we recommend a total 10% uncertainty in both Barrel and Forward region". So the 10% is
-// absolute and the SAME for every era and both eta regions - it is not a relative scaling of
-// the nominal factor. The deck's own conversion (slide 6) is f = sqrt(smearfac^2 - 1), i.e.
-// 10% -> 0.458 (the deck quotes 0.46) and 5% -> 0.320.
-//
-// "Additional smearing" means an independent second Gaussian, so the widths add in
-// quadrature: f_up = sqrt(f_nom^2 + f_syst^2). The down side is subtracted the same way and
-// floors at zero, because a Gaussian convolution can only ever degrade the resolution - there
-// is no way to make MC sharper. That floor is not a fudge: for a region whose nominal
-// smearing is exactly 10% the -1 sigma variation IS "no smearing at all", which is
-// self-consistent with a 10% uncertainty on it. Consequence: for 2022 and 2023BPix barrel,
-// where the nominal smearing is 0, up is the only variation and down equals nominal, so
-// MuonRes is one-sided there by construction.
-static constexpr float MUON_SMEAR_SYST_F = 0.4583f;   // sqrt(1.10^2 - 1)
-
-float MyCorrection::GetMuonHighPtSmearFactor(const float p, const float eta, const unsigned int seed,
-                                            const variation syst) const {
+float MyCorrection::GetMuonHighPtSmearFactor(const float p, const float eta, const unsigned int seed) const {
     if (IsDATA) return 1.;                        // smearing is MC-only by construction
     if (fabs(eta) > 2.4f) return 1.;
 
     const auto itf = MUON_SMEAR_F.find(GetEra().Data());
     if (itf == MUON_SMEAR_F.end()) return 1.;
-    float f = itf->second[fabs(eta) < 1.2f ? 0 : 1];
-
-    if (syst == variation::up) {
-        f = sqrt(f*f + MUON_SMEAR_SYST_F*MUON_SMEAR_SYST_F);
-    } else if (syst == variation::down) {
-        const float f2 = f*f - MUON_SMEAR_SYST_F*MUON_SMEAR_SYST_F;
-        f = (f2 > 0.f) ? sqrt(f2) : 0.f;
-    }
+    const float f = itf->second[fabs(eta) < 1.2f ? 0 : 1];
     if (f <= 0.f) return 1.;                      // MC already no better than data here
 
     const float sigma = GetMuonHighPtResolution(p, eta);

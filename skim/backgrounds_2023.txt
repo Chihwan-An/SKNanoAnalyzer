@@ -1,0 +1,11 @@
+# HNWR background groups, mirroring plots/HNWR/cutflow/cutflow_bkg.py GROUPS
+DYMLL*
+TTLL_powheg
+TTLJ_powheg
+ST_*
+WJetM*
+WW*
+WZ*
+ZZ*
+ttW*
+ttZ*

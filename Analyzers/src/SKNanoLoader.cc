@@ -65,6 +65,8 @@ void SKNanoLoader::Loop() {
             nPhoton = static_cast<Int_t>(nPhoton_RunII);
             nJet = static_cast<Int_t>(nJet_RunII);
             nFatJet = static_cast<Int_t>(nFatJet_RunII);
+            nSubJet = static_cast<Int_t>(nSubJet_RunII);
+            nSubGenJetAK8 = static_cast<Int_t>(nSubGenJetAK8_RunII);
             nTrigObj = static_cast<Int_t>(nTrigObj_RunII);
         }
         
@@ -106,6 +108,11 @@ void SKNanoLoader::SetMaxLeafSize(){
     const UInt_t kMaxElectron = getMaxBranchValue(df, "nElectron");
     const UInt_t kMaxTau = getMaxBranchValue(df, "nTau");
     const UInt_t kMaxFatJet = getMaxBranchValue(df, "nFatJet");
+    // SoftDrop subjets: two per AK8 jet at most, but sized off the branch like everything
+    // else. MC-only for the gen ones; getMaxBranchValue returns 0 when absent, which just
+    // leaves the vectors empty and RecomputeSoftDropMass a no-op.
+    const UInt_t kMaxSubJet = getMaxBranchValue(df, "nSubJet");
+    const UInt_t kMaxSubGenJetAK8 = IsDATA ? 0 : getMaxBranchValue(df, "nSubGenJetAK8");
     const UInt_t kMaxTrigObj = getMaxBranchValue(df, "nTrigObj");
     cout << "[SKNanoLoader::SetMaxLeafSize] Maximum Leaf Size Set" << endl;
     auto RDataFrameFinishTime = std::chrono::high_resolution_clock::now();
@@ -613,6 +620,19 @@ void SKNanoLoader::SetMaxLeafSize(){
         FatJet_subJetIdx1_RunII.resize(kMaxFatJet);
         FatJet_subJetIdx2_RunII.resize(kMaxFatJet);
     }
+
+    // SubJet----------------------------
+    // Same in Run2 v9 and Run3 v12+ (all Float_t), so no _RunII split is needed for the
+    // kinematics; only the counts differ in type and those go through SetBranchWithRunCheck.
+    SubJet_pt.resize(kMaxSubJet);
+    SubJet_eta.resize(kMaxSubJet);
+    SubJet_phi.resize(kMaxSubJet);
+    SubJet_mass.resize(kMaxSubJet);
+    SubJet_rawFactor.resize(kMaxSubJet);
+    SubGenJetAK8_pt.resize(kMaxSubGenJetAK8);
+    SubGenJetAK8_eta.resize(kMaxSubGenJetAK8);
+    SubGenJetAK8_phi.resize(kMaxSubGenJetAK8);
+    SubGenJetAK8_mass.resize(kMaxSubGenJetAK8);
 
     // TrigObj----------------------------
     TrigObj_pt.resize(kMaxTrigObj);
@@ -1160,6 +1180,21 @@ void SKNanoLoader::Init() {
     SafeSetBranchAddress("run", &RunNumber);
     SafeSetBranchAddress("luminosityBlock", &LumiBlock);
     SafeSetBranchAddress("event", &EventNumber);
+
+    // SubJet----------------------------
+    SetBranchWithRunCheck("nSubJet", nSubJet, nSubJet_RunII);
+    SafeSetBranchAddress("SubJet_pt", SubJet_pt.data());
+    SafeSetBranchAddress("SubJet_eta", SubJet_eta.data());
+    SafeSetBranchAddress("SubJet_phi", SubJet_phi.data());
+    SafeSetBranchAddress("SubJet_mass", SubJet_mass.data());
+    SafeSetBranchAddress("SubJet_rawFactor", SubJet_rawFactor.data());
+    if (!IsDATA) {
+        SetBranchWithRunCheck("nSubGenJetAK8", nSubGenJetAK8, nSubGenJetAK8_RunII);
+        SafeSetBranchAddress("SubGenJetAK8_pt", SubGenJetAK8_pt.data());
+        SafeSetBranchAddress("SubGenJetAK8_eta", SubGenJetAK8_eta.data());
+        SafeSetBranchAddress("SubGenJetAK8_phi", SubGenJetAK8_phi.data());
+        SafeSetBranchAddress("SubGenJetAK8_mass", SubGenJetAK8_mass.data());
+    }
 
     // TrigObj----------------------------
     SetBranchWithRunCheck("nTrigObj", nTrigObj, nTrigObj_RunII);

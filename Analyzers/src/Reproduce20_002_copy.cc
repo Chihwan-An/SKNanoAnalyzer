@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
+
+#include <nlohmann/json.hpp>
 
 Reproduce20_002_copy::Reproduce20_002_copy() {}
 Reproduce20_002_copy::~Reproduce20_002_copy() {}  
@@ -52,14 +55,17 @@ void Reproduce20_002_copy::initializeAnalyzer() {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 35.;
+        // 118 = HLT_Ele115 plateau, matching 2022/2022EE. Cosmetic: the leading tight
+        // electron is already required above 130 GeV (:1388 resolved, :2005 boosted),
+        // so no event selection changes -- this only removes the 35 GeV leftover.
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;
     }
     if (DataEra == "2023BPix")
     {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 35.;
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  // see 2023 above
     }
 
     myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
@@ -74,6 +80,7 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     }
 
     NoDYCorr = HasFlag("NoDYCorr");
+    RunXsecSyst = HasFlag("RunXsecSyst");
     ZptOnly = HasFlag("ZptOnly");
     if (NoDYCorr && ZptOnly) {
         cerr << "[Reproduce20_002_copy] FATAL: NoDYCorr and ZptOnly are mutually "
@@ -82,6 +89,72 @@ void Reproduce20_002_copy::initializeAnalyzer() {
     }
 
     LoadDYCorrections();
+    LoadTheoryNormK();
+}
+
+// Reads the per-sample inclusive normalisation K_var used to make the four theory
+// nuisances acceptance-only. Missing file or missing entry is NOT an error: the table
+// only covers signal, and everything else keeps K = 1.
+void Reproduce20_002_copy::LoadTheoryNormK() {
+    theoryK_scale.clear();
+    theoryK_pdf.clear();
+    if (IsDATA) return;
+
+    const char *datadir = getenv("SKNANO_DATA");
+    if (!datadir) {
+        cerr << "[Reproduce20_002_copy] WARNING: SKNANO_DATA unset; theory nuisances stay "
+             << "un-normalised (inclusive xsec change left in)." << endl;
+        return;
+    }
+    const std::string path =
+        std::string(datadir) + "/" + std::string(DataEra.Data()) + "/HNWR/TheoryNormK.json";
+    std::ifstream f(path);
+    if (!f.is_open()) {
+        cout << "[Reproduce20_002_copy] no theory-K table at " << path
+             << "; theory nuisances stay un-normalised." << endl;
+        return;
+    }
+
+    nlohmann::json j;
+    try {
+        f >> j;
+    } catch (const std::exception &e) {
+        cerr << "[Reproduce20_002_copy] FATAL: cannot parse " << path << ": " << e.what() << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    const std::string key = std::string(MCSample.Data());
+    if (!j.contains("samples") || !j["samples"].contains(key)) {
+        cout << "[Reproduce20_002_copy] " << MCSample << " not in " << path
+             << " (background, or a signal alias without the full 103 PDF members); "
+             << "theory nuisances stay un-normalised." << endl;
+        return;
+    }
+
+    const auto &s = j["samples"][key];
+    if (s.contains("scale")) theoryK_scale = s["scale"].get<std::vector<float>>();
+    if (s.contains("pdf"))   theoryK_pdf   = s["pdf"].get<std::vector<float>>();
+
+    // Sizes must match what the weight targets index into. A short table would silently
+    // fall back to K = 1 for the missing entries and mix normalised with un-normalised
+    // members inside the same PDF envelope, so refuse it outright.
+    if (theoryK_scale.size() != 9 || theoryK_pdf.size() != 103) {
+        cerr << "[Reproduce20_002_copy] FATAL: " << MCSample << " in " << path
+             << " has scale[" << theoryK_scale.size() << "] pdf[" << theoryK_pdf.size()
+             << "], expected scale[9] pdf[103]." << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    cout << "[Reproduce20_002_copy] theory-K loaded for " << MCSample << " (" << DataEra
+         << "): muF idx3/idx5 = " << theoryK_scale[3] << "/" << theoryK_scale[5]
+         << ", alphaS idx101/102 = " << theoryK_pdf[101] << "/" << theoryK_pdf[102]
+         << ". Theory nuisances are acceptance-only." << endl;
+}
+
+float Reproduce20_002_copy::GetTheoryNormK(const std::vector<float> &K, int idx) const {
+    if (idx < 0 || idx >= static_cast<int>(K.size())) return 1.f;
+    const float k = K[idx];
+    return (std::isfinite(k) && k > 0.f) ? k : 1.f;
 }
 
 // eta MUST be the supercluster eta (Electron::scEta()), not the track eta: the
@@ -398,8 +471,6 @@ void Reproduce20_002_copy::executeEvent() {
 
     SetSignalFlags();
 
-    std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
-
     for (const auto &syst_dummy : *systHelper) {
         executeEventFromParameter();
     }
@@ -408,13 +479,20 @@ void Reproduce20_002_copy::executeEvent() {
 
 void Reproduce20_002_copy::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
+
+    // RunXsecSyst produces one thing only: the per-PDF-member fit observable, which is
+    // filled in the Central pass. Every object-variation pass (JES/JER/... , evtLoopAgain:
+    // true) would re-run the whole event to fill histograms this job does not write, so
+    // leave immediately. Cuts the job to a single pass over the events.
+    if (RunXsecSyst && this_syst != "Central") return;
     
     Event ev = GetEvent();
     Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
     
     
     std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
-    auto dummy_sf = [](MyCorrection::variation var, TString source) -> float { return 1.0; };
+    weight_function_map.reserve(30);  // Pre-allocate to avoid rehashing
+    static auto dummy_sf = [](MyCorrection::variation var, TString source) -> float { return 1.0f; };
 
     weight_function_map["PU_Weight"]     = dummy_sf;
     // Electron Targets
@@ -433,6 +511,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     // Object-level kinematic variations: the systematic is applied by re-running the event
     // with a varied collection, so the weight target is a dummy (see docs/MCLRSM.yaml).
     weight_function_map["MuonScale_Variation"]     = dummy_sf;
+    weight_function_map["MuonRes_Variation"]       = dummy_sf;
     weight_function_map["ElectronScale_Variation"] = dummy_sf;
     weight_function_map["ElectronRes_Variation"]   = dummy_sf;
     weight_function_map["FatJetJES_Variation"]     = dummy_sf;
@@ -552,33 +631,57 @@ void Reproduce20_002_copy::executeEventFromParameter() {
     // --- XSec(theory) weight systematics ---
     // Each function returns the absolute event weight for the given variation (nom == 1),
     // so calculateWeight() forms Up/Down by nominal_weight / nom * up(down).
+    //
+    // ACCEPTANCE ONLY: every LHE weight below is divided by the inclusive normalisation
+    // K_var of its own index (theoryK_scale / theoryK_pdf; see LoadTheoryNormK). The raw
+    // weights are inclusive-xsec change TIMES acceptance change, and these four nuisances
+    // are signal-only in the datacards, so they must carry acceptance alone. Without the
+    // division the nuisance is dominated by the normalisation -- WR4000 is ~35% inclusive
+    // PDF against a few-% acceptance -- which inflates it by roughly an order of magnitude
+    // and makes the limit correspondingly conservative. The inclusive piece is instead
+    // drawn as the theory band of the exclusion plot (the Run2 "SignalScale lnN" slot).
+    // K = 1 for any sample without a table entry, reproducing the previous behaviour.
     // muF: vary factorization scale, keep renormalization scale nominal.
     weight_function_map["ScaleWeight_muF"] = [&](MyCorrection::variation var, TString source) -> float {
-        return GetScaleVariation(var, MyCorrection::variation::nom);
+        const float r = GetScaleVariation(var, MyCorrection::variation::nom);
+        return r / GetTheoryNormK(theoryK_scale,
+                                  GetScaleVariationIndex(var, MyCorrection::variation::nom));
     };
     // muR: vary renormalization scale, keep factorization scale nominal.
+    // NOTE: for the WR signal this is identically 1 both before and after normalisation --
+    // W_R production is EW at LO, so the matrix element has no alpha_S and no muR
+    // dependence (the 9 weights are 3 identical blocks). The nuisance is only meaningful
+    // for backgrounds, which the datacards do not attach it to; see the theory_norm_split
+    // README section 6 for the card-side decision this still needs.
     weight_function_map["ScaleWeight_muR"] = [&](MyCorrection::variation var, TString source) -> float {
-        return GetScaleVariation(MyCorrection::variation::nom, var);
+        const float r = GetScaleVariation(MyCorrection::variation::nom, var);
+        return r / GetTheoryNormK(theoryK_scale,
+                                  GetScaleVariationIndex(MyCorrection::variation::nom, var));
     };
-    // PDF envelope: Hessian sum in quadrature over members 1..100 (LHEPdfWeight[0] is central == 1).
-    weight_function_map["PDF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
-        if (nLHEPdfWeight < 103) return 1.f;
-        const float w0 = LHEPdfWeight[0];
-        float sumSq = 0.f;
-        for (int i = 1; i <= 100; i++) {
-            const float dw = LHEPdfWeight[i] - w0;
-            sumSq += dw * dw;
-        }
-        const float deltaPDF = sqrt(sumSq);
-        if (var == MyCorrection::variation::up)   return w0 + deltaPDF;
-        if (var == MyCorrection::variation::down) return w0 - deltaPDF;
-        return 1.f;
-    };
+    // PDF envelope: RETIRED as a weight target -- it stays at the dummy 1.
+    //
+    // A Hessian envelope is a quadrature sum over members OF THE OBSERVABLE,
+    // dN(bin) = sqrt(sum_i (N_i(bin) - N_0(bin))^2), and N_i(bin) is itself a sum over
+    // events. A single event weight cannot express that: (sum_evt x)^2 != sum_evt x^2.
+    // The old implementation took the envelope event by event, which adds |shift| with no
+    // cancellation even though every member pushes all events the same way. Measured on
+    // WR4000N2100EE / 2022EE: 71.4% in SR_Resolved_EE and 73.6% in SR_Boosted_EE, against
+    // 0.45% and 1.92% for the correct envelope -- a factor 157 and 38. Before any
+    // selection, where closure demands 0, it gave 0.73 instead of 0.0034.
+    //
+    // The replacement is the RunXsecSyst userflag: it writes PDFmem<i>/<region>_mlljj, one
+    // histogram per member, and the envelope is formed after hadd by
+    // tables/06_systematics/theory_norm_split/make_pdf_envelope.py. Per-member histograms
+    // have to survive hadd -- they add linearly, an envelope does not -- which is why the
+    // members are stored rather than accumulated into a single number in the job.
+    //
+    // The "PDF" entry is removed from docs/MCLRSM*.yaml, so this target is now unreferenced;
+    // it is kept defined so an older yaml still resolves instead of crashing.
     // alpha_S: dedicated PDF members (101 = down, 102 = up).
     weight_function_map["AlphaS_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
         if (nLHEPdfWeight < 103) return 1.f;
-        if (var == MyCorrection::variation::up)   return LHEPdfWeight[102];
-        if (var == MyCorrection::variation::down) return LHEPdfWeight[101];
+        if (var == MyCorrection::variation::up)   return LHEPdfWeight[102] / GetTheoryNormK(theoryK_pdf, 102);
+        if (var == MyCorrection::variation::down) return LHEPdfWeight[101] / GetTheoryNormK(theoryK_pdf, 101);
         return 1.f;
     };
     
@@ -1143,13 +1246,23 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         // only for the variations would leave Central un-smeared, making both variations
         // shift in the same direction instead of bracketing Central.
         RVec<GenJet> genjets = GetAllGenJets();
+        // AK4 JER. "FatJetJER_Up" also Contains("JER_Up"), so the FatJet guard is
+        // required: without it the FatJetJER passes would vary the AK4 JER as well,
+        // even though the two nuisances are deliberately decorrelated.
         MyCorrection::variation jer_var = MyCorrection::variation::nom;
-        if (this_syst.Contains("JER_Up"))        jer_var = MyCorrection::variation::up;
-        else if (this_syst.Contains("JER_Down")) jer_var = MyCorrection::variation::down;
+        if (!this_syst.Contains("FatJetJER")) {
+            if (this_syst.Contains("JER_Up"))        jer_var = MyCorrection::variation::up;
+            else if (this_syst.Contains("JER_Down")) jer_var = MyCorrection::variation::down;
+        }
         jets = SmearJets(jets, genjets, jer_var, "total");
 
+        // AK8 JER: smeared exactly once, with the variation only in the FatJetJER
+        // passes. (AK4 JER passes leave the AK8 smearing at nominal.)
         RVec<GenJet> genjetsak8 = GetAllGenJetAK8();
-        fatjets = SmearFatJets(fatjets, genjetsak8, jer_var, "total");
+        MyCorrection::variation ak8_jer_var = MyCorrection::variation::nom;
+        if (this_syst.Contains("FatJetJER_Up"))        ak8_jer_var = MyCorrection::variation::up;
+        else if (this_syst.Contains("FatJetJER_Down")) ak8_jer_var = MyCorrection::variation::down;
+        fatjets = SmearFatJets(fatjets, genjetsak8, ak8_jer_var, "total");
 
         // Apply JES systematics (AK4 only; AK8 has its own FatJetJES nuisance below)
         if (this_syst.Contains("JES_Up") && !this_syst.Contains("FatJetJES")) {
@@ -1158,15 +1271,35 @@ void Reproduce20_002_copy::executeEventFromParameter() {
             jets = ScaleJets(jets, MyCorrection::variation::down, "total");
         }
 
-        // --- AK8 scale / resolution, decorrelated from AK4 --------------------------
+        // --- AK8 scale, decorrelated from AK4 ----------------------------------------
         if (this_syst.Contains("FatJetJES_Up")) {
             fatjets = ScaleFatJets(fatjets, MyCorrection::variation::up);
         } else if (this_syst.Contains("FatJetJES_Down")) {
             fatjets = ScaleFatJets(fatjets, MyCorrection::variation::down);
-        } else if (this_syst.Contains("FatJetJER_Up")) {
-            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::up, "total");
-        } else if (this_syst.Contains("FatJetJER_Down")) {
-            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::down, "total");
+        }
+
+        // --- soft-drop mass: AK4 JERC on the SoftDrop subjets ------------------------
+        // JME recommendation (CMS Talk, "AK8 Puppi Jet JERC for Soft Drop Mass", Jan 2026):
+        // m_SD is corrected by applying the AK4 JERC to the subjets and recomputing their
+        // invariant mass. The AK8 JES/JER above correct FatJet_pt / FatJet_mass and leave
+        // FatJet_msoftdrop untouched, so m_SD is driven by the AK4 nuisances, NOT by
+        // FatJetJES/FatJetJER - deliberately hung off JES/JER to keep it correlated with the
+        // AK4 jets, since it is the same uncertainty source.
+        // This is not cosmetic: m_SD > FatJet_SDM (40 GeV) is a selection cut, and roughly
+        // 11-16% of the selected yield sits within 10 GeV above it.
+        // The trailing else is NOT optional: the call also applies the JER nominal smearing
+        // (NanoAOD's msoftdrop has the subjet JEC but no smearing), so every pass has to
+        // make it or it would differ from Central for a reason that is not its nuisance.
+        if (this_syst.Contains("JES_Up") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::up, "total", false);
+        } else if (this_syst.Contains("JES_Down") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::down, "total", false);
+        } else if (this_syst.Contains("JER_Up") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::up, "total", true);
+        } else if (this_syst.Contains("JER_Down") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::down, "total", true);
+        } else {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::nom, "total", false);
         }
 
         // --- lepton energy/momentum variations --------------------------------------
@@ -1177,6 +1310,14 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         } else if (this_syst.Contains("MuonScale_Down")) {
             muons = ScaleMuons(muons, "down");
         }
+        // Muon resolution: flat 10% additional smearing (POG resolution deck 2024/06/03).
+        // MC-only and high-pT-only by construction; one-sided in the barrel for 2022 and
+        // 2023BPix, where the nominal smearing is 0 and a Gaussian cannot sharpen MC.
+        if (this_syst.Contains("MuonRes_Up")) {
+            muons = SmearMuons(muons, "up");
+        } else if (this_syst.Contains("MuonRes_Down")) {
+            muons = SmearMuons(muons, "down");
+        }
         if (this_syst.Contains("ElectronScale_Up")) {
             electrons = ScaleElectrons(ev, electrons, "up");
         } else if (this_syst.Contains("ElectronScale_Down")) {
@@ -1186,7 +1327,9 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         } else if (this_syst.Contains("ElectronRes_Down")) {
             electrons = SmearElectrons(electrons, "down");
         }
-        if (this_syst.Contains("JER_Up") || this_syst.Contains("JER_Down") || this_syst.Contains("JES_Up") || this_syst.Contains("JES_Down")) {
+        // AK4-only monitoring; FatJetJES/JER passes leave the AK4 jets at nominal.
+        if (!this_syst.Contains("FatJet") &&
+            (this_syst.Contains("JER_Up") || this_syst.Contains("JER_Down") || this_syst.Contains("JES_Up") || this_syst.Contains("JES_Down"))) {
             for (const auto& jet : jets) {
                 FillHist(this_syst + "/JESJER_after_jetpt",jet.Pt(), weight, 2000, 0., 2000.);
             }
@@ -1417,12 +1560,15 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                 // HEEP ID SF from egamma-tnp T&P, (pt, eta) binned
                 return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
             };
-        /*
-        weight_function_map["M_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float   {
-            if (DataEra=="2017") return 1.0;
-            return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0], var)) ;
-        };
-        */
+            // Muon ID SF for the single tight muon of the resolved EM (flavour) CR.
+            // Must stay enabled: rFlvCR shares the R_TT_Resolved rateParam with rEESR /
+            // rDYEECR / rDYMuMuCR, so a missing SF here biases the fitted TT
+            // normalisation that propagates into the SR. EE/MM (:1497) and every boosted
+            // branch (:2124, :2467, :2707) already apply it.
+            weight_function_map["M_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float   {
+                if (DataEra=="2017") return 1.0;
+                return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0], var)) ;
+            };
             FillHist(this_syst + "/tightmuons", 3 , weight, 5, 0., 5.);
         }
 
@@ -1494,7 +1640,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                         
                         //float MuonIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[1]));
                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return (myCorr->GetMuonRECOSF(*Tight_muons[0], var) * myCorr->GetMuonRECOSF(*Tight_muons[1], var));
+                            return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0], var) * myCorr->GetMuonHighPtRECOSF(*Tight_muons[1], var));
                         };
                         //float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0]) * myCorr->GetMuonRECOSF(*Tight_muons[1]));
                         // Fix: build trig_muons inside lambda to avoid dangling reference
@@ -1523,7 +1669,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                             return    (myCorr->GetElectronRECOSF(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) ;
                         };
                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return  myCorr->GetMuonRECOSF(*Tight_muons[0], var);
+                            return  myCorr->GetMuonHighPtRECOSF(*Tight_muons[0], var);
                         };
                         
                         weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
@@ -1684,7 +1830,6 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                     }
                     else if (tmp_isEM) {
@@ -1946,7 +2091,6 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                             for (int i = 0; i < lhe.size(); i++) {
                                 float q1 = lhe[i].PdgId();
@@ -2120,7 +2264,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             if (DataEra=="2017") return 1.0;
                                             return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source) {
-                                            return (myCorr->GetMuonRECOSF(*Tight_muons[0],var)) ;};
+                                            return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var)) ;};
                                         
                                         // Fix: capture LowMllLooseLepton by value to avoid dangling reference
                                         // (LowMllLooseLepton goes out of scope before lambda is evaluated at systHelper->calculateWeight())
@@ -2261,7 +2405,6 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                                         
                                         if (looselepton_infatjet){
@@ -2464,7 +2607,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                                     weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                    return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var));};
                                                     
                                                     // Fix: capture SFLooseLepton by value to avoid dangling reference
                                                     // (SFLooseLepton goes out of scope before lambda is evaluated at systHelper->calculateWeight())
@@ -2596,7 +2739,6 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     if (tightmuon1_org_pt != tightmuon1_pt) {
                                                         float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                         FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                        cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                                     }
                                                     for (int i = 0; i < lhe.size(); i++) {
                                                         float q1 = lhe[i].PdgId();
@@ -2705,7 +2847,7 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                                     weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                    return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var));};
                                                     
                                                     weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                                                     if (DataEra=="2017") return 1.0;
@@ -2994,7 +3136,6 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                                             electron2_tight_charge = ((Electron*)OFLooseLepton)->TightCharge();
                                             FillHist(this_syst + "/Boosted_Flav_EMJ_electron1_tight_charge", electron1_tight_charge , 1.0, 5, 0., 5.);
@@ -3077,11 +3218,32 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         std::vector<std::tuple<std::string, float, float, float>> fill_targets;
         const float R_res_nom = (dycorr.apply && selected_jets.size() > 0)
             ? GetJetPtR(true, selected_jets[0].Pt()) : 1.0f;
-        const float R_boo_nom = (dycorr.apply && fatjets.size() > 0)
-            ? GetJetPtR(false, fatjets[0].Pt()) : 1.0f;
+        // The boosted lookup pT must be the variable R was DERIVED against:
+        // the DY CR histograms the first fatjet with |dPhi(lead lepton, J)| >
+        // 2.0 (Reproduce20_002_copy.cc:2075-2080), the requirement every
+        // boosted region shares -- not the plain leading fatjet. Until
+        // 2026-07-29 this used fatjets[0].Pt(); when the leading fatjet sits
+        // on the lepton side and a subleading one is the region's fatjet
+        // (~30% of the 400-600 GeV lookup bin in the DY CR), R was read one
+        // bin too high. The lead lepton here is Tight_leps[0], exactly what
+        // the boosted branches use as LeadLep. Fallback: fatjets[0] -- if no
+        // fatjet passes dPhi, no boosted region is filled and the value is
+        // never used.
+        float r_boo_pt = fatjets.size() > 0 ? fatjets[0].Pt() : -1.f;
+        if (fatjets.size() > 0 && Tight_leps.size() > 0) {
+            for (const auto &fj : fatjets) {
+                if (std::abs(Tight_leps[0]->DeltaPhi(fj)) > 2.0) {
+                    r_boo_pt = fj.Pt();
+                    break;
+                }
+            }
+        }
+        const float R_boo_nom = (dycorr.apply && r_boo_pt > 0.f)
+            ? GetJetPtR(false, r_boo_pt) : 1.0f;
 
+        std::unordered_map<std::string, float> weight_map;
         if (!IsDATA) {
-            auto weight_map = systHelper->calculateWeight();
+            weight_map = systHelper->calculateWeight();
             for (const auto& [sn, sf_val] : weight_map) {
                 fill_targets.push_back({sn, weight * sf_val, R_res_nom, R_boo_nom});
             }
@@ -3096,14 +3258,19 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         // already folded into a single band, following the Run 2 AN treatment --
         // and leaves the other bins nominal.
         if (!IsDATA && dycorr.apply && this_syst == "Central") {
-            const float w_central = weight * systHelper->calculateWeight()["Central"];
+            const float w_central = weight * weight_map["Central"];
+            // nuis_bin is the index on the rebinned R curve, whose bin 0 is
+            // the undefined below-cut bin (NaN, GetJetPtR returns before the
+            // variation). BinK therefore targets curve index K = b + 1.
+            // Passing b (as until 2026-07-29) made Bin1 a no-op variation and
+            // left the last R bin with no variation at all.
             for (int b = 0; b < dycorr.n_nuis_res; b++) {
                 for (int d = -1; d <= 1; d += 2) {
                     const TString nm = TString::Format("ResolvedDYReshapeBin%d_%s",
                                                        b + 1, d > 0 ? "Up" : "Down");
                     fill_targets.push_back({std::string(nm), w_central,
                         selected_jets.size() > 0
-                            ? GetJetPtR(true, selected_jets[0].Pt(), b, d) : 1.0f,
+                            ? GetJetPtR(true, selected_jets[0].Pt(), b + 1, d) : 1.0f,
                         R_boo_nom});
                 }
             }
@@ -3112,13 +3279,17 @@ void Reproduce20_002_copy::executeEventFromParameter() {
                     const TString nm = TString::Format("BoostedDYReshapeBin%d_%s",
                                                        b + 1, d > 0 ? "Up" : "Down");
                     fill_targets.push_back({std::string(nm), w_central, R_res_nom,
-                        fatjets.size() > 0
-                            ? GetJetPtR(false, fatjets[0].Pt(), b, d) : 1.0f});
+                        r_boo_pt > 0.f
+                            ? GetJetPtR(false, r_boo_pt, b + 1, d) : 1.0f});
                 }
             }
         }
 
         for (const auto& [syst_name, final_weight_noR, R_res, R_boo] : fill_targets) {
+        // RunXsecSyst writes only the PDF member histograms (filled after this loop).
+        // Skipping the ordinary fills takes the output from 279 MB to a few tens of MB per
+        // sample, which is what makes running the flag over every signal alias practical.
+        if (RunXsecSyst) break;
         //resolved
         //DY CR
         {
@@ -3708,6 +3879,45 @@ void Reproduce20_002_copy::executeEventFromParameter() {
         // syst_name: "Central", "PU_Weight_Up" 등
         // sf_val: 해당 케이스의 SF 값 (예: 0.99)
         
+        }
+
+        // --- RunXsecSyst: per-PDF-member mlljj -------------------------------------
+        // Central pass only. The member histograms are an input to the OFFLINE envelope
+        // (see tables/06_systematics/theory_norm_split), not a nuisance themselves, so
+        // they must not be crossed with the object-variation passes.
+        //
+        // Each member weight is divided by its own inclusive normalisation K_i exactly as
+        // the PDF_Weight target is, which makes the envelope acceptance-only: summed over
+        // all events every member reproduces the central yield, so what survives after a
+        // selection is purely the change in selection efficiency.
+        //
+        // Member 0 is the central PDF and is written too -- the offline step needs N_0
+        // from the same fills, and reading it from the Central directory instead would
+        // fold in every other weight target.
+        if (RunXsecSyst && !IsDATA && this_syst == "Central" && nLHEPdfWeight >= 103) {
+            const float w_xs = weight * weight_map["Central"];
+            for (int i = 0; i < 103; i++) {
+                const float w_i = w_xs * LHEPdfWeight[i] / GetTheoryNormK(theoryK_pdf, i);
+                const TString dir = TString::Format("PDFmem%03d/", i);
+                for (auto [cond, pfx, mlljj, boosted, nbin] :
+                     std::initializer_list<std::tuple<bool, const char*, float, bool, int>>{
+            {is_Resolved_DY_EE, "DYCR_Resolved_EE", Resolve_DYCREEmlljj, false, 800},
+            {is_Resolved_DY_MM, "DYCR_Resolved_MM", Resolve_DYCRMMmlljj, false, 800},
+            {is_Resolved_SR_EE, "SR_Resolved_EE", Resolve_SREEmlljj, false, 8000},
+            {is_Resolved_SR_MM, "SR_Resolved_MM", Resolve_SRMMmlljj, false, 8000},
+            {is_Resolved_Flav_EM, "FlavCR_Resolved_EM", Resolve_FlavCRmlljj, false, 8000},
+            {is_Boosted_DY_EE, "DYCR_Boosted_EE", Boost_DYCREEmlljj, true, 8000},
+            {is_Boosted_DY_MM, "DYCR_Boosted_MM", Boost_DYCRMMmlljj, true, 8000},
+            {is_Boosted_SR_EE, "SR_Boosted_EE", Boost_SREEmlljj, true, 8000},
+            {is_Boosted_SR_MM, "SR_Boosted_MM", Boost_SRMMmlljj, true, 8000},
+            {is_Boosted_Flav_EMJ, "FlavCR_Boosted_EMJ", Boost_FlavEMJmlljj, true, 8000},
+            {is_Boosted_Flav_MEJ, "FlavCR_Boosted_MEJ", Boost_FlavMEJmlljj, true, 8000},
+                     }) {
+                    if (!cond) continue;
+                    FillHist(dir + pfx + "_mlljj", mlljj,
+                             w_i * (boosted ? R_boo_nom : R_res_nom), nbin, 0., 8000.);
+                }
+            }
         }
     }
 }

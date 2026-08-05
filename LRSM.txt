@@ -1,6 +1,11 @@
 TTLL_powheg
 TTLJ_powheg
 ST*
+EG*
+Muon
+Muon0*
+Muon1*
+Single*
 WJetM*
 DYM*
 ZZ*

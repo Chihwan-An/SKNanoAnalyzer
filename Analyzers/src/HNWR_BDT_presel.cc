@@ -20,6 +20,9 @@ void HNWR_BDT_presel::initializeAnalyzer() {
     string SKNANO_HOME = getenv("SKNANO_HOME");
     if (IsDATA) {
         systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/DataLRSM.yaml", DataStream, DataEra);
+    } else if (HasFlag("NoSyst")) {
+        // Central only, no weight targets — see docs/MCLRSM_nosyst.yaml.
+        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM_nosyst.yaml", MCSample, DataEra);
     } else {
         systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM.yaml", MCSample, DataEra);
     }
@@ -135,6 +138,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
 
     // --- Cutflow bin 0: all events ---
     FillHist(dir + "/Cutflow", 0.0, weight, 10, 0., 10.);
+    FillHist(dir + "/Cutflow_BDT_Boosted_raw", 0.0, 1.0, 15, 0., 15.);
 
     RVec<Electron> all_electrons = el_set.AllElectrons;
     RVec<Muon>     all_muons     = mu_set.AllMuons;
@@ -197,12 +201,14 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     // --- Cutflow bin 1: noise filter ---
     if (!PassNoiseFilter(jets, ev, Event::MET_Type::PUPPI)) return;
     FillHist(dir + "/Cutflow", 1.0, weight, 10, 0., 10.);
+    FillHist(dir + "/Cutflow_BDT_Boosted_raw", 1.0, 1.0, 15, 0., 15.);
 
     bool pass_trig_muon = ev.PassTrigger(mu_set.Muon_Trigger);
     bool pass_trig_elec = ev.PassTrigger(el_set.Ele_Trigger);
     if (!pass_trig_muon && !pass_trig_elec) return;
     // --- Cutflow bin 2: HLT fired ---
     FillHist(dir + "/Cutflow", 2.0, weight, 10, 0., 10.);
+    FillHist(dir + "/Cutflow_BDT_Boosted_raw", 2.0, 1.0, 15, 0., 15.);
 
 
     ///         Leptons       ///
@@ -251,7 +257,17 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     RVec<Lepton*>&   leps      = Tight_leps;
 
     ///         FatJets       ///
-    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, Tight_leps);
+    // Clean fatjets against the pT-leading tight lepton ONLY. The boosted
+    // topology expects the second (N-side) lepton INSIDE the N fatjet — the
+    // SKFlat HNWRAnalyzer and Reproduce20_002_copy keep such fatjets — so
+    // cleaning against ALL tight leptons removed the N candidate whenever the
+    // in-fatjet lepton passed the tight ID (measured: -17%p boosted at
+    // WR2000N100MM, -45%p at WR2000N300MM). The lead lepton must still be
+    // cleaned: with no dPhi(lep, fatjet) cut here, a fatjet reconstructed
+    // from the lead lepton itself could otherwise become fatjets[0].
+    RVec<Lepton*> lead_lep_only;
+    if (!Tight_leps.empty()) lead_lep_only.push_back(Tight_leps[0]);
+    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, lead_lep_only);
     jets    = Clean_jet_with_loose_leptons(jets, Loose_leps);
 
     RVec<FatJet> fatjet_list;
@@ -273,6 +289,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     if (n_leptons < 1) return;
     // --- Cutflow bin 3: >=1 tight lepton ---
     FillHist(dir + "/Cutflow", 3.0, weight, 10, 0., 10.);
+    FillHist(dir + "/Cutflow_BDT_Boosted_raw", 3.0, 1.0, 15, 0., 15.);
 
     Lepton* LeadLep    = nullptr;
     Lepton* SubLeadLep = nullptr;
@@ -285,6 +302,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     if (!is_jet_veto) return;
     // --- Cutflow bin 4: jet veto map ---
     FillHist(dir + "/Cutflow", 4.0, weight, 10, 0., 10.);
+    FillHist(dir + "/Cutflow_BDT_Boosted_raw", 4.0, 1.0, 15, 0., 15.);
 
     RVec<Jet> selected_jets = SelectJets(jets, jet_set.Jet_ID[0], jet_set.Jet_MinPt, jet_set.Jet_MaxEta);
     sort(selected_jets.begin(), selected_jets.end(), PtComparing);
@@ -481,9 +499,15 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     }
 
     int boostedChannel = -999;
-    const bool passBoostedLeptonSelection = boostedLead && (boostedLead->Pt() > 60.0) && (n_boosted_extra_loose_leptons >= 1);
+    // NO-LOOSE selection: the boosted SR candidate no longer requires an extra
+    // loose lepton (nor the SF mll>200 pair) — the N-side lepton is expected
+    // INSIDE the fatjet and often fails reco/ID (measured: onshell EE eff
+    // 3-31% -> ~80-95% signal-side when dropped). boostedSubLead is still
+    // searched and stored as a BDT input when present, but may be nullptr.
+    // The DY/FLV boosted CRs below keep their explicit dilepton requirements.
+    const bool passBoostedLeptonSelection = boostedLead && (boostedLead->Pt() > 60.0);
     const bool passBoostedTrigger = passBoostedLeptonSelection && passLeadTrigger(boostedLead, boostedChannel);
-    const bool passBoostedMll = passBoostedTrigger && hasBoostedDilepton;
+    const bool passBoostedMll = passBoostedTrigger && hasBoostedDilepton;   // informational only (passMllSR branch)
 
     bool boostedDRLeadJetLep = false;
     bool boostedDRSubLeadJetLep = false;
@@ -491,7 +515,34 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     bool boostedDRTwoJets = false;
     const bool passBoostedResolvedDR = computeFourObjectDR(selected_jets_boosted, boostedLead, boostedSubLead, boostedDRLeadJetLep, boostedDRSubLeadJetLep, boostedDRTwoLeptons, boostedDRTwoJets);
     const bool passBoostedDRFail = !has2Jets_boosted || !passBoostedResolvedDR;
-    bool isBoostedCandidate = (!isResolvedCandidate && passBoostedMll && passBoostedDRFail && fatjets.size() >= 1);
+    bool isBoostedCandidate = (!isResolvedCandidate && passBoostedTrigger && passBoostedDRFail && fatjets.size() >= 1);
+
+    // Sequential boosted cutflow (raw counts): unrolls the isBoostedCandidate
+    // conjunction in a fixed order so each requirement's cost is visible.
+    // Bins 0-4 above: all / noise filter / HLT / >=1 tight lep / jet veto map.
+    //   5: lead tight lepton pT > 60
+    //   6: (informational) >=1 additional loose lepton — NOT required anymore
+    //   7: lead passes trigger-safe pT + matching HLT
+    //   8: (informational) SF loose pair with m(ll) > 200 — NOT required anymore
+    //   9: >=1 fatjet (pT/eta/ID, cleaned vs lead lepton)
+    //  10: not a resolved SR candidate
+    //  11: fails the resolved four-object dR topology (= isBoostedCandidate)
+    {
+        bool cf = boostedLead && (boostedLead->Pt() > 60.0);
+        if (cf) FillHist(dir + "/Cutflow_BDT_Boosted_raw", 5.0, 1.0, 15, 0., 15.);
+        if (cf && n_boosted_extra_loose_leptons >= 1)
+            FillHist(dir + "/Cutflow_BDT_Boosted_raw", 6.0, 1.0, 15, 0., 15.);
+        cf = cf && passBoostedTrigger;
+        if (cf) FillHist(dir + "/Cutflow_BDT_Boosted_raw", 7.0, 1.0, 15, 0., 15.);
+        if (cf && hasBoostedDilepton)
+            FillHist(dir + "/Cutflow_BDT_Boosted_raw", 8.0, 1.0, 15, 0., 15.);
+        cf = cf && (fatjets.size() >= 1);
+        if (cf) FillHist(dir + "/Cutflow_BDT_Boosted_raw", 9.0, 1.0, 15, 0., 15.);
+        cf = cf && !isResolvedCandidate;
+        if (cf) FillHist(dir + "/Cutflow_BDT_Boosted_raw", 10.0, 1.0, 15, 0., 15.);
+        cf = cf && passBoostedDRFail;
+        if (cf) FillHist(dir + "/Cutflow_BDT_Boosted_raw", 11.0, 1.0, 15, 0., 15.);
+    }
 
     // --- CR_DY resolved: same-flavor, 60 < mll < 150 ---
     const double lowMllMin = 60.0;
@@ -642,7 +693,10 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     auto fillNtuple = [&](const TString& regionPrefix, Lepton* LeadLep, Lepton* SubLeadLep,
                           int channel, bool this_trigger_pass, bool isResolved,
                           RVec<Jet> selected_jets, RVec<FatJet> fatjets, bool isMainFill) {
-    if (!LeadLep || !SubLeadLep || !this_trigger_pass) return;
+    // SubLeadLep may be nullptr for the no-loose boosted SR candidate (the
+    // N-side lepton is inside the fatjet); all sublead-dependent quantities
+    // below fall back to fMissing / neutral values in that case.
+    if (!LeadLep || !this_trigger_pass) return;
     const bool has2Jets = selected_jets.size() >= 2;
 
     // Flavor channel tag: EE/MM for same-flavor (SR, CR_DY), EM/ME for the
@@ -651,7 +705,8 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     // resolves to "EM"; for CR_FLV_boosted, LeadLep/SubLeadLep still follow the
     // actual pT order, so both EM and ME can occur.
     TString chTag;
-    if (LeadLep->IsElectron() && SubLeadLep->IsElectron())      chTag = "EE";
+    if (!SubLeadLep)                                            chTag = LeadLep->IsElectron() ? "EE" : "MM";
+    else if (LeadLep->IsElectron() && SubLeadLep->IsElectron()) chTag = "EE";
     else if (LeadLep->IsMuon() && SubLeadLep->IsMuon())         chTag = "MM";
     else if (LeadLep->IsElectron() && SubLeadLep->IsMuon())     chTag = "EM";
     else                                                        chTag = "ME";
@@ -1069,7 +1124,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     if (has2Jets) {
         jj = selected_jets[0] + selected_jets[1];
         l1jj = *LeadLep + jj;
-        l2jj = *SubLeadLep + jj;
+        if (SubLeadLep) l2jj = *SubLeadLep + jj;
         if (ThirdLep) l3jj = *ThirdLep + jj;
     }
 
@@ -1082,7 +1137,7 @@ void HNWR_BDT_presel::executeEventFromParameter() {
 
     float ht = 0.f;
     for (const auto& jet : selected_jets) ht += jet.Pt();
-    float lt = LeadLep->Pt() + SubLeadLep->Pt();
+    float lt = LeadLep->Pt() + (SubLeadLep ? SubLeadLep->Pt() : 0.f);
     float st = ht + lt;
     const float metPt = METv.Pt();
     const float metPhi = METv.Phi();
@@ -1131,7 +1186,8 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     }
 
     // Dilepton pair: computed from any-flavor combination so CR_FLV gets real mll values.
-    const TLorentzVector dilep = *LeadLep + *SubLeadLep;
+    const bool hasSubLead = (SubLeadLep != nullptr);
+    const TLorentzVector dilep = hasSubLead ? (*LeadLep + *SubLeadLep) : TLorentzVector();
     const bool isSFpair = isSameFlavorPair(LeadLep, SubLeadLep);
     const TLorentzVector dilepjj = has2Jets ? dilep + jj : TLorentzVector();
     // Keep sfL1L2 alias so fillSameFlavorPair ("l1l2") still works (returns -999 for OF pairs).
@@ -1230,21 +1286,22 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     fillSameFlavorPair("l1l3", LeadLep, ThirdLep);
     fillSameFlavorPair("l2l3", SubLeadLep, ThirdLep);
 
-    // mll/dRll etc. use any-flavor dilep so CR_FLV events are not -999.
-    SetBranch(tree, "mll", static_cast<float>(dilep.M()));
-    SetBranch(tree, "ptll", static_cast<float>(dilep.Pt()));
-    SetBranch(tree, "etall", static_cast<float>(dilep.Eta()));
-    SetBranch(tree, "phill", static_cast<float>(dilep.Phi()));
-    SetBranch(tree, "dRll", static_cast<float>(LeadLep->DeltaR(*SubLeadLep)));
-    SetBranch(tree, "dPhill", static_cast<float>(std::fabs(LeadLep->DeltaPhi(*SubLeadLep))));
-    SetBranch(tree, "lepChargeProduct", LeadLep->Charge() * SubLeadLep->Charge());
+    // mll/dRll etc. use any-flavor dilep so CR_FLV events are not -999;
+    // fMissing when the boosted candidate has no reconstructed sublead.
+    SetBranch(tree, "mll", hasSubLead ? static_cast<float>(dilep.M()) : fMissing);
+    SetBranch(tree, "ptll", hasSubLead ? static_cast<float>(dilep.Pt()) : fMissing);
+    SetBranch(tree, "etall", hasSubLead ? static_cast<float>(dilep.Eta()) : fMissing);
+    SetBranch(tree, "phill", hasSubLead ? static_cast<float>(dilep.Phi()) : fMissing);
+    SetBranch(tree, "dRll", hasSubLead ? static_cast<float>(LeadLep->DeltaR(*SubLeadLep)) : fMissing);
+    SetBranch(tree, "dPhill", hasSubLead ? static_cast<float>(std::fabs(LeadLep->DeltaPhi(*SubLeadLep))) : fMissing);
+    SetBranch(tree, "lepChargeProduct", hasSubLead ? LeadLep->Charge() * SubLeadLep->Charge() : 0);
 
     SetBranch(tree, "mjj", has2Jets ? jj.M() : fMissing);
     SetBranch(tree, "ptjj", has2Jets ? jj.Pt() : fMissing);
     SetBranch(tree, "dRjj", has2Jets ? selected_jets[0].DeltaR(selected_jets[1]) : fMissing);
     SetBranch(tree, "dPhijj", has2Jets ? std::fabs(selected_jets[0].DeltaPhi(selected_jets[1])) : fMissing);
-    SetBranch(tree, "mlljj", has2Jets ? static_cast<float>(dilepjj.M()) : fMissing);
-    SetBranch(tree, "ptlljj", has2Jets ? static_cast<float>(dilepjj.Pt()) : fMissing);
+    SetBranch(tree, "mlljj", (has2Jets && hasSubLead) ? static_cast<float>(dilepjj.M()) : fMissing);
+    SetBranch(tree, "ptlljj", (has2Jets && hasSubLead) ? static_cast<float>(dilepjj.Pt()) : fMissing);
     SetBranch(tree, "ml1jj", has2Jets ? l1jj.M() : fMissing);
     SetBranch(tree, "ml2jj", has2Jets ? l2jj.M() : fMissing);
     SetBranch(tree, "ml3jj", (ThirdLep && has2Jets) ? l3jj.M() : fMissing);
@@ -1386,10 +1443,10 @@ void HNWR_BDT_presel::executeEventFromParameter() {
     // region + flavor + topology, e.g. Central/SR_EE_resolved/LeadLep_pt.
     const TString monName = dir + "/" + regionChanCat;
     FillHist(monName + "/LeadLep_pt", LeadLep->Pt(), weight, 100, 0., 1000.);
-    FillHist(monName + "/SubLeadLep_pt", SubLeadLep->Pt(), weight, 100, 0., 1000.);
+    if (SubLeadLep) FillHist(monName + "/SubLeadLep_pt", SubLeadLep->Pt(), weight, 100, 0., 1000.);
     FillHist(monName + "/N_Jet", selected_jets.size(), weight, 10, 0., 10.);
     FillHist(monName + "/N_FatJet", fatjets.size(), weight, 10, 0., 10.);
-    FillHist(monName + "/Mll", (*LeadLep + *SubLeadLep).M(), weight, 200, 0., 2000.);
+    if (SubLeadLep) FillHist(monName + "/Mll", (*LeadLep + *SubLeadLep).M(), weight, 200, 0., 2000.);
     }; // end fillNtuple
 
     // ---- main region: at most one of the six flags is set (mutually exclusive) --

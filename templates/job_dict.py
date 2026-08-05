@@ -6,7 +6,7 @@ main_job = {
     'executable': "run.sh",
     'JobBatchName': "batchname", 
     '+singularityimage': f'"{SINGULARITY_IMAGE}"',
-    'RequestMemory': f'2000 MB', # 2 times of memory usage
+    'RequestMemory': f'4000 MB', # increased for DY corrections
     'RequestCpus': 1,
     'arguments': "$(Process)",
     'output': "job_$(Process).out",

@@ -1,3 +1,10 @@
+# Systematics for HNWR_miniiso / HNWR_miniiso_scan.
+#
+# Identical to MCLRSM.yaml (used by Reproduce20_002_copy) EXCEPT for the one entry
+# marked below: those analyzers drop the LSF3 > 0.75 cut in favour of a miniIso cut
+# on the subleading loose lepton, so the "LSF" nuisance is replaced by "MiniIso".
+# Keep the rest of this file in sync with docs/MCLRSM.yaml.
+
 systematics:
 
   - syst: "Pileup"
@@ -32,10 +39,14 @@ systematics:
     target: "M_Iso_Weight"
     evtLoopAgain: false
 
-  # LSF3 cut efficiency SF, boosted SR / flavor CR only (weight stays 1 elsewhere).
-  # muon-in-fatjet 1.06 +- 0.10, electron-in-fatjet 1.11 +- 0.11; see GetLSFSF.
-  - syst: "LSF"
-    target: "LSF_Weight"
+  # >>> THE ONE ENTRY THAT DIFFERS FROM docs/MCLRSM.yaml <<<
+  # Mini-isolation cut efficiency SF for the subleading loose lepton inside the fatjet,
+  # the cut that replaces LSF3 > 0.75 in these analyzers. egamma-tnp measurement, so it
+  # is applied for ELECTRONS ONLY: boosted SR EE and flavour CR mu-ejet. The muon-in-
+  # fatjet regions (SR MM, flavour CR e-mujet) and every resolved region keep the
+  # target at 1. See HNWR_miniiso::GetElectronMiniIsoSF_TnP.
+  - syst: "MiniIso"
+    target: "MiniIso_Weight"
     evtLoopAgain: false
 
   - syst: "JER"

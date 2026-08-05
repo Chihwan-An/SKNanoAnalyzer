@@ -1,5 +1,5 @@
-#ifndef Reproduce20_002_copy_h
-#define Reproduce20_002_copy_h
+#ifndef WRGenRecoMass_h
+#define WRGenRecoMass_h
 
 #include "AnalyzerCore.h"
 #include "SystematicHelper.h"
@@ -7,10 +7,10 @@
 #include "Electron.h"
 #include "LHE.h"
 
-class Reproduce20_002_copy : public AnalyzerCore {
+class WRGenRecoMass : public AnalyzerCore {
 public:
-    Reproduce20_002_copy();
-    ~Reproduce20_002_copy();
+    WRGenRecoMass();
+    ~WRGenRecoMass();
 
     void initializeAnalyzer();
     void executeEvent();
@@ -100,7 +100,7 @@ public:
         bool Electron_UseMini = false;
         bool Electron_UsePtCone = false;
         bool isPassCustomLooseID(const Electron& el) const;
-        bool isPassCustomTightID(const Electron& el , const Reproduce20_002_copy::Electrons& eset) const;
+        bool isPassCustomTightID(const Electron& el , const WRGenRecoMass::Electrons& eset) const;
         // Loose ID without isolation (matches Python vidNestedWPBitmap with id_level=2, ignoring isolation)
         bool isPassLooseNoIso(const Electron& el) const;
     }el_set;
@@ -164,8 +164,28 @@ public:
     bool sig_isOnshell  = false;
     bool sig_isTb       = false;
 
+    // LHE-level WR masses (set per event in SetSignalFlags, -999 when undefined):
+    //   _lljj   : outgoing (status==1) quarks + charged leptons only — the
+    //             definition the on/off-shell threshold is calibrated against.
+    //             BROKEN for samples whose LHE record keeps N undecayed
+    //             (N200 and N=WR/2 points: final state is just N+l, so this
+    //             collapses to the lone lepton, M~0). Use _sumall for plotting.
+    //   _sumall : sum of ALL LHE particles, no filter — matches
+    //             plots/HNWR/singnal_sample_test/Offshell_test/lhe_precompute.py.
+    //             Incoming partons have pt=0 so they contribute a null 4-vector;
+    //             this equals the outgoing-system mass for BOTH LHE structures,
+    //             and is what the SR_*_lhe_* histograms are filled with.
+    double sig_lheMass_lljj   = -999.;
+    double sig_lheMass_sumall = -999.;
+
     // Compute the signal / offshell / onshell / tb flags from gens, LHE and sample name
     void SetSignalFlags();
+    // Re-run the HNWR_BDT_presel SR selection (resolved/boosted, EE/MM) on the
+    // nominal objects and fill BDTSR_* histograms next to the cut-based SR_* ones,
+    // so the two selections' LHE-mass coverage can be compared. Self-contained:
+    // called from executeEvent (Central only, MC only), independent of the
+    // cut-based flow and its trigger-safe-pT `return` discards.
+    void FillBDTPreselSR();
     // Fill the signal SR cutflow copies (_offshell / _onshell / _tb) next to the base cutflow.
     // Only fills for the Central systematic.
     void FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight);

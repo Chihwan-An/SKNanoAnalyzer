@@ -121,6 +121,12 @@ public:
     RVec<Tau> SelectTaus(const RVec<Tau> &taus, const TString ID, const float ptmin, const float absetamax) const;
     // Functions
     float GetScaleVariation(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst);
+    // LHEScaleWeight index that GetScaleVariation would read for this (muF, muR), or -1
+    // if there is none (nominal, or an unexpected nLHEScaleWeight). Exposed so callers
+    // that need the matching per-index normalisation -- e.g. the acceptance-only theory
+    // nuisances, which divide by the inclusive K_var of that same index -- do not have to
+    // re-derive the 8- vs 9-element ordering and drift out of sync with the getter above.
+    int GetScaleVariationIndex(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst) const;
     float GetPSWeight(const MyCorrection::variation &ISR_syst, const MyCorrection::variation &FSR_syst);
     inline float GetBTaggingWP(const JetTagging::JetFlavTagger &tagger, const JetTagging::JetFlavTaggerWP &wp) { return myCorr->GetBTaggingWP(tagger, wp); }
     inline pair<float, float> GetCTaggingWP(const JetTagging::JetFlavTagger &tagger, const JetTagging::JetFlavTaggerWP &wp) { return myCorr->GetCTaggingWP(tagger, wp); }
@@ -151,7 +157,22 @@ public:
     // AK8 counterpart. Default cone is R/2 = 0.4 for AK8 (vs 0.2 for AK4).
     unordered_map<int, int> GenJetAK8Matching(const RVec<FatJet> &fatjets, const RVec<GenJet> &genjets, const float &rho, const float dR = 0.4, const float pTJerCut = 3.);
     unordered_map<int, int> deltaRMatching(const RVec<Particle> &objs1, const RVec<Particle> &objs2, const float dR = 0.4);
+    // Soft-drop mass JERC. Per the JME recommendation the AK4 JERC is applied to the
+    // SoftDrop SUBJETS and m_SD recomputed from their invariant mass; applying the AK8
+    // JERC would correct FatJet_pt/FatJet_mass instead. use_jer selects which nuisance
+    // the up/down applies to; the other stays nominal. MUST be called once in EVERY
+    // systematic pass, including Central (syst = nom) - the JER nominal smearing is part
+    // of the correction, and a pass that skipped it would differ from Central for a reason
+    // that is not its own nuisance. MC only; returns the fatjets with SDMass() rescaled,
+    // every other field untouched.
+    RVec<FatJet> VarySoftDropMass(const RVec<FatJet> &fatjets,
+                                  const MyCorrection::variation &syst,
+                                  const TString &source = "total",
+                                  const bool use_jer = false);
     RVec<Muon> ScaleMuons(const RVec<Muon> &muons, const TString &syst );
+    // High-pT muon resolution systematic (MC only): re-evaluates the smearing with the
+    // POG's flat 10% additional smearing and applies the variation/nominal ratio.
+    RVec<Muon> SmearMuons(const RVec<Muon> &muons, const TString &syst);
     RVec<Electron> ScaleElectrons(const Event &ev, const RVec<Electron> &electrons, const TString &syst);
     RVec<Electron> SmearElectrons(const RVec<Electron> &electrons, const TString &syst);
 

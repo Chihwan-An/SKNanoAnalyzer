@@ -211,7 +211,7 @@ def setParser():
     parser.add_argument('--reduction', dest='Reduction', default=1, type=float)
     parser.add_argument('--python', action="store_true", default=False,
     help="Use python analyzer")
-    parser.add_argument('--memory', dest='Memory', default=2048, type=float)
+    parser.add_argument('--memory', dest='Memory', default=4000, type=float)
     parser.add_argument('--ncpu', dest='ncpu', default=1, type=int) 
     parser.add_argument('--batchname', dest='BatchName', default="")
     parser.add_argument('--skimming_mode', action='store_true', default=False, help="Enable this option when anlyzer is skimmer.")

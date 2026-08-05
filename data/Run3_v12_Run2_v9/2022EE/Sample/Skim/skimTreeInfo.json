@@ -398,5 +398,1420 @@
         "suffix": "20002",
         "PD": "WWto4Q",
         "isMC": 1
+    },
+    "Skim_HNWR_DYMLL120HT100to400": {
+        "suffix": "HNWR",
+        "PD": "DYMLL120HT100to400",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL120HT1500to2500": {
+        "suffix": "HNWR",
+        "PD": "DYMLL120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL120HT2500": {
+        "suffix": "HNWR",
+        "PD": "DYMLL120HT2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL120HT400to800": {
+        "suffix": "HNWR",
+        "PD": "DYMLL120HT400to800",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL120HT40to70": {
+        "suffix": "HNWR",
+        "PD": "DYMLL120HT40to70",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL120HT70to100": {
+        "suffix": "HNWR",
+        "PD": "DYMLL120HT70to100",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL120HT800to1500": {
+        "suffix": "HNWR",
+        "PD": "DYMLL120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL50to120HT100to400": {
+        "suffix": "HNWR",
+        "PD": "DYMLL50to120HT100to400",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL50to120HT1500to2500": {
+        "suffix": "HNWR",
+        "PD": "DYMLL50to120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL50to120HT2500": {
+        "suffix": "HNWR",
+        "PD": "DYMLL50to120HT2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL50to120HT400to800": {
+        "suffix": "HNWR",
+        "PD": "DYMLL50to120HT400to800",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL50to120HT40to70": {
+        "suffix": "HNWR",
+        "PD": "DYMLL50to120HT40to70",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL50to120HT70to100": {
+        "suffix": "HNWR",
+        "PD": "DYMLL50to120HT70to100",
+        "isMC": 1
+    },
+    "Skim_HNWR_DYMLL50to120HT800to1500": {
+        "suffix": "HNWR",
+        "PD": "DYMLL50to120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_HNWR_EGamma": {
+        "suffix": "HNWR",
+        "PD": "EGamma",
+        "isMC": 0,
+        "periods": [
+            "E",
+            "F",
+            "G"
+        ]
+    },
+    "Skim_HNWR_Muon": {
+        "suffix": "HNWR",
+        "PD": "Muon",
+        "isMC": 0,
+        "periods": [
+            "E",
+            "F",
+            "G"
+        ]
+    },
+    "Skim_HNWR_ST_sch_antitop_Lep": {
+        "suffix": "HNWR",
+        "PD": "ST_sch_antitop_Lep",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_sch_top_Lep": {
+        "suffix": "HNWR",
+        "PD": "ST_sch_top_Lep",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tW_antitop_Fullyhad": {
+        "suffix": "HNWR",
+        "PD": "ST_tW_antitop_Fullyhad",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tW_antitop_Lep": {
+        "suffix": "HNWR",
+        "PD": "ST_tW_antitop_Lep",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tW_antitop_Semilep": {
+        "suffix": "HNWR",
+        "PD": "ST_tW_antitop_Semilep",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tW_top_Fullyhad": {
+        "suffix": "HNWR",
+        "PD": "ST_tW_top_Fullyhad",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tW_top_Lep": {
+        "suffix": "HNWR",
+        "PD": "ST_tW_top_Lep",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tW_top_Semilep": {
+        "suffix": "HNWR",
+        "PD": "ST_tW_top_Semilep",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tch_antitop": {
+        "suffix": "HNWR",
+        "PD": "ST_tch_antitop",
+        "isMC": 1
+    },
+    "Skim_HNWR_ST_tch_top": {
+        "suffix": "HNWR",
+        "PD": "ST_tch_top",
+        "isMC": 1
+    },
+    "Skim_HNWR_TTLJ_powheg": {
+        "suffix": "HNWR",
+        "PD": "TTLJ_powheg",
+        "isMC": 1
+    },
+    "Skim_HNWR_TTLL_powheg": {
+        "suffix": "HNWR",
+        "PD": "TTLL_powheg",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM0_120HT100to400": {
+        "suffix": "HNWR",
+        "PD": "WJetM0_120HT100to400",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM0_120HT1500to2500": {
+        "suffix": "HNWR",
+        "PD": "WJetM0_120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM0_120HT2500": {
+        "suffix": "HNWR",
+        "PD": "WJetM0_120HT2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM0_120HT400to800": {
+        "suffix": "HNWR",
+        "PD": "WJetM0_120HT400to800",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM0_120HT40to100": {
+        "suffix": "HNWR",
+        "PD": "WJetM0_120HT40to100",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM0_120HT800to1500": {
+        "suffix": "HNWR",
+        "PD": "WJetM0_120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM120HT100to400": {
+        "suffix": "HNWR",
+        "PD": "WJetM120HT100to400",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM120HT1500to2500": {
+        "suffix": "HNWR",
+        "PD": "WJetM120HT1500to2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM120HT2500": {
+        "suffix": "HNWR",
+        "PD": "WJetM120HT2500",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM120HT400to800": {
+        "suffix": "HNWR",
+        "PD": "WJetM120HT400to800",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM120HT40to100": {
+        "suffix": "HNWR",
+        "PD": "WJetM120HT40to100",
+        "isMC": 1
+    },
+    "Skim_HNWR_WJetM120HT800to1500": {
+        "suffix": "HNWR",
+        "PD": "WJetM120HT800to1500",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1000EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1000EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1000MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1000MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N100EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N100MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1100EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1100MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1300EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1300MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1500EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1500MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1700EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1700MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1900EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N1900MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N1900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N200EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N200EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N200MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N200MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N300EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N300MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N500EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N500MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N700EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N700MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N900EE": {
+        "suffix": "HNWR",
+        "PD": "WR2000N900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR2000N900MM": {
+        "suffix": "HNWR",
+        "PD": "WR2000N900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR3000N1500EE": {
+        "suffix": "HNWR",
+        "PD": "WR3000N1500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR3000N1500MM": {
+        "suffix": "HNWR",
+        "PD": "WR3000N1500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR3000N200EE": {
+        "suffix": "HNWR",
+        "PD": "WR3000N200EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR3000N200MM": {
+        "suffix": "HNWR",
+        "PD": "WR3000N200MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N100EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N100MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1100EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1100MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1300EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1300MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1500EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1500MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1700EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1700MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1900EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N1900MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N1900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2000EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2000EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N200EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N200EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N200MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N200MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2100EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2100MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2300EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2300MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2500EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2500MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2700EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2700MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2900EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N2900MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N2900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N300EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N300MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3100EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3100MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3300EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3300MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3500EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3500MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3700EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3700MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3900EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N3900MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N3900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N500EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N500MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N700EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N700MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N900EE": {
+        "suffix": "HNWR",
+        "PD": "WR4000N900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR4000N900MM": {
+        "suffix": "HNWR",
+        "PD": "WR4000N900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR5000N200EE": {
+        "suffix": "HNWR",
+        "PD": "WR5000N200EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR5000N200MM": {
+        "suffix": "HNWR",
+        "PD": "WR5000N200MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR5000N2500EE": {
+        "suffix": "HNWR",
+        "PD": "WR5000N2500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR5000N2500MM": {
+        "suffix": "HNWR",
+        "PD": "WR5000N2500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N100EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N100MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1100EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1100MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1300EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1300MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1500EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1500MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1700EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1700MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1900EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N1900MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N1900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N200EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N200EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N200MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N200MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2100EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2100MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2300EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2300MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2500EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2500MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2700EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2700MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2900EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N2900MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N2900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3000EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3000EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3000MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3000MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N300EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N300MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3100EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3100MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3300EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3300MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3500EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3500MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3700EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3700MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3900EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N3900MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N3900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4100EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4100MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4300EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4300MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4500EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4500MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4700EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4700MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4900EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N4900MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N4900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N500EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N500MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5100EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5100MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5300EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5300MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5500EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5500MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5700EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5700MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5900EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N5900MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N5900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N700EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N700MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N900EE": {
+        "suffix": "HNWR",
+        "PD": "WR6000N900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR6000N900MM": {
+        "suffix": "HNWR",
+        "PD": "WR6000N900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR7000N200EE": {
+        "suffix": "HNWR",
+        "PD": "WR7000N200EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR7000N200MM": {
+        "suffix": "HNWR",
+        "PD": "WR7000N200MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR7000N3500EE": {
+        "suffix": "HNWR",
+        "PD": "WR7000N3500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N1900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N1900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N200EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N200EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N200MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N200MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N2900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N2900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N3900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N3900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4000EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4000EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N4900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N4900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N5900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N5900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N6900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N6900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7100EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7100EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7100MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7100MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7300EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7300EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7300MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7300MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7500EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7500EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7500MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7500MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7700EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7700EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7700MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7700MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N7900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N7900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N900EE": {
+        "suffix": "HNWR",
+        "PD": "WR8000N900EE",
+        "isMC": 1
+    },
+    "Skim_HNWR_WR8000N900MM": {
+        "suffix": "HNWR",
+        "PD": "WR8000N900MM",
+        "isMC": 1
+    },
+    "Skim_HNWR_WWto2L2Nu": {
+        "suffix": "HNWR",
+        "PD": "WWto2L2Nu",
+        "isMC": 1
+    },
+    "Skim_HNWR_WWto4Q": {
+        "suffix": "HNWR",
+        "PD": "WWto4Q",
+        "isMC": 1
+    },
+    "Skim_HNWR_WWtoLNu2Q": {
+        "suffix": "HNWR",
+        "PD": "WWtoLNu2Q",
+        "isMC": 1
+    },
+    "Skim_HNWR_WZto2L2Q": {
+        "suffix": "HNWR",
+        "PD": "WZto2L2Q",
+        "isMC": 1
+    },
+    "Skim_HNWR_WZto3LNu": {
+        "suffix": "HNWR",
+        "PD": "WZto3LNu",
+        "isMC": 1
+    },
+    "Skim_HNWR_WZtoLNu2Q": {
+        "suffix": "HNWR",
+        "PD": "WZtoLNu2Q",
+        "isMC": 1
+    },
+    "Skim_HNWR_ZZto2L2Nu": {
+        "suffix": "HNWR",
+        "PD": "ZZto2L2Nu",
+        "isMC": 1
+    },
+    "Skim_HNWR_ZZto2L2Q": {
+        "suffix": "HNWR",
+        "PD": "ZZto2L2Q",
+        "isMC": 1
+    },
+    "Skim_HNWR_ZZto2Nu2Q": {
+        "suffix": "HNWR",
+        "PD": "ZZto2Nu2Q",
+        "isMC": 1
+    },
+    "Skim_HNWR_ZZto4L": {
+        "suffix": "HNWR",
+        "PD": "ZZto4L",
+        "isMC": 1
+    },
+    "Skim_HNWR_ttWtoLNu": {
+        "suffix": "HNWR",
+        "PD": "ttWtoLNu",
+        "isMC": 1
+    },
+    "Skim_HNWR_ttWtoLNu_EWK": {
+        "suffix": "HNWR",
+        "PD": "ttWtoLNu_EWK",
+        "isMC": 1
+    },
+    "Skim_HNWR_ttZtoLL_MLL4to50": {
+        "suffix": "HNWR",
+        "PD": "ttZtoLL_MLL4to50",
+        "isMC": 1
+    },
+    "Skim_HNWR_ttZtoLL_MLL50toInf": {
+        "suffix": "HNWR",
+        "PD": "ttZtoLL_MLL50toInf",
+        "isMC": 1
+    },
+    "Skim_HNWR_ttZtoNuNu": {
+        "suffix": "HNWR",
+        "PD": "ttZtoNuNu",
+        "isMC": 1
+    },
+    "Skim_HNWR_ttZtoQQ": {
+        "suffix": "HNWR",
+        "PD": "ttZtoQQ",
+        "isMC": 1
     }
 }

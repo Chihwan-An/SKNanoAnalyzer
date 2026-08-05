@@ -1,20 +1,19 @@
-#include "HNWR_miniiso_scan.h"
+#include "WRGenRecoMass.h"
 
 #include <TFile.h>
 #include <TH1.h>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
 
 #include <nlohmann/json.hpp>
 
-HNWR_miniiso_scan::HNWR_miniiso_scan() {}
-HNWR_miniiso_scan::~HNWR_miniiso_scan() {}  
+WRGenRecoMass::WRGenRecoMass() {}
+WRGenRecoMass::~WRGenRecoMass() {}  
 
-void HNWR_miniiso_scan::initializeAnalyzer() {
+void WRGenRecoMass::initializeAnalyzer() {
     // if signal ..  # 26 
     // kfactor  # 51
     el_set.AllElectrons.clear();
@@ -56,6 +55,9 @@ void HNWR_miniiso_scan::initializeAnalyzer() {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        // 118 = HLT_Ele115 plateau, matching 2022/2022EE. Cosmetic: the leading tight
+        // electron is already required above 130 GeV (:1388 resolved, :2005 boosted),
+        // so no event selection changes -- this only removes the 35 GeV leftover.
         el_set.Ele_Trigger_Safe_Pt_Cut = 118.;
     }
     if (DataEra == "2023BPix")
@@ -63,7 +65,7 @@ void HNWR_miniiso_scan::initializeAnalyzer() {
         mu_set.Muon_Trigger = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
         mu_set.Muon_Trigger_Safe_Pt_Cut = 52.;
         el_set.Ele_Trigger = {"HLT_Photon200","HLT_Ele115_CaloIdVT_GsfTrkIdT"};
-        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;
+        el_set.Ele_Trigger_Safe_Pt_Cut = 118.;  // see 2023 above
     }
 
     myCorr = new MyCorrection(DataEra, DataPeriod, IsDATA ? DataStream : MCSample, IsDATA);
@@ -74,14 +76,14 @@ void HNWR_miniiso_scan::initializeAnalyzer() {
     if (IsDATA) {
         systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/DataLRSM.yaml", DataStream, DataEra);
     } else {
-        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM_miniiso.yaml", MCSample, DataEra);
+        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM.yaml", MCSample, DataEra);
     }
 
     NoDYCorr = HasFlag("NoDYCorr");
     RunXsecSyst = HasFlag("RunXsecSyst");
     ZptOnly = HasFlag("ZptOnly");
     if (NoDYCorr && ZptOnly) {
-        cerr << "[HNWR_miniiso_scan] FATAL: NoDYCorr and ZptOnly are mutually "
+        cerr << "[WRGenRecoMass] FATAL: NoDYCorr and ZptOnly are mutually "
              << "exclusive. Pass one or neither." << endl;
         exit(EXIT_FAILURE);
     }
@@ -93,14 +95,14 @@ void HNWR_miniiso_scan::initializeAnalyzer() {
 // Reads the per-sample inclusive normalisation K_var used to make the four theory
 // nuisances acceptance-only. Missing file or missing entry is NOT an error: the table
 // only covers signal, and everything else keeps K = 1.
-void HNWR_miniiso_scan::LoadTheoryNormK() {
+void WRGenRecoMass::LoadTheoryNormK() {
     theoryK_scale.clear();
     theoryK_pdf.clear();
     if (IsDATA) return;
 
     const char *datadir = getenv("SKNANO_DATA");
     if (!datadir) {
-        cerr << "[HNWR_miniiso_scan] WARNING: SKNANO_DATA unset; theory nuisances stay "
+        cerr << "[WRGenRecoMass] WARNING: SKNANO_DATA unset; theory nuisances stay "
              << "un-normalised (inclusive xsec change left in)." << endl;
         return;
     }
@@ -108,7 +110,7 @@ void HNWR_miniiso_scan::LoadTheoryNormK() {
         std::string(datadir) + "/" + std::string(DataEra.Data()) + "/HNWR/TheoryNormK.json";
     std::ifstream f(path);
     if (!f.is_open()) {
-        cout << "[HNWR_miniiso_scan] no theory-K table at " << path
+        cout << "[WRGenRecoMass] no theory-K table at " << path
              << "; theory nuisances stay un-normalised." << endl;
         return;
     }
@@ -117,13 +119,13 @@ void HNWR_miniiso_scan::LoadTheoryNormK() {
     try {
         f >> j;
     } catch (const std::exception &e) {
-        cerr << "[HNWR_miniiso_scan] FATAL: cannot parse " << path << ": " << e.what() << endl;
+        cerr << "[WRGenRecoMass] FATAL: cannot parse " << path << ": " << e.what() << endl;
         exit(EXIT_FAILURE);
     }
 
     const std::string key = std::string(MCSample.Data());
     if (!j.contains("samples") || !j["samples"].contains(key)) {
-        cout << "[HNWR_miniiso_scan] " << MCSample << " not in " << path
+        cout << "[WRGenRecoMass] " << MCSample << " not in " << path
              << " (background, or a signal alias without the full 103 PDF members); "
              << "theory nuisances stay un-normalised." << endl;
         return;
@@ -137,19 +139,19 @@ void HNWR_miniiso_scan::LoadTheoryNormK() {
     // fall back to K = 1 for the missing entries and mix normalised with un-normalised
     // members inside the same PDF envelope, so refuse it outright.
     if (theoryK_scale.size() != 9 || theoryK_pdf.size() != 103) {
-        cerr << "[HNWR_miniiso_scan] FATAL: " << MCSample << " in " << path
+        cerr << "[WRGenRecoMass] FATAL: " << MCSample << " in " << path
              << " has scale[" << theoryK_scale.size() << "] pdf[" << theoryK_pdf.size()
              << "], expected scale[9] pdf[103]." << endl;
         exit(EXIT_FAILURE);
     }
 
-    cout << "[HNWR_miniiso_scan] theory-K loaded for " << MCSample << " (" << DataEra
+    cout << "[WRGenRecoMass] theory-K loaded for " << MCSample << " (" << DataEra
          << "): muF idx3/idx5 = " << theoryK_scale[3] << "/" << theoryK_scale[5]
          << ", alphaS idx101/102 = " << theoryK_pdf[101] << "/" << theoryK_pdf[102]
          << ". Theory nuisances are acceptance-only." << endl;
 }
 
-float HNWR_miniiso_scan::GetTheoryNormK(const std::vector<float> &K, int idx) const {
+float WRGenRecoMass::GetTheoryNormK(const std::vector<float> &K, int idx) const {
     if (idx < 0 || idx >= static_cast<int>(K.size())) return 1.f;
     const float k = K[idx];
     return (std::isfinite(k) && k > 0.f) ? k : 1.f;
@@ -211,134 +213,17 @@ int FindBin(const std::vector<double> &edges, double x) {
     while (i + 2 < static_cast<int>(edges.size()) && x >= edges[i + 1]) i++;
     return i;
 }
-
-using ElMiniIsoSFTable = std::array<std::array<float, 6>, 9>;
-
-// egamma-tnp mini-isolation (miniPFRelIso_all < 0.1) Tag&Probe, SIGNAL+BACKGROUND FIT.
-// This is the SF for the subleading loose-lepton miniIso cut that replaced LSF3 > 0.75
-// in the boosted SR (fatjet_set.Sublead_MiniIso).
-// Probe baseline: HNWR loose electron = (cutBased Loose WP minus isolation cut) OR HEEP,
-//   implemented from Electron_vidNestedWPBitmap (cut 7 skipped) | Electron_cutBased_HEEP,
-//   i.e. the same object as the analysis loose electron (isPassLooseNoIso || cutBased_HEEP,
-//   HNWR_miniiso_scan::Electrons::isPassLooseNoIso).
-// Source: /data6/Users/achihwan/tnp/egamma-tnp/Mini_iso/MiniIso_fit/bpoly/<era>/miniiso_fit_results_<era>_bpoly.json
-// MC is PU-reweighted at histogram level (puWeight*genWeight); DATA is unweighted.
-// Fit: double Crystal Ball signal + Bernstein background, 50 < mll < 130 GeV.
-// Errors: fit stat (+) background-model systematic |SF(bpoly) - SF(cms)| in quadrature.
-//   Bins where the cms fit broke down (wrong minimum, eps parked at 1, singular
-//   Hessian) take the era's median systematic instead.
-// Binning: el_eta_bins = [-2.5,-1.566,-1.4442,0.,1.4442,1.566,2.5] (6 bins)
-//          el_pt_bins  = [53,60,70,80,100,150,200,300,500,1000] (9 bins)
-// Crack columns (|eta| 1.4442-1.566) have no T&P data -> 1.0 +- 0.
-// The last two pt rows (300-500, 500-1000) hold the same merged 300-1000 refit:
-//   500-1000 has too few probes to fit on its own in every era.
-// See Mini_iso/MINIISO_SF_LOG.md for the full derivation and per-era fit quality.
-
-// 2022: median systematic substituted in 5 bin(s): bin00, bin44, bin47, bin50, bin53
-const ElMiniIsoSFTable ElMiniIsoSF_2022 = {{
-    {1.0011f, 1.0000f, 0.9991f, 0.9979f, 1.0000f, 1.0008f},
-    {0.9991f, 1.0000f, 0.9997f, 0.9989f, 1.0000f, 0.9955f},
-    {1.0003f, 1.0000f, 1.0026f, 1.0011f, 1.0000f, 1.0000f},
-    {1.0025f, 1.0000f, 1.0006f, 1.0040f, 1.0000f, 1.0020f},
-    {1.0007f, 1.0000f, 1.0013f, 0.9918f, 1.0000f, 0.9971f},
-    {0.9984f, 1.0000f, 0.9869f, 0.9874f, 1.0000f, 0.9987f},
-    {1.0007f, 1.0000f, 1.0037f, 0.9841f, 1.0000f, 1.0000f},
-    {1.0000f, 1.0000f, 0.9847f, 1.0361f, 1.0000f, 1.0000f},
-    {1.0000f, 1.0000f, 0.9847f, 1.0361f, 1.0000f, 1.0000f},
-}};
-const ElMiniIsoSFTable ElMiniIsoSFErr_2022 = {{
-    {0.0014f, 0.0000f, 0.0010f, 0.0011f, 0.0000f, 0.0014f},
-    {0.0015f, 0.0000f, 0.0071f, 0.0013f, 0.0000f, 0.0017f},
-    {0.0028f, 0.0000f, 0.0022f, 0.0020f, 0.0000f, 0.0024f},
-    {0.0038f, 0.0000f, 0.0022f, 0.0023f, 0.0000f, 0.0025f},
-    {0.0022f, 0.0000f, 0.0041f, 0.0039f, 0.0000f, 0.0013f},
-    {0.0041f, 0.0000f, 0.0090f, 0.0096f, 0.0000f, 0.0021f},
-    {0.0036f, 0.0000f, 0.0120f, 0.0070f, 0.0000f, 0.0056f},
-    {0.0087f, 0.0000f, 0.0163f, 0.0260f, 0.0000f, 0.0077f},
-    {0.0087f, 0.0000f, 0.0163f, 0.0260f, 0.0000f, 0.0077f},
-}};
-
-// 2022EE: median systematic substituted in 2 bin(s): bin47, bin53
-const ElMiniIsoSFTable ElMiniIsoSF_2022EE = {{
-    {1.0007f, 1.0000f, 0.9957f, 0.9944f, 1.0000f, 1.0021f},
-    {1.0003f, 1.0000f, 0.9977f, 0.9968f, 1.0000f, 1.0000f},
-    {1.0023f, 1.0000f, 0.9995f, 1.0012f, 1.0000f, 0.9997f},
-    {1.0014f, 1.0000f, 0.9978f, 1.0000f, 1.0000f, 1.0019f},
-    {0.9988f, 1.0000f, 0.9970f, 0.9946f, 1.0000f, 0.9982f},
-    {1.0010f, 1.0000f, 0.9996f, 0.9809f, 1.0000f, 0.9994f},
-    {1.0000f, 1.0000f, 0.9914f, 0.9867f, 1.0000f, 1.0000f},
-    {0.9946f, 1.0000f, 1.0105f, 0.9843f, 1.0000f, 1.0000f},
-    {0.9946f, 1.0000f, 1.0105f, 0.9843f, 1.0000f, 1.0000f},
-}};
-const ElMiniIsoSFTable ElMiniIsoSFErr_2022EE = {{
-    {0.0010f, 0.0000f, 0.0007f, 0.0010f, 0.0000f, 0.0008f},
-    {0.0009f, 0.0000f, 0.0009f, 0.0010f, 0.0000f, 0.0059f},
-    {0.0014f, 0.0000f, 0.0011f, 0.0012f, 0.0000f, 0.0014f},
-    {0.0012f, 0.0000f, 0.0012f, 0.0013f, 0.0000f, 0.0015f},
-    {0.0011f, 0.0000f, 0.0021f, 0.0023f, 0.0000f, 0.0012f},
-    {0.0018f, 0.0000f, 0.0050f, 0.0049f, 0.0000f, 0.0018f},
-    {0.0006f, 0.0000f, 0.0063f, 0.0050f, 0.0000f, 0.0025f},
-    {0.0076f, 0.0000f, 0.0085f, 0.0052f, 0.0000f, 0.0033f},
-    {0.0076f, 0.0000f, 0.0085f, 0.0052f, 0.0000f, 0.0033f},
-}};
-
-// 2023: median systematic substituted in 2 bin(s): bin47, bin53
-const ElMiniIsoSFTable ElMiniIsoSF_2023 = {{
-    {1.0005f, 1.0000f, 1.0001f, 1.0002f, 1.0000f, 1.0011f},
-    {1.0021f, 1.0000f, 1.0004f, 0.9999f, 1.0000f, 0.9990f},
-    {0.9989f, 1.0000f, 1.0030f, 0.9987f, 1.0000f, 1.0016f},
-    {0.9977f, 1.0000f, 0.9988f, 1.0001f, 1.0000f, 0.9987f},
-    {0.9984f, 1.0000f, 0.9971f, 0.9883f, 1.0000f, 1.0021f},
-    {1.0017f, 1.0000f, 0.9830f, 0.9853f, 1.0000f, 1.0027f},
-    {1.0021f, 1.0000f, 0.9936f, 0.9998f, 1.0000f, 0.9983f},
-    {1.0000f, 1.0000f, 1.0172f, 1.0108f, 1.0000f, 1.0000f},
-    {1.0000f, 1.0000f, 1.0172f, 1.0108f, 1.0000f, 1.0000f},
-}};
-const ElMiniIsoSFTable ElMiniIsoSFErr_2023 = {{
-    {0.0010f, 0.0000f, 0.0035f, 0.0016f, 0.0000f, 0.0013f},
-    {0.0070f, 0.0000f, 0.0011f, 0.0098f, 0.0000f, 0.0014f},
-    {0.0019f, 0.0000f, 0.0016f, 0.0017f, 0.0000f, 0.0020f},
-    {0.0013f, 0.0000f, 0.0017f, 0.0017f, 0.0000f, 0.0015f},
-    {0.0015f, 0.0000f, 0.0031f, 0.0028f, 0.0000f, 0.0026f},
-    {0.0041f, 0.0000f, 0.0059f, 0.0063f, 0.0000f, 0.0048f},
-    {0.0035f, 0.0000f, 0.0077f, 0.0074f, 0.0000f, 0.0076f},
-    {0.0006f, 0.0000f, 0.0139f, 0.0125f, 0.0000f, 0.0050f},
-    {0.0006f, 0.0000f, 0.0139f, 0.0125f, 0.0000f, 0.0050f},
-}};
-
-const ElMiniIsoSFTable ElMiniIsoSF_2023BPix = {{
-    {0.9994f, 1.0000f, 1.0024f, 0.9999f, 1.0000f, 1.0015f},
-    {1.0034f, 1.0000f, 1.0013f, 1.0007f, 1.0000f, 1.0000f},
-    {1.0039f, 1.0000f, 0.9999f, 1.0000f, 1.0000f, 1.0045f},
-    {1.0001f, 1.0000f, 0.9980f, 1.0002f, 1.0000f, 1.0025f},
-    {1.0040f, 1.0000f, 0.9898f, 0.9968f, 1.0000f, 1.0011f},
-    {1.0040f, 1.0000f, 1.0030f, 0.9828f, 1.0000f, 0.9977f},
-    {1.0000f, 1.0000f, 1.0006f, 1.0039f, 1.0000f, 0.9936f},
-    {1.0000f, 1.0000f, 0.9945f, 1.0279f, 1.0000f, 1.0000f},
-    {1.0000f, 1.0000f, 0.9945f, 1.0279f, 1.0000f, 1.0000f},
-}};
-const ElMiniIsoSFTable ElMiniIsoSFErr_2023BPix = {{
-    {0.0015f, 0.0000f, 0.0010f, 0.0037f, 0.0000f, 0.0013f},
-    {0.0019f, 0.0000f, 0.0013f, 0.0013f, 0.0000f, 0.0055f},
-    {0.0025f, 0.0000f, 0.0020f, 0.0019f, 0.0000f, 0.0026f},
-    {0.0024f, 0.0000f, 0.0020f, 0.0022f, 0.0000f, 0.0026f},
-    {0.0030f, 0.0000f, 0.0039f, 0.0038f, 0.0000f, 0.0027f},
-    {0.0050f, 0.0000f, 0.0092f, 0.0082f, 0.0000f, 0.0039f},
-    {0.0043f, 0.0000f, 0.0119f, 0.0100f, 0.0000f, 0.0046f},
-    {0.0099f, 0.0000f, 0.0127f, 0.0196f, 0.0000f, 0.0089f},
-    {0.0099f, 0.0000f, 0.0127f, 0.0196f, 0.0000f, 0.0089f},
-}};
 }  // namespace
 
-bool HNWR_miniiso_scan::IsDYSample() const {
+bool WRGenRecoMass::IsDYSample() const {
     return !IsDATA && MCSample.Contains("DYMLL");
 }
 
-void HNWR_miniiso_scan::LoadDYCorrections() {
+void WRGenRecoMass::LoadDYCorrections() {
     dycorr = DYCorrections();
     if (!IsDYSample()) return;
     if (NoDYCorr || getenv("DY_NO_CORRECTION")) {
-        cout << "[HNWR_miniiso_scan] DY corrections OFF for " << MCSample
+        cout << "[WRGenRecoMass] DY corrections OFF for " << MCSample
              << " / " << DataEra << " (C=off R=off), requested by "
              << (NoDYCorr ? "userflag NoDYCorr" : "DY_NO_CORRECTION") << "." << endl;
         return;
@@ -349,7 +234,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
     const TString zpath = zenv ? zenv : kDefaultZptFile;
     unique_ptr<TFile> zf(TFile::Open(zpath));
     if (!zf || zf->IsZombie()) {
-        cerr << "[HNWR_miniiso_scan] FATAL: cannot open " << zpath << endl;
+        cerr << "[WRGenRecoMass] FATAL: cannot open " << zpath << endl;
         exit(EXIT_FAILURE);
     }
     // Era-specific. There is no combined fallback: reweighting one era with
@@ -361,7 +246,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
                             "ZPTReweight_QCDPDFAlphaSUp", "ZPTReweight_QCDPDFAlphaSDown"}) {
         std::vector<double> e, v, s;
         if (!ReadTH1(zf.get(), zdir + key, e, v, &s)) {
-            cerr << "[HNWR_miniiso_scan] FATAL: " << zdir << key << " missing in "
+            cerr << "[WRGenRecoMass] FATAL: " << zdir << key << " missing in "
                  << zpath << ". C is delivered for 2022, 2022EE, 2023 and "
                  << "2023BPix; re-run make_dy_zpt_nlo_lo.py if an era is absent."
                  << endl;
@@ -387,7 +272,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
     if (!ZptOnly) {
         unique_ptr<TFile> rf(TFile::Open(rpath));
         if (!rf || rf->IsZombie()) {
-            cerr << "[HNWR_miniiso_scan] FATAL: cannot open " << rpath << endl;
+            cerr << "[WRGenRecoMass] FATAL: cannot open " << rpath << endl;
             exit(EXIT_FAILURE);
         }
         // Era-specific, like C. The "_comb" in the directory name is the flavour
@@ -407,7 +292,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
             // make_dy_jetpt_ratio.py writes "rebinned" as a directory, and puts
             // sigma_R (= R_total, stat + non-DY xsec) into R_nominal's bin errors.
             if (!ReadTH1(rf.get(), dir + "rebinned/R_nominal", edges, vals, &sigs)) {
-                cerr << "[HNWR_miniiso_scan] FATAL: " << dir
+                cerr << "[WRGenRecoMass] FATAL: " << dir
                      << "rebinned/R_nominal missing in " << rpath << endl;
                 exit(EXIT_FAILURE);
             }
@@ -426,7 +311,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
     const TString ewpath = ewenv ? ewenv : kDefaultEWFile;
     unique_ptr<TFile> ewf(TFile::Open(ewpath));
     if (!ewf || ewf->IsZombie()) {
-        cerr << "[HNWR_miniiso_scan] FATAL: cannot open " << ewpath << endl;
+        cerr << "[WRGenRecoMass] FATAL: cannot open " << ewpath << endl;
         exit(EXIT_FAILURE);
     }
     {
@@ -435,7 +320,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
             !ReadTH1(ewf.get(), "hist_e1", dummy_e, dummy_v, &dycorr.ew_e1) ||
             !ReadTH1(ewf.get(), "hist_e2", dummy_e, dummy_v, &dycorr.ew_e2) ||
             !ReadTH1(ewf.get(), "hist_e3", dummy_e, dummy_v, &dycorr.ew_e3)) {
-            cerr << "[HNWR_miniiso_scan] FATAL: hist_v/e1/e2/e3 missing in "
+            cerr << "[WRGenRecoMass] FATAL: hist_v/e1/e2/e3 missing in "
                  << ewpath << endl;
             exit(EXIT_FAILURE);
         }
@@ -448,7 +333,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
     // means no R nuisances.
     dycorr.apply_r = !ZptOnly;
     dycorr.apply_ew = true;
-    cout << "[HNWR_miniiso_scan] DY corrections on for " << MCSample << " / "
+    cout << "[WRGenRecoMass] DY corrections on for " << MCSample << " / "
          << DataEra << ": C=on R=" << (dycorr.apply_r ? "on" : "off (userflag ZptOnly)")
          << " EW=on, C from " << zpath << " (" << dycorr.zpt_edges.size() - 1
          << " bins), R from " << rpath << " (" << dycorr.n_nuis_res
@@ -457,7 +342,7 @@ void HNWR_miniiso_scan::LoadDYCorrections() {
          << " bins)" << endl;
 }
 
-float HNWR_miniiso_scan::GetGenZpT() const {
+float WRGenRecoMass::GetGenZpT() const {
     RVec<Gen> hard;
     for (const auto &gen : gen_set.gens) {
         const int abspid = abs(gen.PID());
@@ -469,7 +354,7 @@ float HNWR_miniiso_scan::GetGenZpT() const {
     return (hard.at(0) + hard.at(1)).Pt();
 }
 
-float HNWR_miniiso_scan::GetZptWeight(float gen_zpt, const std::string &key) const {
+float WRGenRecoMass::GetZptWeight(float gen_zpt, const std::string &key) const {
     if (!dycorr.apply || gen_zpt < 0.) return 1.f;
     auto it = dycorr.zpt.find(key);
     if (it == dycorr.zpt.end() || it->second.empty()) return 1.f;
@@ -480,7 +365,7 @@ float HNWR_miniiso_scan::GetZptWeight(float gen_zpt, const std::string &key) con
     return static_cast<float>(c);
 }
 
-float HNWR_miniiso_scan::GetZptStat(float gen_zpt) const {
+float WRGenRecoMass::GetZptStat(float gen_zpt) const {
     if (!dycorr.apply || gen_zpt < 0.) return 0.f;
     if (dycorr.zpt_stat.empty()) return 0.f;
     const int i = FindBin(dycorr.zpt_edges, gen_zpt);
@@ -492,7 +377,7 @@ float HNWR_miniiso_scan::GetZptStat(float gen_zpt) const {
     return static_cast<float>(s);
 }
 
-float HNWR_miniiso_scan::GetZptEW(float gen_zpt, int which, int dir) const {
+float WRGenRecoMass::GetZptEW(float gen_zpt, int which, int dir) const {
     if (!dycorr.apply || !dycorr.apply_ew || gen_zpt < 0.) return 1.f;
     if (dycorr.ew_val.empty()) return 1.f;
     // FindBin clamps both sides, which reproduces the SKFlat clipping
@@ -513,7 +398,7 @@ float HNWR_miniiso_scan::GetZptEW(float gen_zpt, int which, int dir) const {
     return static_cast<float>(v);
 }
 
-float HNWR_miniiso_scan::GetJetPtR(bool resolved, float pt, int nuis_bin, int dir) const {
+float WRGenRecoMass::GetJetPtR(bool resolved, float pt, int nuis_bin, int dir) const {
     if (!dycorr.apply || !dycorr.apply_r || pt < 0.) return 1.f;
     const std::vector<double> &edges = resolved ? dycorr.r_edges_res : dycorr.r_edges_boo;
     const std::vector<double> &vals = resolved ? dycorr.r_val_res : dycorr.r_val_boo;
@@ -537,7 +422,7 @@ float HNWR_miniiso_scan::GetJetPtR(bool resolved, float pt, int nuis_bin, int di
     return static_cast<float>(r);
 }
 
-float HNWR_miniiso_scan::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const {
+float WRGenRecoMass::GetElectronTriggerSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     const bool isBarrel = std::fabs(eta) < 1.4442;
 
     float sf, err;
@@ -557,45 +442,25 @@ float HNWR_miniiso_scan::GetElectronTriggerSF_TnP(double eta, double pt, MyCorre
 // High-pT electron ID SF from POG/EGM/<era>/electronID_highPt.json.gz
 // ("Electron-ID-SF", WP "Tight"). pt bins start at 100 GeV with clamp flow,
 // so pt < 100 uses the first bin.
-float HNWR_miniiso_scan::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const {
+float WRGenRecoMass::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     if (DataEra != "2022" && DataEra != "2022EE" && DataEra != "2023" && DataEra != "2023BPix")
         return 1.0; // no EGM high-pT ID SF for this era (e.g. 2017)
     return myCorr->GetElectronHighPtIDSF(eta, pt, var);
 }
 
-// Mini-isolation SF for the subleading loose lepton in the fatjet, the cut that
-// replaces LSF3 > 0.75 here. ELECTRONS ONLY: egamma-tnp measured this for electrons,
-// there is no muon equivalent, so only the regions whose in-fatjet loose lepton is an
-// electron (boosted SR EE, flavour CR mu-ejet) get a SF. It is applied through the
-// MiniIso_Weight target -- see executeEventFromParameter().
-float HNWR_miniiso_scan::GetElectronMiniIsoSF_TnP(double eta, double pt, MyCorrection::variation var) const {
-    static const double eta_edges[7] = {-2.5, -1.566, -1.4442, 0.0, 1.4442, 1.566, 2.5};
-    static const double pt_edges[10] = {53, 60, 70, 80, 100, 150, 200, 300, 500, 1000};
-
-    const ElMiniIsoSFTable *sf_table, *err_table;
-    if      (DataEra == "2022")     { sf_table = &ElMiniIsoSF_2022;     err_table = &ElMiniIsoSFErr_2022; }
-    else if (DataEra == "2022EE")   { sf_table = &ElMiniIsoSF_2022EE;   err_table = &ElMiniIsoSFErr_2022EE; }
-    else if (DataEra == "2023")     { sf_table = &ElMiniIsoSF_2023;     err_table = &ElMiniIsoSFErr_2023; }
-    else if (DataEra == "2023BPix") { sf_table = &ElMiniIsoSF_2023BPix; err_table = &ElMiniIsoSFErr_2023BPix; }
-    else return 1.0; // no egamma-tnp miniIso measurement for this era (e.g. 2017)
-
-    int eta_idx = 5;
-    for (int i = 0; i < 6; i++) { if (eta < eta_edges[i+1]) { eta_idx = i; break; } }
-
-    // pt below the first measured bin (T&P probe cut is 50, first bin 53-60) uses the
-    // first bin; the analysis loose-lepton cut keeps leptons above 53 anyway.
-    int pt_idx = 8;
-    for (int i = 0; i < 9; i++) { if (pt < pt_edges[i+1]) { pt_idx = i; break; } }
-
-    const float sf  = (*sf_table)[pt_idx][eta_idx];
-    const float err = (*err_table)[pt_idx][eta_idx];
-
+// LSF3 cut efficiency scale factor, keyed by the flavor of the lepton inside the fatjet:
+//   muon-in-fatjet     (measured in the e-mujet flavor CR): 1.06 +- 0.10
+//   electron-in-fatjet (measured in the mu-ejet flavor CR): 1.11 +- 0.11
+// Applied only in the boosted SR (SR MM -> mujet, SR EE -> ejet) and the boosted flavor CR.
+float WRGenRecoMass::GetLSFSF(bool muonInFatJet, MyCorrection::variation var) const {
+    const float sf  = muonInFatJet ? 1.06f : 1.11f;
+    const float err = muonInFatJet ? 0.10f : 0.11f;
     if (var == MyCorrection::variation::up)   return sf + err;
     if (var == MyCorrection::variation::down) return sf - err;
     return sf;
 }
 
-void HNWR_miniiso_scan::executeEvent() {
+void WRGenRecoMass::executeEvent() {
 
     el_set.AllElectrons =  GetAllElectrons();
     mu_set.AllMuons = GetAllMuons();
@@ -606,13 +471,32 @@ void HNWR_miniiso_scan::executeEvent() {
 
     SetSignalFlags();
 
+    // LHE WR mass for EVERY simulated event, before any selection — the
+    // denominator (gray) distribution of the off-shell study. Filled outside
+    // the systematic loop; selection-level fills live in the SR blocks below.
+    if (!IsDATA) {
+        double mcw = MCweight();
+        if (sig_lheMass_lljj > 0.) {
+            FillHist("LHE_mass_lljj_all",            sig_lheMass_lljj,   mcw, 10000, 0., 10000.);
+            FillHist("LHE_mass_lljj_all_noweight",   sig_lheMass_lljj,   1.0, 10000, 0., 10000.);
+        }
+        if (sig_lheMass_sumall > 0.) {
+            FillHist("LHE_mass_sumall_all",          sig_lheMass_sumall, mcw, 10000, 0., 10000.);
+            FillHist("LHE_mass_sumall_all_noweight", sig_lheMass_sumall, 1.0, 10000, 0., 10000.);
+        }
+    }
+
+    // BDT-preselection SR fills (Central objects, MC only) — independent of the
+    // cut-based flow below, which can discard events via trigger-safe-pT returns.
+    FillBDTPreselSR();
+
     for (const auto &syst_dummy : *systHelper) {
         executeEventFromParameter();
     }
 
 }
 
-void HNWR_miniiso_scan::executeEventFromParameter() {
+void WRGenRecoMass::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
 
     // RunXsecSyst produces one thing only: the per-PDF-member fit observable, which is
@@ -644,22 +528,16 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     weight_function_map["JER_Variation"] = dummy_sf;
     weight_function_map["JES_Variation"] = dummy_sf;
     // Object-level kinematic variations: the systematic is applied by re-running the event
-    // with a varied collection, so the weight target is a dummy (see docs/MCLRSM_miniiso.yaml).
+    // with a varied collection, so the weight target is a dummy (see docs/MCLRSM.yaml).
     weight_function_map["MuonScale_Variation"]     = dummy_sf;
+    weight_function_map["MuonRes_Variation"]       = dummy_sf;
     weight_function_map["ElectronScale_Variation"] = dummy_sf;
     weight_function_map["ElectronRes_Variation"]   = dummy_sf;
     weight_function_map["FatJetJES_Variation"]     = dummy_sf;
     weight_function_map["FatJetJER_Variation"]     = dummy_sf;
     weight_function_map["M_Iso_Weight"]  = dummy_sf;
-    // Mini-isolation cut efficiency SF. These analyzers drop the LSF3 > 0.75 cut in
-    // favour of a miniIso cut on the subleading loose lepton, so this target replaces
-    // Reproduce20_002_copy's "LSF_Weight" entirely -- hence the dedicated systematic
-    // list docs/MCLRSM_miniiso.yaml ("MiniIso" -> "MiniIso_Weight"); MCLRSM.yaml still
-    // declares LSF and is used by Reproduce20_002_copy only. Assigned only where the
-    // loose lepton inside the fatjet is an ELECTRON (boosted SR EE, flavour CR
-    // mu-ejet): the egamma-tnp measurement has no muon counterpart, so the muon-in-
-    // fatjet regions (SR MM, flavour CR e-mujet) keep this dummy 1.
-    weight_function_map["MiniIso_Weight"] = dummy_sf;
+    // LSF3 cut efficiency SF: assigned only in the boosted SR / flavor CR branches
+    weight_function_map["LSF_Weight"]    = dummy_sf;
 
     // XSec(theory) weight targets
     weight_function_map["ScaleWeight_muF"] = dummy_sf;
@@ -701,7 +579,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     if (dycorr.apply) {
         const float gen_zpt = GetGenZpT();
         if (gen_zpt < 0.) {
-            cerr << "[HNWR_miniiso_scan] FATAL: no isHardProcess lepton pair "
+            cerr << "[WRGenRecoMass] FATAL: no isHardProcess lepton pair "
                  << "(run " << RunNumber << ", event " << EventNumber << ", sample "
                  << MCSample << ", era " << DataEra << "). C assumes 100% coverage."
                  << endl;
@@ -1203,7 +1081,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     float Boost_DYCREEsubleadlepeta = 0.;
     float Boost_DYCREEsubleadlepphi = 0.;
     float Boost_DYCREEfatjet_lsf3 = 0.;
-    float Boost_DYCREEsubleadlep_miniiso = -999.;
     float Boost_DYCREEdeltaR_leadlep_fatjet = 0.;
     float Boost_DYCREEdphi_leadlep_fatjet = 0.;
     float Boost_DYCREEpileup_num = 0.;
@@ -1231,7 +1108,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     float Boost_DYCRMMsubleadlepeta = 0.;
     float Boost_DYCRMMsubleadlepphi = 0.;
     float Boost_DYCRMMfatjet_lsf3 = 0.;
-    float Boost_DYCRMMsubleadlep_miniiso = -999.;
     float Boost_DYCRMMdeltaR_leadlep_fatjet = 0.;
     float Boost_DYCRMMdphi_leadlep_fatjet = 0.;
     float Boost_DYCRMMpileup_num = 0.;
@@ -1259,7 +1135,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     float Boost_SREEsubleadlepeta = 0.;
     float Boost_SREEsubleadlepphi = 0.;
     float Boost_SREEfatjet_lsf3 = 0.;
-    float Boost_SREEsubleadlep_miniiso = -999.;
     float Boost_SREEdeltaR_leadlep_fatjet = 0.;
     float Boost_SREEdphi_leadlep_fatjet = 0.;
     float Boost_SREEpileup_num = 0.;
@@ -1287,7 +1162,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     float Boost_SRMMsubleadlepeta = 0.;
     float Boost_SRMMsubleadlepphi = 0.;
     float Boost_SRMMfatjet_lsf3 = 0.;
-    float Boost_SRMMsubleadlep_miniiso = -999.;
     float Boost_SRMMdeltaR_leadlep_fatjet = 0.;
     float Boost_SRMMdphi_leadlep_fatjet = 0.;
     float Boost_SRMMpileup_num = 0.;
@@ -1316,7 +1190,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     float Boost_FlavEMJsubleadlepphi = 0.;
     float Boost_FlavEMJfatjet_lsf3 = 0.;
     float Boost_FlavEMJleadlep_lsf = 0.;
-    float Boost_FlavEMJsubleadlep_miniiso = -999.;
     float Boost_FlavEMJleadfatjetpt = 0.;
     float Boost_FlavEMJdeltaR_leadlep_fatjet = 0.;
     float Boost_FlavEMJdphi_leadlep_fatjet = 0.;
@@ -1346,7 +1219,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     float Boost_FlavMEJsubleadlepphi = 0.;
     float Boost_FlavMEJfatjet_lsf3 = 0.;
     float Boost_FlavMEJleadlep_lsf = 0.;
-    float Boost_FlavMEJsubleadlep_miniiso = -999.;
     float Boost_FlavMEJleadfatjetpt = 0.;
     float Boost_FlavMEJdeltaR_leadlep_fatjet = 0.;
     float Boost_FlavMEJdphi_leadlep_fatjet = 0.;
@@ -1370,6 +1242,54 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
         weight *= MCweight();
         weight *= ev.GetTriggerLumi("HLT_Mu50");
     }
+
+    // Resolved-fail tracing for the GenReco_test low-mass gap: for events that
+    // end up in NEITHER resolved nor boosted SR, record the FIRST resolved-SR
+    // condition that fails (chain order of :1543ff). Bin meaning:
+    //   0 = MET noise filter fail          1 = jet veto fail
+    //   2 = n tight leptons != 2           3 = lead lep pT fail (130 e / 60 mu)
+    //   4 = sublead lep pT <= 53           5 = e-mu mixed pair (not EE/MM)
+    //   6 = trigger fail
+    //   7 = < 2 jet candidates passing ID+|eta| even with the pT cut removed
+    //   8 = jet pT cut: >= 2 ID+|eta| candidates but < 2 above Jet_MinPt (40)
+    //   9 = dR(j1, lep) <= 0.4            10 = dR(j2, lep) <= 0.4
+    //  11 = dR(lep1, lep2) <= 0.4         12 = dR(j1, j2) <= 0.4
+    //  13 = mll <= 400                    14 = mlljj <= 800
+    //  15 = passed all (sanity, must stay empty: such events are in the SR)
+    // The 1D histograms are restricted to LHE mass (sumall) <= 2000; the 2D
+    // keeps the full mass range so any window can be sliced offline.
+    auto FillResolvedFailCutflow = [&](double failbin) {
+        if (IsDATA || this_syst != "Central") return;
+        if (!(sig_lheMass_sumall > 0.)) return;
+        FillHist(this_syst + "/ResolvedFail_cutflow_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, failbin, 1.0, 100, 0., 10000., 16, 0., 16.);
+        if (sig_lheMass_sumall > 2000.) return;
+        FillHist(this_syst + "/ResolvedFail_lowLHE_cutflow", failbin, weight, 16, 0., 16.);
+        FillHist(this_syst + "/ResolvedFail_lowLHE_cutflow_noweight", failbin, 1.0, 16, 0., 16.);
+    };
+
+    // Boosted twin: first failing condition of the boosted-SR chain (:2184ff),
+    // for the same fail-both low-mass events. Events killed by the noise filter
+    // or jet veto never reach the boosted decision and only appear in bins 0-1
+    // of the Resolved cutflow above. Bin meaning:
+    //   0 = resolved-like event (IsResolvedEvent, boosted chain not attempted)
+    //   1 = no tight lepton                 2 = lead lep pT fail (130 e / 60 mu)
+    //   3 = trigger fail                    4 = low-mll SF pair (60-150 -> DY CR)
+    //   5 = no selected AK8 (pT/eta/ID/SDM) 6 = no LSF3 > 0.75 fatjet
+    //   7 = no away fatjet (|dPhi| > 2)     8 = extra tight lepton veto
+    //   9 = no SF loose lep in fatjet      10 = OF loose lep in fatjet
+    //  11 = mll(lead, SF loose) <= 200     12 = m(lep + fatjet) <= 800
+    //  13 = passed all (sanity, must stay empty)
+    auto FillBoostedFailCutflow = [&](double failbin) {
+        if (IsDATA || this_syst != "Central") return;
+        if (!(sig_lheMass_sumall > 0.)) return;
+        FillHist(this_syst + "/BoostedFail_cutflow_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, failbin, 1.0, 100, 0., 10000., 14, 0., 14.);
+        if (sig_lheMass_sumall > 2000.) return;
+        FillHist(this_syst + "/BoostedFail_lowLHE_cutflow", failbin, weight, 14, 0., 14.);
+        FillHist(this_syst + "/BoostedFail_lowLHE_cutflow_noweight", failbin, 1.0, 14, 0., 14.);
+    };
+
     FillHist(this_syst + "/Cutflow_for_reseolved_SR", 1.0 , weight, 10, 0., 10.);
     FillSignalCutflow(this_syst, true, 1.0, weight);
     FillHist(this_syst + "/Cutflow_for_Boosted_SR", 1.0 , weight, 13, 0., 13.);
@@ -1425,6 +1345,30 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
             fatjets = ScaleFatJets(fatjets, MyCorrection::variation::down);
         }
 
+        // --- soft-drop mass: AK4 JERC on the SoftDrop subjets ------------------------
+        // JME recommendation (CMS Talk, "AK8 Puppi Jet JERC for Soft Drop Mass", Jan 2026):
+        // m_SD is corrected by applying the AK4 JERC to the subjets and recomputing their
+        // invariant mass. The AK8 JES/JER above correct FatJet_pt / FatJet_mass and leave
+        // FatJet_msoftdrop untouched, so m_SD is driven by the AK4 nuisances, NOT by
+        // FatJetJES/FatJetJER - deliberately hung off JES/JER to keep it correlated with the
+        // AK4 jets, since it is the same uncertainty source.
+        // This is not cosmetic: m_SD > FatJet_SDM (40 GeV) is a selection cut, and roughly
+        // 11-16% of the selected yield sits within 10 GeV above it.
+        // The trailing else is NOT optional: the call also applies the JER nominal smearing
+        // (NanoAOD's msoftdrop has the subjet JEC but no smearing), so every pass has to
+        // make it or it would differ from Central for a reason that is not its nuisance.
+        if (this_syst.Contains("JES_Up") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::up, "total", false);
+        } else if (this_syst.Contains("JES_Down") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::down, "total", false);
+        } else if (this_syst.Contains("JER_Up") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::up, "total", true);
+        } else if (this_syst.Contains("JER_Down") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::down, "total", true);
+        } else {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::nom, "total", false);
+        }
+
         // --- lepton energy/momentum variations --------------------------------------
         // Muon scale: MomentumScaleUp/Down were filled by GetAllMuons (Rochester error
         // below 200 GeV, GE kappa +- sigma above), so one nuisance covers both regimes.
@@ -1432,6 +1376,14 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
             muons = ScaleMuons(muons, "up");
         } else if (this_syst.Contains("MuonScale_Down")) {
             muons = ScaleMuons(muons, "down");
+        }
+        // Muon resolution: flat 10% additional smearing (POG resolution deck 2024/06/03).
+        // MC-only and high-pT-only by construction; one-sided in the barrel for 2022 and
+        // 2023BPix, where the nominal smearing is 0 and a Gaussian cannot sharpen MC.
+        if (this_syst.Contains("MuonRes_Up")) {
+            muons = SmearMuons(muons, "up");
+        } else if (this_syst.Contains("MuonRes_Down")) {
+            muons = SmearMuons(muons, "down");
         }
         if (this_syst.Contains("ElectronScale_Up")) {
             electrons = ScaleElectrons(ev, electrons, "up");
@@ -1451,7 +1403,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
         }
     }
 
-    if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) return;
+    if (!PassNoiseFilter(jets,ev,Event::MET_Type::PUPPI)) { FillResolvedFailCutflow(0.); return; }
     FillHist(this_syst + "/Cutflow_for_reseolved_SR", 2.0 , weight, 10, 0., 10.);
     FillSignalCutflow(this_syst, true, 2.0, weight);
     FillHist(this_syst + "/Cutflow_for_Boosted_SR", 2.0 , weight, 13, 0., 13.);
@@ -1571,9 +1523,9 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
             
             if (fj.PassID(fatjet_set.FatJet_ID)) {
                 fatjet_list.push_back(fj);
-                // LSF3 > 0.75 cut removed: miniIso < 0.1 on the subleading loose lepton
-                // inside the fat jet is required at the region level instead
-                lsf.push_back(fj);
+                if (fj.LSF3() >fatjet_set.Fatjet_LSF) {
+                    lsf.push_back(fj);
+                }
             }
         }
     }
@@ -1604,9 +1556,66 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
 
 
     
-    //jet veto 
+    // Tight/loose lepton multiplicity of LOST (fail-both) events, 2D vs LHE
+    // mass so any region can be sliced offline. Loose here is the analyzer
+    // loose (pT > 53); tight is a subset of loose for both flavors. Bins:
+    //   0 = >=2 tight
+    //   1 = 1 tight + >=1 more loose, the NON-tight loose one is the SUBLEAD
+    //   2 = 1 tight + >=1 more loose, the NON-tight loose one is the LEAD
+    //   3 = 1 tight, no other loose lepton
+    //   4 = 0 tight, >=2 loose    5 = 0 tight, 1 loose    6 = 0 tight, 0 loose
+    // MET-noise-filter kills exit before lepton selection and are not counted.
+    // Bins:
+    //   0 = >=2 tight
+    //   1 = 1 tight + >=1 more loose, the NON-tight loose one is the SUBLEAD
+    //   2 = 1 tight + >=1 more loose, the NON-tight loose one is the LEAD
+    //   3 = 1 tight, no 2nd loose, but a 2nd NOCUT lepton with pT > 53 exists
+    //       (passed pT, failed the loose ID)
+    //   4 = 1 tight, no 2nd loose, a reco lepton exists only below 53 (pT > 10)
+    //   5 = 1 tight, no 2nd reco lepton at all (pT > 10 acceptance)
+    //   6 = 0 tight, >=2 loose    7 = 0 tight, 1 loose    8 = 0 tight, 0 loose
+    // Also fills the (lepton category x first-fail) cross histograms so the
+    // fail reason can be split per lepton category and per chain:
+    //   y = cat*16 + resolved failbin (144 bins) / cat*14 + boosted failbin.
+    // boo_failbin < 0 means the boosted decision was never evaluated (early
+    // returns) and only the resolved cross is filled.
+    auto FillLostLeptonMult = [&](double res_failbin, double boo_failbin) {
+        if (IsDATA || this_syst != "Central") return;
+        if (!(sig_lheMass_sumall > 0.)) return;
+        const int n_t = Tight_electrons.size() + Tight_muons.size();
+        const int n_l = Loose_leps.size();
+        double cat;
+        if (n_t >= 2) cat = 0.;
+        else if (n_t == 1) {
+            if (n_l >= 2) {
+                float maxLoosePt = 0.;
+                for (auto *l : Loose_leps) maxLoosePt = std::max(maxLoosePt, (float)l->Pt());
+                cat = (Tight_leps[0]->Pt() >= maxLoosePt) ? 1. : 2.;
+            } else {
+                const int n_cand53 = my_electrons.size() + my_muons.size();
+                if (n_cand53 >= 2) cat = 3.;
+                else {
+                    int n_cand10 = 0;
+                    for (const auto &e : electrons) if (e.Pt() > 10. && fabs(e.Eta()) < 2.5) n_cand10++;
+                    for (const auto &m : muons)     if (m.Pt() > 10. && fabs(m.Eta()) < 2.4) n_cand10++;
+                    cat = (n_cand10 >= 2) ? 4. : 5.;
+                }
+            }
+        } else cat = (n_l >= 2) ? 6. : (n_l == 1 ? 7. : 8.);
+        FillHist(this_syst + "/LostNtightLoose_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, cat, 1.0, 100, 0., 10000., 9, 0., 9.);
+        FillHist(this_syst + "/LostLepCatResFail_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, cat * 16. + res_failbin, 1.0,
+                 100, 0., 10000., 144, 0., 144.);
+        if (boo_failbin >= 0.)
+            FillHist(this_syst + "/LostLepCatBooFail_vs_lhe_mass_noweight",
+                     sig_lheMass_sumall, cat * 14. + boo_failbin, 1.0,
+                     100, 0., 10000., 126, 0., 126.);
+    };
+
+    //jet veto
     bool is_jet_veto = AnalyzerCore::PassVetoMap(jets, mu_set.AllMuons, "jetvetomap");
-    if (!(is_jet_veto) ) return;
+    if (!(is_jet_veto) ) { FillResolvedFailCutflow(1.); FillLostLeptonMult(1., -1.); return; }
     
     
     FillHist(this_syst + "/Cutflow_for_skim", 6.0 , 1.0, 10, 0., 10.);
@@ -1678,7 +1687,8 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
             // Muon ID SF for the single tight muon of the resolved EM (flavour) CR.
             // Must stay enabled: rFlvCR shares the R_TT_Resolved rateParam with rEESR /
             // rDYEECR / rDYMuMuCR, so a missing SF here biases the fitted TT
-            // normalisation that propagates into the SR.
+            // normalisation that propagates into the SR. EE/MM (:1497) and every boosted
+            // branch (:2124, :2467, :2707) already apply it.
             weight_function_map["M_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float   {
                 if (DataEra=="2017") return 1.0;
                 return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0], var)) ;
@@ -1754,7 +1764,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                         
                         //float MuonIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[1]));
                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return (myCorr->GetMuonRECOSF(*Tight_muons[0], var) * myCorr->GetMuonRECOSF(*Tight_muons[1], var));
+                            return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0], var) * myCorr->GetMuonHighPtRECOSF(*Tight_muons[1], var));
                         };
                         //float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0]) * myCorr->GetMuonRECOSF(*Tight_muons[1]));
                         // Fix: build trig_muons inside lambda to avoid dangling reference
@@ -1783,7 +1793,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                             return    (myCorr->GetElectronRECOSF(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) ;
                         };
                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return  myCorr->GetMuonRECOSF(*Tight_muons[0], var);
+                            return  myCorr->GetMuonHighPtRECOSF(*Tight_muons[0], var);
                         };
                         
                         weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
@@ -2378,7 +2388,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                             if (DataEra=="2017") return 1.0;
                                             return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source) {
-                                            return (myCorr->GetMuonRECOSF(*Tight_muons[0],var)) ;};
+                                            return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var)) ;};
                                         
                                         // Fix: capture LowMllLooseLepton by value to avoid dangling reference
                                         // (LowMllLooseLepton goes out of scope before lambda is evaluated at systHelper->calculateWeight())
@@ -2431,7 +2441,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                         Boost_DYCREEsubleadlepeta = LowMllLooseLepton->Eta();
                                         Boost_DYCREEsubleadlepphi = LowMllLooseLepton->Phi();
                                         Boost_DYCREEfatjet_lsf3               = HNFatJet.LSF3();
-                                        Boost_DYCREEsubleadlep_miniiso        = LowMllLooseLepton->MiniPFRelIso();
                                         Boost_DYCREEdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                         Boost_DYCREEdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                         Boost_DYCREEpileup_num = ev.nTrueInt();
@@ -2508,7 +2517,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                         Boost_DYCRMMsubleadlepeta = LowMllLooseLepton->Eta();
                                         Boost_DYCRMMsubleadlepphi = LowMllLooseLepton->Phi();
                                         Boost_DYCRMMfatjet_lsf3               = HNFatJet.LSF3();
-                                        Boost_DYCRMMsubleadlep_miniiso        = LowMllLooseLepton->MiniPFRelIso();
                                         Boost_DYCRMMdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                         Boost_DYCRMMdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                         Boost_DYCRMMpileup_num = ev.nTrueInt();
@@ -2625,7 +2633,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                 hassflooseleptonoutfatjet = false ; 
                                 hassflooselepton = true;
                                 SFLooseLepton = Loose_SF_leps[k];
-                                FillHist(this_syst + "/SFLooseLepton_infatjet_miniiso_beforecut", SFLooseLepton->MiniPFRelIso(), weight, 200, 0., 1.);
                                 break;
                             }
                             else{
@@ -2643,7 +2650,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                             if (HNFatJet.DeltaR(*Loose_OF_leps[m]) < 0.8) {
                                 hasoflooselepton = true;
                                 OFLooseLepton = Loose_OF_leps[m];
-                                FillHist(this_syst + "/OFLooseLepton_infatjet_miniiso_beforecut", OFLooseLepton->MiniPFRelIso(), weight, 200, 0., 1.);
                                 cout << "has of loose lepton in fatjet and has " << hassflooseleptonoutfatjet << "number of sf loose lepton out fatjet" << endl ;
                                 if (hassflooseleptonoutfatjet){
                                     // case of SF loose lepton outside fatjet but OF in fatjet 
@@ -2669,14 +2675,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                             FillSignalCutflow(this_syst, false, 8.0, weight);
                             // tight fatjet 밖 한개 , loose lepton same flavor 안에 
                             FillHist(this_syst + "/Boost_cutflow_FLV", 6 , weight, 20, -10., 10.);
-                            // miniIso-only aux cutflow: bin0 = SF loose lep in fatjet, bin1 = bin0 + miniIso<0.1
-                            // (main cutflow bin numbers stay identical to Reproduce20_002_copy)
                             if (hassflooselepton) {
-                                TString miniiso_cf = is_tmp_lead_el ? "/SR_EE_miniiso_cutflow" : "/SR_MM_miniiso_cutflow";
-                                FillHist(this_syst + miniiso_cf, 0.0, weight, 2, 0., 2.);
-                                if (SFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso) FillHist(this_syst + miniiso_cf, 1.0, weight, 2, 0., 2.);
-                            }
-                            if (hassflooselepton && (SFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso)) {
                                 FillHist(this_syst + "/Cutflow_for_Boosted_SR", 9.0 , weight, 13, 0., 13.);
                                 FillSignalCutflow(this_syst, false, 9.0, weight);
                                 FillHist(this_syst + "/Boost_cutflow_FLV", 7 , weight, 20,-10,10.);
@@ -2713,17 +2712,10 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                         return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                                                     };
                                                 }
-                                                    // SR EE: the loose lepton inside the fatjet is an electron, so the
-                                                    // miniIso cut that replaced LSF3 carries its egamma-tnp SF.
-                                                    // scEta/pt are read out here rather than inside the lambda:
-                                                    // SFLooseLepton is out of scope by the time calculateWeight() runs.
-                                                    {
-                                                        const double miniiso_sceta = ((Electron *)SFLooseLepton)->scEta();
-                                                        const double miniiso_pt    = SFLooseLepton->Pt();
-                                                        weight_function_map["MiniIso_Weight"] = [this, miniiso_sceta, miniiso_pt](MyCorrection::variation var, TString source) -> float {
-                                                            return GetElectronMiniIsoSF_TnP(miniiso_sceta, miniiso_pt, var);
-                                                        };
-                                                    }
+                                                    // SR EE: electron inside the fatjet
+                                                    weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                        return GetLSFSF(false, var);
+                                                    };
 
                                                 }
                                                 if(is_tmp_lead_mu){
@@ -2739,7 +2731,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                                     weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                    return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var));};
                                                     
                                                     // Fix: capture SFLooseLepton by value to avoid dangling reference
                                                     // (SFLooseLepton goes out of scope before lambda is evaluated at systHelper->calculateWeight())
@@ -2755,9 +2747,10 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                         return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
 
-                                                    // SR MM: the loose lepton inside the fatjet is a muon. No MiniIso_Weight --
-                                                    // the miniIso SF is an electron-only measurement, so this region takes
-                                                    // the miniIso cut without a SF.
+                                                    // SR MM: muon inside the fatjet
+                                                    weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                        return GetLSFSF(true, var);
+                                                    };
 
                                                 }
                                             }
@@ -2786,7 +2779,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                     Boost_SREEsubleadlepeta = SFLooseLepton->Eta();
                                                     Boost_SREEsubleadlepphi = SFLooseLepton->Phi();
                                                     Boost_SREEfatjet_lsf3               = HNFatJet.LSF3();
-                                                    Boost_SREEsubleadlep_miniiso        = SFLooseLepton->MiniPFRelIso();
                                                     Boost_SREEdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                                     Boost_SREEdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                                     Boost_SREEpileup_num = ev.nTrueInt();
@@ -2860,7 +2852,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                     Boost_SRMMsubleadlepeta = SFLooseLepton->Eta();
                                                     Boost_SRMMsubleadlepphi = SFLooseLepton->Phi();
                                                     Boost_SRMMfatjet_lsf3               = HNFatJet.LSF3();
-                                                    Boost_SRMMsubleadlep_miniiso        = SFLooseLepton->MiniPFRelIso();
                                                     Boost_SRMMdeltaR_leadlep_fatjet     = LeadLep->DeltaR(HNFatJet);
                                                     Boost_SRMMdphi_leadlep_fatjet       = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                                     Boost_SRMMpileup_num = ev.nTrueInt();
@@ -2932,13 +2923,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                 FillHist(this_syst + "/Cutflow_for_mu_ejet", 10.0 , 1.0, 20, 0., 20.);
                             }
                             FillHist(this_syst + "/Boost_cutflow_FLV", -6 , weight, 20, -10, 10.);
-                            // miniIso-only aux cutflow: bin0 = OF loose lep in fatjet, bin1 = bin0 + miniIso<0.1
-                            if (hasoflooselepton) {
-                                TString miniiso_cf = is_tmp_lead_el ? "/FlavEMJ_miniiso_cutflow" : "/FlavMEJ_miniiso_cutflow";
-                                FillHist(this_syst + miniiso_cf, 0.0, weight, 2, 0., 2.);
-                                if (OFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso) FillHist(this_syst + miniiso_cf, 1.0, weight, 2, 0., 2.);
-                            }
-                            if (hasoflooselepton && (OFLooseLepton->MiniPFRelIso() < fatjet_set.Sublead_MiniIso)){
+                            if (hasoflooselepton){
                                 if(is_tmp_lead_el){
                                     FillHist(this_syst + "/Cutflow_for_e_mujet", 11.0 , 1.0,20, 0., 20.);
                                 }
@@ -2974,8 +2959,10 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                             return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                                                         };
                                                     }
-                                                        // Flavour CR e-mujet: the loose lepton inside the fatjet is a
-                                                        // muon -> no miniIso SF (electron-only measurement).
+                                                        // Flavor CR e-mujet: muon inside the fatjet
+                                                        weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                            return GetLSFSF(true, var);
+                                                        };
                                                 }
                                                 if(is_tmp_lead_mu){
                                                     ////cout<<"ok11"<<endl;
@@ -2984,7 +2971,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                                     weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                    return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var));};
                                                     
                                                     weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                                                     if (DataEra=="2017") return 1.0;
@@ -2994,17 +2981,10 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                                         if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
 
-                                                    // Flavour CR mu-ejet: the loose lepton inside the fatjet is an
-                                                    // electron -> apply the miniIso SF on the MiniIso_Weight target.
-                                                    // scEta/pt read out here: OFLooseLepton is out of scope by the
-                                                    // time calculateWeight() evaluates the lambda.
-                                                    {
-                                                        const double miniiso_sceta = ((Electron *)OFLooseLepton)->scEta();
-                                                        const double miniiso_pt    = OFLooseLepton->Pt();
-                                                        weight_function_map["MiniIso_Weight"] = [this, miniiso_sceta, miniiso_pt](MyCorrection::variation var, TString source) -> float {
-                                                            return GetElectronMiniIsoSF_TnP(miniiso_sceta, miniiso_pt, var);
-                                                        };
-                                                    }
+                                                    // Flavor CR mu-ejet: electron inside the fatjet
+                                                    weight_function_map["LSF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
+                                                        return GetLSFSF(false, var);
+                                                    };
 
                                                 }
                                         }
@@ -3091,7 +3071,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                             Boost_FlavEMJleadlepphi    = LeadLep->Phi();
                                             Boost_FlavEMJsubleadlepphi = OFLooseLepton->Phi();
                                             Boost_FlavEMJfatjet_lsf3   = HNFatJet.LSF3();
-                                            Boost_FlavEMJsubleadlep_miniiso = OFLooseLepton->MiniPFRelIso();
                                             Boost_FlavEMJdphi_leadlep_fatjet = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                             Boost_FlavEMJpileup_num = ev.nTrueInt();
                                             Boost_FlavEMJpvgood = ev.nPVsGood();
@@ -3271,7 +3250,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                                             Boost_FlavMEJleadlepphi    = LeadLep->Phi();
                                             Boost_FlavMEJsubleadlepphi = OFLooseLepton->Phi();
                                             Boost_FlavMEJfatjet_lsf3   = HNFatJet.LSF3();
-                                            Boost_FlavMEJsubleadlep_miniiso = OFLooseLepton->MiniPFRelIso();
                                             Boost_FlavMEJdphi_leadlep_fatjet = (float)abs(LeadLep->DeltaPhi(HNFatJet));
                                             Boost_FlavMEJpileup_num = ev.nTrueInt();
                                             Boost_FlavMEJpvgood = ev.nPVsGood();
@@ -3325,6 +3303,122 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
         }
         } // boost lead lep pt cut end
     }// boost selected event end
+
+    // All four SR decisions are final here. For fail-both events, re-evaluate the
+    // resolved chain condition by condition (identical cuts to :1543ff, but
+    // decomposed so the compound lepton requirement splits into bins 2/3/4) and
+    // record the first failure. The trigger-safe pT returns inside the chain are
+    // unreachable (130/60 GeV lead cut > 118/52 GeV safe cuts), so every event
+    // reaching the chain also reaches this block.
+    if (!is_Resolved_SR_EE && !is_Resolved_SR_MM && !is_Boosted_SR_EE && !is_Boosted_SR_MM) {
+        double failbin = 15.;
+        if (n_Tight_leptons != 2) failbin = 2.;
+        else if (!(Tight_leps[0]->Pt() > (Tight_leps[0]->IsElectron() ? 130.0 : 60.0))) failbin = 3.;
+        else if (!(Tight_leps[1]->Pt() > 53.0)) failbin = 4.;
+        else if (!((Tight_electrons.size() == 2) || (Tight_muons.size() == 2))) failbin = 5.;
+        else if (!(Tight_electrons.size() == 2 ? pass_trig_elec : pass_trig_muon)) failbin = 6.;
+        else if (selected_jets.size() < 2) {
+            // Disentangle "not enough jets at all" from "jets exist but fail pT":
+            // re-select with the pT cut removed (same ID and |eta|, jets already
+            // cleaned against loose leptons).
+            RVec<Jet> jets_IDeta = SelectJets(jets, jet_set.Jet_ID[0], 0., jet_set.Jet_MaxEta);
+            failbin = (jets_IDeta.size() < 2) ? 7. : 8.;
+            if (failbin == 8. && this_syst == "Central" && !IsDATA &&
+                sig_lheMass_sumall > 0. && sig_lheMass_sumall <= 2000.) {
+                // pT of the 2nd-leading ID+|eta| jet: how far below the 40 GeV cut
+                sort(jets_IDeta.begin(), jets_IDeta.end(), PtComparing);
+                FillHist(this_syst + "/ResolvedFail_lowLHE_jet2pt_noptcut_noweight",
+                         jets_IDeta[1].Pt(), 1.0, 100, 0., 100.);
+            }
+        }
+        else if (!((selected_jets[0].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[0].DeltaR(*Tight_leps[1]) > 0.4))) failbin = 9.;
+        else if (!((selected_jets[1].DeltaR(*Tight_leps[0]) > 0.4) && (selected_jets[1].DeltaR(*Tight_leps[1]) > 0.4))) failbin = 10.;
+        else if (!(Tight_leps[0]->DeltaR(*Tight_leps[1]) > 0.4)) failbin = 11.;
+        else if (!(selected_jets[0].DeltaR(selected_jets[1]) > 0.4)) failbin = 12.;
+        else {
+            const double mll   = (*Tight_leps[0] + *Tight_leps[1]).M();
+            const double mlljj = (*Tight_leps[0] + *Tight_leps[1] + selected_jets[0] + selected_jets[1]).M();
+            if      (!(mll   > 400.0)) failbin = 13.;
+            else if (!(mlljj > 800.0)) failbin = 14.;
+        }
+        FillResolvedFailCutflow(failbin);
+
+        // Sub-breakdown of the dominant N(tight)!=2 failure: did ONE tight
+        // lepton survive, and is it the leading or subleading candidate?
+        // "Candidate" = NOCUT lepton with pT > 53 in acceptance (my_electrons/
+        // my_muons), i.e. what the tight IDs were applied to. Bins:
+        //   0 = 0 tight, < 2 candidates    1 = 0 tight, >= 2 candidates
+        //   2 = 1 tight, no 2nd candidate  3 = 1 tight, it IS the leading cand.
+        //   4 = 1 tight, it is SUBleading  5 = >= 3 tight
+        if (failbin == 2. && this_syst == "Central" && !IsDATA &&
+            sig_lheMass_sumall > 0. && sig_lheMass_sumall <= 2000.) {
+            const int n_cand = my_electrons.size() + my_muons.size();
+            float maxCandPt = 0.;
+            for (const auto &el : my_electrons) maxCandPt = std::max(maxCandPt, (float)el.Pt());
+            for (const auto &mu : my_muons)     maxCandPt = std::max(maxCandPt, (float)mu.Pt());
+            double cat = 5.;
+            if      (n_Tight_leptons == 0) cat = (n_cand < 2) ? 0. : 1.;
+            else if (n_Tight_leptons == 1) {
+                if (n_cand < 2) cat = 2.;
+                else cat = (Tight_leps[0]->Pt() >= maxCandPt) ? 3. : 4.;
+            }
+            FillHist(this_syst + "/ResolvedFail_lowLHE_ntight_breakdown", cat, weight, 6, 0., 6.);
+            FillHist(this_syst + "/ResolvedFail_lowLHE_ntight_breakdown_noweight", cat, 1.0, 6, 0., 6.);
+        }
+
+        // Boosted-fail tracing: re-walk the boosted chain (:2184ff) with the
+        // same first-match picks (first away LSF fatjet, first in-fatjet loose
+        // lepton) and record the first failure.
+        double bfail = 13.;
+        Lepton *bLead = (n_Tight_leptons >= 1) ? Tight_leps[0] : nullptr;
+        if (IsResolvedEvent) bfail = 0.;
+        else if (!bLead) bfail = 1.;
+        else if (!(bLead->Pt() > (bLead->IsElectron() ? 130.0 : 60.0))) bfail = 2.;
+        else if (!(bLead->IsElectron() ? pass_trig_elec : pass_trig_muon)) bfail = 3.;
+        else {
+            RVec<Lepton*> &bSF = bLead->IsElectron() ? Loose_leps_el : Loose_leps_mu;
+            RVec<Lepton*> &bOF = bLead->IsElectron() ? Loose_leps_mu : Loose_leps_el;
+            bool blowmll = false;
+            for (auto *l : bSF) {
+                if (l == bLead) continue;
+                const double m = (*bLead + *l).M();
+                if (m > 60. && m < 150.) { blowmll = true; break; }
+            }
+            if (blowmll) bfail = 4.;
+            else if (fatjets.empty()) bfail = 5.;
+            else if (fatjets_LSF.empty()) bfail = 6.;
+            else {
+                const FatJet *bFJ = nullptr;
+                for (const auto &fj : fatjets_LSF)
+                    if (fabs(bLead->DeltaPhi(fj)) > 2.0) { bFJ = &fj; break; }
+                if (!bFJ) bfail = 7.;
+                else {
+                    Lepton *bSFLoose = nullptr, *bOFLoose = nullptr;
+                    for (auto *l : bSF) {
+                        if (bLead->DeltaR(*l) < 0.01) continue;
+                        if (l->Pt() < 53.0) continue;
+                        if (bFJ->DeltaR(*l) < 0.8) { bSFLoose = l; break; }
+                    }
+                    for (auto *l : bOF) {
+                        if (bLead->DeltaR(*l) < 0.01) continue;
+                        if (l->Pt() < 53.0) continue;
+                        if (bFJ->DeltaR(*l) < 0.8) { bOFLoose = l; break; }
+                    }
+                    int nExtraTight = 0;
+                    for (auto *l : Tight_leps)
+                        if (l != bLead && l != bSFLoose && l != bOFLoose) nExtraTight++;
+                    if      (nExtraTight != 0) bfail = 8.;
+                    else if (!bSFLoose)        bfail = 9.;
+                    else if (bOFLoose)         bfail = 10.;
+                    else if (!((*bLead + *bSFLoose).M() > 200.0)) bfail = 11.;
+                    else if (!((*bLead + *bFJ).M() > 800.0))      bfail = 12.;
+                }
+            }
+        }
+        FillBoostedFailCutflow(bfail);
+        FillLostLeptonMult(failbin, bfail);
+    }
+
     // Validation hook (--userflags corrShapes): decorate every weight function so its
     // nominal scale factor is histogrammed into CorrShapes/weight_<name>/sf. Wrapping the
     // map generically covers all entries and picks up new ones automatically.
@@ -3366,7 +3460,7 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
             ? GetJetPtR(true, selected_jets[0].Pt()) : 1.0f;
         // The boosted lookup pT must be the variable R was DERIVED against:
         // the DY CR histograms the first fatjet with |dPhi(lead lepton, J)| >
-        // 2.0 (HNWR_miniiso_scan.cc:2224), the requirement every
+        // 2.0 (WRGenRecoMass.cc:2075-2080), the requirement every
         // boosted region shares -- not the plain leading fatjet. Until
         // 2026-07-29 this used fatjets[0].Pt(); when the leading fatjet sits
         // on the lepton side and a subleading one is the region's fatjet
@@ -3607,6 +3701,13 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 {is_Resolved_SR_EE_OS_1e_tight, "SR_Resolved_EE_OS_1e_tight"},
                 {is_Resolved_SR_EE_OS_0e_tight, "SR_Resolved_EE_OS_0e_tight"},
             }) { if (cond) fill(pfx); }
+            // LHE WR mass of SR events (same weight as the mlljj fill above)
+            if (is_Resolved_SR_EE && syst_name == "Central") {
+                FillHist(syst_name + "/SR_Resolved_EE_lhe_mass", sig_lheMass_sumall, final_weight, 10000, 0., 10000.);
+                FillHist(syst_name + "/SR_Resolved_EE_lhe_vs_reco", sig_lheMass_sumall, Resolve_SREEmlljj, final_weight, 1000, 0., 10000., 1000, 0., 10000.);
+                // raw count, pairs with LHE_mass_lljj_all_noweight for the category fraction
+                FillHist(syst_name + "/SR_Resolved_EE_lhe_mass_noweight", sig_lheMass_sumall, 1.0, 10000, 0., 10000.);
+            }
         }
         {
             // R multiplies the fill weight, not `weight`: an event can be in
@@ -3660,6 +3761,13 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 {is_Resolved_SR_MM_OS_tight,     "SR_Resolved_MM_OS_tight"},
                 {is_Resolved_SR_MM_OS_not_tight, "SR_Resolved_MM_OS_not_tight"},
             }) { if (cond) fill(pfx); }
+            // LHE WR mass of SR events (same weight as the mlljj fill above)
+            if (is_Resolved_SR_MM && syst_name == "Central") {
+                FillHist(syst_name + "/SR_Resolved_MM_lhe_mass", sig_lheMass_sumall, final_weight, 10000, 0., 10000.);
+                FillHist(syst_name + "/SR_Resolved_MM_lhe_vs_reco", sig_lheMass_sumall, Resolve_SRMMmlljj, final_weight, 1000, 0., 10000., 1000, 0., 10000.);
+                // raw count, pairs with LHE_mass_lljj_all_noweight for the category fraction
+                FillHist(syst_name + "/SR_Resolved_MM_lhe_mass_noweight", sig_lheMass_sumall, 1.0, 10000, 0., 10000.);
+            }
         }
 
         //Flav
@@ -3755,7 +3863,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_DYCREEsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_DYCREEsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_DYCREEfatjet_lsf3, final_weight, 100, 0., 1.);
-                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_DYCREEsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_DYCREEdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_DYCREEdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_DYCREEpileup_num, final_weight, 80, 0., 80.);
@@ -3805,7 +3912,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_DYCRMMsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_DYCRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_DYCRMMfatjet_lsf3, final_weight, 100, 0., 1.);
-                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_DYCRMMsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_DYCRMMdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_DYCRMMdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_DYCRMMpileup_num, final_weight, 80, 0., 80.);
@@ -3853,14 +3959,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_SREEsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_SREEsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_SREEfatjet_lsf3, final_weight, 100, 0., 1.);
-                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_SREEsubleadlep_miniiso, final_weight, 200, 0., 1.);
-                // scan build: joint LSF3 x miniIso plane on the un-gated SR baseline.
-                // Central only -- this block runs over ~29 systematics x ~10 pfx variants,
-                // and a 100x200 bin hist for each of those would blow up the file size.
-                if (syst_name == "Central")
-                    FillHist(syst_name + "/" + pfx + "_lsf3_vs_miniiso",
-                             Boost_SREEfatjet_lsf3, Boost_SREEsubleadlep_miniiso, final_weight,
-                             100, 0., 1., 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_SREEdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_SREEdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_SREEpileup_num, final_weight, 80, 0., 80.);
@@ -3879,6 +3977,13 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 {is_Boosted_SR_EE_OS_1e_tight, "SR_Boosted_EE_OS_1e_tight"},
                 {is_Boosted_SR_EE_OS_0e_tight, "SR_Boosted_EE_OS_0e_tight"},
             }) { if (cond) fill(pfx); }
+            // LHE WR mass of SR events (same weight as the mlljj fill above)
+            if (is_Boosted_SR_EE && syst_name == "Central") {
+                FillHist(syst_name + "/SR_Boosted_EE_lhe_mass", sig_lheMass_sumall, final_weight, 10000, 0., 10000.);
+                FillHist(syst_name + "/SR_Boosted_EE_lhe_vs_reco", sig_lheMass_sumall, Boost_SREEmlljj, final_weight, 1000, 0., 10000., 1000, 0., 10000.);
+                // raw count, pairs with LHE_mass_lljj_all_noweight for the category fraction
+                FillHist(syst_name + "/SR_Boosted_EE_lhe_mass_noweight", sig_lheMass_sumall, 1.0, 10000, 0., 10000.);
+            }
         }
         //SR MM
         {
@@ -3907,11 +4012,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_eta", Boost_SRMMsubleadlepeta, final_weight, 100, -2.5, 2.5);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_SRMMsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_SRMMfatjet_lsf3, final_weight, 100, 0., 1.);
-                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_SRMMsubleadlep_miniiso, final_weight, 200, 0., 1.);
-                if (syst_name == "Central")
-                    FillHist(syst_name + "/" + pfx + "_lsf3_vs_miniiso",
-                             Boost_SRMMfatjet_lsf3, Boost_SRMMsubleadlep_miniiso, final_weight,
-                             100, 0., 1., 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_deltaR_leadlep_fatjet", Boost_SRMMdeltaR_leadlep_fatjet, final_weight, 100, 0., 5.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_SRMMdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_SRMMpileup_num, final_weight, 80, 0., 80.);
@@ -3928,6 +4028,13 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 {is_Boosted_SR_MM_OS_tight,     "SR_Boosted_MM_OS_tight"},
                 {is_Boosted_SR_MM_OS_not_tight, "SR_Boosted_MM_OS_not_tight"},
             }) { if (cond) fill(pfx); }
+            // LHE WR mass of SR events (same weight as the mlljj fill above)
+            if (is_Boosted_SR_MM && syst_name == "Central") {
+                FillHist(syst_name + "/SR_Boosted_MM_lhe_mass", sig_lheMass_sumall, final_weight, 10000, 0., 10000.);
+                FillHist(syst_name + "/SR_Boosted_MM_lhe_vs_reco", sig_lheMass_sumall, Boost_SRMMmlljj, final_weight, 1000, 0., 10000., 1000, 0., 10000.);
+                // raw count, pairs with LHE_mass_lljj_all_noweight for the category fraction
+                FillHist(syst_name + "/SR_Boosted_MM_lhe_mass_noweight", sig_lheMass_sumall, 1.0, 10000, 0., 10000.);
+            }
         }
         //Flav EMJ
         {
@@ -3959,7 +4066,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_leading_lep_phi", Boost_FlavEMJleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_FlavEMJsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_FlavEMJfatjet_lsf3, final_weight, 100, 0., 1.);
-                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_FlavEMJsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_FlavEMJdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_FlavEMJpileup_num, final_weight, 80, 0., 80.);
                 FillHist(syst_name + "/" + pfx + "_pv", Boost_FlavEMJpv, final_weight, 80, 0., 80.);
@@ -4014,7 +4120,6 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
                 FillHist(syst_name + "/" + pfx + "_leading_lep_phi", Boost_FlavMEJleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_subleading_lep_phi", Boost_FlavMEJsubleadlepphi, final_weight, 100, -3.14, 3.14);
                 FillHist(syst_name + "/" + pfx + "_fatjet_lsf3", Boost_FlavMEJfatjet_lsf3, final_weight, 100, 0., 1.);
-                FillHist(syst_name + "/" + pfx + "_subleadlep_miniiso", Boost_FlavMEJsubleadlep_miniiso, final_weight, 200, 0., 1.);
                 FillHist(syst_name + "/" + pfx + "_dphi_leadlep_fatjet", Boost_FlavMEJdphi_leadlep_fatjet, final_weight, 100, 0., 3.14);
                 FillHist(syst_name + "/" + pfx + "_punum", Boost_FlavMEJpileup_num, final_weight, 80, 0., 80.);
                 FillHist(syst_name + "/" + pfx + "_pv", Boost_FlavMEJpv, final_weight, 80, 0., 80.);
@@ -4096,13 +4201,47 @@ void HNWR_miniiso_scan::executeEventFromParameter() {
     // end ## 1984
     
 
-void HNWR_miniiso_scan::SetSignalFlags() {
+void WRGenRecoMass::SetSignalFlags() {
     sig_isSignal   = false;
     sig_isOffshell = false;
     sig_isOnshell  = false;
     sig_isTb       = false;
+    sig_lheMass_lljj   = -999.;
+    sig_lheMass_sumall = -999.;
 
     if (IsDATA) return;
+
+    // LHE mass, python-parity definition (lhe_precompute.py): sum of ALL LHE
+    // particles with no PDG or status filter. Kept alongside the lljj mass
+    // below so the existing Offshell_test npz numbers stay reconcilable.
+    if (!lhe_set.lhe_parts.empty()) {
+        Particle lheSumAll;
+        for (const auto &p : lhe_set.lhe_parts) lheSumAll += p;
+        sig_lheMass_sumall = lheSumAll.M();
+    }
+
+    // LHE lljj (WR system) mass — same definition as the off-shell split below:
+    // outgoing (status==1) quarks and charged leptons only. Computed before the
+    // signal-tag early return so it is stored for every simulated event.
+    {
+        auto isLepOrQuark = [](int pid) {
+            int a = abs(pid);
+            return (a >= 1 && a <= 6) || a == 11 || a == 13 || a == 15;
+        };
+        bool hasStatus1 = false;
+        for (const auto &p : lhe_set.lhe_parts) {
+            if (isLepOrQuark(p.PdgId()) && p.Status() == 1) { hasStatus1 = true; break; }
+        }
+        Particle WRsys;
+        bool any = false;
+        for (const auto &p : lhe_set.lhe_parts) {
+            if (!isLepOrQuark(p.PdgId())) continue;
+            if (hasStatus1 && p.Status() != 1) continue;
+            WRsys += p;
+            any = true;
+        }
+        if (any) sig_lheMass_lljj = WRsys.M();
+    }
 
     // (1) Signal tagging: any gen particle with |PID| in {9900012 (N_e), 9900014 (N_mu), 34 (W_R)}
     for (const auto &g : gen_set.gens) {
@@ -4115,23 +4254,9 @@ void HNWR_miniiso_scan::SetSignalFlags() {
 
     if (!sig_isSignal) return;
 
-    // (2) Off-shell / on-shell split by reconstructed WR(lljj) invariant mass at LHE level.
-    //     Use status==1 (outgoing) LHE leptons+quarks if any exist, otherwise sum all of them.
-    auto isLepOrQuark = [](int pid) {
-        int a = abs(pid);
-        return (a >= 1 && a <= 6) || a == 11 || a == 13 || a == 15;
-    };
-    bool hasStatus1 = false;
-    for (const auto &p : lhe_set.lhe_parts) {
-        if (isLepOrQuark(p.PdgId()) && p.Status() == 1) { hasStatus1 = true; break; }
-    }
-    Particle WRsys;
-    for (const auto &p : lhe_set.lhe_parts) {
-        if (!isLepOrQuark(p.PdgId())) continue;
-        if (hasStatus1 && p.Status() != 1) continue;
-        WRsys += p;
-    }
-    double wrMass = WRsys.M();
+    // (2) Off-shell / on-shell split by reconstructed WR(lljj) invariant mass at LHE level
+    //     (computed above, before the signal-tag return).
+    double wrMass = sig_lheMass_lljj;
 
     // WR2000 -> no off/on-shell split (threshold < 0); WR4000/6000/8000 -> 2000/4000/5000
     double threshold = -1.;
@@ -4152,7 +4277,7 @@ void HNWR_miniiso_scan::SetSignalFlags() {
     }
 }
 
-void HNWR_miniiso_scan::FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight) {
+void WRGenRecoMass::FillSignalCutflow(const TString &this_syst, bool isResolved, double binN, float weight) {
     if (this_syst != "Central") return;
     const TString base  = isResolved ? "/Cutflow_for_reseolved_SR" : "/Cutflow_for_Boosted_SR";
     const int     nbins = isResolved ? 10  : 13;
@@ -4170,7 +4295,7 @@ void HNWR_miniiso_scan::FillSignalCutflow(const TString &this_syst, bool isResol
     if (sig_isSignal)              FillHist(this_syst + base + "_signal", binN, weight, nbins, 0., xmax);
 }
 
-bool HNWR_miniiso_scan::Electrons::isPassCustomTightID(const Electron& el, const HNWR_miniiso_scan::Electrons& eset) const {
+bool WRGenRecoMass::Electrons::isPassCustomTightID(const Electron& el, const WRGenRecoMass::Electrons& eset) const {
     if (fabs(el.scEta()) < 1.566) {
         return el.PassID(eset.Electron_Tight_ID[0]);
     }
@@ -4187,7 +4312,7 @@ bool HNWR_miniiso_scan::Electrons::isPassCustomTightID(const Electron& el, const
     return true;
 }
 
-bool HNWR_miniiso_scan::Electrons::isPassCustomLooseID(const Electron& el) const {
+bool WRGenRecoMass::Electrons::isPassCustomLooseID(const Electron& el) const {
     //if (!(el.hoe() < 0.5)) return false;
 
     if (fabs(el.scEta()) <= 1.479){
@@ -4214,7 +4339,7 @@ bool HNWR_miniiso_scan::Electrons::isPassCustomLooseID(const Electron& el) const
     return true ;
 }
 
-bool HNWR_miniiso_scan::Electrons::isPassLooseNoIso(const Electron& el) const {
+bool WRGenRecoMass::Electrons::isPassLooseNoIso(const Electron& el) const {
     // Matches Python selectLooseElectrons logic:
     // Evaluate vidNestedWPBitmap with id_level=2 (Loose WP), ignoring isolation (cut index 7)
     //
@@ -4249,7 +4374,7 @@ bool HNWR_miniiso_scan::Electrons::isPassLooseNoIso(const Electron& el) const {
     return true;
 }
 
-RVec<FatJet> HNWR_miniiso_scan::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {
+RVec<FatJet> WRGenRecoMass::Clean_Fatjet_with_tight_leptons(const RVec<FatJet> & fatjets, const RVec<Lepton *> & tight_leps) {
     RVec<FatJet> cleanedfatjets;
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet fatjet = fatjets.at(i);
@@ -4268,7 +4393,7 @@ RVec<FatJet> HNWR_miniiso_scan::Clean_Fatjet_with_tight_leptons(const RVec<FatJe
     return cleanedfatjets;
 }
 
-RVec<Jet> HNWR_miniiso_scan::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
+RVec<Jet> WRGenRecoMass::Clean_jet_with_loose_leptons(const RVec<Jet> & jets, const RVec<Lepton *> & loose_leps) {
     RVec<Jet> cleanedjets;
     for (unsigned int i=0 ; i< jets.size(); i ++) {
         Jet jet = jets.at(i);
@@ -4287,7 +4412,7 @@ RVec<Jet> HNWR_miniiso_scan::Clean_jet_with_loose_leptons(const RVec<Jet> & jets
     return cleanedjets;
 }
 
-RVec<Jet> HNWR_miniiso_scan::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) {
+RVec<Jet> WRGenRecoMass::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fatjets, const RVec<Jet> & jets) {
     RVec<Jet> cleanedjets;
     for (unsigned int i=0 ; i< jets.size(); i ++) {
         Jet jet = jets.at(i);
@@ -4306,7 +4431,7 @@ RVec<Jet> HNWR_miniiso_scan::Clean_LSF_FatJet_with_jets(const RVec<FatJet> & fat
     return cleanedjets;
 }
 
-RVec<FatJet> HNWR_miniiso_scan::Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) {
+RVec<FatJet> WRGenRecoMass::Clean_Jets_with_fatjets(const RVec<Jet> & jets, const RVec<FatJet> & fatjets) {
     RVec<FatJet> cleanedfatjets;
     for (unsigned int i=0 ; i< fatjets.size(); i ++) {
         FatJet fatjet = fatjets.at(i);
@@ -4326,3 +4451,343 @@ RVec<FatJet> HNWR_miniiso_scan::Clean_Jets_with_fatjets(const RVec<Jet> & jets, 
 }
 
 
+// ============================================================================
+// BDT-preselection SR check.
+// Faithful re-implementation of the SR (resolved/boosted) selection of
+// Analyzers/src/HNWR_BDT_presel.cc (object defs :209-269, SR logic :339-494),
+// run on the NOMINAL objects only and reduced to the SR decision — no trees,
+// no CRs, no BDT score. Key differences from the cut-based SR reproduced here:
+//   * Run3 electron trigger = Photon200||Ele115 with safe pT 118 (no Ele30/35)
+//   * mll > 200 (not 400), no m(lljj) > 800 cut
+//   * fatjets: pT>200 |eta|<2.5 Tight ID only — no mSD>40, no LSF3>0.75,
+//     no |dphi(lep,fj)|>2.0; cleaned against TIGHT (not loose) leptons
+//   * boosted: loose SF pair anywhere (not required inside the fatjet),
+//     no OF-loose veto, no extra-tight-lepton veto
+//   * boosted entered when the resolved 4-object dR fails or njet<2
+// Weight = MCweight x trigger lumi (no SFs, matching the BDT ntuple raw weight);
+// use the _noweight histograms for event fractions.
+// ============================================================================
+void WRGenRecoMass::FillBDTPreselSR() {
+    if (IsDATA) return;
+
+    Event ev = GetEvent();
+    float weight = MCweight() * ev.GetTriggerLumi("HLT_Mu50");
+
+    // BDT-presel twin of FillResolvedFailCutflow: for events in NEITHER BDT
+    // resolved nor BDT boosted candidate, record the FIRST failing condition of
+    // the BDT resolved chain (code order of this function). Bin meaning:
+    //   0 = no HLT fired (e nor mu)         1 = MET noise filter fail
+    //   2 = n tight leptons < 1             3 = jet veto fail
+    //   4 = n tight leptons != 2            5 = e-mu mixed pair (not EE/MM)
+    //   6 = lead lep pT <= 60               7 = sublead lep pT <= 53
+    //   8 = lead trigger fail (safe pT 118 e / 52 mu, or channel HLT)
+    //   9 = mll <= 200
+    //  10 = < 2 jet candidates passing ID+|eta| even with the pT cut removed
+    //  11 = jet pT cut: >= 2 ID+|eta| candidates but < 2 above 40
+    //  12 = dR(j1, lep) <= 0.4             13 = dR(j2, lep) <= 0.4
+    //  14 = dR(lep1, lep2) <= 0.4          15 = dR(j1, j2) <= 0.4
+    //  16 = passed all (sanity, must stay empty: such events are candidates)
+    // 1D histograms restricted to LHE mass (sumall) <= 2000; 2D keeps full range.
+    auto FillBDTResolvedFailCutflow = [&](double failbin) {
+        if (!(sig_lheMass_sumall > 0.)) return;
+        FillHist("Central/BDTResolvedFail_cutflow_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, failbin, 1.0, 100, 0., 10000., 17, 0., 17.);
+        if (sig_lheMass_sumall > 2000.) return;
+        FillHist("Central/BDTResolvedFail_lowLHE_cutflow", failbin, weight, 17, 0., 17.);
+        FillHist("Central/BDTResolvedFail_lowLHE_cutflow_noweight", failbin, 1.0, 17, 0., 17.);
+    };
+
+    // Boosted twin for the BDT boosted candidate. Preselection failures (no
+    // HLT, noise filter, no tight lepton, jet veto) never reach the boosted
+    // decision and only appear in bins 0-3 of the resolved cutflow above.
+    //   0 = lead lep pT <= 60               1 = no extra loose lepton
+    //   2 = lead trigger / safe pT fail     3 = no SF loose pair with mll > 200
+    //   4 = resolved-like topology (2 boosted-cleaned jets + dR pass -> vetoed)
+    //   5 = no AK8 fatjet (pT/eta/ID)       6 = passed all (sanity, must stay empty)
+    auto FillBDTBoostedFailCutflow = [&](double failbin) {
+        if (!(sig_lheMass_sumall > 0.)) return;
+        FillHist("Central/BDTBoostedFail_cutflow_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, failbin, 1.0, 100, 0., 10000., 7, 0., 7.);
+        if (sig_lheMass_sumall > 2000.) return;
+        FillHist("Central/BDTBoostedFail_lowLHE_cutflow", failbin, weight, 7, 0., 7.);
+        FillHist("Central/BDTBoostedFail_lowLHE_cutflow_noweight", failbin, 1.0, 7, 0., 7.);
+    };
+
+    RVec<TString> bdt_mu_trig, bdt_el_trig;
+    float bdt_mu_safept = 52., bdt_el_safept = 118.;
+    if (DataEra == "2017") {
+        bdt_mu_trig = {"HLT_Mu50", "HLT_OldMu100", "HLT_TkMu100"};
+        bdt_el_trig = {"HLT_Ele35_WPTight_Gsf", "HLT_Photon200", "HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+        bdt_el_safept = 38.;
+    } else {
+        bdt_mu_trig = {"HLT_Mu50", "HLT_CascadeMu100", "HLT_HighPtTkMu100"};
+        bdt_el_trig = {"HLT_Photon200", "HLT_Ele115_CaloIdVT_GsfTrkIdT"};
+    }
+    const bool pass_trig_muon = ev.PassTrigger(bdt_mu_trig);
+    const bool pass_trig_elec = ev.PassTrigger(bdt_el_trig);
+    if (!pass_trig_muon && !pass_trig_elec) { FillBDTResolvedFailCutflow(0.); return; }
+
+    RVec<Electron> all_electrons = el_set.AllElectrons;
+    RVec<Muon>     all_muons     = mu_set.AllMuons;
+    RVec<Jet>      jets          = jet_set.AllJets;
+    RVec<FatJet>   fatjets       = fatjet_set.AllFatJets;
+
+    // nominal JER smearing, as HNWR_BDT_presel applies to every MC event
+    RVec<GenJet> genjets = GetAllGenJets();
+    jets = SmearJets(jets, genjets, MyCorrection::variation::nom, "total");
+    RVec<GenJet> genjetsak8 = GetAllGenJetAK8();
+    fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::nom, "total");
+
+    if (!PassNoiseFilter(jets, ev, Event::MET_Type::PUPPI)) { FillBDTResolvedFailCutflow(1.); return; }
+
+    RVec<Electron> my_electrons = SelectElectrons(all_electrons, "NOCUT", 53., 2.5);
+    RVec<Muon>     my_muons     = SelectMuons(all_muons, "NOCUT", 53., 2.4);
+    sort(my_electrons.begin(), my_electrons.end(), PtComparing);
+    sort(my_muons.begin(), my_muons.end(), PtComparing);
+
+    RVec<Electron*> Tight_electrons;
+    RVec<Muon*>     Tight_muons;
+    RVec<Lepton*>   Loose_leps, Tight_leps;
+    for (unsigned int i = 0; i < my_electrons.size(); i++) {
+        Electron& el = my_electrons.at(i);
+        if (el.PassID(Electron::ElectronID::POG_HEEP)) {
+            Tight_electrons.push_back(&el);
+            Tight_leps.push_back(&el);
+        }
+        if (el_set.isPassLooseNoIso(el) || el.PassID(Electron::ElectronID::POG_HEEP)) {
+            Loose_leps.push_back(&el);
+        }
+    }
+    for (unsigned int i = 0; i < my_muons.size(); i++) {
+        Muon& mu = my_muons.at(i);
+        if (mu.PassID(Muon::MuonID::POG_GLOBAL_HIGH_PT) && mu.TkRelIso() < 0.1) {
+            Tight_muons.push_back(&mu);
+            Tight_leps.push_back(&mu);
+        }
+        if (mu.PassID(Muon::MuonID::POG_GLOBAL_HIGH_PT)) {
+            Loose_leps.push_back(&mu);
+        }
+    }
+    sort(Tight_leps.begin(), Tight_leps.end(), PtComparingPtr);
+    sort(Loose_leps.begin(), Loose_leps.end(), PtComparingPtr);
+
+    // N(tight) sub-breakdown, same bin meaning as the cut-based
+    // ResolvedFail_lowLHE_ntight_breakdown (see executeEventFromParameter):
+    //   0 = 0 tight, < 2 candidates    1 = 0 tight, >= 2 candidates
+    //   2 = 1 tight, no 2nd candidate  3 = 1 tight, it IS the leading cand.
+    //   4 = 1 tight, it is SUBleading  5 = >= 3 tight
+    auto FillBDTNtightBreakdown = [&](int n_tight_now) {
+        if (!(sig_lheMass_sumall > 0.) || sig_lheMass_sumall > 2000.) return;
+        const int n_cand = my_electrons.size() + my_muons.size();
+        float maxCandPt = 0.;
+        for (const auto &el : my_electrons) maxCandPt = std::max(maxCandPt, (float)el.Pt());
+        for (const auto &mu : my_muons)     maxCandPt = std::max(maxCandPt, (float)mu.Pt());
+        double cat = 5.;
+        if      (n_tight_now == 0) cat = (n_cand < 2) ? 0. : 1.;
+        else if (n_tight_now == 1) {
+            if (n_cand < 2) cat = 2.;
+            else cat = (Tight_leps[0]->Pt() >= maxCandPt) ? 3. : 4.;
+        }
+        FillHist("Central/BDTResolvedFail_lowLHE_ntight_breakdown", cat, weight, 6, 0., 6.);
+        FillHist("Central/BDTResolvedFail_lowLHE_ntight_breakdown_noweight", cat, 1.0, 6, 0., 6.);
+    };
+
+    // Tight/loose multiplicity of LOST events, 2D vs LHE mass — same 9-bin
+    // meaning as the cut-based LostNtightLoose_vs_lhe_mass_noweight (see
+    // executeEventFromParameter), plus the (lepton category x first-fail)
+    // cross histograms (y = cat*17 + resolved failbin / cat*7 + boosted
+    // failbin; boo_failbin < 0 -> boosted never evaluated). No-HLT and
+    // MET-filter kills exit before lepton selection and are not counted.
+    auto FillBDTLostLeptonMult = [&](double res_failbin, double boo_failbin) {
+        if (!(sig_lheMass_sumall > 0.)) return;
+        const int n_t = Tight_electrons.size() + Tight_muons.size();
+        const int n_l = Loose_leps.size();
+        double cat;
+        if (n_t >= 2) cat = 0.;
+        else if (n_t == 1) {
+            if (n_l >= 2) {
+                float maxLoosePt = 0.;
+                for (auto *l : Loose_leps) maxLoosePt = std::max(maxLoosePt, (float)l->Pt());
+                cat = (Tight_leps[0]->Pt() >= maxLoosePt) ? 1. : 2.;
+            } else {
+                const int n_cand53 = my_electrons.size() + my_muons.size();
+                if (n_cand53 >= 2) cat = 3.;
+                else {
+                    int n_cand10 = 0;
+                    for (const auto &e : all_electrons) if (e.Pt() > 10. && fabs(e.Eta()) < 2.5) n_cand10++;
+                    for (const auto &m : all_muons)     if (m.Pt() > 10. && fabs(m.Eta()) < 2.4) n_cand10++;
+                    cat = (n_cand10 >= 2) ? 4. : 5.;
+                }
+            }
+        } else cat = (n_l >= 2) ? 6. : (n_l == 1 ? 7. : 8.);
+        FillHist("Central/BDTLostNtightLoose_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, cat, 1.0, 100, 0., 10000., 9, 0., 9.);
+        FillHist("Central/BDTLostLepCatResFail_vs_lhe_mass_noweight",
+                 sig_lheMass_sumall, cat * 17. + res_failbin, 1.0,
+                 100, 0., 10000., 153, 0., 153.);
+        if (boo_failbin >= 0.)
+            FillHist("Central/BDTLostLepCatBooFail_vs_lhe_mass_noweight",
+                     sig_lheMass_sumall, cat * 7. + boo_failbin, 1.0,
+                     100, 0., 10000., 63, 0., 63.);
+    };
+
+    // BDT presel cleaning: fatjets vs the LEAD tight lepton only (the N-side
+    // in-fatjet lepton must not remove the N fatjet — mirrors HNWR_BDT_presel),
+    // AK4 vs loose leptons
+    RVec<Lepton*> bdt_lead_lep_only;
+    if (!Tight_leps.empty()) bdt_lead_lep_only.push_back(Tight_leps[0]);
+    fatjets = Clean_Fatjet_with_tight_leptons(fatjets, bdt_lead_lep_only);
+    jets    = Clean_jet_with_loose_leptons(jets, Loose_leps);
+
+    const int n_tight = Tight_electrons.size() + Tight_muons.size();
+    if (n_tight < 1) { FillBDTResolvedFailCutflow(2.); FillBDTNtightBreakdown(0); FillBDTLostLeptonMult(2., -1.); return; }
+
+    if (!PassVetoMap(jets, mu_set.AllMuons, "jetvetomap")) { FillBDTResolvedFailCutflow(3.); FillBDTLostLeptonMult(3., -1.); return; }
+
+    RVec<Jet> selected_jets = SelectJets(jets, jet_set.Jet_ID[0], 40., 2.5);
+    sort(selected_jets.begin(), selected_jets.end(), PtComparing);
+
+    RVec<FatJet> fatjet_list;
+    for (unsigned int i = 0; i < fatjets.size(); i++) {
+        FatJet& fj = fatjets.at(i);
+        // pT/eta/ID only — no SDMass, no LSF (BDT inputs, not cuts)
+        if (fj.Pt() > 200. && fabs(fj.Eta()) < 2.5 && fj.PassID("Tight")) fatjet_list.push_back(fj);
+    }
+    fatjets = fatjet_list;
+    sort(fatjets.begin(), fatjets.end(), PtComparing);
+
+    // boosted topology: fatjets take priority, AK4 within dR<0.8 of an AK8 dropped
+    // (Clean_LSF_FatJet_with_jets is "jets cleaned against fatjets" despite the name)
+    RVec<Jet> selected_jets_boosted = Clean_LSF_FatJet_with_jets(fatjets, selected_jets);
+    const bool has2Jets_boosted = selected_jets_boosted.size() >= 2;
+
+    auto isSameFlavorPair = [](const Lepton* l1, const Lepton* l2) {
+        if (!l1 || !l2) return false;
+        return (l1->IsElectron() && l2->IsElectron()) || (l1->IsMuon() && l2->IsMuon());
+    };
+    auto passLeadTrigger = [&](const Lepton* lep) {
+        if (!lep) return false;
+        if (lep->IsElectron()) return lep->Pt() >= bdt_el_safept && pass_trig_elec;
+        if (lep->IsMuon())     return lep->Pt() >= bdt_mu_safept && pass_trig_muon;
+        return false;
+    };
+    auto computeFourObjectDR = [&](const RVec<Jet>& jetcol, const Lepton* l1, const Lepton* l2) {
+        if (!l1 || !l2 || jetcol.size() < 2) return false;
+        const bool leadJetLep    = (jetcol[0].DeltaR(*l1) > dR_Separation) && (jetcol[0].DeltaR(*l2) > dR_Separation);
+        const bool subLeadJetLep = (jetcol[1].DeltaR(*l1) > dR_Separation) && (jetcol[1].DeltaR(*l2) > dR_Separation);
+        const bool twoLeptons    = (l1->DeltaR(*l2) > dR_Separation);
+        const bool twoJets       = (jetcol[0].DeltaR(jetcol[1]) > dR_Separation);
+        return leadJetLep && subLeadJetLep && twoLeptons && twoJets;
+    };
+
+    // ---- Resolved SR candidate ----
+    Lepton* resolvedLead = nullptr;
+    Lepton* resolvedSubLead = nullptr;
+    bool passResolvedTrigger = false;
+    if (n_tight == 2 && ((Tight_electrons.size() == 2 && Tight_muons.size() == 0) ||
+                         (Tight_muons.size() == 2 && Tight_electrons.size() == 0))) {
+        resolvedLead = Tight_leps[0];
+        resolvedSubLead = Tight_leps[1];
+        const bool leptonSel = (resolvedLead->Pt() > 60.0) && (resolvedSubLead->Pt() > 53.0);
+        passResolvedTrigger = leptonSel && passLeadTrigger(resolvedLead);
+    }
+    TLorentzVector resolvedDilepton;
+    bool passResolvedMll = false;
+    if (passResolvedTrigger && isSameFlavorPair(resolvedLead, resolvedSubLead)) {
+        resolvedDilepton = *resolvedLead + *resolvedSubLead;
+        passResolvedMll = resolvedDilepton.M() > 200.0;
+    }
+    const bool passResolvedDR = computeFourObjectDR(selected_jets, resolvedLead, resolvedSubLead);
+    const bool isResolvedCandidate = passResolvedMll && passResolvedDR;
+
+    // ---- Boosted SR candidate ----
+    Lepton* boostedLead = Tight_leps.empty() ? nullptr : Tight_leps[0];
+    RVec<Lepton*> boostedExtraLooseLeps;
+    if (boostedLead) {
+        for (unsigned int i = 0; i < Loose_leps.size(); i++) {
+            if (Loose_leps[i] == boostedLead) continue;
+            boostedExtraLooseLeps.push_back(Loose_leps[i]);
+        }
+    }
+    sort(boostedExtraLooseLeps.begin(), boostedExtraLooseLeps.end(), PtComparingPtr);
+    Lepton* boostedSubLead = nullptr;
+    bool hasBoostedDilepton = false;
+    if (boostedLead) {
+        for (unsigned int i = 0; i < boostedExtraLooseLeps.size(); i++) {
+            if (!isSameFlavorPair(boostedLead, boostedExtraLooseLeps[i])) continue;
+            TLorentzVector cand = *boostedLead + *boostedExtraLooseLeps[i];
+            if (cand.M() <= 200.0) continue;
+            boostedSubLead = boostedExtraLooseLeps[i];
+            hasBoostedDilepton = true;
+            break;
+        }
+    }
+    // NO-LOOSE selection (mirrors HNWR_BDT_presel): the boosted candidate no
+    // longer requires the extra loose lepton nor the SF mll>200 pair.
+    const bool passBoostedLeptonSelection = boostedLead && (boostedLead->Pt() > 60.0);
+    const bool passBoostedTrigger = passBoostedLeptonSelection && passLeadTrigger(boostedLead);
+    const bool passBoostedMll = passBoostedTrigger && hasBoostedDilepton;   // informational only
+    const bool passBoostedResolvedDR = computeFourObjectDR(selected_jets_boosted, boostedLead, boostedSubLead);
+    const bool passBoostedDRFail = !has2Jets_boosted || !passBoostedResolvedDR;
+    const bool isBoostedCandidate = !isResolvedCandidate && passBoostedTrigger && passBoostedDRFail
+                                    && fatjets.size() >= 1;
+
+    // Fail-both tracing: re-walk the resolved chain above condition by condition
+    // (identical cuts, decomposed) and record the first failure.
+    if (!isResolvedCandidate && !isBoostedCandidate) {
+        double failbin = 16.;
+        if (n_tight != 2) failbin = 4.;
+        else if (!isSameFlavorPair(Tight_leps[0], Tight_leps[1])) failbin = 5.;
+        else if (!(Tight_leps[0]->Pt() > 60.0)) failbin = 6.;
+        else if (!(Tight_leps[1]->Pt() > 53.0)) failbin = 7.;
+        else if (!passLeadTrigger(Tight_leps[0])) failbin = 8.;
+        else if (!((*Tight_leps[0] + *Tight_leps[1]).M() > 200.0)) failbin = 9.;
+        else if (selected_jets.size() < 2) {
+            // "not enough jets at all" vs "jets exist but fail pT"
+            RVec<Jet> jets_IDeta = SelectJets(jets, jet_set.Jet_ID[0], 0., 2.5);
+            failbin = (jets_IDeta.size() < 2) ? 10. : 11.;
+            if (failbin == 11. && sig_lheMass_sumall > 0. && sig_lheMass_sumall <= 2000.) {
+                sort(jets_IDeta.begin(), jets_IDeta.end(), PtComparing);
+                FillHist("Central/BDTResolvedFail_lowLHE_jet2pt_noptcut_noweight",
+                         jets_IDeta[1].Pt(), 1.0, 100, 0., 100.);
+            }
+        }
+        else if (!((selected_jets[0].DeltaR(*Tight_leps[0]) > dR_Separation) && (selected_jets[0].DeltaR(*Tight_leps[1]) > dR_Separation))) failbin = 12.;
+        else if (!((selected_jets[1].DeltaR(*Tight_leps[0]) > dR_Separation) && (selected_jets[1].DeltaR(*Tight_leps[1]) > dR_Separation))) failbin = 13.;
+        else if (!(Tight_leps[0]->DeltaR(*Tight_leps[1]) > dR_Separation)) failbin = 14.;
+        else if (!(selected_jets[0].DeltaR(selected_jets[1]) > dR_Separation)) failbin = 15.;
+        FillBDTResolvedFailCutflow(failbin);
+        if (failbin == 4.) FillBDTNtightBreakdown(n_tight);
+
+        // Boosted-fail tracing from the candidate booleans computed above
+        // (n_tight >= 1 is guaranteed here, so boostedLead exists).
+        // No-loose selection: bins 1 (no extra loose) and 3 (no SF pair) are
+        // no longer requirements and stay empty.
+        double bfail = 6.;
+        if      (!(boostedLead->Pt() > 60.0))        bfail = 0.;
+        else if (!passLeadTrigger(boostedLead))      bfail = 2.;
+        else if (!passBoostedDRFail)                 bfail = 4.;
+        else if (fatjets.size() < 1)                 bfail = 5.;
+        FillBDTBoostedFailCutflow(bfail);
+        FillBDTLostLeptonMult(failbin, bfail);
+    }
+
+    // ---- Fills (same layout/binning as the cut-based SR_* lhe histograms) ----
+    if (isResolvedCandidate) {
+        const TString ch = resolvedLead->IsElectron() ? "EE" : "MM";
+        const double reco = (resolvedDilepton + selected_jets[0] + selected_jets[1]).M();
+        FillHist("Central/BDTSR_Resolved_" + ch + "_lhe_mass", sig_lheMass_sumall, weight, 10000, 0., 10000.);
+        FillHist("Central/BDTSR_Resolved_" + ch + "_lhe_mass_noweight", sig_lheMass_sumall, 1.0, 10000, 0., 10000.);
+        FillHist("Central/BDTSR_Resolved_" + ch + "_lhe_vs_reco", sig_lheMass_sumall, reco, weight, 1000, 0., 10000., 1000, 0., 10000.);
+        FillHist("Central/BDTSR_Resolved_" + ch + "_mlljj", reco, weight, 10000, 0., 10000.);
+    }
+    if (isBoostedCandidate) {
+        const TString ch = boostedLead->IsElectron() ? "EE" : "MM";
+        // boosted fit observable of the BDT analysis: lead lepton + leading fatjet
+        const double reco = (*boostedLead + fatjets[0]).M();
+        FillHist("Central/BDTSR_Boosted_" + ch + "_lhe_mass", sig_lheMass_sumall, weight, 10000, 0., 10000.);
+        FillHist("Central/BDTSR_Boosted_" + ch + "_lhe_mass_noweight", sig_lheMass_sumall, 1.0, 10000, 0., 10000.);
+        FillHist("Central/BDTSR_Boosted_" + ch + "_lhe_vs_reco", sig_lheMass_sumall, reco, weight, 1000, 0., 10000., 1000, 0., 10000.);
+        FillHist("Central/BDTSR_Boosted_" + ch + "_mlljj", reco, weight, 10000, 0., 10000.);
+    }
+}

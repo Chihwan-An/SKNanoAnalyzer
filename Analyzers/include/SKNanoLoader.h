@@ -545,6 +545,35 @@ public:
     RVec<Int_t> FatJet_subJetIdx1_RunII;
     RVec<Int_t> FatJet_subJetIdx2_RunII;
 
+    // SubJet (the SoftDrop subjets of the AK8 jets)------------------------
+    // Needed for the soft-drop mass JERC. The JME recommendation (CMS Talk, "AK8 Puppi Jet
+    // JERC for Soft Drop Mass", 2026-01) is to apply the AK4 JERC to these subjets and
+    // recompute m_SD from their invariant mass. Applying the AK8 JERC instead corrects
+    // FatJet_pt / FatJet_mass, NOT FatJet_msoftdrop - the two are different observables.
+    //
+    // v15 TODO: NanoAODv15 also carries SubJet_area, which v12 does not have. With the area
+    // the full AK4 JEC chain could be re-applied to the subjets from raw pT, because the
+    // L1FastJet offset needs it (its correctionlib inputs are JetA/JetEta/JetPt/Rho). Add
+    // SubJet_area to this block on the move to v15 if the full re-correction is wanted.
+    // Without it only the JES/JER *uncertainties* can be propagated, which needs nothing
+    // but (eta, pt[, rho]) - that is what AnalyzerCore::RecomputeSoftDropMass does, and it
+    // is enough to make the m_SD selection cut move under JES/JER.
+    Int_t nSubJet;
+    UInt_t nSubJet_RunII;
+    RVec<Float_t> SubJet_pt;
+    RVec<Float_t> SubJet_eta;
+    RVec<Float_t> SubJet_phi;
+    RVec<Float_t> SubJet_mass;
+    RVec<Float_t> SubJet_rawFactor;
+
+    // Gen-level SoftDrop subjets, for the JER scaling method on the subjets.
+    Int_t nSubGenJetAK8;
+    UInt_t nSubGenJetAK8_RunII;
+    RVec<Float_t> SubGenJetAK8_pt;
+    RVec<Float_t> SubGenJetAK8_eta;
+    RVec<Float_t> SubGenJetAK8_phi;
+    RVec<Float_t> SubGenJetAK8_mass;
+
     // MET
     Float_t MET_pt;
     Float_t MET_phi;

@@ -7,6 +7,9 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
+
+#include <nlohmann/json.hpp>
 
 HNWR_miniiso::HNWR_miniiso() {}
 HNWR_miniiso::~HNWR_miniiso() {}  
@@ -71,10 +74,11 @@ void HNWR_miniiso::initializeAnalyzer() {
     if (IsDATA) {
         systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/DataLRSM.yaml", DataStream, DataEra);
     } else {
-        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM.yaml", MCSample, DataEra);
+        systHelper = std::make_unique<SystematicHelper>(SKNANO_HOME + "/docs/MCLRSM_miniiso.yaml", MCSample, DataEra);
     }
 
     NoDYCorr = HasFlag("NoDYCorr");
+    RunXsecSyst = HasFlag("RunXsecSyst");
     ZptOnly = HasFlag("ZptOnly");
     if (NoDYCorr && ZptOnly) {
         cerr << "[HNWR_miniiso] FATAL: NoDYCorr and ZptOnly are mutually "
@@ -83,6 +87,72 @@ void HNWR_miniiso::initializeAnalyzer() {
     }
 
     LoadDYCorrections();
+    LoadTheoryNormK();
+}
+
+// Reads the per-sample inclusive normalisation K_var used to make the four theory
+// nuisances acceptance-only. Missing file or missing entry is NOT an error: the table
+// only covers signal, and everything else keeps K = 1.
+void HNWR_miniiso::LoadTheoryNormK() {
+    theoryK_scale.clear();
+    theoryK_pdf.clear();
+    if (IsDATA) return;
+
+    const char *datadir = getenv("SKNANO_DATA");
+    if (!datadir) {
+        cerr << "[HNWR_miniiso] WARNING: SKNANO_DATA unset; theory nuisances stay "
+             << "un-normalised (inclusive xsec change left in)." << endl;
+        return;
+    }
+    const std::string path =
+        std::string(datadir) + "/" + std::string(DataEra.Data()) + "/HNWR/TheoryNormK.json";
+    std::ifstream f(path);
+    if (!f.is_open()) {
+        cout << "[HNWR_miniiso] no theory-K table at " << path
+             << "; theory nuisances stay un-normalised." << endl;
+        return;
+    }
+
+    nlohmann::json j;
+    try {
+        f >> j;
+    } catch (const std::exception &e) {
+        cerr << "[HNWR_miniiso] FATAL: cannot parse " << path << ": " << e.what() << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    const std::string key = std::string(MCSample.Data());
+    if (!j.contains("samples") || !j["samples"].contains(key)) {
+        cout << "[HNWR_miniiso] " << MCSample << " not in " << path
+             << " (background, or a signal alias without the full 103 PDF members); "
+             << "theory nuisances stay un-normalised." << endl;
+        return;
+    }
+
+    const auto &s = j["samples"][key];
+    if (s.contains("scale")) theoryK_scale = s["scale"].get<std::vector<float>>();
+    if (s.contains("pdf"))   theoryK_pdf   = s["pdf"].get<std::vector<float>>();
+
+    // Sizes must match what the weight targets index into. A short table would silently
+    // fall back to K = 1 for the missing entries and mix normalised with un-normalised
+    // members inside the same PDF envelope, so refuse it outright.
+    if (theoryK_scale.size() != 9 || theoryK_pdf.size() != 103) {
+        cerr << "[HNWR_miniiso] FATAL: " << MCSample << " in " << path
+             << " has scale[" << theoryK_scale.size() << "] pdf[" << theoryK_pdf.size()
+             << "], expected scale[9] pdf[103]." << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    cout << "[HNWR_miniiso] theory-K loaded for " << MCSample << " (" << DataEra
+         << "): muF idx3/idx5 = " << theoryK_scale[3] << "/" << theoryK_scale[5]
+         << ", alphaS idx101/102 = " << theoryK_pdf[101] << "/" << theoryK_pdf[102]
+         << ". Theory nuisances are acceptance-only." << endl;
+}
+
+float HNWR_miniiso::GetTheoryNormK(const std::vector<float> &K, int idx) const {
+    if (idx < 0 || idx >= static_cast<int>(K.size())) return 1.f;
+    const float k = K[idx];
+    return (std::isfinite(k) && k > 0.f) ? k : 1.f;
 }
 
 // eta MUST be the supercluster eta (Electron::scEta()), not the track eta: the
@@ -94,7 +164,7 @@ void HNWR_miniiso::initializeAnalyzer() {
 //   2023       0.992 +- 0.006  0.979 +- 0.019
 //   2023BPix   0.993 +- 0.001  0.978 +- 0.019
 // ---------------------------------------------------------------------------
-// DY corrections: C(gen Z pT) and R(reco jet pT)
+// DY corrections: C(gen Z pT), EW(gen Z pT) and R(reco jet pT)
 // ---------------------------------------------------------------------------
 namespace {
 // Paths are overridable so a re-derived correction can be tested without a
@@ -105,6 +175,13 @@ const char *kDefaultZptFile =
 const char *kDefaultRFile =
     "/data9/Users/achihwan/25-020/AN-25-020/chihwan/fig/05_backgrounds/"
     "corrections/jetpt/dy_jetpt_ratio.root";
+// NLO EW correction EW(genZpT), arXiv:1705.04664, copied verbatim from
+// SKFlatAnalyzer data/Run2Legacy_v4/2018/HNWRDYPtReweight/ZPtEWCorr.root
+// (the 2016/2017/2018 files are byte-identical: pure theory, era-independent,
+// so unlike C and R there is no per-era directory inside).
+const char *kDefaultEWFile =
+    "/data9/Users/achihwan/25-020/AN-25-020/chihwan/fig/05_backgrounds/"
+    "corrections/zpt_ew/ZPtEWCorr.root";
 // isHardProcess lepton pair, LHE_HT > 40 -- the variant C is delivered in.
 const char *kZptVariant = "Zpt_hardproc_HT40";
 
@@ -340,17 +417,44 @@ void HNWR_miniiso::LoadDYCorrections() {
         }
     }
 
+    // --- EW. Applied alongside C exactly as in SKFlat HNWRAnalyzer: whenever
+    // the Z-pT correction is on, EW is on (ZptOnly turns off R, not EW). The
+    // nominal sits in the bin CONTENTS of hist_v; the three uncertainty sources
+    // of arXiv:1705.04664 sit in the bin ERRORS of hist_e1/e2/e3 (their
+    // contents duplicate hist_v and are not read).
+    const char *ewenv = getenv("DY_ZPT_EW_CORRECTION");
+    const TString ewpath = ewenv ? ewenv : kDefaultEWFile;
+    unique_ptr<TFile> ewf(TFile::Open(ewpath));
+    if (!ewf || ewf->IsZombie()) {
+        cerr << "[HNWR_miniiso] FATAL: cannot open " << ewpath << endl;
+        exit(EXIT_FAILURE);
+    }
+    {
+        std::vector<double> dummy_e, dummy_v;
+        if (!ReadTH1(ewf.get(), "hist_v", dycorr.ew_edges, dycorr.ew_val) ||
+            !ReadTH1(ewf.get(), "hist_e1", dummy_e, dummy_v, &dycorr.ew_e1) ||
+            !ReadTH1(ewf.get(), "hist_e2", dummy_e, dummy_v, &dycorr.ew_e2) ||
+            !ReadTH1(ewf.get(), "hist_e3", dummy_e, dummy_v, &dycorr.ew_e3)) {
+            cerr << "[HNWR_miniiso] FATAL: hist_v/e1/e2/e3 missing in "
+                 << ewpath << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
     dycorr.loaded = true;
     dycorr.apply = true;
     // With ZptOnly the R curves were never read, so n_nuis_res/boo stay 0 and
     // the DYReshape nuisance loops iterate zero times. That is the intent: no R
     // means no R nuisances.
     dycorr.apply_r = !ZptOnly;
+    dycorr.apply_ew = true;
     cout << "[HNWR_miniiso] DY corrections on for " << MCSample << " / "
          << DataEra << ": C=on R=" << (dycorr.apply_r ? "on" : "off (userflag ZptOnly)")
-         << ", C from " << zpath << " (" << dycorr.zpt_edges.size() - 1
+         << " EW=on, C from " << zpath << " (" << dycorr.zpt_edges.size() - 1
          << " bins), R from " << rpath << " (" << dycorr.n_nuis_res
-         << " resolved + " << dycorr.n_nuis_boo << " boosted nuisance bins)" << endl;
+         << " resolved + " << dycorr.n_nuis_boo << " boosted nuisance bins)"
+         << ", EW from " << ewpath << " (" << dycorr.ew_edges.size() - 1
+         << " bins)" << endl;
 }
 
 float HNWR_miniiso::GetGenZpT() const {
@@ -386,6 +490,27 @@ float HNWR_miniiso::GetZptStat(float gen_zpt) const {
     // there, so the variation has to be 0 to stay on top of that fallback.
     if (!std::isfinite(s) || s < 0.) return 0.f;
     return static_cast<float>(s);
+}
+
+float HNWR_miniiso::GetZptEW(float gen_zpt, int which, int dir) const {
+    if (!dycorr.apply || !dycorr.apply_ew || gen_zpt < 0.) return 1.f;
+    if (dycorr.ew_val.empty()) return 1.f;
+    // FindBin clamps both sides, which reproduces the SKFlat clipping
+    // (pT<30 -> first bin, pT>=6500 -> last bin) without explicit ifs.
+    const int i = FindBin(dycorr.ew_edges, gen_zpt);
+    if (i < 0 || i >= static_cast<int>(dycorr.ew_val.size())) return 1.f;
+    double v = dycorr.ew_val[i];
+    if (!std::isfinite(v) || v <= 0.) return 1.f;
+    if (which >= 1 && which <= 3 && dir != 0) {
+        const std::vector<double> &errs =
+            which == 1 ? dycorr.ew_e1 : which == 2 ? dycorr.ew_e2 : dycorr.ew_e3;
+        if (i < static_cast<int>(errs.size()) && std::isfinite(errs[i]))
+            v += dir * errs[i];
+        // Same guard as the C stat variation: never hand back <= 0, that
+        // would delete the event instead of down-weighting it.
+        if (v <= 0.) v = 1e-3;
+    }
+    return static_cast<float>(v);
 }
 
 float HNWR_miniiso::GetJetPtR(bool resolved, float pt, int nuis_bin, int dir) const {
@@ -439,8 +564,10 @@ float HNWR_miniiso::GetElectronHEEPIDSF_TnP(double eta, double pt, MyCorrection:
 }
 
 // Mini-isolation SF for the subleading loose lepton in the fatjet, the cut that
-// replaces LSF3 > 0.75 here. Electrons only. NOT wired into weight_function_map yet:
-// LSF_Weight stays at 1, so this analyzer applies the miniIso *cut* without its SF.
+// replaces LSF3 > 0.75 here. ELECTRONS ONLY: egamma-tnp measured this for electrons,
+// there is no muon equivalent, so only the regions whose in-fatjet loose lepton is an
+// electron (boosted SR EE, flavour CR mu-ejet) get a SF. It is applied through the
+// MiniIso_Weight target -- see executeEventFromParameter().
 float HNWR_miniiso::GetElectronMiniIsoSF_TnP(double eta, double pt, MyCorrection::variation var) const {
     static const double eta_edges[7] = {-2.5, -1.566, -1.4442, 0.0, 1.4442, 1.566, 2.5};
     static const double pt_edges[10] = {53, 60, 70, 80, 100, 150, 200, 300, 500, 1000};
@@ -479,8 +606,6 @@ void HNWR_miniiso::executeEvent() {
 
     SetSignalFlags();
 
-    std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
-
     for (const auto &syst_dummy : *systHelper) {
         executeEventFromParameter();
     }
@@ -489,13 +614,20 @@ void HNWR_miniiso::executeEvent() {
 
 void HNWR_miniiso::executeEventFromParameter() {
     const TString this_syst = systHelper->getCurrentSysName();
+
+    // RunXsecSyst produces one thing only: the per-PDF-member fit observable, which is
+    // filled in the Central pass. Every object-variation pass (JES/JER/... , evtLoopAgain:
+    // true) would re-run the whole event to fill histograms this job does not write, so
+    // leave immediately. Cuts the job to a single pass over the events.
+    if (RunXsecSyst && this_syst != "Central") return;
     
     Event ev = GetEvent();
     Particle METv = ev.GetMETVector(Event::MET_Type::PUPPI,Event::MET_Syst::CENTRAL);
     
     
     std::unordered_map<std::string, std::variant<std::function<float(MyCorrection::variation, TString)>, std::function<float()>>> weight_function_map;
-    auto dummy_sf = [](MyCorrection::variation var, TString source) -> float { return 1.0; };
+    weight_function_map.reserve(30);  // Pre-allocate to avoid rehashing
+    static auto dummy_sf = [](MyCorrection::variation var, TString source) -> float { return 1.0f; };
 
     weight_function_map["PU_Weight"]     = dummy_sf;
     // Electron Targets
@@ -512,19 +644,23 @@ void HNWR_miniiso::executeEventFromParameter() {
     weight_function_map["JER_Variation"] = dummy_sf;
     weight_function_map["JES_Variation"] = dummy_sf;
     // Object-level kinematic variations: the systematic is applied by re-running the event
-    // with a varied collection, so the weight target is a dummy (see docs/MCLRSM.yaml).
+    // with a varied collection, so the weight target is a dummy (see docs/MCLRSM_miniiso.yaml).
     weight_function_map["MuonScale_Variation"]     = dummy_sf;
+    weight_function_map["MuonRes_Variation"]       = dummy_sf;
     weight_function_map["ElectronScale_Variation"] = dummy_sf;
     weight_function_map["ElectronRes_Variation"]   = dummy_sf;
     weight_function_map["FatJetJES_Variation"]     = dummy_sf;
     weight_function_map["FatJetJER_Variation"]     = dummy_sf;
     weight_function_map["M_Iso_Weight"]  = dummy_sf;
-    // LSF3 cut efficiency SF: never assigned in this analyzer. The LSF3 cut is replaced
-    // by the subleading-lepton miniIso cut, and its SF (GetElectronMiniIsoSF_TnP) is not
-    // applied yet, so this target stays at the dummy 1. The entry itself must stay:
-    // docs/MCLRSM.yaml is shared with Reproduce20_002_copy and still declares the LSF
-    // systematic, so the target has to exist or calculateWeight() cannot resolve it.
-    weight_function_map["LSF_Weight"]    = dummy_sf;
+    // Mini-isolation cut efficiency SF. These analyzers drop the LSF3 > 0.75 cut in
+    // favour of a miniIso cut on the subleading loose lepton, so this target replaces
+    // Reproduce20_002_copy's "LSF_Weight" entirely -- hence the dedicated systematic
+    // list docs/MCLRSM_miniiso.yaml ("MiniIso" -> "MiniIso_Weight"); MCLRSM.yaml still
+    // declares LSF and is used by Reproduce20_002_copy only. Assigned only where the
+    // loose lepton inside the fatjet is an ELECTRON (boosted SR EE, flavour CR
+    // mu-ejet): the egamma-tnp measurement has no muon counterpart, so the muon-in-
+    // fatjet regions (SR MM, flavour CR e-mujet) keep this dummy 1.
+    weight_function_map["MiniIso_Weight"] = dummy_sf;
 
     // XSec(theory) weight targets
     weight_function_map["ScaleWeight_muF"] = dummy_sf;
@@ -538,6 +674,9 @@ void HNWR_miniiso::executeEventFromParameter() {
     weight_function_map["ZPt_QCDScale"]     = dummy_sf;
     weight_function_map["ZPt_QCDPDFError"]  = dummy_sf;
     weight_function_map["ZPt_QCDPDFAlphaS"] = dummy_sf;
+    weight_function_map["ZPt_EW1"]          = dummy_sf;
+    weight_function_map["ZPt_EW2"]          = dummy_sf;
+    weight_function_map["ZPt_EW3"]          = dummy_sf;
 
 
 
@@ -603,38 +742,88 @@ void HNWR_miniiso::executeEventFromParameter() {
             zpt_ratio_target("ZPTReweight_QCDPDFErrorUp", "ZPTReweight_QCDPDFErrorDown");
         weight_function_map["ZPt_QCDPDFAlphaS"] =
             zpt_ratio_target("ZPTReweight_QCDPDFAlphaSUp", "ZPTReweight_QCDPDFAlphaSDown");
+
+        // --- EW(gen Z pT), same one-factor-of-EW bookkeeping as C above:
+        // ZPt_EW1 carries the EW nominal and its e1 variation; EW2/EW3 return
+        // 1 at nominal and the ratio EW_var/EW_nom, so Central picks up the
+        // EW correction exactly once and each of the three uncertainty
+        // sources of arXiv:1705.04664 varies independently.
+        const float ew_nom = GetZptEW(gen_zpt);
+        weight_function_map["ZPt_EW1"] = [this, gen_zpt, ew_nom](MyCorrection::variation var, TString source) -> float {
+            if (var == MyCorrection::variation::up)
+                return GetZptEW(gen_zpt, 1, +1);
+            if (var == MyCorrection::variation::down)
+                return GetZptEW(gen_zpt, 1, -1);
+            return ew_nom;
+        };
+        auto ew_ratio_target = [this, gen_zpt, ew_nom](int which) {
+            return [this, gen_zpt, ew_nom, which](MyCorrection::variation var, TString source) -> float {
+                if (ew_nom <= 0.) return 1.f;
+                if (var == MyCorrection::variation::up)
+                    return GetZptEW(gen_zpt, which, +1) / ew_nom;
+                if (var == MyCorrection::variation::down)
+                    return GetZptEW(gen_zpt, which, -1) / ew_nom;
+                return 1.f;
+            };
+        };
+        weight_function_map["ZPt_EW2"] = ew_ratio_target(2);
+        weight_function_map["ZPt_EW3"] = ew_ratio_target(3);
     }
 
     // --- XSec(theory) weight systematics ---
     // Each function returns the absolute event weight for the given variation (nom == 1),
     // so calculateWeight() forms Up/Down by nominal_weight / nom * up(down).
+    //
+    // ACCEPTANCE ONLY: every LHE weight below is divided by the inclusive normalisation
+    // K_var of its own index (theoryK_scale / theoryK_pdf; see LoadTheoryNormK). The raw
+    // weights are inclusive-xsec change TIMES acceptance change, and these four nuisances
+    // are signal-only in the datacards, so they must carry acceptance alone. Without the
+    // division the nuisance is dominated by the normalisation -- WR4000 is ~35% inclusive
+    // PDF against a few-% acceptance -- which inflates it by roughly an order of magnitude
+    // and makes the limit correspondingly conservative. The inclusive piece is instead
+    // drawn as the theory band of the exclusion plot (the Run2 "SignalScale lnN" slot).
+    // K = 1 for any sample without a table entry, reproducing the previous behaviour.
     // muF: vary factorization scale, keep renormalization scale nominal.
     weight_function_map["ScaleWeight_muF"] = [&](MyCorrection::variation var, TString source) -> float {
-        return GetScaleVariation(var, MyCorrection::variation::nom);
+        const float r = GetScaleVariation(var, MyCorrection::variation::nom);
+        return r / GetTheoryNormK(theoryK_scale,
+                                  GetScaleVariationIndex(var, MyCorrection::variation::nom));
     };
     // muR: vary renormalization scale, keep factorization scale nominal.
+    // NOTE: for the WR signal this is identically 1 both before and after normalisation --
+    // W_R production is EW at LO, so the matrix element has no alpha_S and no muR
+    // dependence (the 9 weights are 3 identical blocks). The nuisance is only meaningful
+    // for backgrounds, which the datacards do not attach it to; see the theory_norm_split
+    // README section 6 for the card-side decision this still needs.
     weight_function_map["ScaleWeight_muR"] = [&](MyCorrection::variation var, TString source) -> float {
-        return GetScaleVariation(MyCorrection::variation::nom, var);
+        const float r = GetScaleVariation(MyCorrection::variation::nom, var);
+        return r / GetTheoryNormK(theoryK_scale,
+                                  GetScaleVariationIndex(MyCorrection::variation::nom, var));
     };
-    // PDF envelope: Hessian sum in quadrature over members 1..100 (LHEPdfWeight[0] is central == 1).
-    weight_function_map["PDF_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
-        if (nLHEPdfWeight < 103) return 1.f;
-        const float w0 = LHEPdfWeight[0];
-        float sumSq = 0.f;
-        for (int i = 1; i <= 100; i++) {
-            const float dw = LHEPdfWeight[i] - w0;
-            sumSq += dw * dw;
-        }
-        const float deltaPDF = sqrt(sumSq);
-        if (var == MyCorrection::variation::up)   return w0 + deltaPDF;
-        if (var == MyCorrection::variation::down) return w0 - deltaPDF;
-        return 1.f;
-    };
+    // PDF envelope: RETIRED as a weight target -- it stays at the dummy 1.
+    //
+    // A Hessian envelope is a quadrature sum over members OF THE OBSERVABLE,
+    // dN(bin) = sqrt(sum_i (N_i(bin) - N_0(bin))^2), and N_i(bin) is itself a sum over
+    // events. A single event weight cannot express that: (sum_evt x)^2 != sum_evt x^2.
+    // The old implementation took the envelope event by event, which adds |shift| with no
+    // cancellation even though every member pushes all events the same way. Measured on
+    // WR4000N2100EE / 2022EE: 71.4% in SR_Resolved_EE and 73.6% in SR_Boosted_EE, against
+    // 0.45% and 1.92% for the correct envelope -- a factor 157 and 38. Before any
+    // selection, where closure demands 0, it gave 0.73 instead of 0.0034.
+    //
+    // The replacement is the RunXsecSyst userflag: it writes PDFmem<i>/<region>_mlljj, one
+    // histogram per member, and the envelope is formed after hadd by
+    // tables/06_systematics/theory_norm_split/make_pdf_envelope.py. Per-member histograms
+    // have to survive hadd -- they add linearly, an envelope does not -- which is why the
+    // members are stored rather than accumulated into a single number in the job.
+    //
+    // The "PDF" entry is removed from docs/MCLRSM*.yaml, so this target is now unreferenced;
+    // it is kept defined so an older yaml still resolves instead of crashing.
     // alpha_S: dedicated PDF members (101 = down, 102 = up).
     weight_function_map["AlphaS_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
         if (nLHEPdfWeight < 103) return 1.f;
-        if (var == MyCorrection::variation::up)   return LHEPdfWeight[102];
-        if (var == MyCorrection::variation::down) return LHEPdfWeight[101];
+        if (var == MyCorrection::variation::up)   return LHEPdfWeight[102] / GetTheoryNormK(theoryK_pdf, 102);
+        if (var == MyCorrection::variation::down) return LHEPdfWeight[101] / GetTheoryNormK(theoryK_pdf, 101);
         return 1.f;
     };
     
@@ -1205,13 +1394,23 @@ void HNWR_miniiso::executeEventFromParameter() {
         // only for the variations would leave Central un-smeared, making both variations
         // shift in the same direction instead of bracketing Central.
         RVec<GenJet> genjets = GetAllGenJets();
+        // AK4 JER. "FatJetJER_Up" also Contains("JER_Up"), so the FatJet guard is
+        // required: without it the FatJetJER passes would vary the AK4 JER as well,
+        // even though the two nuisances are deliberately decorrelated.
         MyCorrection::variation jer_var = MyCorrection::variation::nom;
-        if (this_syst.Contains("JER_Up"))        jer_var = MyCorrection::variation::up;
-        else if (this_syst.Contains("JER_Down")) jer_var = MyCorrection::variation::down;
+        if (!this_syst.Contains("FatJetJER")) {
+            if (this_syst.Contains("JER_Up"))        jer_var = MyCorrection::variation::up;
+            else if (this_syst.Contains("JER_Down")) jer_var = MyCorrection::variation::down;
+        }
         jets = SmearJets(jets, genjets, jer_var, "total");
 
+        // AK8 JER: smeared exactly once, with the variation only in the FatJetJER
+        // passes. (AK4 JER passes leave the AK8 smearing at nominal.)
         RVec<GenJet> genjetsak8 = GetAllGenJetAK8();
-        fatjets = SmearFatJets(fatjets, genjetsak8, jer_var, "total");
+        MyCorrection::variation ak8_jer_var = MyCorrection::variation::nom;
+        if (this_syst.Contains("FatJetJER_Up"))        ak8_jer_var = MyCorrection::variation::up;
+        else if (this_syst.Contains("FatJetJER_Down")) ak8_jer_var = MyCorrection::variation::down;
+        fatjets = SmearFatJets(fatjets, genjetsak8, ak8_jer_var, "total");
 
         // Apply JES systematics (AK4 only; AK8 has its own FatJetJES nuisance below)
         if (this_syst.Contains("JES_Up") && !this_syst.Contains("FatJetJES")) {
@@ -1220,15 +1419,35 @@ void HNWR_miniiso::executeEventFromParameter() {
             jets = ScaleJets(jets, MyCorrection::variation::down, "total");
         }
 
-        // --- AK8 scale / resolution, decorrelated from AK4 --------------------------
+        // --- AK8 scale, decorrelated from AK4 ----------------------------------------
         if (this_syst.Contains("FatJetJES_Up")) {
             fatjets = ScaleFatJets(fatjets, MyCorrection::variation::up);
         } else if (this_syst.Contains("FatJetJES_Down")) {
             fatjets = ScaleFatJets(fatjets, MyCorrection::variation::down);
-        } else if (this_syst.Contains("FatJetJER_Up")) {
-            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::up, "total");
-        } else if (this_syst.Contains("FatJetJER_Down")) {
-            fatjets = SmearFatJets(fatjets, genjetsak8, MyCorrection::variation::down, "total");
+        }
+
+        // --- soft-drop mass: AK4 JERC on the SoftDrop subjets ------------------------
+        // JME recommendation (CMS Talk, "AK8 Puppi Jet JERC for Soft Drop Mass", Jan 2026):
+        // m_SD is corrected by applying the AK4 JERC to the subjets and recomputing their
+        // invariant mass. The AK8 JES/JER above correct FatJet_pt / FatJet_mass and leave
+        // FatJet_msoftdrop untouched, so m_SD is driven by the AK4 nuisances, NOT by
+        // FatJetJES/FatJetJER - deliberately hung off JES/JER to keep it correlated with the
+        // AK4 jets, since it is the same uncertainty source.
+        // This is not cosmetic: m_SD > FatJet_SDM (40 GeV) is a selection cut, and roughly
+        // 11-16% of the selected yield sits within 10 GeV above it.
+        // The trailing else is NOT optional: the call also applies the JER nominal smearing
+        // (NanoAOD's msoftdrop has the subjet JEC but no smearing), so every pass has to
+        // make it or it would differ from Central for a reason that is not its nuisance.
+        if (this_syst.Contains("JES_Up") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::up, "total", false);
+        } else if (this_syst.Contains("JES_Down") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::down, "total", false);
+        } else if (this_syst.Contains("JER_Up") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::up, "total", true);
+        } else if (this_syst.Contains("JER_Down") && !this_syst.Contains("FatJet")) {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::down, "total", true);
+        } else {
+            fatjets = VarySoftDropMass(fatjets, MyCorrection::variation::nom, "total", false);
         }
 
         // --- lepton energy/momentum variations --------------------------------------
@@ -1239,6 +1458,14 @@ void HNWR_miniiso::executeEventFromParameter() {
         } else if (this_syst.Contains("MuonScale_Down")) {
             muons = ScaleMuons(muons, "down");
         }
+        // Muon resolution: flat 10% additional smearing (POG resolution deck 2024/06/03).
+        // MC-only and high-pT-only by construction; one-sided in the barrel for 2022 and
+        // 2023BPix, where the nominal smearing is 0 and a Gaussian cannot sharpen MC.
+        if (this_syst.Contains("MuonRes_Up")) {
+            muons = SmearMuons(muons, "up");
+        } else if (this_syst.Contains("MuonRes_Down")) {
+            muons = SmearMuons(muons, "down");
+        }
         if (this_syst.Contains("ElectronScale_Up")) {
             electrons = ScaleElectrons(ev, electrons, "up");
         } else if (this_syst.Contains("ElectronScale_Down")) {
@@ -1248,7 +1475,9 @@ void HNWR_miniiso::executeEventFromParameter() {
         } else if (this_syst.Contains("ElectronRes_Down")) {
             electrons = SmearElectrons(electrons, "down");
         }
-        if (this_syst.Contains("JER_Up") || this_syst.Contains("JER_Down") || this_syst.Contains("JES_Up") || this_syst.Contains("JES_Down")) {
+        // AK4-only monitoring; FatJetJES/JER passes leave the AK4 jets at nominal.
+        if (!this_syst.Contains("FatJet") &&
+            (this_syst.Contains("JER_Up") || this_syst.Contains("JER_Down") || this_syst.Contains("JES_Up") || this_syst.Contains("JES_Down"))) {
             for (const auto& jet : jets) {
                 FillHist(this_syst + "/JESJER_after_jetpt",jet.Pt(), weight, 2000, 0., 2000.);
             }
@@ -1479,12 +1708,14 @@ void HNWR_miniiso::executeEventFromParameter() {
                 // HEEP ID SF from egamma-tnp T&P, (pt, eta) binned
                 return GetElectronHEEPIDSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
             };
-        /*
-        weight_function_map["M_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float   {
-            if (DataEra=="2017") return 1.0;
-            return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0], var)) ;
-        };
-        */
+            // Muon ID SF for the single tight muon of the resolved EM (flavour) CR.
+            // Must stay enabled: rFlvCR shares the R_TT_Resolved rateParam with rEESR /
+            // rDYEECR / rDYMuMuCR, so a missing SF here biases the fitted TT
+            // normalisation that propagates into the SR.
+            weight_function_map["M_Id_Weight"] = [&](MyCorrection::variation var, TString source) -> float   {
+                if (DataEra=="2017") return 1.0;
+                return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0], var)) ;
+            };
             FillHist(this_syst + "/tightmuons", 3 , weight, 5, 0., 5.);
         }
 
@@ -1556,7 +1787,7 @@ void HNWR_miniiso::executeEventFromParameter() {
                         
                         //float MuonIDSF = (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0]))*(myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[1]));
                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return (myCorr->GetMuonRECOSF(*Tight_muons[0], var) * myCorr->GetMuonRECOSF(*Tight_muons[1], var));
+                            return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0], var) * myCorr->GetMuonHighPtRECOSF(*Tight_muons[1], var));
                         };
                         //float MuonRECOSF = (myCorr->GetMuonRECOSF(*Tight_muons[0]) * myCorr->GetMuonRECOSF(*Tight_muons[1]));
                         // Fix: build trig_muons inside lambda to avoid dangling reference
@@ -1585,7 +1816,7 @@ void HNWR_miniiso::executeEventFromParameter() {
                             return    (myCorr->GetElectronRECOSF(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), Tight_electrons[0]->Phi(),var)) ;
                         };
                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                            return  myCorr->GetMuonRECOSF(*Tight_muons[0], var);
+                            return  myCorr->GetMuonHighPtRECOSF(*Tight_muons[0], var);
                         };
                         
                         weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
@@ -1746,7 +1977,6 @@ void HNWR_miniiso::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                     }
                     else if (tmp_isEM) {
@@ -2008,7 +2238,6 @@ void HNWR_miniiso::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                             for (int i = 0; i < lhe.size(); i++) {
                                 float q1 = lhe[i].PdgId();
@@ -2182,7 +2411,7 @@ void HNWR_miniiso::executeEventFromParameter() {
                                             if (DataEra=="2017") return 1.0;
                                             return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                         weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source) {
-                                            return (myCorr->GetMuonRECOSF(*Tight_muons[0],var)) ;};
+                                            return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var)) ;};
                                         
                                         // Fix: capture LowMllLooseLepton by value to avoid dangling reference
                                         // (LowMllLooseLepton goes out of scope before lambda is evaluated at systHelper->calculateWeight())
@@ -2325,7 +2554,6 @@ void HNWR_miniiso::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                                         
                                         if (looselepton_infatjet){
@@ -2518,9 +2746,17 @@ void HNWR_miniiso::executeEventFromParameter() {
                                                         return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                                                     };
                                                 }
-                                                    // SR EE: electron inside the fatjet.
-                                                    // No LSF_Weight here: the LSF3 cut is replaced by the
-                                                    // subleading-lepton miniIso cut and its SF is not applied.
+                                                    // SR EE: the loose lepton inside the fatjet is an electron, so the
+                                                    // miniIso cut that replaced LSF3 carries its egamma-tnp SF.
+                                                    // scEta/pt are read out here rather than inside the lambda:
+                                                    // SFLooseLepton is out of scope by the time calculateWeight() runs.
+                                                    {
+                                                        const double miniiso_sceta = ((Electron *)SFLooseLepton)->scEta();
+                                                        const double miniiso_pt    = SFLooseLepton->Pt();
+                                                        weight_function_map["MiniIso_Weight"] = [this, miniiso_sceta, miniiso_pt](MyCorrection::variation var, TString source) -> float {
+                                                            return GetElectronMiniIsoSF_TnP(miniiso_sceta, miniiso_pt, var);
+                                                        };
+                                                    }
 
                                                 }
                                                 if(is_tmp_lead_mu){
@@ -2536,7 +2772,7 @@ void HNWR_miniiso::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                                     weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                    return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var));};
                                                     
                                                     // Fix: capture SFLooseLepton by value to avoid dangling reference
                                                     // (SFLooseLepton goes out of scope before lambda is evaluated at systHelper->calculateWeight())
@@ -2552,9 +2788,9 @@ void HNWR_miniiso::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                         return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
 
-                                                    // SR MM: muon inside the fatjet.
-                                                    // No LSF_Weight here: the LSF3 cut is replaced by the
-                                                    // subleading-lepton miniIso cut and its SF is not applied.
+                                                    // SR MM: the loose lepton inside the fatjet is a muon. No MiniIso_Weight --
+                                                    // the miniIso SF is an electron-only measurement, so this region takes
+                                                    // the miniIso cut without a SF.
 
                                                 }
                                             }
@@ -2669,7 +2905,6 @@ void HNWR_miniiso::executeEventFromParameter() {
                                                     if (tightmuon1_org_pt != tightmuon1_pt) {
                                                         float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                         FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                        cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                                     }
                                                     for (int i = 0; i < lhe.size(); i++) {
                                                         float q1 = lhe[i].PdgId();
@@ -2772,8 +3007,8 @@ void HNWR_miniiso::executeEventFromParameter() {
                                                             return GetElectronTriggerSF_TnP(Tight_electrons[0]->scEta(), Tight_electrons[0]->Pt(), var);
                                                         };
                                                     }
-                                                        // Flavor CR e-mujet: muon inside the fatjet.
-                                                        // No LSF_Weight: LSF3 cut replaced by the miniIso cut.
+                                                        // Flavour CR e-mujet: the loose lepton inside the fatjet is a
+                                                        // muon -> no miniIso SF (electron-only measurement).
                                                 }
                                                 if(is_tmp_lead_mu){
                                                     ////cout<<"ok11"<<endl;
@@ -2782,7 +3017,7 @@ void HNWR_miniiso::executeEventFromParameter() {
                                                     if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_HighPtID_DEN_GlobalMuonProbes", *Tight_muons[0],var));};
                                                     weight_function_map["M_Reco_Weight"] = [&](MyCorrection::variation var, TString source)  {
-                                                    return (myCorr->GetMuonRECOSF(*Tight_muons[0],var));};
+                                                    return (myCorr->GetMuonHighPtRECOSF(*Tight_muons[0],var));};
                                                     
                                                     weight_function_map["M_Trig_Weight"] = [&](MyCorrection::variation var, TString source) -> float {
                                                     if (DataEra=="2017") return 1.0;
@@ -2792,8 +3027,17 @@ void HNWR_miniiso::executeEventFromParameter() {
                                                         if (DataEra=="2017") return 1.0;
                                                     return (myCorr->GetMuonIDSF("NUM_probe_LooseRelTkIso_DEN_HighPtProbes",*Tight_muons[0],var));};
 
-                                                    // Flavor CR mu-ejet: electron inside the fatjet.
-                                                    // No LSF_Weight: LSF3 cut replaced by the miniIso cut.
+                                                    // Flavour CR mu-ejet: the loose lepton inside the fatjet is an
+                                                    // electron -> apply the miniIso SF on the MiniIso_Weight target.
+                                                    // scEta/pt read out here: OFLooseLepton is out of scope by the
+                                                    // time calculateWeight() evaluates the lambda.
+                                                    {
+                                                        const double miniiso_sceta = ((Electron *)OFLooseLepton)->scEta();
+                                                        const double miniiso_pt    = OFLooseLepton->Pt();
+                                                        weight_function_map["MiniIso_Weight"] = [this, miniiso_sceta, miniiso_pt](MyCorrection::variation var, TString source) -> float {
+                                                            return GetElectronMiniIsoSF_TnP(miniiso_sceta, miniiso_pt, var);
+                                                        };
+                                                    }
 
                                                 }
                                         }
@@ -3071,7 +3315,6 @@ void HNWR_miniiso::executeEventFromParameter() {
                                             if (tightmuon1_org_pt != tightmuon1_pt) {
                                                 float rel = tightmuon1_pt / tightmuon1_org_pt;
                                                 FillHist(this_syst + "/Muon_TuneP_RelPt", rel, weight, 100, -1., 1.);
-                                                cout<<"Muon TuneP RelPt: "<<rel<<endl;
                                             }
                                             electron2_tight_charge = ((Electron*)OFLooseLepton)->TightCharge();
                                             FillHist(this_syst + "/Boosted_Flav_EMJ_electron1_tight_charge", electron1_tight_charge , 1.0, 5, 0., 5.);
@@ -3154,11 +3397,32 @@ void HNWR_miniiso::executeEventFromParameter() {
         std::vector<std::tuple<std::string, float, float, float>> fill_targets;
         const float R_res_nom = (dycorr.apply && selected_jets.size() > 0)
             ? GetJetPtR(true, selected_jets[0].Pt()) : 1.0f;
-        const float R_boo_nom = (dycorr.apply && fatjets.size() > 0)
-            ? GetJetPtR(false, fatjets[0].Pt()) : 1.0f;
+        // The boosted lookup pT must be the variable R was DERIVED against:
+        // the DY CR histograms the first fatjet with |dPhi(lead lepton, J)| >
+        // 2.0 (HNWR_miniiso.cc:2224), the requirement every
+        // boosted region shares -- not the plain leading fatjet. Until
+        // 2026-07-29 this used fatjets[0].Pt(); when the leading fatjet sits
+        // on the lepton side and a subleading one is the region's fatjet
+        // (~30% of the 400-600 GeV lookup bin in the DY CR), R was read one
+        // bin too high. The lead lepton here is Tight_leps[0], exactly what
+        // the boosted branches use as LeadLep. Fallback: fatjets[0] -- if no
+        // fatjet passes dPhi, no boosted region is filled and the value is
+        // never used.
+        float r_boo_pt = fatjets.size() > 0 ? fatjets[0].Pt() : -1.f;
+        if (fatjets.size() > 0 && Tight_leps.size() > 0) {
+            for (const auto &fj : fatjets) {
+                if (std::abs(Tight_leps[0]->DeltaPhi(fj)) > 2.0) {
+                    r_boo_pt = fj.Pt();
+                    break;
+                }
+            }
+        }
+        const float R_boo_nom = (dycorr.apply && r_boo_pt > 0.f)
+            ? GetJetPtR(false, r_boo_pt) : 1.0f;
 
+        std::unordered_map<std::string, float> weight_map;
         if (!IsDATA) {
-            auto weight_map = systHelper->calculateWeight();
+            weight_map = systHelper->calculateWeight();
             for (const auto& [sn, sf_val] : weight_map) {
                 fill_targets.push_back({sn, weight * sf_val, R_res_nom, R_boo_nom});
             }
@@ -3173,14 +3437,19 @@ void HNWR_miniiso::executeEventFromParameter() {
         // already folded into a single band, following the Run 2 AN treatment --
         // and leaves the other bins nominal.
         if (!IsDATA && dycorr.apply && this_syst == "Central") {
-            const float w_central = weight * systHelper->calculateWeight()["Central"];
+            const float w_central = weight * weight_map["Central"];
+            // nuis_bin is the index on the rebinned R curve, whose bin 0 is
+            // the undefined below-cut bin (NaN, GetJetPtR returns before the
+            // variation). BinK therefore targets curve index K = b + 1.
+            // Passing b (as until 2026-07-29) made Bin1 a no-op variation and
+            // left the last R bin with no variation at all.
             for (int b = 0; b < dycorr.n_nuis_res; b++) {
                 for (int d = -1; d <= 1; d += 2) {
                     const TString nm = TString::Format("ResolvedDYReshapeBin%d_%s",
                                                        b + 1, d > 0 ? "Up" : "Down");
                     fill_targets.push_back({std::string(nm), w_central,
                         selected_jets.size() > 0
-                            ? GetJetPtR(true, selected_jets[0].Pt(), b, d) : 1.0f,
+                            ? GetJetPtR(true, selected_jets[0].Pt(), b + 1, d) : 1.0f,
                         R_boo_nom});
                 }
             }
@@ -3189,13 +3458,17 @@ void HNWR_miniiso::executeEventFromParameter() {
                     const TString nm = TString::Format("BoostedDYReshapeBin%d_%s",
                                                        b + 1, d > 0 ? "Up" : "Down");
                     fill_targets.push_back({std::string(nm), w_central, R_res_nom,
-                        fatjets.size() > 0
-                            ? GetJetPtR(false, fatjets[0].Pt(), b, d) : 1.0f});
+                        r_boo_pt > 0.f
+                            ? GetJetPtR(false, r_boo_pt, b + 1, d) : 1.0f});
                 }
             }
         }
 
         for (const auto& [syst_name, final_weight_noR, R_res, R_boo] : fill_targets) {
+        // RunXsecSyst writes only the PDF member histograms (filled after this loop).
+        // Skipping the ordinary fills takes the output from 279 MB to a few tens of MB per
+        // sample, which is what makes running the flag over every signal alias practical.
+        if (RunXsecSyst) break;
         //resolved
         //DY CR
         {
@@ -3791,6 +4064,45 @@ void HNWR_miniiso::executeEventFromParameter() {
         // syst_name: "Central", "PU_Weight_Up" 등
         // sf_val: 해당 케이스의 SF 값 (예: 0.99)
         
+        }
+
+        // --- RunXsecSyst: per-PDF-member mlljj -------------------------------------
+        // Central pass only. The member histograms are an input to the OFFLINE envelope
+        // (see tables/06_systematics/theory_norm_split), not a nuisance themselves, so
+        // they must not be crossed with the object-variation passes.
+        //
+        // Each member weight is divided by its own inclusive normalisation K_i exactly as
+        // the PDF_Weight target is, which makes the envelope acceptance-only: summed over
+        // all events every member reproduces the central yield, so what survives after a
+        // selection is purely the change in selection efficiency.
+        //
+        // Member 0 is the central PDF and is written too -- the offline step needs N_0
+        // from the same fills, and reading it from the Central directory instead would
+        // fold in every other weight target.
+        if (RunXsecSyst && !IsDATA && this_syst == "Central" && nLHEPdfWeight >= 103) {
+            const float w_xs = weight * weight_map["Central"];
+            for (int i = 0; i < 103; i++) {
+                const float w_i = w_xs * LHEPdfWeight[i] / GetTheoryNormK(theoryK_pdf, i);
+                const TString dir = TString::Format("PDFmem%03d/", i);
+                for (auto [cond, pfx, mlljj, boosted, nbin] :
+                     std::initializer_list<std::tuple<bool, const char*, float, bool, int>>{
+            {is_Resolved_DY_EE, "DYCR_Resolved_EE", Resolve_DYCREEmlljj, false, 800},
+            {is_Resolved_DY_MM, "DYCR_Resolved_MM", Resolve_DYCRMMmlljj, false, 800},
+            {is_Resolved_SR_EE, "SR_Resolved_EE", Resolve_SREEmlljj, false, 8000},
+            {is_Resolved_SR_MM, "SR_Resolved_MM", Resolve_SRMMmlljj, false, 8000},
+            {is_Resolved_Flav_EM, "FlavCR_Resolved_EM", Resolve_FlavCRmlljj, false, 8000},
+            {is_Boosted_DY_EE, "DYCR_Boosted_EE", Boost_DYCREEmlljj, true, 8000},
+            {is_Boosted_DY_MM, "DYCR_Boosted_MM", Boost_DYCRMMmlljj, true, 8000},
+            {is_Boosted_SR_EE, "SR_Boosted_EE", Boost_SREEmlljj, true, 8000},
+            {is_Boosted_SR_MM, "SR_Boosted_MM", Boost_SRMMmlljj, true, 8000},
+            {is_Boosted_Flav_EMJ, "FlavCR_Boosted_EMJ", Boost_FlavEMJmlljj, true, 8000},
+            {is_Boosted_Flav_MEJ, "FlavCR_Boosted_MEJ", Boost_FlavMEJmlljj, true, 8000},
+                     }) {
+                    if (!cond) continue;
+                    FillHist(dir + pfx + "_mlljj", mlljj,
+                             w_i * (boosted ? R_boo_nom : R_res_nom), nbin, 0., 8000.);
+                }
+            }
         }
     }
 }

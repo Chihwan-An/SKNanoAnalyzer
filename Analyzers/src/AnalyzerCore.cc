@@ -142,11 +142,11 @@ bool AnalyzerCore::PassNoiseFilter(const RVec<Jet> &Alljets, const Event &ev, co
     }
 }
 
-float AnalyzerCore::GetScaleVariation(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst) {
-    if(nLHEScaleWeight == 0) return 1.;
+int AnalyzerCore::GetScaleVariationIndex(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst) const {
+    if(nLHEScaleWeight == 0) return -1;
 
-    // (muF, muR) == (nom, nom) is the central value by definition.
-    if(muF_syst == MyCorrection::variation::nom && muR_syst == MyCorrection::variation::nom) return 1.f;
+    // (muF, muR) == (nom, nom) is the central value by definition: no index to read.
+    if(muF_syst == MyCorrection::variation::nom && muR_syst == MyCorrection::variation::nom) return -1;
 
     // Standard NanoAOD LHEScaleWeight ordering: muR is the outer (slow) index,
     // muF the inner (fast) index, i.e. index = 3*iR + iF with i in {down,nom,up}.
@@ -159,18 +159,21 @@ float AnalyzerCore::GetScaleVariation(const MyCorrection::variation &muF_syst, c
         if(v == MyCorrection::variation::up)   return 2;
         return 1; // nom
     };
-    const int iF = varIndex(muF_syst);
-    const int iR = varIndex(muR_syst);
+    const int idx = 3 * varIndex(muR_syst) + varIndex(muF_syst);
 
-    if(nLHEScaleWeight == 9) {
-        // nominal present at index 4; direct 3x3 grid.
-        return LHEScaleWeight[3 * iR + iF];
-    }
-    if(nLHEScaleWeight == 8) {
-        // nominal (iR=1,iF=1) removed; shift indices at/after the nominal slot.
-        int idx = 3 * iR + iF;   // position in the notional 9-element grid
-        return LHEScaleWeight[idx > 4 ? idx - 1 : idx];
-    }
+    if(nLHEScaleWeight == 9) return idx;                    // direct 3x3 grid
+    if(nLHEScaleWeight == 8) return idx > 4 ? idx - 1 : idx; // nominal slot removed
+    return -1;                                              // unexpected multiplicity
+}
+
+float AnalyzerCore::GetScaleVariation(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst) {
+    if(nLHEScaleWeight == 0) return 1.;
+
+    // (muF, muR) == (nom, nom) is the central value by definition.
+    if(muF_syst == MyCorrection::variation::nom && muR_syst == MyCorrection::variation::nom) return 1.f;
+
+    const int idx = GetScaleVariationIndex(muF_syst, muR_syst);
+    if(idx >= 0) return LHEScaleWeight[idx];
 
     // Unexpected multiplicity: don't guess an index — return the central value.
     cout << "[AnalyzerCore::GetScaleVariation] unexpected nLHEScaleWeight = "
@@ -840,6 +843,191 @@ RVec<Muon> AnalyzerCore::ScaleMuons(const RVec<Muon> &muons, const TString &syst
         scaled_muons.emplace_back(scaled_muon);
     }
     return scaled_muons;
+}
+
+RVec<FatJet> AnalyzerCore::VarySoftDropMass(const RVec<FatJet> &fatjets,
+                                            const MyCorrection::variation &syst,
+                                            const TString &source,
+                                            const bool use_jer) {
+    // Soft-drop mass JERC, per the JME recommendation confirmed on CMS Talk ("AK8 Puppi Jet
+    // JERC for Soft Drop Mass", Jan 2026): apply the AK4 JERC to the SoftDrop SUBJETS and
+    // recompute m_SD from their invariant mass. Applying the AK8 JERC to the fatjet corrects
+    // FatJet_pt and FatJet_mass, which are different observables - it never touches
+    // FatJet_msoftdrop. ScaleFatJets/SmearFatJets only scale the fatjet four-vector, so
+    // before this function m_SD carried no JES/JER dependence at all. That matters beyond
+    // the histograms: m_SD > FatJet_SDM (40 GeV) is a SELECTION cut, so without this the
+    // JES/JER passes could not migrate events across it.
+    //
+    // Everything is expressed as a ratio to the NanoAOD subjet pair mass:
+    //     m_SD -> m_SD * (sj1' + sj2').M() / (sj1 + sj2).M()
+    // which is legitimate because NanoAOD's SubJet_pt already has the subjet JEC applied and
+    // FatJet_msoftdrop already equals (sj1+sj2).M() - measured on the v12 DY sample, for
+    // fatjets passing a realistic boosted selection (pt > 200, |eta| < 2.4, m_SD > 40) all
+    // 240/240 had both subjet indices and the two agreed to a median of -0.0035% with
+    // |diff| < 0.1% for 100% of them. Using the same denominator in every pass also cancels
+    // that residual closure difference.
+    //
+    // The numerator carries the JER NOMINAL smearing in *every* pass, plus whichever
+    // variation this pass owns:
+    //     syst == nom                -> JES nom + JER nom   (the central value)
+    //     syst == up/down, !use_jer  -> JES var + JER nom
+    //     syst == up/down,  use_jer  -> JES nom + JER var
+    // The nominal smearing is not optional bookkeeping. NanoAOD's msoftdrop has the MiniAOD
+    // subjet JEC but no JER smearing, so without it m_SD would be unsmeared while the pt of
+    // the very same fatjet is smeared, and - because a JER variation can then only ever ADD
+    // smearing relative to an unsmeared reference - JER_Up and JER_Down both moved m_SD in
+    // the SAME direction. Measured on the 2022 production before this was added: m_SD mean
+    // +1.19 GeV (Up) and +0.72 GeV (Down), against JES which correctly straddled nominal at
+    // +1.16 / -1.21. A one-sided "uncertainty" is what the datacard would have seen.
+    //
+    // Because every pass reseeds identically and draws in the same order over the same
+    // subjets, Up/Down are a coherent shift of the SAME Gaussian pull rather than an
+    // independent re-smearing - the pattern already used by SmearMuons/SmearElectrons.
+    //
+    // v15 TODO: a full re-application of the AK4 JEC from raw pT would need SubJet_area for
+    // the L1FastJet offset, which v12 does not have (v15 does). Propagating the JES/JER
+    // *uncertainties* needs only (eta, pt[, rho]), so this works on v12 as is.
+    if (IsDATA) return fatjets;                     // JERC is MC-only
+    if (SubJet_pt.empty()) return fatjets;          // branch absent (old skim): no-op
+
+    const int n_sub = std::min(static_cast<int>(nSubJet), static_cast<int>(SubJet_pt.size()));
+    if (n_sub <= 0) return fatjets;
+
+    // Gen SoftDrop subjets, for the JER scaling method. Always needed now: the JER nominal
+    // smearing runs in every pass, not only in the JER ones.
+    RVec<GenJet> gensubjets;
+    {
+        const int n_gen = std::min(static_cast<int>(nSubGenJetAK8),
+                                   static_cast<int>(SubGenJetAK8_pt.size()));
+        for (int i = 0; i < n_gen; i++) {
+            GenJet g;
+            g.SetPtEtaPhiM(SubGenJetAK8_pt[i], SubGenJetAK8_eta[i],
+                           SubGenJetAK8_phi[i], SubGenJetAK8_mass[i]);
+            gensubjets.push_back(g);
+        }
+    }
+    // Own random stream: SmearJets seeds on MET_pt and SmearFatJets on MET_pt+1, so +2 here
+    // keeps the subjet draws from disturbing either. Deliberately NOT reusing SmearJets -
+    // that would reset the shared stream mid-event and would also mix subjets into the
+    // "jet_jer_*" AK4 validation histograms.
+    // The seed depends only on the event, and the subjet kinematics come straight off the
+    // branches, so the gen-match decisions - hence the NUMBER and ORDER of draws - are
+    // identical in every pass. That alignment is what makes Up/Down share the pull.
+    gRandom->SetSeed(int(MET_pt*1e6)+2);
+
+    // Which nuisance this pass owns; the other stays nominal.
+    const MyCorrection::variation jer_syst = use_jer ? syst : MyCorrection::variation::nom;
+    const MyCorrection::variation jes_syst = use_jer ? MyCorrection::variation::nom : syst;
+
+    RVec<FatJet> out;
+    for (const auto &fatjet : fatjets) {
+        FatJet this_jet = fatjet;
+        const int i1 = fatjet.SubJetIdx1();
+        const int i2 = fatjet.SubJetIdx2();
+        // Both subjets are required: with only one, (sj1+sj2).M() is not the quantity
+        // NanoAOD put in msoftdrop and the ratio would be meaningless. Also guards DATA,
+        // where GetAllFatJets never fills the indices. Such fatjets keep their nominal
+        // m_SD, i.e. they simply do not migrate - never silently mis-scaled.
+        if (!(i1 >= 0 && i1 < n_sub && i2 >= 0 && i2 < n_sub)) {
+            out.push_back(this_jet);
+            continue;
+        }
+
+        RVec<Jet> subjets;
+        for (const int k : {i1, i2}) {
+            Jet sj;
+            sj.SetPtEtaPhiM(SubJet_pt[k], SubJet_eta[k], SubJet_phi[k], SubJet_mass[k]);
+            sj.SetUnsmearedP4(sj);   // ScaleJets warns loudly if this was never set
+            subjets.push_back(sj);
+        }
+        const double m_nom = (subjets[0] + subjets[1]).M();
+        if (!(m_nom > 0.)) { out.push_back(this_jet); continue; }
+
+        // 1) JER, mirroring SmearJets: scaling method against the matched gen SoftDrop
+        //    subjet, stochastic when unmatched. Runs in every pass - at jer_syst == nom it
+        //    IS the nominal smearing, which is the whole point of doing this here.
+        const float MIN_JET_ENERGY = 1e-2;
+        RVec<Jet> varied;
+        for (const auto &sj : subjets) {
+            Jet v = sj;
+            const float jer = myCorr->GetJER(sj.Eta(), sj.Pt(), fixedGridRhoFastjetAll);
+            const float sf  = myCorr->GetJERSF(sj.Eta(), sj.Pt(), jer_syst, source);
+            // Nearest gen SoftDrop subjet within 0.2; the subjets are narrow, so a
+            // tighter cone than the AK4 matcher is appropriate.
+            int best = -1;
+            double best_dr = 0.2;
+            for (size_t g = 0; g < gensubjets.size(); g++) {
+                const double dr = sj.DeltaR(gensubjets[g]);
+                if (dr < best_dr) { best_dr = dr; best = static_cast<int>(g); }
+            }
+            float corr = 1.;
+            if (best >= 0) {
+                corr += (sf - 1.) * (1. - gensubjets[best].Pt()/sj.Pt());
+            } else {
+                // Drawn unconditionally on this branch in every pass, so the stream stays
+                // aligned and Up/Down/nom share the pull.
+                // both operands double, as in SmearJets - max(double, float) would not
+                // deduce a template argument
+                corr += gRandom->Gaus(0., jer) * sqrt(max(sf*sf - 1., 0.));
+            }
+            corr = max(corr, MIN_JET_ENERGY/static_cast<float>(sj.E()));
+            v *= corr;
+            varied.push_back(v);
+        }
+
+        // 2) JES on top - a no-op at nominal. Reusing ScaleJets gives the subjets the
+        //    *identical* JES treatment as the AK4 jets, including how it composes the
+        //    individual sources for source == "total" (see RECOMMENDATIONS.md on that
+        //    multiplicative composition); any change there then applies to both, which is
+        //    what keeps them correlated. It evaluates the uncertainty at the UNSMEARED
+        //    (eta, pt), which SetUnsmearedP4 above pinned to the NanoAOD subjet, and the
+        //    order - smear, then scale - is the AK4 chain's order in the analyzers.
+        varied = ScaleJets(varied, jes_syst, source);
+
+        const double m_var = (varied[0] + varied[1]).M();
+        this_jet.SetSDMass(static_cast<float>(fatjet.SDMass() * m_var / m_nom));
+        out.push_back(this_jet);
+    }
+    return out;
+}
+
+RVec<Muon> AnalyzerCore::SmearMuons(const RVec<Muon> &muons, const TString &syst) {
+    // High-pT muon resolution systematic: a flat 10% additional smearing (Muon POG
+    // resolution deck 2024/06/03). Same structure as SmearElectrons for Run3 -
+    // GetAllMuons already applied the NOMINAL smearing, so what is applied here is the
+    // *ratio* variation/nominal. Both draws are seeded identically, so the underlying
+    // Gaussian pull is shared and only its width changes: the variation is a coherent
+    // shift rather than an independent re-smearing (re-smearing would add resolution in
+    // quadrature on top of the nominal and double-count it).
+    //
+    // Only muons in the high-pT regime were smeared to begin with; below 200 GeV the
+    // resolution is handled by Rochester, whose error already feeds MuonScale. For those
+    // muons the nominal factor is the same in both calls, the ratio is 1, and nothing
+    // moves. DATA returns 1 from GetMuonHighPtSmearFactor, so data is untouched.
+    RVec<Muon> smeared_muons;
+    MyCorrection::variation var;
+    if (syst == "up") {
+        var = MyCorrection::variation::up;
+    } else if (syst == "down") {
+        var = MyCorrection::variation::down;
+    } else {
+        throw runtime_error("[AnalyzerCore::SmearMuons] Invalid variation");
+    }
+
+    for (const auto &muon : muons) {
+        // eta/phi are untouched by the momentum corrections, so this reproduces the seed
+        // GetAllMuons used for the nominal draw.
+        const unsigned int seed = ObjectSmearSeed(EventNumber, muon.Eta(), muon.Phi());
+        const float nom = myCorr->GetMuonHighPtSmearFactor(muon.P(), muon.Eta(), seed,
+                                                           MyCorrection::variation::nom);
+        const float varf = myCorr->GetMuonHighPtSmearFactor(muon.P(), muon.Eta(), seed, var);
+        Muon smeared_muon = muon;
+        if (nom > 0.) {
+            smeared_muon.SetPtEtaPhiM(muon.Pt()*varf/nom, muon.Eta(), muon.Phi(), muon.M());
+        }
+        smeared_muons.emplace_back(smeared_muon);
+    }
+    return smeared_muons;
 }
 
 RVec<Muon> AnalyzerCore::GetMuons(const TString ID, const float ptmin, const float fetamax) {
@@ -2352,10 +2540,12 @@ void AnalyzerCore::WriteHist() {
             {
                 return a.first < b.first;
             });
+    cout << "[AnalyzerCore::WriteHist] " << sorted_histograms1d.size() << " 1D, "
+         << sorted_histograms2d.size() << " 2D, " << sorted_histograms3d.size()
+         << " 3D histograms, " << treemap.size() << " trees" << endl;
     for (const auto &pair: sorted_histograms1d) {
         const string &histname = pair.first;
         TH1 *hist = pair.second;
-        cout << "[AnalyzerCore::WriteHist] Writing 1D histogram: " << histname << endl;
         // Split the directory and name
         // e.g. "dir1/dir2/histname" -> "dir1/dir2", "histname"
         // e.g. "histname" -> "", "histname"
@@ -2371,7 +2561,6 @@ void AnalyzerCore::WriteHist() {
     }
     for (const auto &pair: sorted_histograms2d) {
         const string &histname = pair.first;
-        cout << "[AnalyzerCore::WriteHist] Writing 2D histogram: " << histname << endl;
         TH2 *hist = pair.second;
         // Split the directory and name
         // e.g. "dir1/dir2/histname" -> "dir1/dir2", "histname"
@@ -2388,7 +2577,6 @@ void AnalyzerCore::WriteHist() {
     }
     for (const auto &pair: sorted_histograms3d) {
         const string &histname = pair.first;
-        cout << "[AnalyzerCore::WriteHist] Writing 3D histogram: " << histname << endl;
         TH3 *hist = pair.second;
         // Split the directory and name
         // e.g. "dir1/dir2/histname" -> "dir1/dir2", "histname"

@@ -17,6 +17,19 @@ This does not go through SKNano.py and does not need the SKNanoAnalyzer build.
   # everything matching a pattern
   ./submit_skim.py --era 2023 --samples 'DYMLL*' 'TTLL_powheg' 'WJetM*'
 
+  # the 3SR cut set (>= 1 lepton); needs its own --suffix
+  ./submit_skim.py --era 2023 --cuts hnwr3sr --suffix HNWR3SR \\
+      --samples 'QCD_Pt-*_MuEnriched' --files-per-job 20
+
+  # EVERYTHING: all four Run 3 eras, background + signal + data, one command
+  ./submit_skim.py --era Run3 --cuts hnwr3sr --suffix HNWR3SR \\
+      --group bkg signal data
+
+--group is the shorthand for the three standard sample sets and their usual
+chunk sizes (see GROUPS below); --era takes several eras, or the alias Run3 /
+Run2 / all. Anything already submitted is skipped, so the command above is safe
+to re-run after a partial submission -- pass --resubmit to force.
+
 Output lands in
   <--outbase>/<era>/{MC,DATA}/Skim/$USER/Skim_HNWR_<alias>/tree_<i>.root
 which mirrors the layout SKNano.py's own skimming mode uses. Register the
@@ -45,6 +58,7 @@ micromamba activate {mamba_env}
 
 python3 {skim_py} \\
     --era {era} \\
+    --cuts {cuts} \\
     --filelist {workdir}/filelist_$1.txt \\
     --output {outdir}/tree_$1.root \\
     --report-json {workdir}/report_$1.json \\
@@ -77,6 +91,57 @@ JobBatchName            = SkimHNWR_{era}_{sample}
 # Pass --concurrency NAME:N if your pool actually defines one.
 
 
+# Era aliases for --era. The 3SR cut set has no trigger paths for three Run 2
+# eras (hnwr3sr_skim_cuts.ERAS_WITHOUT_3SR_TRIGGERS), and skim_hnwr.py refuses
+# them at runtime -- caught here too so a multi-era submission fails before it
+# queues anything rather than after.
+RUN3_ERAS = ["2022", "2022EE", "2023", "2023BPix"]
+RUN2_ERAS = ["2016preVFP", "2016postVFP", "2017", "2018"]
+ERA_ALIASES = {
+    "Run3": RUN3_ERAS,
+    "Run2": RUN2_ERAS,
+    "all": RUN2_ERAS + RUN3_ERAS,
+}
+
+# --group shorthands: (patterns, default --files-per-job).
+#
+# The patterns are era-independent globs on purpose -- data PD names differ
+# between eras (2022 EGamma_C vs 2023 EGamma0_C) and not every background alias
+# exists everywhere, which is why an unmatched GLOB is a warning rather than a
+# fatal error (an unmatched exact alias still aborts; that is a typo).
+# 'SingleMuon*' is not covered by 'Muon*' (fnmatch anchors at the start) and it
+# is not dead weight: 2022 Run C was taken in the SingleMuon PD before it was
+# merged into Muon, and the existing Skim_HNWR_* set includes
+# Skim_HNWR_SingleMuon_C for exactly that reason. 2023 / 2023BPix carry
+# SingleMuon_B / _C entries too, but with empty path lists -- the zero-file
+# guard in main() drops those.
+GROUPS = {
+    "bkg": (["@backgrounds_2023.txt"], 5),
+    "signal": (["WR*N*"], 10),
+    "data": (["EGamma*", "Muon*", "SingleMuon*"], 5),
+}
+
+
+def expand_eras(names):
+    out = []
+    for n in names:
+        out += ERA_ALIASES.get(n, [n])
+    seen, uniq = set(), []
+    for e in out:
+        if e not in seen:
+            seen.add(e)
+            uniq.append(e)
+    return uniq
+
+
+def read_pattern_file(path):
+    if not os.path.isabs(path):
+        path = os.path.join(HERE, path)
+    with open(path) as fh:
+        return [ln.strip() for ln in fh
+                if ln.strip() and not ln.startswith("#")]
+
+
 def sample_dir(era):
     data = os.environ.get("SKNANO_DATA")
     if not data:
@@ -85,20 +150,31 @@ def sample_dir(era):
 
 
 def resolve_samples(patterns, sampledir):
-    """Expand shell-style patterns against the ForSNU JSON filenames."""
+    """Expand shell-style patterns against the ForSNU JSON filenames.
+
+    Returns (aliases, unmatched_globs). A glob that matches nothing in THIS era
+    is normal in a multi-era run -- 'ttWtoLNu_EWK' or a data PD may simply not
+    exist there -- so it is reported, not fatal. A literal alias that does not
+    exist still aborts, because that is a typo and silently skipping it would
+    leave a hole nobody notices.
+    """
     known = sorted(
         os.path.basename(p)[:-5]
         for p in glob.glob(os.path.join(sampledir, "ForSNU", "*.json"))
     )
-    out = []
+    out, unmatched = [], []
     for pat in patterns:
-        hits = fnmatch.filter(known, pat) if any(c in pat for c in "*?[") else (
+        is_glob = any(c in pat for c in "*?[")
+        hits = fnmatch.filter(known, pat) if is_glob else (
             [pat] if pat in known else []
         )
         if not hits:
+            if is_glob:
+                unmatched.append(pat)
+                continue
             sys.exit(f"no sample matches '{pat}' in {sampledir}/ForSNU")
         out += hits
-    return sorted(set(out))
+    return sorted(set(out)), unmatched
 
 
 def chunk(seq, n):
@@ -108,14 +184,27 @@ def chunk(seq, n):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--era", required=True)
+    p.add_argument("--era", required=True, nargs="+", metavar="ERA",
+                   help="one or more eras, or an alias: "
+                        + ", ".join(f"{k} = {' '.join(v)}"
+                                    for k, v in ERA_ALIASES.items()))
     p.add_argument("--samples", nargs="*", default=[],
                    help="aliases or glob patterns, e.g. 'DYMLL*'")
     p.add_argument("--samples-from", help="text file with one alias/pattern per line")
-    p.add_argument("--files-per-job", type=int, default=5)
+    p.add_argument("--group", nargs="+", default=[], choices=sorted(GROUPS),
+                   help="standard sample sets: "
+                        + "; ".join(f"{k} = {' '.join(v[0])} (-n {v[1]})"
+                                    for k, v in sorted(GROUPS.items())))
+    p.add_argument("--files-per-job", type=int, default=None,
+                   help="input files per job (default 5, or the per-group value "
+                        "when --group is used)")
     p.add_argument("--threads", type=int, default=1)
     p.add_argument("--memory", type=int, default=4000)
     p.add_argument("--suffix", default="HNWR", help="skim tag -> Skim_<suffix>_<alias>")
+    p.add_argument("--cuts", default="hnwr", choices=["hnwr", "hnwr3sr"],
+                   help="cut set passed to skim_hnwr.py (default hnwr). Use "
+                        "hnwr3sr for HNWR_BDT_presel_3SR, together with a "
+                        "distinct --suffix so the two never share a directory")
     p.add_argument("--compression", default="zstd")
     p.add_argument("--compression-level", type=int, default=5)
     p.add_argument("--drop", nargs="*", default=[],
@@ -135,6 +224,12 @@ def main():
                    help="condor concurrency_limits, e.g. 'skim:10'. Must be a limit "
                         "NAME (a bare number is rejected by condor_submit). Omitted "
                         "by default.")
+    p.add_argument("--resubmit", action="store_true",
+                   help="re-queue samples whose workdir already holds a submit.sub. "
+                        "Off by default so an all-era command can be re-run after a "
+                        "partial submission without double-queueing what is still "
+                        "in flight (jobs in flight have an EMPTY output dir, which "
+                        "the non-empty check below cannot catch)")
     p.add_argument("--dry-run", action="store_true",
                    help="print what would be submitted, write nothing")
     p.add_argument("--validate", action="store_true",
@@ -146,82 +241,162 @@ def main():
         sys.exit(f"--concurrency '{args.concurrency}' starts with a number; condor "
                  "needs a limit NAME, e.g. 'skim:10'")
 
-    patterns = list(args.samples)
-    if args.samples_from:
-        with open(args.samples_from) as fh:
-            patterns += [ln.strip() for ln in fh if ln.strip() and not ln.startswith("#")]
-    if not patterns:
-        sys.exit("give --samples and/or --samples-from")
+    # The suffix is the ONLY thing that separates two cut sets on disk and in
+    # Sample/Skim/*.json. Writing a non-default cut set under the default tag
+    # would mix two different selections inside one Skim_HNWR_<alias> directory,
+    # and register_skim.py -- which just walks the tree for *.root -- would
+    # register the mixture as a single sample.
+    if args.cuts != "hnwr" and args.suffix == p.get_default("suffix"):
+        sys.exit(f"--cuts {args.cuts} with the default --suffix {args.suffix}: give a "
+                 f"distinct tag (e.g. --suffix {args.cuts.upper()}) so it cannot be "
+                 "mixed with the >= 2 lepton skim")
 
-    sampledir = args.sample_dir or sample_dir(args.era)
-    samples = resolve_samples(patterns, sampledir)
-    print(f"[submit] {len(samples)} sample(s): {', '.join(samples)}\n")
+    eras = expand_eras(args.era)
+
+    # skim_hnwr.py refuses these for --cuts hnwr3sr (the analyzer defines no
+    # trigger paths there). Catch it now: with --era all, half the submission
+    # would otherwise queue jobs that can only exit 1.
+    if args.cuts == "hnwr3sr":
+        import hnwr3sr_skim_cuts
+        bad = [e for e in eras if e in hnwr3sr_skim_cuts.ERAS_WITHOUT_3SR_TRIGGERS]
+        if bad:
+            sys.exit(f"--cuts hnwr3sr does not support {', '.join(bad)}: the analyzer "
+                     "sets no trigger paths there, so nothing would ever pass. Drop "
+                     "them from --era (Run3 covers the four supported eras).")
+
+    # A "work item" is one (patterns, files-per-job) pair. --group contributes
+    # one per group so each keeps its own chunk size; --samples/--samples-from
+    # contribute a single one.
+    work = []
+    for g in args.group:
+        pats, nfiles = GROUPS[g]
+        pats = [x for p in pats
+                for x in (read_pattern_file(p[1:]) if p.startswith("@") else [p])]
+        work.append((g, pats, args.files_per_job or nfiles))
+
+    free = list(args.samples)
+    if args.samples_from:
+        free += read_pattern_file(args.samples_from)
+    if free:
+        work.append((None, free, args.files_per_job or 5))
+
+    if not work:
+        sys.exit("give --group and/or --samples / --samples-from")
 
     user = os.environ.get("USER", "unknown")
     total_jobs = 0
+    per_era_samples = {}          # era -> [alias, ...] actually queued
+    skipped, unmatched_report = [], []
 
-    for alias in samples:
-        info = json.load(open(os.path.join(sampledir, "ForSNU", alias + ".json")))
-        paths = info["path"]
-        chunks = chunk(paths, args.files_per_job)
+    for era in eras:
+        sampledir = args.sample_dir or sample_dir(era)
+        for group, patterns, files_per_job in work:
+            samples, unmatched = resolve_samples(patterns, sampledir)
+            label = f"{era}/{group}" if group else era
+            print(f"\n[submit] {label}: {len(samples)} sample(s), "
+                  f"{files_per_job} file(s) per job")
+            for pat in unmatched:
+                unmatched_report.append(f"{label}: '{pat}'")
+                print(f"  (no match in this era: {pat})")
 
-        outdir = skim_naming.output_dir(args.outbase, args.era, args.suffix, alias, user)
-        workdir = os.path.join(args.workbase, args.era,
-                               skim_naming.json_name(args.suffix, alias))
+            for alias in samples:
+                info = json.load(open(os.path.join(sampledir, "ForSNU",
+                                                   alias + ".json")))
+                paths = info["path"]
 
-        print(f"  {alias:<32} {len(paths):>5} files -> {len(chunks):>4} jobs")
-        print(f"      out  {outdir}")
+                # An alias can exist with an empty path list -- 2023 and
+                # 2023BPix both carry SingleMuon_B / _C stubs with 0 files.
+                # Submitting them would write `queue 0` and leave an empty
+                # output directory that register_skim.py --all would then
+                # register as a real, empty sample.
+                if not paths:
+                    skipped.append(f"{label}/{alias}: 0 files in bookkeeping")
+                    print(f"  {alias:<32} {'0':>5} files -> SKIP (empty path list)")
+                    continue
 
-        if args.dry_run:
-            total_jobs += len(chunks)
-            continue
+                chunks = chunk(paths, files_per_job)
 
-        if os.path.isdir(outdir) and os.listdir(outdir):
-            sys.exit(
-                f"\n{outdir} already exists and is not empty.\n"
-                "Delete it before re-skimming -- leftover files from a previous run "
-                "would be picked up by register_skim.py and double-count events."
-            )
-        os.makedirs(outdir, exist_ok=True)
-        os.makedirs(os.path.join(workdir, "log"), exist_ok=True)
+                outdir = skim_naming.output_dir(args.outbase, era, args.suffix,
+                                                alias, user)
+                workdir = os.path.join(args.workbase, era,
+                                       skim_naming.json_name(args.suffix, alias))
 
-        for i, files in enumerate(chunks):
-            with open(os.path.join(workdir, f"filelist_{i}.txt"), "w") as fh:
-                fh.write("\n".join(files) + "\n")
+                print(f"  {alias:<32} {len(paths):>5} files -> {len(chunks):>4} jobs")
+                print(f"      out  {outdir}")
 
-        extra = ("--drop " + " ".join(f"'{d}'" for d in args.drop)) if args.drop else ""
-        run_sh = os.path.join(workdir, "run.sh")
-        with open(run_sh, "w") as fh:
-            fh.write(RUN_SH.format(
-                conda_bin=args.conda_bin, mamba_root=args.mamba_root,
-                mamba_env=args.mamba_env, skim_py=os.path.join(HERE, "skim_hnwr.py"),
-                era=args.era, workdir=workdir, outdir=outdir, threads=args.threads,
-                compression=args.compression, complevel=args.compression_level,
-                extra=extra))
-        os.chmod(run_sh, os.stat(run_sh).st_mode | stat.S_IEXEC | stat.S_IXGRP)
+                if args.dry_run:
+                    total_jobs += len(chunks)
+                    per_era_samples.setdefault(era, []).append(alias)
+                    continue
 
-        sub_path = os.path.join(workdir, "submit.sub")
-        conc = (f"concurrency_limits      = {args.concurrency}\n"
-                if args.concurrency else "")
-        with open(sub_path, "w") as fh:
-            fh.write(SUBMIT.format(
-                workdir=workdir, image=args.image, threads=args.threads,
-                memory=args.memory, njobs=len(chunks), era=args.era, sample=alias,
-                concurrency=conc))
+                # Two distinct "already done" states, both of which must skip
+                # rather than abort -- one bad sample must not kill the other
+                # ~2000 in an all-era run.
+                if os.path.isdir(outdir) and os.listdir(outdir):
+                    skipped.append(f"{label}/{alias}: output dir not empty")
+                    print("      SKIP: output dir is not empty (delete it to "
+                          "re-skim; leftovers would double-count in register_skim)")
+                    continue
+                if os.path.exists(os.path.join(workdir, "submit.sub")) \
+                        and not args.resubmit:
+                    skipped.append(f"{label}/{alias}: already submitted")
+                    print("      SKIP: submit.sub exists -- already queued "
+                          "(--resubmit to force)")
+                    continue
 
-        cmd = (["condor_submit", "-dry-run", os.devnull, sub_path] if args.validate
-               else ["condor_submit", sub_path])
-        subprocess.run(cmd, check=True)
-        total_jobs += len(chunks)
+                os.makedirs(outdir, exist_ok=True)
+                os.makedirs(os.path.join(workdir, "log"), exist_ok=True)
+
+                for i, files in enumerate(chunks):
+                    with open(os.path.join(workdir, f"filelist_{i}.txt"), "w") as fh:
+                        fh.write("\n".join(files) + "\n")
+
+                extra = ("--drop " + " ".join(f"'{d}'" for d in args.drop)
+                         ) if args.drop else ""
+                run_sh = os.path.join(workdir, "run.sh")
+                with open(run_sh, "w") as fh:
+                    fh.write(RUN_SH.format(
+                        conda_bin=args.conda_bin, mamba_root=args.mamba_root,
+                        mamba_env=args.mamba_env,
+                        skim_py=os.path.join(HERE, "skim_hnwr.py"),
+                        era=era, cuts=args.cuts, workdir=workdir, outdir=outdir,
+                        threads=args.threads, compression=args.compression,
+                        complevel=args.compression_level, extra=extra))
+                os.chmod(run_sh, os.stat(run_sh).st_mode | stat.S_IEXEC | stat.S_IXGRP)
+
+                sub_path = os.path.join(workdir, "submit.sub")
+                conc = (f"concurrency_limits      = {args.concurrency}\n"
+                        if args.concurrency else "")
+                with open(sub_path, "w") as fh:
+                    fh.write(SUBMIT.format(
+                        workdir=workdir, image=args.image, threads=args.threads,
+                        memory=args.memory, njobs=len(chunks), era=era,
+                        sample=alias, concurrency=conc))
+
+                cmd = (["condor_submit", "-dry-run", os.devnull, sub_path]
+                       if args.validate else ["condor_submit", sub_path])
+                subprocess.run(cmd, check=True)
+                total_jobs += len(chunks)
+                per_era_samples.setdefault(era, []).append(alias)
 
     state = ("would be submitted" if args.dry_run
              else "validated, NOT submitted" if args.validate
              else "submitted")
-    print(f"\n[submit] {total_jobs} job(s) {state}")
-    if not args.dry_run and not args.validate:
+    print(f"\n[submit] {total_jobs} job(s) {state} across {len(eras)} era(s)")
+    if skipped:
+        print(f"[submit] {len(skipped)} sample(s) skipped:")
+        for s in skipped:
+            print(f"    {s}")
+    if unmatched_report:
+        print(f"[submit] {len(unmatched_report)} pattern(s) matched nothing:")
+        for s in unmatched_report:
+            print(f"    {s}")
+    if not args.dry_run and not args.validate and per_era_samples:
         print("[submit] when they finish, register with:")
-        print(f"    ./register_skim.py --era {args.era} --suffix {args.suffix} "
-              f"--samples {' '.join(samples)}")
+        for era in eras:
+            if per_era_samples.get(era):
+                print(f"    ./register_skim.py --era {era} "
+                      f"--suffix {args.suffix} --all")
 
 
 if __name__ == "__main__":

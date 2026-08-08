@@ -31,9 +31,11 @@ Endpoint ~11 % only at 1 TeV (where muons are far above threshold anyway).
 Uses uproot + awkward, so it needs no ROOT and no SKNanoAnalyzer build.
 
   ./verify_margin.py --era 2023 file1.root [file2.root ...]
+  ./verify_margin.py --era 2023 --cuts hnwr3sr file1.root
 """
 
 import argparse
+import importlib
 import os
 import sys
 
@@ -42,19 +44,31 @@ import numpy as np
 import uproot
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import hnwr_skim_cuts as cuts  # noqa: E402
 
-# The analyzer's necessary condition, on corrected pT
-# (Reproduce20_002_copy.cc:1391 resolved, :2008 boosted).
-ANA_LEAD_ELE_PT = 130.0
-ANA_LEAD_MU_PT = 60.0
-ANA_SUBLEAD_PT = 53.0
+# Cut set -> (skim module, the analyzer's necessary condition on CORRECTED pT).
+#
+# hnwr     Reproduce20_002_copy.cc:1391 (resolved) / :2008 (boosted). Lead
+#          electron 130; every region needs a second lepton, hence min_n 2.
+#
+# hnwr3sr  HNWR_BDT_presel_3SR.cc. The binding lead-electron cut is the
+#          trigger-safe 118 (:97, applied at :438) rather than 130, since the
+#          lead only has to clear pT > 60 (:489, :566). min_n is 1 because
+#          SR_*_boosted_nolep requires NO second lepton at all (:578), so no
+#          sublead threshold can be part of a necessary condition. sublead is
+#          kept only to make the counting expression shared; at min_n 1 it is
+#          satisfied by the lead itself.
+CUT_SETS = {
+    "hnwr": ("hnwr_skim_cuts",
+             dict(lead_ele=130.0, lead_mu=60.0, sublead=53.0, min_n=2)),
+    "hnwr3sr": ("hnwr3sr_skim_cuts",
+                dict(lead_ele=118.0, lead_mu=60.0, sublead=53.0, min_n=1)),
+}
 
 DEFAULT_SCALES = [1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.26, 1.28, 1.30, 1.35, 1.50]
 
 
-def loose_masks(arr):
-    """Loose lepton masks and pT, exactly as hnwr_skim_cuts defines them."""
+def loose_masks(arr, cuts):
+    """Loose lepton masks and pT, exactly as the cut module defines them."""
     vid = arr["Electron_vidNestedWPBitmap"]
     loose = ak.ones_like(vid, dtype=bool)
     for cut_nr in range(10):
@@ -80,8 +94,20 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("files", nargs="+")
     p.add_argument("--era", required=True)
+    p.add_argument("--cuts", default="hnwr", choices=sorted(CUT_SETS),
+                   help="cut set to verify (default hnwr)")
     p.add_argument("--scales", nargs="*", type=float, default=DEFAULT_SCALES)
     args = p.parse_args()
+
+    module_name, ana = CUT_SETS[args.cuts]
+    cuts = importlib.import_module(module_name)
+
+    print(f"cut set  {args.cuts} ({module_name}.py): skim keeps events with "
+          f">= {cuts.MIN_N_LEPTON} lepton, lead e > {cuts.LEAD_ELE_PT:.0f} / "
+          f"mu > {cuts.LEAD_MU_PT:.0f}")
+    print(f"analyzer necessary condition: lead e > {ana['lead_ele']:.0f} / "
+          f"mu > {ana['lead_mu']:.0f}, >= {ana['min_n']} lepton "
+          f"(sublead > {ana['sublead']:.0f})\n")
 
     wanted = cuts.triggers_for_era(args.era)
 
@@ -103,7 +129,7 @@ def main():
         for t in trigs:
             trig |= ak.to_numpy(arr[t])
 
-        el_pt, mu_pt = loose_masks(arr)
+        el_pt, mu_pt = loose_masks(arr, cuts)
         as_int = lambda x: ak.to_numpy(ak.fill_none(x, 0))       # noqa: E731
         as_bool = lambda x: ak.to_numpy(ak.fill_none(x, False))  # noqa: E731
 
@@ -127,13 +153,13 @@ def main():
 
         for f in args.scales:
             e, m = el_pt * f, mu_pt * f
-            lead = (ak.sum(e > ANA_LEAD_ELE_PT, axis=1) > 0) | (
-                ak.sum(m > ANA_LEAD_MU_PT, axis=1) > 0
+            lead = (ak.sum(e > ana["lead_ele"], axis=1) > 0) | (
+                ak.sum(m > ana["lead_mu"], axis=1) > 0
             )
-            nlep = ak.sum(e > ANA_SUBLEAD_PT, axis=1) + ak.sum(m > ANA_SUBLEAD_PT, axis=1)
-            ana = trig & as_bool(lead) & (as_int(nlep) >= 2)
-            n_ana[f] += int(ana.sum())
-            n_lost[f] += int((ana & ~skim).sum())
+            nlep = ak.sum(e > ana["sublead"], axis=1) + ak.sum(m > ana["sublead"], axis=1)
+            ana_pass = trig & as_bool(lead) & (as_int(nlep) >= ana["min_n"])
+            n_ana[f] += int(ana_pass.sum())
+            n_lost[f] += int((ana_pass & ~skim).sum())
 
     print(f"files {len(args.files)}   total {total}   skim keeps {n_skim} "
           f"({n_skim / total:.4f}, {total / n_skim if n_skim else 0:.1f}x reduction)\n")

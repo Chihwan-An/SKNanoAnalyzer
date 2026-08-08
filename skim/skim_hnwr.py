@@ -25,22 +25,36 @@ Examples
 
   # from a file list, 4 threads
   ./skim_hnwr.py --era 2023 --filelist files.txt --output out.root --threads 4
+
+  # the 3SR cut set (>= 1 lepton), for HNWR_BDT_presel_3SR
+  ./skim_hnwr.py --era 2023 --cuts hnwr3sr --output out.root a.root
 """
 
 import argparse
+import importlib
 import json
 import os
 import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import hnwr_skim_cuts as cuts  # noqa: E402
 
 import ROOT  # noqa: E402
 
 ROOT.gROOT.SetBatch(True)
 
 COMPRESSION_ALGOS = {"zlib": 1, "lzma": 2, "lz4": 4, "zstd": 5}
+
+# Selectable cut sets. Each module exposes the same interface: CPP_HELPERS,
+# REQUIRED_BRANCHES, triggers_for_era(), trigger_filter_expression(),
+# lepton_filter_expression().
+#   hnwr     Reproduce20_002_copy / HNWR_BDT_presel   -- >= 2 loose leptons
+#   hnwr3sr  HNWR_BDT_presel_3SR                      -- >= 1, because its
+#            boosted_nolep SR requires NO second lepton (3SR:578)
+CUT_SETS = {
+    "hnwr": "hnwr_skim_cuts",
+    "hnwr3sr": "hnwr3sr_skim_cuts",
+}
 
 
 def parse_args():
@@ -51,6 +65,10 @@ def parse_args():
     p.add_argument("--output", required=True, help="output ROOT file")
     p.add_argument("--era", required=True,
                    help="2016preVFP|2016postVFP|2017|2018|2022|2022EE|2023|2023BPix")
+    p.add_argument("--cuts", default="hnwr", choices=sorted(CUT_SETS),
+                   help="selection to apply (default hnwr). 'hnwr3sr' drops the "
+                        "second-lepton requirement, which HNWR_BDT_presel_3SR's "
+                        "boosted_nolep SR needs; it is a superset of 'hnwr'")
     p.add_argument("--tree", default="Events")
     p.add_argument("--threads", type=int, default=1,
                    help="ROOT implicit MT threads (default 1, matching a 1-cpu condor slot)")
@@ -156,6 +174,16 @@ def copy_aux_trees(inputs, output, treenames):
 
 def main():
     args = parse_args()
+    cuts = importlib.import_module(CUT_SETS[args.cuts])
+
+    # 3SR defines no trigger paths for these eras (HNWR_BDT_presel_3SR.cc:84-98
+    # only has branches for "2017" and the Run 3 eras), so every event would
+    # fail its HLT cut at :208 -- the skim would be work with no consumer.
+    unsupported = getattr(cuts, "ERAS_WITHOUT_3SR_TRIGGERS", ())
+    if args.era in unsupported:
+        sys.exit(f"--cuts {args.cuts} does not support era {args.era}: the analyzer "
+                 "sets no trigger paths there, so nothing would ever pass it")
+
     inputs = collect_inputs(args)
 
     if args.threads > 1:
@@ -182,6 +210,8 @@ def main():
     lep_expr = cuts.lepton_filter_expression()
 
     print(f"[skim] era        : {args.era}")
+    print(f"[skim] cut set    : {args.cuts} ({CUT_SETS[args.cuts]}.py, "
+          f">= {cuts.MIN_N_LEPTON} lepton)")
     print(f"[skim] inputs     : {len(inputs)} file(s)")
     print(f"[skim] output     : {args.output}")
     print(f"[skim] triggers   : {len(trig_available)} path(s)")
@@ -254,6 +284,7 @@ def main():
         with open(args.report_json, "w") as fh:
             json.dump({
                 "era": args.era,
+                "cuts": args.cuts,
                 "output": os.path.abspath(args.output),
                 "n_input_files": len(inputs),
                 "n_empty_skipped": len(empty_inputs),

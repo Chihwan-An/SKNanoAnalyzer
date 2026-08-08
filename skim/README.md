@@ -105,6 +105,7 @@ but it makes the files self-describing.
 | | |
 |---|---|
 | `hnwr_skim_cuts.py` | the selection and its justification — **the single source of truth** |
+| `hnwr3sr_skim_cuts.py` | the `--cuts hnwr3sr` variant for `HNWR_BDT_presel_3SR.cc` (see below) |
 | `skim_hnwr.py` | worker: N input files → one skimmed file |
 | `verify_margin.py` | proves the margin is sufficient; needs no ROOT |
 | `ab_test.sh` | runs the analyzer on raw and on the skim, then compares |
@@ -197,6 +198,173 @@ A single chunk can also be run by hand, no condor:
 ```bash
 ./skim_hnwr.py --era 2023 --threads 4 --output /path/tree_0.root in1.root in2.root
 ```
+
+## The 3SR cut set (`--cuts hnwr3sr`)
+
+`Analyzers/src/HNWR_BDT_presel_3SR.cc` **cannot use `Skim_HNWR_*`.** Its third
+signal region is defined by the absence of a second lepton:
+
+```cpp
+// HNWR_BDT_presel_3SR.cc:578
+bool isBoostedNoLepCandidate = isBoostedBase && (n_boosted_cap_leptons == 0);
+```
+
+which is the exact complement of this skim's `MIN_N_LEPTON = 2`. Running 3SR on
+a `Skim_HNWR_*` sample does not leave `SR_*_boosted_nolep` empty — it leaves an
+eta-edge remnant: second leptons that passed the skim at |eta| 2.5–2.6 (e) or
+2.4–2.5 (mu) and are then dropped by the analyzer's own `SelectElectrons(...,
+2.5)` / `SelectMuons(..., 2.4)` (`3SR:224-225`). A silently biased SR is worse
+than a missing one.
+
+`hnwr3sr_skim_cuts.py` therefore inherits every threshold and trigger from
+`hnwr_skim_cuts.py` and changes one number, `MIN_N_LEPTON = 1`. The three SRs
+and every CR all sit downstream of the same lead-lepton requirement (`3SR:310`,
+`:489`, `:566`, `:434-447`), so the lead is the only necessary condition there
+is. The sublead only *classifies* an event; since the skim prunes no branches,
+the analyzer re-derives its Cap / ResSub tiers (pT > 20, `POG_LOOSE` muons,
+mvaNoIso electrons — all outside what this skim would count as a lepton) from
+the surviving events untouched.
+
+The margin table changes in one row: the binding lead-electron cut is the
+trigger-safe **118** (`3SR:97`), not `Reproduce20_002_copy`'s 130, so 100 is a
+15 % margin rather than 23 %. Measured on one 2023 `QCD_Pt-300to470_MuEnriched`
+file (44233 events):
+
+```
+  correction   analyzer would use   LOST by skim
+    x1.00            2446                 0
+    x1.30            3263                 0
+    x1.35            3271                 5
+zero loss up to a coherent +30 % shift on every lepton pT
+```
+
+The cut set is a strict **superset** of `hnwr` — identical triggers and
+thresholds, one fewer lepton required — so a `Skim_HNWR3SR_*` file also feeds
+`Reproduce20_002_copy` and `HNWR_BDT_presel`. The price is reduction power, and
+on QCD it is steep: the same file keeps **3266** events here against **102**
+under `--cuts hnwr` (13.5× vs 434× reduction). Check one chunk before
+committing to a sample.
+
+### Measured cost of the second lepton (2023, one file each)
+
+The two cut sets run back to back on the same input. The blow-up tracks the
+lepton multiplicity of the process, not its size: dilepton samples pay ~3×,
+single-lepton ones (and data, which is single-lepton dominated) pay 10-30×.
+
+| sample | `hnwr` kept | `hnwr3sr` kept | events | output size |
+|---|---|---|---|---|
+| `TTLL_powheg` (2 prompt lep) | 16 036 / 183 000 | 56 660 | 3.5× | 0.061 → 0.199 GB (3.3×) |
+| `TTLJ_powheg` (1 prompt lep) | 247 / 45 000 | 7 859 | 31.8× | 0.002 → 0.028 GB (14×) |
+| `Muon0_C` (data) | 3 744 / 575 036 | 79 914 | 21.3× | 0.008 → 0.116 GB (14.5×) |
+
+Scaling the existing 2023 `Skim_HNWR_*` footprint (**158 GB** MC incl. signals,
+**5.0 GB** data) by that spread puts a full 2023 `Skim_HNWR3SR_*` at roughly
+**0.7-1.3 TB**. It goes to `/gv0/DATA`, not the personal `/gv0/Users` quota.
+
+Job counts for 2023, from `--dry-run`: 1537 (backgrounds, `--files-per-job 5`),
+334 (`WR*N*`, 10), 237 (data, 5); **10 321** for all four Run 3 eras and all
+three groups, with 1840 aliases skipped for having an empty `path` list (1832
+of them signal points — only 228 of the 686 `WR*N*` aliases are actually
+produced in the v12 bookkeeping).
+
+`TTLJ` growing 32× is the physics warning, not just a disk one: semileptonic
+ttbar is what `SR_*_boosted_nolep` sits in. `backgrounds_2023.txt` covers TTLJ
+and `WJetM*`, but **not QCD** — for a one-lepton SR the multijet / fake-lepton
+component is no longer negligible the way it was under the ≥2-lepton selection.
+See the QCD command below if it needs to go in.
+
+### One command for every era and group
+
+`--era` takes several eras or an alias (`Run3` = 2022 2022EE 2023 2023BPix,
+`Run2`, `all`); `--group` takes the three standard sample sets, each with its
+own chunk size — `bkg` (`backgrounds_2023.txt`, 5 files/job), `signal`
+(`WR*N*`, 10), `data` (`EGamma*` `Muon*`, 5). `--files-per-job` overrides all
+of them.
+
+`data` is `EGamma*` `Muon*` **`SingleMuon*`** — `Muon*` does not cover
+`SingleMuon` (fnmatch anchors at the start), and 2022 Run C really was taken in
+the SingleMuon PD before it merged into Muon, which is why the existing set has
+a `Skim_HNWR_SingleMuon_C`. 2022EE has no SingleMuon; 2023 / 2023BPix carry
+`SingleMuon_B` / `_C` aliases whose `path` lists are empty.
+
+Three things make the combined command safe to re-run:
+
+- An alias whose `path` list is **empty** is skipped. This is not rare: 1832 of
+  the 2744 `WR*N*` entries across the four eras have no files, as do
+  `ttWtoLNu_EWK` (2022), `WJetM*120HT40to100` (2023), `ttZtoQQ` (2023BPix) and
+  the SingleMuon stubs. Submitting one would write `queue 0` and leave an empty
+  output directory for `register_skim.py --all` to register as a real sample.
+
+- A sample whose workdir already holds a `submit.sub` is **skipped**, because
+  jobs still in flight have an *empty* output directory and the non-empty check
+  cannot see them. `--resubmit` forces them through.
+- A glob that matches nothing in one era is a warning, not an error — data PD
+  names differ between eras (2022 `EGamma_C` vs 2023 `EGamma0_C`) and not every
+  background alias exists everywhere. A literal alias that does not exist still
+  aborts, since that is a typo. Both are listed in the closing summary.
+
+Nothing aborts the run any more; skipped samples and unmatched patterns are
+collected and printed at the end.
+
+### Submitting
+
+`condor_submit` is **not** on the `ai-tamsa1` login node, so `--validate` and
+the real submit both have to run from a machine that has it. Everything up to
+that point (`--dry-run`, single chunks) works here.
+
+A chunk by hand on the login node needs the image, since ROOT lives inside it:
+
+```bash
+singularity exec -B /gv0 -B /data6 /data6/Users/achihwan/private-el9.sif bash -c '
+  export PATH=/opt/conda/bin:$PATH; export MAMBA_ROOT_PREFIX=/opt/conda
+  eval "$(micromamba shell hook -s bash)"; micromamba activate Nano
+  python3 skim/skim_hnwr.py --era 2023 --cuts hnwr3sr --threads 4 --output out.root in.root'
+```
+
+Note `setup.sh` must be sourced from the repo root — from `skim/` it resolves
+`$SKNANO_DATA` to `skim/data/...` and fails on `scripts/install_lhapdf.sh`.
+
+```bash
+# margin check
+./verify_margin.py --era 2023 --cuts hnwr3sr -- /gv0/.../NANOAOD_1.root
+
+# everything: 4 Run 3 eras x (background, signal, data) in one command.
+# A distinct --suffix is enforced, so the two cut sets can never share a
+# Skim_<tag>_<alias> directory.
+./submit_skim.py --era Run3 --cuts hnwr3sr --suffix HNWR3SR \
+    --group bkg signal data --dry-run          # 10314 jobs
+./submit_skim.py --era Run3 --cuts hnwr3sr --suffix HNWR3SR --group bkg signal data
+
+for e in 2022 2022EE 2023 2023BPix; do
+    ./register_skim.py --era $e --suffix HNWR3SR --all
+done
+
+# QCD, if the one-lepton SR needs it (separate bookkeeping, see below)
+./submit_skim.py --era 2023 --cuts hnwr3sr --suffix HNWR3SR \
+    --sample-dir $SKNANO_HOME/data/Run3_v13_Run2_v9/2023/Sample \
+    --outbase /gv0/DATA/SKNano/Run3NanoAODv13p1 \
+    --samples 'QCD_Pt-*_MuEnriched' --files-per-job 20 --dry-run
+```
+
+The QCD samples live only in the **v13** bookkeeping (`Run3NanoAODv13p1`,
+`QCD_Pt-*_{MuEnriched,EMEnriched,bcToE}`); the inclusive `QCD_HT*` / `QCD_PT*`
+aliases under the default `$SKNANO_DATA` (v12) have empty or dangling `path`
+lists in every era, which is why `--sample-dir` and `--outbase` must be
+overridden above. 3SR also sets no trigger paths for 2016preVFP / 2016postVFP /
+2018 (`3SR:84-98`), so `--cuts hnwr3sr` refuses those eras outright.
+
+### What this skim does and does not fix in place
+
+It cuts on the **lead lepton only**, so every sublead / capture-tier variation
+can be re-run on the same `Skim_HNWR3SR_*` files without re-skimming: the
+tight-vs-`ResSub` resolved sublead, the `Cap` tier, the pT > 20 floor, the
+mll > 200 classification boundary. That is the whole point of running the skim
+before settling the presel.
+
+The lead is the one thing frozen. Loosening it — lead pT below the analyzer's
+trigger-safe 118 (e) / 60 (mu), or a lead ID outside HEEP / highPtId+TkRelIso —
+falls outside `LEAD_ELE_PT = 100` / `LEAD_MU_PT = 45` and their ID cut in
+`hnwr_skim_cuts.py`, and would need a new skim.
 
 ## Before re-skimming a sample
 

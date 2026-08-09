@@ -306,11 +306,206 @@ Three things make the combined command safe to re-run:
 Nothing aborts the run any more; skipped samples and unmatched patterns are
 collected and printed at the end.
 
+## Samples that are not in the bookkeeping (`--dataset-base`)
+
+`submit_skim.py` normally takes its file lists from
+`$SKNANO_DATA/<era>/Sample/ForSNU/<alias>.json`. Some datasets have no entry at
+all: `data/Run3_v12_Run2_v9/*/Sample/ForSNU` carries only the **inclusive**
+`QCD_PT*` aliases (`QCD_PT30to50`, …), every one of them with an empty `path`
+list, and nothing for the `QCD_PT-*_EMEnriched` / `_MuEnrichedPt5` datasets that
+actually matter for a fake-lepton background.
+
+`--dataset-base DIR` resolves them straight off the storage element instead:
+every `*.root` under `DIR/<campaign>/<dataset>/`, with the era → campaign map in
+`CAMPAIGNS` (`2022` → `Run3Summer22NanoAODv12`, and so on). Dataset directory
+names are cut at `_Tune` to give the alias, so
+`QCD_PT-30to50_EMEnriched_TuneCP5_13p6TeV_pythia8` becomes
+`QCD_PT-30to50_EMEnriched`; `--no-trim-name` keeps the full name. Chunking,
+submission and the skim itself are unchanged — they never cared where the list
+came from.
+
+`--layout flat` writes `<outbase>/<era>/<alias>/tree_<i>.root` instead of the
+`<era>/MC/Skim/$USER/Skim_<suffix>_<alias>` layout SKNano.py expects. Use it for
+a skim area that is not going through `register_skim.py`; the cut set is then
+recorded only in the workdir name and the `report_*.json` files, so do not point
+two cut sets at one `--outbase`.
+
+### `--stage-out`: dCache is write-once
+
+At KNU the skim area sits on dCache (`SE_UserHome` → `/pnfs/...`), where a file
+can be created and deleted but **not reopened for writing**. `skim_hnwr.py` does
+reopen its output — `copy_aux_trees()` opens it `UPDATE` to append `Runs` and
+`LuminosityBlocks` — so writing there directly fails after the `Events` snapshot
+has already been written:
+
+```
+SysError in <TFile::ReadBuffer>: error reading from file .../tree_direct.root Input/output error
+OSError: Failed to open file .../tree_direct.root
+```
+
+The result is a file that looks finished but has no `Runs` tree. `--stage-out`
+(default `auto`, on when the output path resolves under `/pnfs`) writes to
+`$_CONDOR_SCRATCH_DIR` and copies afterwards, with `rm -f` first because dCache
+cannot overwrite. It also keeps a crashed job from leaving a truncated
+`tree_N.root` behind. `transfer_output_files = ""` goes into the submit file so
+condor does not try to bring the scratch copy back as well.
+
+### Job environment
+
+`--conda-bin` / `--mamba-root` / `--mamba-env` default to the **submitting
+shell's** micromamba prefix (`mamba_job_env()`, mirroring
+`SKNano.py:getMambaJobEnv()`), not to the image's `/opt/conda`. The image ships
+its own `Nano` env, and since `/u/user` is mounted on the workers, activating it
+loads a second ROOT into the process — every dictionary registers twice
+(`already in TClassTable`) and the job dies with a double free at exit, *after*
+the output is written, so the logs look like an unrelated teardown crash.
+
+`--image` and `--workbase` fall back to `config/config.$USER` when `setup.sh`
+has not been sourced, instead of the old hardcoded `/data6/...` paths.
+
+### QCD for the one-lepton SR, all four Run 3 eras
+
+```bash
+./submit_skim.py --era Run3 --cuts hnwr3sr --suffix HNWR3SR \
+    --dataset-base /pnfs/knu.ac.kr/data/cms/store/mc \
+    --samples 'QCD_PT-*_EMEnriched_*' --layout flat \
+    --outbase /u/user/$USER/SE_UserHome/Skim_sample/QCD \
+    --files-per-job 4
+```
+
+30 samples, 149 jobs, 73 GB of input. Measured on one 2023
+`QCD_PT-300toInf_EMEnriched` file — the hardest bin, since its electrons are
+hard enough to reach the lead-pT cut:
+
+```
+all                   210532
+trigger OR             13980   step 0.0664
+leptons                 2892   step 0.2069
+kept                    2892   overall 0.01374  (72.8x reduction)
+size  0.43 GB -> 0.019 GB (22.7x)     time 72.6 s with 4 threads
+```
+
+Patterns match the **dataset directory name as it is on disk**, not the trimmed
+alias — the `_Tune` cut happens after matching. So the trailing `_*` is
+required: `QCD_PT-*_EMEnriched` matches nothing, because every directory is
+really `QCD_PT-<bin>_EMEnriched_TuneCP5_13p6TeV_pythia8`.
+
+The pattern is `QCD_PT-*_EMEnriched_*` rather than `QCD_PT-*` because that is the
+only QCD flavour available here: the `QCD_PT-*_MuEnrichedPt5` datasets exist in
+the 2023BPix campaign as a directory tree with no `*.root` in it, and in no
+other era at all. `QCD_PT-*` would resolve them and then drop all seven on the
+zero-file guard, which reads like an error rather than a decision.
+
+The consequence is worth stating: this QCD estimate covers the **electron**
+fake-lepton background only. Nothing here constrains muon fakes, even though the
+skim's trigger OR and lepton cut both accept muons — the muon-enriched
+statistics simply are not on this storage element. Getting them needs a rucio
+transfer request to KNU first.
+
+Note also that `QCD_PT-300_EMEnriched` and `QCD_PT-300toInf_EMEnriched` are
+**both** present in 2023 and 2023BPix — they are separate datasets on disk and
+both get skimmed, so do not stack both.
+
+### From skim to plot: the whole QCD chain (done for 2022, 2026-08-09)
+
+`register_skim.py` needs the PD in `CommonSampleInfo.json`, and none of these
+EM/Mu-enriched samples are there. `make_sample_info.py` writes those entries:
+
+```bash
+# 1. bookkeeping entries. xsec is copied from the v13 tree (it does carry
+#    QCD_Pt-*_EMEnriched); nmc/sumW are MEASURED from the Runs tree the skim
+#    preserved, because the v12 and v13 productions of the same dataset are not
+#    always the same size -- 2022 QCD_PT-300toInf_EMEnriched has 908512 events
+#    here against v13's 891941, and copying v13's sumW would misnormalise it.
+#    --verify-sign counts genWeight signs in the original NanoAOD instead of
+#    assuming sumsign == nmc (measured 2022: zero negative weights in all seven).
+./make_sample_info.py --era 2022 \
+    --skim-base /u/user/$USER/SE_UserHome/Skim_sample/QCD \
+    --dataset-base /pnfs/knu.ac.kr/data/cms/store/mc \
+    --sample-dir $SKNANO_HOME/data/Run3_v12_Run2_v9/2022/Sample --verify-sign
+
+# 2. register (--layout flat must match how it was skimmed)
+./register_skim.py --era 2022 --suffix HNWR3SR --layout flat --all \
+    --outbase /u/user/$USER/SE_UserHome/Skim_sample/QCD \
+    --sample-dir $SKNANO_HOME/data/Run3_v12_Run2_v9/2022/Sample
+
+# 3. run the analyzer. --userflags NoSyst is NOT optional, see below
+SKNano.py -a presel_3SR -i 'Skim_HNWR3SR_QCD*' -e 2022 -n 4 --userflags NoSyst
+
+# 4. plot (plot_SR.py has a "QCD" background group)
+cd $SKNANO_HOME/plots/HNWR/BDT/3SR && ./CR/run_nonprompt_cr.sh 6
+```
+
+xsec is matched on the **PD** field, not the alias: v13's
+`QCD_Pt-300toInf_EMEnriched` points at `QCD_PT-300_EMEnriched_...` in 2022EE and
+`QCD_PT-300toInf_EMEnriched_...` elsewhere. A dataset whose PD matches nothing —
+the duplicate `QCD_PT-300_EMEnriched` that also exists in 2023 / 2023BPix — is
+reported and skipped rather than guessed at.
+
+`make_sample_info.py` backs `CommonSampleInfo.json` up to `.bak` before its
+first write.
+
+**Two failure modes cost a full submission cycle each; both are silent.**
+
+- `--userflags NoSyst` missing. Without it the analyzer takes the full
+  systematics path, `SystematicHelper` finds no weight function for `LSF` /
+  `ZPtRw_*` and calls `exit(1)` (`AnalyzerTools/src/SystematicHepler.cc:280`).
+  The message lands at the end of stderr behind ~30 correction-file warnings, so
+  the job just looks like it stopped. It also changes the output path: with the
+  flag it is `$SKNANO_OUTPUT/presel_3SR/NoSyst/<era>/`, which is where the
+  plotter reads from.
+- `setup.sh` resolves `SKNANO_HOME` from the **current directory**. Sourced from
+  `skim/` it silently sets `$SKNANO_DATA` to `skim/data/...` and `SKNano.py`
+  ends up not on PATH. Source it from the repo root.
+
+### Statistical health of the QCD estimate
+
+The 2022 EE `boosted_nolep` nonprompt CR gets 39301 QCD events, which moves
+Data/MC from 1.767 to 1.158 -- QCD was the dominant missing background there.
+But it rests on very few MC events, because the 3SR lead-electron cut (pT > 118)
+sits far out on the EM-enriched spectrum:
+
+| bin | weight per MC event | events passing |
+|---|---:|---:|
+| 10to30 | 55 532 | 0 |
+| 30to50 | 55 955 | 0 |
+| 50to80 | 18 200 | 0 |
+| 80to120 | 3 439 | 0 |
+| 120to170 | 626 | 7 |
+| 170to300 | 142 | 288 |
+| 300toInf | 11 | 758 |
+
+A **single** event surviving in 10to30 or 30to50 would add more than the entire
+current estimate. The zeros in the low bins are an absence of statistics, not an
+absence of contribution, so 39301 is effectively a lower bound with a very long
+upward tail. Good enough to establish that QCD belongs in this CR and roughly
+what shape it has; not good enough to use as the background estimate. That needs
+a data-driven fake rate.
+
+`plot_SR.py` puts QCD in its own `BACKGROUND_GROUPS` entry (kOrange+1) rather
+than as a Nonprompt subgroup, so the multijet yield can be read off directly.
+
+### Framework bug this uncovered (fixed)
+
+Pure-pythia8 samples segfaulted on every event. `SKNanoLoader::nLHEPart` was an
+uninitialised member; QCD carries no LHE record at all, so `Init()`'s
+`SafeSetBranchAddress` returns early and never writes it, the garbage value
+passes `GetAllLHEs()`'s `nLHEPart <= 0` guard, and the loop indexes `LHEPart_*`
+vectors that `SetMaxLeafSize()` sized to 0. Fixed in
+`Analyzers/include/SKNanoLoader.h` (zero-initialise) and
+`Analyzers/src/AnalyzerCore.cc` (clamp to the allocated size). Any pythia8-only
+sample was affected, not just QCD.
+
 ### Submitting
 
-`condor_submit` is **not** on the `ai-tamsa1` login node, so `--validate` and
+`condor_submit` is **not** on the SNU `ai-tamsa1` login node, so `--validate` and
 the real submit both have to run from a machine that has it. Everything up to
-that point (`--dry-run`, single chunks) works here.
+that point (`--dry-run`, single chunks) works there. At KNU it comes with the
+`Nano` env and both work from the login node, ROOT included — no singularity
+needed for a single chunk by hand.
+
+Note that `--validate` writes `submit.sub`, which the already-submitted guard
+then trips over; the real submission after a validate run needs `--resubmit`.
 
 A chunk by hand on the login node needs the image, since ROOT lives inside it:
 

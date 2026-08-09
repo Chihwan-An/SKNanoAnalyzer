@@ -30,10 +30,23 @@ chunk sizes (see GROUPS below); --era takes several eras, or the alias Run3 /
 Run2 / all. Anything already submitted is skipped, so the command above is safe
 to re-run after a partial submission -- pass --resubmit to force.
 
+  # datasets with no bookkeeping entry, resolved straight off the storage
+  # element, into a standalone per-era area
+  ./submit_skim.py --era Run3 --cuts hnwr3sr --suffix HNWR3SR \\
+      --dataset-base /pnfs/knu.ac.kr/data/cms/store/mc \\
+      --samples 'QCD_PT-*' --layout flat \\
+      --outbase /u/user/$USER/SE_UserHome/Skim_sample/QCD --files-per-job 4
+
 Output lands in
   <--outbase>/<era>/{MC,DATA}/Skim/$USER/Skim_HNWR_<alias>/tree_<i>.root
 which mirrors the layout SKNano.py's own skimming mode uses. Register the
 result with register_skim.py so `SKNano.py -i 'Skim_HNWR_*'` can find it.
+--layout flat gives <--outbase>/<era>/<alias> instead, for a skim area that is
+not meant to go through the framework bookkeeping.
+
+The job environment (micromamba prefix, singularity image, runlog) is taken from
+the submitting shell and config/config.$USER, not hardcoded -- see
+mamba_job_env() for why the image's own /opt/conda must not be used.
 """
 
 import argparse
@@ -56,17 +69,38 @@ export MAMBA_ROOT_PREFIX={mamba_root}
 eval "$(micromamba shell hook -s bash)"
 micromamba activate {mamba_env}
 
+{stage_pre}
 python3 {skim_py} \\
     --era {era} \\
     --cuts {cuts} \\
     --filelist {workdir}/filelist_$1.txt \\
-    --output {outdir}/tree_$1.root \\
+    --output "$OUTFILE" \\
     --report-json {workdir}/report_$1.json \\
     --threads {threads} \\
     --compression {compression} \\
     --compression-level {complevel} {extra}
-exit $?
+rc=$?
+{stage_post}
+exit $rc
 """
+
+# Written straight into the final directory: the job's only output is the tree.
+STAGE_PRE_DIRECT = 'OUTFILE={outdir}/tree_$1.root'
+STAGE_POST_DIRECT = ''
+
+# Written to the condor scratch dir and copied afterwards. Required whenever the
+# destination is dCache (/pnfs), which is write-once: creating and deleting a
+# file works, but re-opening one for writing does not -- and skim_hnwr.py does
+# exactly that when copy_aux_trees() reopens the output with "UPDATE" to append
+# Runs / LuminosityBlocks. It also keeps a crashed job from leaving a truncated
+# tree_N.root behind for register_skim.py to pick up.
+STAGE_PRE_SCRATCH = """SCRATCH=${_CONDOR_SCRATCH_DIR:-/tmp}
+OUTFILE=$SCRATCH/tree_$1.root"""
+STAGE_POST_SCRATCH = """if [ $rc -eq 0 ]; then
+    rm -f {outdir}/tree_$1.root          # dCache cannot overwrite in place
+    cp "$OUTFILE" {outdir}/tree_$1.root || rc=$?
+fi
+rm -f "$OUTFILE\""""
 
 SUBMIT = """universe                = vanilla
 executable              = {workdir}/run.sh
@@ -79,7 +113,7 @@ RequestCpus             = {threads}
 RequestMemory           = {memory} MB
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT_OR_EVICT
-periodic_release        = (NumJobStarts < 5) && (HoldReasonCode == 34 || HoldReasonCode == 21) && (JobStatus == 5)
+{transfer_out}periodic_release        = (NumJobStarts < 5) && (HoldReasonCode == 34 || HoldReasonCode == 21) && (JobStatus == 5)
 JobBatchName            = SkimHNWR_{era}_{sample}
 {concurrency}queue {njobs}
 """
@@ -120,6 +154,116 @@ GROUPS = {
     "signal": (["WR*N*"], 10),
     "data": (["EGamma*", "Muon*", "SingleMuon*"], 5),
 }
+
+# --- resolving samples straight off the storage element ----------------------
+#
+# The normal path is $SKNANO_DATA/<era>/Sample/ForSNU/<alias>.json. That only
+# works for samples the bookkeeping knows about, and some are simply not in it:
+# the QCD_PT-*_EMEnriched / _MuEnrichedPt5 datasets have no entry at all (data/
+# Run3_v12_Run2_v9/*/Sample/ForSNU carries only the *inclusive* QCD_PT* aliases,
+# and every one of those has an empty "path" list).
+#
+# --dataset-base makes the file list come from the storage element instead:
+# every *.root under <base>/<campaign>/<dataset>/. Nothing else in the script
+# changes -- chunking, submission and the skim itself never cared where the list
+# came from.
+CAMPAIGNS = {
+    "2022": "Run3Summer22NanoAODv12",
+    "2022EE": "Run3Summer22EENanoAODv12",
+    "2023": "Run3Summer23NanoAODv12",
+    "2023BPix": "Run3Summer23BPixNanoAODv12",
+}
+
+# Datasets are named <physics>_TuneCP5_13p6TeV_pythia8 on disk; the tune and
+# beam energy are era-wide constants, so trimming them keeps directory names
+# close to the aliases the rest of the framework uses.
+TUNE_TAIL = "_Tune"
+
+
+def config_value(key, default=None):
+    """Read [KEY] from config/config.$USER, so defaults survive an unsourced setup.sh.
+
+    submit_skim.py is often run from a plain login shell; $SINGULARITY_IMAGE and
+    $SKNANO_RUNLOG are only exported by setup.sh, and their old hardcoded
+    fallbacks pointed at another site's filesystem.
+    """
+    cfg = os.path.join(os.path.dirname(HERE), "config",
+                       "config." + os.environ.get("USER", ""))
+    if os.path.exists(cfg):
+        for line in open(cfg):
+            line = line.strip()
+            if line.startswith(f"[{key}]"):
+                return line.split("]", 1)[1].strip()
+    return default
+
+
+def mamba_job_env():
+    """(bin dir, root prefix, env) that the condor job must activate.
+
+    Mirrors SKNano.py:getMambaJobEnv(). The job has to activate the very
+    environment the submitting shell uses, by full path. The singularity image
+    also ships /opt/conda/envs/Nano, and since /u/user is mounted on the workers
+    too, activating that one loads a second ROOT into the same process: every
+    dictionary registers twice ("already in TClassTable") and the job dies with
+    a double free at exit -- after the output has already been written, so the
+    logs make it look like an unrelated teardown crash.
+    """
+    exe = os.environ.get("MAMBA_EXE", "")
+    prefix = os.environ.get("CONDA_PREFIX", "")
+    if exe and prefix:
+        root = os.environ.get("MAMBA_ROOT_PREFIX",
+                              os.path.dirname(os.path.dirname(prefix)))
+        return os.path.dirname(exe), root, prefix
+    return "/opt/conda/bin", "/opt/conda", "Nano"
+
+
+def campaign_dir(base, era, campaign):
+    name = campaign or CAMPAIGNS.get(era)
+    if not name:
+        sys.exit(f"no NanoAOD campaign known for era '{era}' -- pass --campaign "
+                 f"(known: {', '.join(sorted(CAMPAIGNS))})")
+    path = os.path.join(base, name)
+    if not os.path.isdir(path):
+        sys.exit(f"campaign directory does not exist: {path}")
+    return path
+
+
+def resolve_from_storage(patterns, cdir, trim):
+    """Expand patterns against dataset directory names under a campaign dir.
+
+    Same matching rules as resolve_samples(): an unmatched GLOB is reported and
+    survivable (a dataset may exist in one era and not another), an unmatched
+    literal name aborts.
+
+    Returns ([(alias, dataset_dir_name)], unmatched_globs).
+    """
+    known = sorted(d for d in os.listdir(cdir)
+                   if os.path.isdir(os.path.join(cdir, d)))
+    out, unmatched = [], []
+    for pat in patterns:
+        is_glob = any(c in pat for c in "*?[")
+        hits = fnmatch.filter(known, pat) if is_glob else (
+            [pat] if pat in known else []
+        )
+        if not hits:
+            if is_glob:
+                unmatched.append(pat)
+                continue
+            sys.exit(f"no dataset matches '{pat}' in {cdir}")
+        out += hits
+    aliases = []
+    for name in sorted(set(out)):
+        alias = name.split(TUNE_TAIL)[0] if trim else name
+        aliases.append((alias, name))
+    return aliases, unmatched
+
+
+def files_of_dataset(cdir, name):
+    """Every *.root below <campaign>/<dataset>/, sorted for a stable chunking."""
+    found = []
+    for root, _dirs, files in os.walk(os.path.join(cdir, name)):
+        found += [os.path.join(root, f) for f in files if f.endswith(".root")]
+    return sorted(found)
 
 
 def expand_eras(names):
@@ -210,16 +354,38 @@ def main():
     p.add_argument("--drop", nargs="*", default=[],
                    help="regexes of Events branches to drop (default: keep all)")
     p.add_argument("--sample-dir", help="override $SKNANO_DATA/<era>/Sample")
+    p.add_argument("--dataset-base", metavar="DIR",
+                   help="resolve samples off the storage element instead of the "
+                        "ForSNU JSONs: every *.root under DIR/<campaign>/<dataset>. "
+                        "Needed for datasets with no bookkeeping entry, e.g. "
+                        "QCD_PT-*_EMEnriched")
+    p.add_argument("--campaign", help="campaign dir under --dataset-base; default "
+                                      "is the era's entry in CAMPAIGNS")
+    p.add_argument("--no-trim-name", dest="trim_name", action="store_false",
+                   help="with --dataset-base, keep the full dataset directory name "
+                        "as the alias instead of cutting it at '_Tune'")
+    p.add_argument("--layout", default="sknano", choices=["sknano", "flat"],
+                   help="sknano: <outbase>/<era>/{MC,DATA}/Skim/$USER/Skim_<suffix>_<alias> "
+                        "(what SKNano.py expects). flat: <outbase>/<era>/<alias>, for a "
+                        "standalone skim area outside the framework bookkeeping")
     p.add_argument("--outbase", default=os.environ.get(
-        "SKNANO_RUN3_NANOAODPATH", "/gv0/DATA/SKNano/Run3NanoAODv12"))
+        "SKNANO_RUN3_NANOAODPATH") or config_value("SKNANO_RUN3_NANOAODPATH"))
     p.add_argument("--workbase", default=os.path.join(
-        os.environ.get("SKNANO_RUNLOG", "/tmp"), "SkimHNWR"))
+        os.environ.get("SKNANO_RUNLOG") or config_value("SKNANO_RUNLOG", "/tmp"),
+        "SkimHNWR"))
     p.add_argument("--image", default=os.environ.get(
-        "SINGULARITY_IMAGE", "/data6/Users/achihwan/private-el9.sif"))
-    p.add_argument("--conda-bin", default="/opt/conda/bin",
-                   help="micromamba bin dir inside the image (SKNano.py:435 uses /opt/conda)")
-    p.add_argument("--mamba-root", default="/opt/conda")
-    p.add_argument("--mamba-env", default="Nano")
+        "SINGULARITY_IMAGE") or config_value("SINGULARITY_IMAGE"))
+    p.add_argument("--stage-out", default="auto", choices=["auto", "yes", "no"],
+                   help="write the tree to the condor scratch dir and copy it to "
+                        "--outbase afterwards. Mandatory on dCache (/pnfs), which is "
+                        "write-once and so cannot take skim_hnwr.py's reopen-for-"
+                        "UPDATE of the output. 'auto' turns it on when the output "
+                        "path resolves under /pnfs")
+    p.add_argument("--conda-bin", default=None,
+                   help="micromamba bin dir for the job (default: the submitting "
+                        "shell's, which is the environment the skim must run in)")
+    p.add_argument("--mamba-root", default=None)
+    p.add_argument("--mamba-env", default=None)
     p.add_argument("--concurrency", default=None, metavar="NAME:N",
                    help="condor concurrency_limits, e.g. 'skim:10'. Must be a limit "
                         "NAME (a bare number is rejected by condor_submit). Omitted "
@@ -236,6 +402,18 @@ def main():
                    help="write the submit files and run condor_submit -dry-run on "
                         "them instead of really queueing")
     args = p.parse_args()
+
+    if not args.outbase:
+        sys.exit("--outbase is unset and neither $SKNANO_RUN3_NANOAODPATH nor "
+                 "config/config.$USER supplies one")
+    if not args.image:
+        sys.exit("--image is unset and neither $SINGULARITY_IMAGE nor "
+                 "config/config.$USER supplies one")
+
+    env_bin, env_root, env_name = mamba_job_env()
+    args.conda_bin = args.conda_bin or env_bin
+    args.mamba_root = args.mamba_root or env_root
+    args.mamba_env = args.mamba_env or env_name
 
     if args.concurrency and args.concurrency.split(":")[0].isdigit():
         sys.exit(f"--concurrency '{args.concurrency}' starts with a number; condor "
@@ -289,40 +467,62 @@ def main():
     skipped, unmatched_report = [], []
 
     for era in eras:
-        sampledir = args.sample_dir or sample_dir(era)
+        cdir = (campaign_dir(args.dataset_base, era, args.campaign)
+                if args.dataset_base else None)
+        sampledir = None if cdir else (args.sample_dir or sample_dir(era))
         for group, patterns, files_per_job in work:
-            samples, unmatched = resolve_samples(patterns, sampledir)
+            if cdir:
+                found, unmatched = resolve_from_storage(patterns, cdir,
+                                                        args.trim_name)
+            else:
+                names, unmatched = resolve_samples(patterns, sampledir)
+                found = [(n, n) for n in names]
             label = f"{era}/{group}" if group else era
-            print(f"\n[submit] {label}: {len(samples)} sample(s), "
+            print(f"\n[submit] {label}: {len(found)} sample(s), "
                   f"{files_per_job} file(s) per job")
             for pat in unmatched:
                 unmatched_report.append(f"{label}: '{pat}'")
                 print(f"  (no match in this era: {pat})")
 
-            for alias in samples:
-                info = json.load(open(os.path.join(sampledir, "ForSNU",
-                                                   alias + ".json")))
-                paths = info["path"]
+            for alias, dataset in found:
+                if cdir:
+                    paths = files_of_dataset(cdir, dataset)
+                else:
+                    paths = json.load(open(os.path.join(sampledir, "ForSNU",
+                                                        alias + ".json")))["path"]
 
-                # An alias can exist with an empty path list -- 2023 and
-                # 2023BPix both carry SingleMuon_B / _C stubs with 0 files.
-                # Submitting them would write `queue 0` and leave an empty
-                # output directory that register_skim.py --all would then
-                # register as a real, empty sample.
+                # A sample can resolve to zero files -- 2023 and 2023BPix carry
+                # SingleMuon_B / _C bookkeeping stubs with an empty path list,
+                # and on the storage element the 2023BPix QCD_PT-*_MuEnrichedPt5
+                # datasets have the directory tree but no *.root in it.
+                # Submitting one would write `queue 0` and leave an empty output
+                # directory for register_skim.py --all to register as a real,
+                # empty sample.
                 if not paths:
-                    skipped.append(f"{label}/{alias}: 0 files in bookkeeping")
-                    print(f"  {alias:<32} {'0':>5} files -> SKIP (empty path list)")
+                    skipped.append(f"{label}/{alias}: 0 files")
+                    print(f"  {alias:<48} {'0':>5} files -> SKIP (no input files)")
                     continue
 
                 chunks = chunk(paths, files_per_job)
 
-                outdir = skim_naming.output_dir(args.outbase, era, args.suffix,
-                                                alias, user)
-                workdir = os.path.join(args.workbase, era,
-                                       skim_naming.json_name(args.suffix, alias))
+                if args.layout == "flat":
+                    outdir = os.path.join(args.outbase, era, alias)
+                    workname = skim_naming.skim_name(args.suffix, alias)
+                else:
+                    outdir = skim_naming.output_dir(args.outbase, era, args.suffix,
+                                                    alias, user)
+                    workname = skim_naming.json_name(args.suffix, alias)
+                workdir = os.path.join(args.workbase, era, workname)
 
-                print(f"  {alias:<32} {len(paths):>5} files -> {len(chunks):>4} jobs")
-                print(f"      out  {outdir}")
+                # dCache is write-once: a file can be created and deleted, but
+                # not reopened for writing, and skim_hnwr.py reopens its output
+                # with "UPDATE" to append the Runs / LuminosityBlocks trees.
+                stage = (args.stage_out == "yes" or
+                         (args.stage_out == "auto"
+                          and os.path.realpath(outdir).startswith("/pnfs")))
+
+                print(f"  {alias:<48} {len(paths):>5} files -> {len(chunks):>4} jobs")
+                print(f"      out  {outdir}{'  (staged via scratch)' if stage else ''}")
 
                 if args.dry_run:
                     total_jobs += len(chunks)
@@ -353,13 +553,18 @@ def main():
 
                 extra = ("--drop " + " ".join(f"'{d}'" for d in args.drop)
                          ) if args.drop else ""
+                stage_pre = (STAGE_PRE_SCRATCH if stage
+                             else STAGE_PRE_DIRECT.format(outdir=outdir))
+                stage_post = (STAGE_POST_SCRATCH.format(outdir=outdir) if stage
+                              else STAGE_POST_DIRECT)
                 run_sh = os.path.join(workdir, "run.sh")
                 with open(run_sh, "w") as fh:
                     fh.write(RUN_SH.format(
                         conda_bin=args.conda_bin, mamba_root=args.mamba_root,
                         mamba_env=args.mamba_env,
                         skim_py=os.path.join(HERE, "skim_hnwr.py"),
-                        era=era, cuts=args.cuts, workdir=workdir, outdir=outdir,
+                        era=era, cuts=args.cuts, workdir=workdir,
+                        stage_pre=stage_pre, stage_post=stage_post,
                         threads=args.threads, compression=args.compression,
                         complevel=args.compression_level, extra=extra))
                 os.chmod(run_sh, os.stat(run_sh).st_mode | stat.S_IEXEC | stat.S_IXGRP)
@@ -371,7 +576,11 @@ def main():
                     fh.write(SUBMIT.format(
                         workdir=workdir, image=args.image, threads=args.threads,
                         memory=args.memory, njobs=len(chunks), era=era,
-                        sample=alias, concurrency=conc))
+                        sample=alias, concurrency=conc,
+                        # the staged tree is copied out by run.sh and deleted;
+                        # let condor not try to bring the scratch dir back too
+                        transfer_out=('transfer_output_files  = ""\n'
+                                      if stage else "")))
 
                 cmd = (["condor_submit", "-dry-run", os.devnull, sub_path]
                        if args.validate else ["condor_submit", sub_path])

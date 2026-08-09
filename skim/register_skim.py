@@ -55,7 +55,12 @@ def main():
     p.add_argument("--samples", nargs="*", default=[],
                    help="original aliases (e.g. TTLL_powheg, EGamma0_C) or globs")
     p.add_argument("--all", action="store_true",
-                   help="register every Skim_<suffix>_* directory found under --outbase")
+                   help="register every skim directory found under --outbase")
+    p.add_argument("--layout", default="sknano", choices=["sknano", "flat"],
+                   help="must match the layout submit_skim.py wrote with. flat is "
+                        "<outbase>/<era>/<alias>, and since those directory names "
+                        "carry no Skim_<suffix>_ prefix, --all takes every "
+                        "subdirectory of <outbase>/<era>")
     p.add_argument("--outbase", default=os.environ.get(
         "SKNANO_RUN3_NANOAODPATH", "/gv0/DATA/SKNano/Run3NanoAODv12"))
     p.add_argument("--user", default=os.environ.get("USER", "unknown"))
@@ -74,7 +79,11 @@ def main():
     common = json.load(open(common_path))
 
     aliases = []
-    if args.all:
+    if args.all and args.layout == "flat":
+        base = os.path.join(args.outbase, args.era)
+        aliases = sorted(d for d in os.listdir(base)
+                         if os.path.isdir(os.path.join(base, d)))
+    elif args.all:
         for kind in ("MC", "DATA"):
             base = os.path.join(args.outbase, args.era, kind, "Skim", args.user)
             for d in sorted(glob.glob(os.path.join(base, f"Skim_{args.suffix}_*"))):
@@ -115,8 +124,11 @@ def main():
             print(f"  SKIP {alias}: isMC mismatch vs CommonSampleInfo.json")
             continue
 
-        outdir = skim_naming.output_dir(args.outbase, args.era, args.suffix,
-                                        alias, args.user)
+        if args.layout == "flat":
+            outdir = os.path.join(args.outbase, args.era, alias)
+        else:
+            outdir = skim_naming.output_dir(args.outbase, args.era, args.suffix,
+                                            alias, args.user)
         if not os.path.isdir(outdir):
             print(f"  SKIP {alias}: {outdir} does not exist")
             continue

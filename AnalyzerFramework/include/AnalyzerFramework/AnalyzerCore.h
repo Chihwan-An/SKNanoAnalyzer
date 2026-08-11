@@ -354,6 +354,46 @@ public:
     GenJetViewCollection GetAllGenJetViews();
     LHEViewCollection GetAllLHEViews();
     TauViewCollection GetAllTauViews();
+    std::vector<std::size_t>
+    SelectTauIndices(const TauViewCollection &taus,
+                     const std::vector<std::size_t> &seed_indices,
+                     const TauView::ID &id, const float ptmin,
+                     const float fetamax) const;
+    std::vector<std::size_t> SelectTauIndices(const TauViewCollection &taus,
+                                              const TauView::ID &id,
+                                              const float ptmin,
+                                              const float fetamax) const;
+    template <typename KeepColl, typename VetoColl>
+    std::vector<std::size_t>
+    RemoveOverlapIndices(const KeepColl &keep,
+                         const std::vector<std::size_t> &keep_indices,
+                         const VetoColl &veto,
+                         const std::vector<std::size_t> &veto_indices,
+                         const float dRmin) const {
+        std::vector<std::size_t> selected;
+        selected.reserve(keep_indices.size());
+        const float dR2min = dRmin * dRmin;
+        for (auto i : keep_indices) {
+            const auto &a = keep[i];
+            bool overlaps = false;
+            for (auto j : veto_indices) {
+                const auto &b = veto[j];
+                const float dEta = a.Eta() - b.Eta();
+                float dPhi = a.Phi() - b.Phi();
+                while (dPhi > static_cast<float>(M_PI))
+                    dPhi -= 2.f * static_cast<float>(M_PI);
+                while (dPhi < -static_cast<float>(M_PI))
+                    dPhi += 2.f * static_cast<float>(M_PI);
+                if (dEta * dEta + dPhi * dPhi < dR2min) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (!overlaps)
+                selected.push_back(i);
+        }
+        return selected;
+    }
     GenDressedLeptonViewCollection GetAllGenDressedLeptonViews();
     GenIsolatedPhotonViewCollection GetAllGenIsolatedPhotonViews();
     GenVisTauViewCollection GetAllGenVisTauViews();

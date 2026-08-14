@@ -3,9 +3,9 @@
     "isMC": 1,
     "PD": "TWminusto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8",
     "xsec": 4.6651008780000005,
-    "sumsign": 14998466.0,
-    "sumW": 56976623.07995987,
-    "nmc": 14999000.0,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
     "path": [
         "/gv0/DATA/SKNano/NanoAODv15/2024/TWminusto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8/crab_MC_2024_TWminusto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8/251121_123928/0000/tree_1.root",
         "/gv0/DATA/SKNano/NanoAODv15/2024/TWminusto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8/crab_MC_2024_TWminusto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8/251121_123928/0000/tree_2.root",

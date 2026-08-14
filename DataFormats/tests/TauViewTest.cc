@@ -83,45 +83,45 @@ TEST(TauViewRawScores, UnboundRawDiscriminatorsReturnSentinel) {
 
 TEST(TauViewID, AcceptsTauMeetingEveryAxis) {
     auto f = MakeTaus({100.f}, {0.5f}, {6}, {6}, {4});
-    const TauView::ID id{TauWP::Medium, TauWP::VVLoose, TauWPvsMu::Loose,
+    const TauView::TauID id{LeptonID::TauWorkingPoint::MEDIUM, LeptonID::TauWorkingPoint::VVLOOSE, LeptonID::TauWorkingPointVsMu::LOOSE,
                          true, 0.2f};
     EXPECT_TRUE(f->at(0).PassID(id));
 }
 
 TEST(TauViewID, RejectsTauFailingTheJetAxis) {
     auto f = MakeTaus({100.f}, {0.5f}, {4}, {6}, {4});
-    const TauView::ID id{TauWP::Medium, TauWP::VVLoose, TauWPvsMu::Loose,
+    const TauView::TauID id{LeptonID::TauWorkingPoint::MEDIUM, LeptonID::TauWorkingPoint::VVLOOSE, LeptonID::TauWorkingPointVsMu::LOOSE,
                          true, 0.2f};
     EXPECT_FALSE(f->at(0).PassID(id));
 }
 
 TEST(TauViewID, RejectsTauFailingTheMuonAxis) {
     auto f = MakeTaus({100.f}, {0.5f}, {6}, {6}, {1});
-    const TauView::ID id{TauWP::Medium, TauWP::VVLoose, TauWPvsMu::Tight,
+    const TauView::TauID id{LeptonID::TauWorkingPoint::MEDIUM, LeptonID::TauWorkingPoint::VVLOOSE, LeptonID::TauWorkingPointVsMu::TIGHT,
                          true, 0.2f};
     EXPECT_FALSE(f->at(0).PassID(id));
 }
 
 TEST(TauViewID, NoneWorkingPointDisablesThatAxis) {
     auto f = MakeTaus({100.f}, {0.5f}, {6}, {0}, {0});
-    const TauView::ID id{TauWP::Tight, TauWP::None, TauWPvsMu::None,
+    const TauView::TauID id{LeptonID::TauWorkingPoint::TIGHT, LeptonID::TauWorkingPoint::NONE, LeptonID::TauWorkingPointVsMu::NONE,
                          true, 0.2f};
     EXPECT_TRUE(f->at(0).PassID(id));
 }
 
 TEST(TauViewID, RejectsTauFailingTheImpactParameterCut) {
     auto f = MakeTaus({100.f}, {0.5f}, {6}, {6}, {4}, {0.5f});
-    const TauView::ID id{TauWP::Medium, TauWP::VVLoose, TauWPvsMu::Loose,
+    const TauView::TauID id{LeptonID::TauWorkingPoint::MEDIUM, LeptonID::TauWorkingPoint::VVLOOSE, LeptonID::TauWorkingPointVsMu::LOOSE,
                          true, 0.2f};
     EXPECT_FALSE(f->at(0).PassID(id));
 }
 
 TEST(TauViewID, WorkingPointEnumMapsToPogStrings) {
-    EXPECT_STREQ(ToCorrectionString(TauWP::Medium), "Medium");
-    EXPECT_STREQ(ToCorrectionString(TauWP::VVLoose), "VVLoose");
-    EXPECT_STREQ(ToCorrectionString(TauWP::VVTight), "VVTight");
-    EXPECT_STREQ(ToCorrectionString(TauWPvsMu::Tight), "Tight");
-    EXPECT_STREQ(ToCorrectionString(TauWPvsMu::VLoose), "VLoose");
+    EXPECT_STREQ(ToCorrectionString(LeptonID::TauWorkingPoint::MEDIUM), "Medium");
+    EXPECT_STREQ(ToCorrectionString(LeptonID::TauWorkingPoint::VVLOOSE), "VVLoose");
+    EXPECT_STREQ(ToCorrectionString(LeptonID::TauWorkingPoint::VVTIGHT), "VVTight");
+    EXPECT_STREQ(ToCorrectionString(LeptonID::TauWorkingPointVsMu::TIGHT), "Tight");
+    EXPECT_STREQ(ToCorrectionString(LeptonID::TauWorkingPointVsMu::VLOOSE), "VLoose");
 }
 
 }

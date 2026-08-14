@@ -1,15 +1,7 @@
 {
     "name": "Muon0",
     "isMC": 0,
-    "NEvents": [
-        96370595.0,
-        119197972.0,
-        168396264.0,
-        439219867.0,
-        622377754.0,
-        90811165.0,
-        93542369.0
-    ],
+    "NEvents": [],
     "path": [
         "/gv0/DATA/SKNano/NanoAODv15/2024/Muon0/crab_DATA_2024_Run2024E_Muon0_MINIv6NANOv15/251121_123824/0000/tree_1.root",
         "/gv0/DATA/SKNano/NanoAODv15/2024/Muon0/crab_DATA_2024_Run2024E_Muon0_MINIv6NANOv15/251121_123824/0000/tree_2.root",

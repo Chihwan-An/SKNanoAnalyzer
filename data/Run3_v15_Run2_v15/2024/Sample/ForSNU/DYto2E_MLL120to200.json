@@ -3,9 +3,9 @@
     "isMC": 1,
     "PD": "DYto2E_Bin-MLL-120to200_TuneCP5_13p6TeV_powheg-pythia8",
     "xsec": 21.65,
-    "sumsign": 48275887.0,
-    "sumW": 1056261910.6505737,
-    "nmc": 48778655.0,
+    "sumsign": -1,
+    "sumW": -1,
+    "nmc": -1,
     "path": [
         "/gv0/DATA/SKNano/NanoAODv15/2024/DYto2E_Bin-MLL-120to200_TuneCP5_13p6TeV_powheg-pythia8/crab_MC_2024_DYto2E_Bin-MLL-120to200_TuneCP5_13p6TeV_powheg-pythia8/251121_124031/0000/tree_1.root",
         "/gv0/DATA/SKNano/NanoAODv15/2024/DYto2E_Bin-MLL-120to200_TuneCP5_13p6TeV_powheg-pythia8/crab_MC_2024_DYto2E_Bin-MLL-120to200_TuneCP5_13p6TeV_powheg-pythia8/251121_124031/0000/tree_2.root",

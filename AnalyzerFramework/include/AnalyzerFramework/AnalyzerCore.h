@@ -35,6 +35,7 @@
 
 #include <AnalyzerFramework/SKNanoLoader.h>
 #include "Event.h"
+#include "Geometry.h"
 #include "Particle.h"
 #include "Lepton.h"
 #include "GenView.h"
@@ -357,43 +358,14 @@ public:
     std::vector<std::size_t>
     SelectTauIndices(const TauViewCollection &taus,
                      const std::vector<std::size_t> &seed_indices,
-                     const TauView::ID &id, const float ptmin,
+                     const TauView::TauID &id, const float ptmin,
                      const float fetamax) const;
     std::vector<std::size_t> SelectTauIndices(const TauViewCollection &taus,
-                                              const TauView::ID &id,
+                                              const TauView::TauID &id,
                                               const float ptmin,
                                               const float fetamax) const;
-    template <typename KeepColl, typename VetoColl>
-    std::vector<std::size_t>
-    RemoveOverlapIndices(const KeepColl &keep,
-                         const std::vector<std::size_t> &keep_indices,
-                         const VetoColl &veto,
-                         const std::vector<std::size_t> &veto_indices,
-                         const float dRmin) const {
-        std::vector<std::size_t> selected;
-        selected.reserve(keep_indices.size());
-        const float dR2min = dRmin * dRmin;
-        for (auto i : keep_indices) {
-            const auto &a = keep[i];
-            bool overlaps = false;
-            for (auto j : veto_indices) {
-                const auto &b = veto[j];
-                const float dEta = a.Eta() - b.Eta();
-                float dPhi = a.Phi() - b.Phi();
-                while (dPhi > static_cast<float>(M_PI))
-                    dPhi -= 2.f * static_cast<float>(M_PI);
-                while (dPhi < -static_cast<float>(M_PI))
-                    dPhi += 2.f * static_cast<float>(M_PI);
-                if (dEta * dEta + dPhi * dPhi < dR2min) {
-                    overlaps = true;
-                    break;
-                }
-            }
-            if (!overlaps)
-                selected.push_back(i);
-        }
-        return selected;
-    }
+    TauViewCollection SelectTauViews(const TauViewCollection &taus,
+        std::vector<std::size_t> indices, bool sortByPt = true) const;
     GenDressedLeptonViewCollection GetAllGenDressedLeptonViews();
     GenIsolatedPhotonViewCollection GetAllGenIsolatedPhotonViews();
     GenVisTauViewCollection GetAllGenVisTauViews();
@@ -429,6 +401,52 @@ public:
                                    const MuonViewCollection& muons,
                                    const std::vector<std::size_t>& muon_indices,
                                    const float dR = 0.3) const;
+
+    // Generic overlap removal: keeps the entries of keep_indices that are at
+    // least dRmin away from every entry of veto_indices.  Input order is
+    // preserved and the returned values index into keep, not into
+    // keep_indices.  Chain it to veto against more than one collection.
+    template <typename KeepColl, typename VetoColl>
+    static std::vector<std::size_t>
+    RemoveOverlapIndices(const KeepColl &keep,
+                         const std::vector<std::size_t> &keep_indices,
+                         const VetoColl &veto,
+                         const std::vector<std::size_t> &veto_indices,
+                         const float dRmin) {
+        if (veto_indices.empty())
+            return keep_indices;
+
+        // Read the veto side once.  The inner loop then runs on plain floats
+        // instead of paying a column lookup per pair.
+        std::vector<float> vetoEta, vetoPhi;
+        vetoEta.reserve(veto_indices.size());
+        vetoPhi.reserve(veto_indices.size());
+        for (const std::size_t j : veto_indices) {
+            const auto &b = veto[j];
+            vetoEta.push_back(b.Eta());
+            vetoPhi.push_back(b.Phi());
+        }
+
+        std::vector<std::size_t> selected;
+        selected.reserve(keep_indices.size());
+        const float dR2min = dRmin * dRmin;
+        for (const std::size_t i : keep_indices) {
+            const auto &a = keep[i];
+            const float eta = a.Eta();
+            const float phi = a.Phi();
+            bool overlaps = false;
+            for (std::size_t j = 0; j < vetoEta.size(); ++j) {
+                if (SKNano::Geometry::DeltaR2(eta, phi, vetoEta[j],
+                                              vetoPhi[j]) < dR2min) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (!overlaps)
+                selected.push_back(i);
+        }
+        return selected;
+    }
     // Functions
     float GetScaleVariation(const MyCorrection::variation &muF_syst, const MyCorrection::variation &muR_syst);
     float GetPSWeight(const MyCorrection::variation &ISR_syst, const MyCorrection::variation &FSR_syst);
@@ -801,8 +819,6 @@ std::vector<int> AnalyzerCore::MatchViewsToTrigObjs(
     return matchedIdx;
 
   const float maxDR2 = dR * dR;
-  constexpr float kPi = 3.14159265358979323846f;
-  constexpr float kTwoPi = 6.28318530717958647692f;
 
   std::vector<std::tuple<std::size_t, std::size_t, float>> candidates;
   candidates.reserve(nObj * 2);
@@ -815,14 +831,9 @@ std::vector<int> AnalyzerCore::MatchViewsToTrigObjs(
       if (trigId >= 0 && static_cast<int>(storage->id[j]) != trigId)
         continue;
 
-      const float dEta = objEta - storage->eta[j];
-      float dPhi = objPhi - storage->phi[j];
-      if (dPhi > kPi)
-        dPhi -= kTwoPi;
-      else if (dPhi <= -kPi)
-        dPhi += kTwoPi;
-
-      const float dr2 = dEta * dEta + dPhi * dPhi;
+      const float dr2 = SKNano::Geometry::DeltaR2(objEta, objPhi,
+                                                  storage->eta[j],
+                                                  storage->phi[j]);
       if (dr2 < maxDR2)
         candidates.emplace_back(i, j, dr2);
     }

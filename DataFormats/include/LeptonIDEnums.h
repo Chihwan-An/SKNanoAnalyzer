@@ -83,6 +83,58 @@ enum class MuonID {
     POG_SOFTMVA_RUN3_VLOOSE
 };
 
+// DeepTau 2018v2p5 working points.  The stored NanoAOD column is the index of
+// the tightest point the tau passes, so the enumerator values are the column
+// values and ordering them means ordering the working points.
+enum class TauWorkingPoint : unsigned char {
+    NONE = 0,
+    VVVLOOSE = 1,
+    VVLOOSE = 2,
+    VLOOSE = 3,
+    LOOSE = 4,
+    MEDIUM = 5,
+    TIGHT = 6,
+    VTIGHT = 7,
+    VVTIGHT = 8
+};
+
+// The vsMu discriminator is published with four points, not eight.
+enum class TauWorkingPointVsMu : unsigned char {
+    NONE = 0,
+    VLOOSE = 1,
+    LOOSE = 2,
+    MEDIUM = 3,
+    TIGHT = 4
+};
+
+// Spelling used by the TAU POG correctionlib files.  Found by ADL, so callers
+// holding a LeptonID enum can write ToCorrectionString(wp) unqualified.
+inline const char *ToCorrectionString(const TauWorkingPoint wp) {
+    switch (wp) {
+    case TauWorkingPoint::VVVLOOSE: return "VVVLoose";
+    case TauWorkingPoint::VVLOOSE:  return "VVLoose";
+    case TauWorkingPoint::VLOOSE:   return "VLoose";
+    case TauWorkingPoint::LOOSE:    return "Loose";
+    case TauWorkingPoint::MEDIUM:   return "Medium";
+    case TauWorkingPoint::TIGHT:    return "Tight";
+    case TauWorkingPoint::VTIGHT:   return "VTight";
+    case TauWorkingPoint::VVTIGHT:  return "VVTight";
+    case TauWorkingPoint::NONE:     return "None";
+    }
+    return "None";
+}
+
+inline const char *ToCorrectionString(const TauWorkingPointVsMu wp) {
+    switch (wp) {
+    case TauWorkingPointVsMu::VLOOSE: return "VLoose";
+    case TauWorkingPointVsMu::LOOSE:  return "Loose";
+    case TauWorkingPointVsMu::MEDIUM: return "Medium";
+    case TauWorkingPointVsMu::TIGHT:  return "Tight";
+    case TauWorkingPointVsMu::NONE:   return "None";
+    }
+    return "None";
+}
+
 } // namespace LeptonID
 
 #endif // LEPTONIDENUMS_H

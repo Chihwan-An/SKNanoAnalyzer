@@ -56,6 +56,13 @@ submodule and export `SKNANO_ANALYSIS_MODULE_DIRS` so the usual clean build
 automatically includes it. Each build installs `share/sknano/analyzers.manifest`;
 `SKNano.py` checks this file before creating jobs.
 
+Several people can each pin their own module at the same time: any top-level
+submodule directory matching `*_Analyzers` (e.g. `<owner>_Analyzers`) with a
+`CMakeLists.txt` is picked up automatically by both `setup.sh` and the
+top-level `CMakeLists.txt`, without editing either file.
+`SKNANO_ANALYSIS_MODULE_DIRS` still overrides this auto-detection if set
+explicitly.
+
 ## Custom input schemas
 
 The canonical schema in the backend describes only official NanoAOD fields.

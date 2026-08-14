@@ -102,7 +102,7 @@ void SKNanoLoader::OpenRNTupleFile(std::size_t index)
         throw SKNano::LogicError("[SKNanoLoader] invalid RNTuple file index");
     auto next = std::make_unique<SKNano::RNTupleSource>();
     next->open(inputDatasetName, rntupleFileRanges[index].fileName,
-               performanceTelemetry.enabled(), rntupleClusterCache);
+               rntupleMetrics, rntupleClusterCache);
     // attachRNTuple clears views into the previous reader before the old
     // RNTupleSource is destroyed by the unique_ptr move below.
     branchManager.attachRNTuple(next.get());
@@ -320,8 +320,10 @@ void SKNanoLoader::WritePerformanceSummary()
 void SKNanoLoader::Init()
 {
     cout << "[SKNanoLoader::Init] Initializing. Era = " << DataEra << " Run =  " << Run << endl;
-    if (const char *report = std::getenv("SKNANO_PERFORMANCE_REPORT"))
+    if (const char *report = std::getenv("SKNANO_PERFORMANCE_REPORT")) {
         SetPerformanceReportPath(report);
+        rntupleMetrics = true;
+    }
     if (GetInputEntries() == 0)
     {
         cout << "[SKNanoLoader::Init] No entries in the RNTuple" << endl;

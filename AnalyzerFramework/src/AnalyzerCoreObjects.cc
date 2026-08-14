@@ -128,7 +128,7 @@ TauViewCollection AnalyzerCore::GetAllTauViews() {
 std::vector<std::size_t>
 AnalyzerCore::SelectTauIndices(const TauViewCollection &taus,
                                const std::vector<std::size_t> &seed_indices,
-                               const TauView::ID &id, const float ptmin,
+                               const TauView::TauID &id, const float ptmin,
                                const float fetamax) const {
   std::vector<std::size_t> selected;
   selected.reserve(taus.size());
@@ -147,10 +147,23 @@ AnalyzerCore::SelectTauIndices(const TauViewCollection &taus,
 
 std::vector<std::size_t>
 AnalyzerCore::SelectTauIndices(const TauViewCollection &taus,
-                               const TauView::ID &id, const float ptmin,
+                               const TauView::TauID &id, const float ptmin,
                                const float fetamax) const {
   auto seed_indices = AllIndices(taus);
   return SelectTauIndices(taus, seed_indices, id, ptmin, fetamax);
+}
+
+TauViewCollection
+AnalyzerCore::SelectTauViews(const TauViewCollection &taus,
+                             std::vector<std::size_t> indices,
+                             bool sortByPt) const {
+  if (sortByPt) {
+    std::sort(indices.begin(), indices.end(),
+              [&](std::size_t lhs, std::size_t rhs) {
+                return taus[lhs].Pt() > taus[rhs].Pt();
+              });
+  }
+  return TauViewCollection(taus.storage(), std::move(indices));
 }
 
 GenDressedLeptonViewCollection AnalyzerCore::GetAllGenDressedLeptonViews() {

@@ -32,6 +32,15 @@ switch readers at file boundaries while preserving lazy field state.
 ## I/O behavior
 
 - Scalar and vector views are created lazily on first access.
+- `RNTupleSource` snapshots the top-level field names and types when it opens a
+  file. `hasField()`/`fieldType()` answer from that snapshot, because
+  `RNTupleReader::GetDescriptor()` clones the descriptor under a lock and
+  `FindFieldId()` scans every top-level field linearly -- roughly 20 us per call
+  on a NanoAOD-sized schema, which is not viable on a per-event path.
+- Typed `ColumnHandle`/`ScalarHandle` cache the column they resolve to. The
+  cache is keyed on `BranchManager::generation()`, which is bumped whenever an
+  RNTuple is attached or the manager is cleared, so a new file re-resolves every
+  handle and optional fields stay honest when availability differs per file.
 - Arithmetic `RVec<T>` fields expose page-backed contiguous views without an
   intermediate analyzer buffer copy.
 - `RVec<bool>` is materialized as bytes because it has no stable `bool *`
@@ -53,5 +62,9 @@ switch readers at file boundaries while preserving lazy field state.
 - Skimming records selected global entries during analysis and writes the
   original input schema through the RNTuple Snapshot backend.
 Set `SKNANO_PERFORMANCE_REPORT=/path/report.json` to collect backend-tagged
-event-loop telemetry. The standalone `test_rntuple_source` target validates
+event-loop telemetry. That variable also turns on ROOT's own RNTuple metrics,
+which wrap every page read in an `RNTupleTimer` (two `clock()` calls per read)
+and populate the `file_bytes_read`/`file_read_calls` counters; jobs that only
+get a report path from `SetOutfilePath()` leave those counters at zero and do
+not pay for the timers. The standalone `test_rntuple_source` target validates
 scalar and vector access against an RNTuple file.

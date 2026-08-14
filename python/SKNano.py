@@ -183,14 +183,39 @@ for module_dir in getAnalysisModuleDirs():
                 if key not in {"name", "path", "path_glob"}
             }
             moduleSampleJsons[era][name] = sample_path
-skimInfoJsons = {}
 
-
-for era in Run.keys():
-    try:
-        skimInfoJsons[era] = json.load(open(os.path.join(SKNANO_DATA,era,'Sample','Skim','skimTreeInfo.json')))
-    except:
-        print(f"\033[93mWarning: {era} skimTreeInfo.json is not exist\033[0m")
+# Skims are produced by an analysis, not by the backend, so their metadata
+# lives in the module that produced them -- <module>/data/Skim/<era>/, with
+# skimTreeInfo.json as the registry and one json per skimmed sample beside it.
+SKIM_INFO_BASENAME = "skimTreeInfo.json"
+skimInfoJsons = {era: {} for era in Run.keys()}
+moduleSkimJsons = {era: {} for era in Run.keys()}
+for module_dir in getAnalysisModuleDirs():
+    patterns = [
+        os.path.join(module_dir, "data", "Skim", "*", "*.json"),
+        os.path.join(module_dir, "*", "data", "Skim", "*", "*.json"),
+    ]
+    for pattern in patterns:
+        for skim_path in sorted(glob.glob(pattern)):
+            era = Path(skim_path).parent.name
+            if era not in Run:
+                continue
+            with open(skim_path, encoding="utf-8") as handle:
+                payload = json.load(handle)
+            if Path(skim_path).name == SKIM_INFO_BASENAME:
+                overlap = set(payload) & set(skimInfoJsons[era])
+                if overlap:
+                    raise RuntimeError(
+                        f"duplicate skim entries for era {era}: {sorted(overlap)}")
+                skimInfoJsons[era].update(payload)
+                continue
+            # Keyed by filename, not by the "name" field: a data skim writes
+            # one file per period and they all carry the period-less name.
+            name = Path(skim_path).stem
+            if name in moduleSkimJsons[era]:
+                raise RuntimeError(
+                    f"duplicate skim sample '{name}' for era {era}")
+            moduleSkimJsons[era][name] = skim_path
 
 ##############################
 def isMCandGetPeriod(sample):
@@ -386,6 +411,24 @@ def copyMetadataSnapshotFile(master_dir, source_path):
     shutil.copy2(source_path, target)
     return target
 
+def snapshotResolvedInputs(master_dir, era, sample, sample_paths):
+    """Record the files a sample actually resolved to.
+
+    A sample json that carries a glob says which files to look for, not which
+    files were there at submission time. Without this the run is no longer
+    reproducible once the production grows, which is the one thing the old
+    enumerated path lists were good at.
+    """
+    target = os.path.join(master_dir, METADATA_SNAPSHOT_DIRNAME,
+                          "resolved_inputs", era, f"{sample}.json")
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, "w", encoding="utf-8") as handle:
+        json.dump({"era": era, "sample": sample,
+                   "input_root": os.environ.get("SKNANO_INPUT_ROOT", ""),
+                   "nfiles": len(sample_paths), "files": sample_paths},
+                  handle, indent=2)
+    return target
+
 def snapshotSampleMetadata(master_dir, era, sample, sample_json_path):
     copied = []
     common_info = os.path.join(SKNANO_DATA, era, 'Sample', 'CommonSampleInfo.json')
@@ -398,10 +441,14 @@ def snapshotSampleMetadata(master_dir, era, sample, sample_json_path):
         copied.append(copied_path)
 
     if sample.startswith("Skim_"):
-        skim_info = os.path.join(SKNANO_DATA, era, 'Sample', 'Skim', 'skimTreeInfo.json')
-        copied_path = copyMetadataSnapshotFile(master_dir, skim_info)
-        if copied_path:
-            copied.append(copied_path)
+        # The registry that named this skim lives with the module that made it.
+        for module_dir in getAnalysisModuleDirs():
+            for pattern in (os.path.join(module_dir, "data", "Skim", era, SKIM_INFO_BASENAME),
+                            os.path.join(module_dir, "*", "data", "Skim", era, SKIM_INFO_BASENAME)):
+                for skim_info in sorted(glob.glob(pattern)):
+                    copied_path = copyMetadataSnapshotFile(master_dir, skim_info)
+                    if copied_path:
+                        copied.append(copied_path)
     return copied
 
 def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot, submit_result=None):
@@ -681,17 +728,34 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
     if sample.startswith("Skim_"):
         SkimInfo = skimInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
         sampleInfo = sampleInfoJsons[era][SkimInfo['PD']]
-        sample_json_path = os.path.join(SKNANO_DATA,era,'Sample','Skim',sample+'.json')
-        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
+        sample_json_path = moduleSkimJsons[era].get(sample)
+        if not sample_json_path:
+            raise RuntimeError(
+                f"no skim metadata for '{sample}' in era {era}; it belongs in "
+                "<module>/data/Skim/<era>/ of the analysis that produced it")
+        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)), era, period)
         metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
+        metadata_snapshot_files.append(
+            snapshotResolvedInputs(masterJobDirectory, era, sample, samplePaths))
         sample = SkimInfo['PD']
     else:
-        sampleInfo = sampleInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
-        sample_json_path = moduleSampleJsons[era].get(
-            sample, os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json'))
-        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
+        sample_key = sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)
+        sampleInfo = sampleInfoJsons[era][sample_key]
+        # A module may ship its own sample json. Otherwise the registry entry is
+        # the whole description: the inputs derive from era plus PD (MC) or
+        # name and period (DATA), so there is no per-sample file to read.
+        sample_json_path = moduleSampleJsons[era].get(sample)
+        if sample_json_path:
+            sample_spec = json.load(open(sample_json_path))
+        else:
+            sample_spec = dict(sampleInfo, name=sample_key)
+            sample_json_path = os.path.join(
+                SKNANO_DATA, era, 'Sample', 'CommonSampleInfo.json')
+        samplePaths = resolve_sample_paths(sample_spec, era, period)
         metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
-        
+        metadata_snapshot_files.append(
+            snapshotResolvedInputs(masterJobDirectory, era, sample, samplePaths))
+
     samplePaths = jobFileDivider(samplePaths, njobs)
 
     

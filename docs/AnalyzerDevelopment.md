@@ -101,6 +101,12 @@ work upstream, drop the `.gitmodules` entry and the gitlinks from what you
 propose. Nothing under `<owner>_Analyzers/` is backend work by definition, so
 nothing is lost by leaving it behind.
 
+Skim metadata follows the same ownership. A skim is produced by an analysis, so
+its `skimTreeInfo.json` and per-skim sample jsons live in
+`<module>/<Analysis>/data/Skim/<era>/` and are discovered from there, the same
+way module sample jsons are. Point `SKNANO_SKIM_METADATA_DIR` at that directory
+before running the skim post-processing.
+
 The same rule applies to the rest of the backend: it must not name a concrete
 analyzer. Documentation for your analyses belongs in your module repository,
 not in `docs/`, and `scripts/check_layers.sh` discovers analyzer class names

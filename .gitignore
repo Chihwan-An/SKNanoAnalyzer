@@ -9,7 +9,6 @@ external/lhapdf/*
 external/libtorch/*
 config/config.*
 !config/config.default
-**/Skim*.json
 external/** 
 *.onnx
 !external/KinematicFitter
@@ -55,5 +54,5 @@ MCCOPY/**
 # Local agent guidance (per-user, not shared)
 CLAUDE.md
 AGENTS.md
-.claude/settings.local.json
+.claude/
 unrelated_analysis_results*/

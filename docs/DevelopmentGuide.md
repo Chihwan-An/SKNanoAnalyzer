@@ -5,6 +5,8 @@
 - [Repository setup](#repository-setup)
 - [Systematic-aware corrections](#systematic-aware-corrections)
 - [Typed constants and identifiers](#typed-constants-and-identifiers)
+- [Unit tests](#unit-tests)
+- [Repository size](#repository-size)
 - [Testing another pull request](#testing-another-pull-request)
 - [GitLab authentication in GitHub Actions](#gitlab-authentication-in-github-actions)
 
@@ -116,6 +118,25 @@ Two rules keep the suites usable on machines that are not this one:
 Layer and codegen checks (`scripts/check_layers.sh`, the analysis-module
 contract tests) are plain scripts or assert-based executables registered the
 same way; they predate gtest and there is no need to convert them.
+
+## Repository size
+
+`.git` is far larger than the working tree, because `data/` used to carry
+enumerated input paths and multi-megabyte JSON that does not delta-compress.
+The sources of growth are gone — sample inputs derive from
+`$SKNANO_INPUT_ROOT` and the large LUTs live with the module that owns them —
+but the objects already written stay in history.
+
+Reclaiming them means rewriting history: `git filter-repo` to drop the large
+blobs, a force-push of every branch, and every existing clone becoming invalid.
+That is a coordinated operation, not a cleanup commit, so it is deliberately not
+bundled with the changes that stopped the growth. Until it happens, avoid
+committing anything large under `data/`: the era yml resolves correction files
+from outside the repository and sample inputs need no paths at all.
+
+A local `git gc` is safe and worth running; note that interrupted operations can
+leave `.git/objects/pack/tmp_pack_*` files behind, which `gc` will not remove on
+its own.
 
 ## Testing another pull request
 

@@ -11,8 +11,8 @@ The only dictionary-enabled persistent value classes with `ClassDef` are
 types are non-streaming event-scoped views (`#pragma link ...-`) and therefore
 have no persistent-object schema.
 
-The output code paths audited in `AnalyzerCoreOutput.cc`, `CalibrationTree.cc`
-and `Vcb_SL.cc` write primitive, fixed-array, and STL-vector RNTuple fields.
+The output code paths audited in `AnalyzerCoreOutput.cc` and in the analysis
+modules write primitive, fixed-array, and STL-vector RNTuple fields.
 Schema-preserving skims use RDataFrame's RNTuple Snapshot backend. No current
 call site persists a `DataFormats` value object, so view and branch-manager
 changes do not alter a persisted `DataFormats` layout.

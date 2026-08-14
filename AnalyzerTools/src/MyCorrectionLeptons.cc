@@ -400,3 +400,100 @@ float MyCorrection::GetPUWeight(const float nTrueInt, const variation syst,
     return 1.;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Tau identification scale factors (DeepTau 2018v2p5)
+//
+// Argument order below is fixed by the tau.json.gz input axes:
+//   DeepTau2018v2p5VSjet : pt, dm, genmatch, wp, wp_VSe, syst, flag
+//   DeepTau2018v2p5VSe   : eta, dm, genmatch, wp, syst
+//   DeepTau2018v2p5VSmu  : eta, genmatch, wp, wp_VSe, wp_VSjet, syst
+// correctionlib matches positionally, so the order must not be rearranged.
+// ---------------------------------------------------------------------------
+
+float MyCorrection::GetTauIDSF_vsJetRaw(const TauView::ID &id, const float pt,
+                                        const int dm, const int genmatch,
+                                        const variation syst,
+                                        const TString &flag) const {
+  if (IsDATA)
+    return 1.f;
+  auto cset = cset_tau->at("DeepTau2018v2p5VSjet");
+  return safeEvaluate(cset, "GetTauIDSF_vsJet",
+                      {static_cast<double>(pt), dm, genmatch,
+                       string(ToCorrectionString(id.vsJet)),
+                       string(ToCorrectionString(id.vsE)),
+                       getSystString_TAU(syst), string(flag.Data())});
+}
+
+float MyCorrection::GetTauIDSF_vsERaw(const TauView::ID &id, const float eta,
+                                      const int dm, const int genmatch,
+                                      const variation syst) const {
+  if (IsDATA)
+    return 1.f;
+  auto cset = cset_tau->at("DeepTau2018v2p5VSe");
+  return safeEvaluate(cset, "GetTauIDSF_vsE",
+                      {static_cast<double>(eta), dm, genmatch,
+                       string(ToCorrectionString(id.vsE)),
+                       getSystString_TAU(syst)});
+}
+
+float MyCorrection::GetTauIDSF_vsMuRaw(const TauView::ID &id, const float eta,
+                                       const int genmatch,
+                                       const variation syst) const {
+  if (IsDATA)
+    return 1.f;
+  auto cset = cset_tau->at("DeepTau2018v2p5VSmu");
+  return safeEvaluate(cset, "GetTauIDSF_vsMu",
+                      {static_cast<double>(eta), genmatch,
+                       string(ToCorrectionString(id.vsMu)),
+                       string(ToCorrectionString(id.vsE)),
+                       string(ToCorrectionString(id.vsJet)),
+                       getSystString_TAU(syst)});
+}
+
+float MyCorrection::GetTauIDSF_vsJet(const TauView::ID &id, const TauView &tau,
+                                     const variation syst) const {
+  return GetTauIDSF_vsJetRaw(id, tau.Pt(), tau.DecayMode(), tau.GenPartFlav(),
+                             syst);
+}
+
+float MyCorrection::GetTauIDSF_vsE(const TauView::ID &id, const TauView &tau,
+                                   const variation syst) const {
+  return GetTauIDSF_vsERaw(id, tau.Eta(), tau.DecayMode(), tau.GenPartFlav(),
+                           syst);
+}
+
+float MyCorrection::GetTauIDSF_vsMu(const TauView::ID &id, const TauView &tau,
+                                    const variation syst) const {
+  return GetTauIDSF_vsMuRaw(id, tau.Eta(), tau.GenPartFlav(), syst);
+}
+
+float MyCorrection::GetTauIDSF_vsJet(const TauView::ID &id,
+                                     const TauViewCollection &taus,
+                                     const std::vector<std::size_t> &indices,
+                                     const variation syst) const {
+  float weight = 1.f;
+  for (auto i : indices)
+    weight *= GetTauIDSF_vsJet(id, taus[i], syst);
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsE(const TauView::ID &id,
+                                   const TauViewCollection &taus,
+                                   const std::vector<std::size_t> &indices,
+                                   const variation syst) const {
+  float weight = 1.f;
+  for (auto i : indices)
+    weight *= GetTauIDSF_vsE(id, taus[i], syst);
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsMu(const TauView::ID &id,
+                                    const TauViewCollection &taus,
+                                    const std::vector<std::size_t> &indices,
+                                    const variation syst) const {
+  float weight = 1.f;
+  for (auto i : indices)
+    weight *= GetTauIDSF_vsMu(id, taus[i], syst);
+  return weight;
+}

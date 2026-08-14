@@ -78,3 +78,7 @@ install(DIRECTORY include/ DESTINATION include)
 install(FILES ${SKNANO_GENERATED_BRANCH_FILES} DESTINATION include/AnalyzerFramework)
 
 sknano_register_analyzers(GeneratorBase)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

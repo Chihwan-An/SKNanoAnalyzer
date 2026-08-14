@@ -93,6 +93,19 @@ Keep the backend and analysis histories independent. The backend branch records
 only a submodule commit. Update it intentionally, rebuild, run the module smoke
 tests, and commit the new gitlink. Batch run manifests record both revisions.
 
+**A module pin belongs to your branch, never to `main`.** Most module
+repositories are private, so a `<owner>_Analyzers` entry in `.gitmodules` on
+`main` gives everyone else a clone that cannot complete and a submodule they
+have no access to. Pin your modules on your own branch; when you send backend
+work upstream, drop the `.gitmodules` entry and the gitlinks from what you
+propose. Nothing under `<owner>_Analyzers/` is backend work by definition, so
+nothing is lost by leaving it behind.
+
+The same rule applies to the rest of the backend: it must not name a concrete
+analyzer. Documentation for your analyses belongs in your module repository,
+not in `docs/`, and `scripts/check_layers.sh` discovers analyzer class names
+from whichever modules are checked out rather than listing any of them.
+
 ```bash
 git submodule add git@github.com:ORG/MyAnalyzers.git MyAnalyzers
 git -C MyAnalyzers checkout <reviewed-sha>

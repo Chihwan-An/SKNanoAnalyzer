@@ -107,7 +107,6 @@ if __name__ == '__main__':
     parser.add_argument('--EffLumiLogFolder', dest='EffLumiLogFolder', default='GetEffLumi', help='Folder name of GetEffLumi log files')
     args = parser.parse_args()
     GetEffLumi_Foler = args.EffLumiLogFolder
-    GetEffLumi_Foler = '/data6/Users/yeonjoon/SKNanoRunlog/2024_09_23_004321_GetEffLumi'
     eras = getEraList(args.Era, args.Run)
     samples = getInputSampleList(args.InputSample, eras)
     for era, sample in itertools.product(eras, samples):

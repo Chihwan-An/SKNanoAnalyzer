@@ -235,6 +235,8 @@ def getFinalOutputPath(era, sample, argparser, userflags):
     analyzer_name = argparser.Analyzer
     if len(userflags) > 0:
         analyzer_name += f"/{'_'.join(userflags)}"
+    if getattr(argparser, 'no_hadd', False):
+        return os.path.join(SKNANO_OUTPUT, analyzer_name, era, sample, 'hists_*.root')
     return os.path.join(SKNANO_OUTPUT, analyzer_name, era, sample + '.root')
 
 def sourceSnapshotIgnore(src, names):
@@ -440,6 +442,7 @@ def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot
             'skimming_mode': SKIMMING_MODE,
             'failure_policy': argparser.FailurePolicy,
             'max_event_errors': argparser.MaxEventErrors,
+            'no_hadd': argparser.no_hadd,
             'no_exec': argparser.no_exec,
         },
         'samples': [
@@ -606,6 +609,8 @@ def setParser():
     choices=['fail-fast', 'skip-event'], help="Event failure handling policy. Default: fail-fast")
     parser.add_argument('--max-event-errors', dest='MaxEventErrors', default=1, type=int,
     help="Maximum event-local errors before failing a job. Use -1 for unlimited. Default: 1")
+    parser.add_argument('--no-hadd', dest='no_hadd', action='store_true', default=False,
+    help="Skip hadd and move the per-job ROOT outputs to a sample directory under SKNANO_OUTPUT")
     parser.add_argument('--no_exec', action='store_true', default=False, help="only produce working area, not submitting to the condor pool")
     
     #Note: this option will change the behavior of the script. output directory will be changed to Your GV0, hadd will be disabled, and will create the info json of skimmed tree   
@@ -894,6 +899,37 @@ def makeHaddJobs(working_dir,argparser,sample):
 
     return job_dict
 
+def makeMoveJobs(working_dir,argparser,sample):
+    AnalyzerName = argparser.Analyzer
+    userflags = getUserFlagsList(argparser.Userflags)
+    if len(userflags) > 0:
+        AnalyzerName += f"/{'_'.join(userflags)}"
+    era = working_dir.split('/')[-2]
+    target_dir = os.path.join(SKNANO_OUTPUT, AnalyzerName, era, sample)
+    os.makedirs(target_dir, exist_ok=True)
+
+    template_path = os.path.join(SKNANO_HOME, "templates", "move.sh")
+    with open(template_path, 'r') as f:
+        move_content = f.read()
+    move_content = move_content.replace("[WORKDIR]", working_dir)
+    move_content = move_content.replace("[TARGETDIR]", target_dir)
+    move_content = move_content.replace(
+        "[PROVENANCE]",
+        os.path.join(os.path.dirname(os.path.dirname(working_dir)), RUN_MANIFEST_NAME),
+    )
+    with open(os.path.join(working_dir,"move.sh"),'w') as f:
+        f.write(move_content)
+
+    job_dict = hadd_job.copy()
+    job_dict['executable'] = os.path.join(working_dir,"move.sh")
+    job_dict['JobBatchName'] = f"Move_{working_dir.split('/')[-1]}_{working_dir.split('/')[-2]}"
+    job_dict['RequestCpus'] = 1
+    job_dict['RequestMemory'] = '1024 MB'
+    job_dict['output'] = os.path.join(working_dir,"move.out")
+    job_dict['error'] = os.path.join(working_dir,"move.err")
+
+    return job_dict
+
 def makeSkimPostProcsJobs(working_dir,sample, argparser,era):
     AnalyzerName = argparser.Analyzer
     userflags = getUserFlagsList(argparser.Userflags)
@@ -944,6 +980,7 @@ def getEachAnalyzerToPostDag(kwarg):
     hadd_sub_dict = kwarg['hadd_sub_dict']
     totalNumberOfJobs = kwarg['totalNumberofJobs']
     batchname = kwarg['batchname']
+    postproc_label = kwarg.get('postproc_label', 'Hadd')
     
     if totalNumberOfJobs == 0:
         return
@@ -955,7 +992,7 @@ def getEachAnalyzerToPostDag(kwarg):
     }
     
     hadd_layer = {
-        'name' :  f"Postproc_{batchname}" if SKIMMING_MODE else f"Hadd_{batchname}",
+        'name' :  f"Postproc_{batchname}" if SKIMMING_MODE else f"{postproc_label}_{batchname}",
         'submit_description' : htcondor.Submit(hadd_sub_dict)
     }
     
@@ -968,6 +1005,9 @@ def renderSubmissionSummary(dag_list, master_dir, argparser, userflags, submit_r
     cluster_id = submit_result.get('cluster_id') if submit_result else None
     dag_file = submit_result.get('dag_file') if submit_result else None
     status = "Prepared only (--no_exec)" if argparser.no_exec else f"Submitted cluster {cluster_id}"
+    hadd_status = "not applicable (skimming)" if SKIMMING_MODE else (
+        "disabled" if argparser.no_hadd else "enabled"
+    )
 
     if not _RICH_AVAILABLE:
         print("\nSKNano submission summary")
@@ -976,6 +1016,7 @@ def renderSubmissionSummary(dag_list, master_dir, argparser, userflags, submit_r
         print(f"  Eras: {', '.join(eras) if eras else '-'}")
         print(f"  Samples: {total_samples}")
         print(f"  Analyzer jobs: {total_jobs}")
+        print(f"  Hadd: {hadd_status}")
         print(f"  Master directory: {master_dir}")
         if dag_file:
             print(f"  Final DAG: {dag_file}")
@@ -995,6 +1036,7 @@ def renderSubmissionSummary(dag_list, master_dir, argparser, userflags, submit_r
     overview.add_row("Analyzer", argparser.Analyzer)
     overview.add_row("Mode", "python" if argparser.python else "C++ ROOT macro")
     overview.add_row("Skimming", str(SKIMMING_MODE))
+    overview.add_row("Hadd", hadd_status)
     overview.add_row("Eras", ", ".join(eras) if eras else "-")
     overview.add_row("Samples", str(total_samples))
     overview.add_row("Analyzer jobs", str(total_jobs))
@@ -1202,12 +1244,12 @@ if __name__ == '__main__':
             if SKIMMING_MODE:
                 postproc_sub_dict = makeSkimPostProcsJobs(working_dir,sample,args,era)
             else:
-                hadd_sub_dict = makeHaddJobs(working_dir,args,sample)
+                hadd_sub_dict = makeMoveJobs(working_dir,args,sample) if args.no_hadd else makeHaddJobs(working_dir,args,sample)
             
             if SKIMMING_MODE:
                 dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':postproc_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
             else:
-                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':hadd_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
+                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':hadd_sub_dict,'postproc_label':'Move' if args.no_hadd else 'Hadd','totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
             if dag_list is not None:
                 if SKIMMING_MODE:
                     postproc_layers.append(getEachAnalyzerToPostDag(dag_list[-1]))

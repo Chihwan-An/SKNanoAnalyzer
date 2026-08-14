@@ -60,20 +60,9 @@ float MyCorrection::GetMuonRECOSF(const MuonViewCollection &muons,
 
 float MyCorrection::GetMuonIDSF(const TString &key, const MuonView &muon,
                                 const variation syst) const {
-  if (key == "TopHNT") {
-    auto cset = cset_muon_TopHNT_idsf->at("sf");
-    if (syst == variation::nom)
-      return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "nom"});
-    if (syst == variation::up)
-      return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "up"});
-    if (syst == variation::down)
-      return safeEvaluate(cset, "GetMuonIDSF",
-                          {fabs(muon.Eta()), muon.MiniAODPt(), "down"});
-    throw runtime_error("[MyCorrection::GetMuonIDSF] Invalid syst value");
-  }
-  auto cset = cset_muon->at(string(key));
+  const auto &cset = cachedRefByKey(
+      cachedMuonIDSF, cset_muon,
+      std::string_view(key.Data(), static_cast<std::size_t>(key.Length())));
   return safeEvaluate(
       cset, "GetMuonIDSF",
       {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_MUO(syst)});
@@ -125,9 +114,9 @@ float MyCorrection::GetElectronScaleUnc(const float scEta,
   case 3: {
     if (syst == variation::nom)
       return 1.;
-    const string key = (GetEra().Contains("2022"))
-                           ? "Scale"
-                           : EGM_keys.at(GetEra().Data()) + "_ScaleJSON";
+    static const string scale2022Key = "Scale";
+    const string &key =
+        GetEra().Contains("2022") ? scale2022Key : EGM_era_scale_key;
     auto cset = cset_electron_variation->at(key);
     vector<correction::Variable::Type> args = {"total_uncertainty",
                                                static_cast<int>(seedGain),
@@ -156,29 +145,22 @@ float MyCorrection::GetElectronScaleUnc(const float scEta,
 float MyCorrection::GetElectronRECOSF(const float eta, const float pt,
                                       const float phi,
                                       const variation syst) const {
-  auto cset = Run == 3 ? cset_electron->at("Electron-ID-SF")
-                       : cset_electron->at("UL-Electron-ID-SF");
   switch (Run) {
   case 2:
     if (pt < 20.)
       return GetElectronIDSF("RecoBelow20", eta, pt, phi, syst);
     else
       return GetElectronIDSF("RecoAbove20", eta, pt, phi, syst);
-    break;
-  case 3:
-    if (pt < 20.)
-      return safeEvaluate(cset, "GetElectronRECOSF",
-                          {GetEra().Data() + std::string("Prompt"),
-                           getSystString_EGM(syst), "RecoBelow20", eta, pt});
-    else if (pt < 75.)
-      return safeEvaluate(cset, "GetElectronRECOSF",
-                          {GetEra().Data() + std::string("Prompt"),
-                           getSystString_EGM(syst), "Reco20to75", eta, pt});
-    else
-      return safeEvaluate(cset, "GetElectronRECOSF",
-                          {GetEra().Data() + std::string("Prompt"),
-                           getSystString_EGM(syst), "RecoAbove75", eta, pt});
-    break;
+  case 3: {
+    // EGM_era_prompt is precomputed; concatenating it here allocated a string
+    // for every electron.
+    const auto &cset = cachedElectronIDSF.get(cset_electron, "Electron-ID-SF");
+    const char *ptRange =
+        pt < 20.f ? "RecoBelow20" : (pt < 75.f ? "Reco20to75" : "RecoAbove75");
+    return safeEvaluate(cset, "GetElectronRECOSF",
+                        {EGM_era_prompt, getSystString_EGM(syst), ptRange, eta,
+                         pt});
+  }
   default:
     throw runtime_error("[MyCorrection::GetElectronRECOSF] Invalid run number");
   }
@@ -202,41 +184,26 @@ float MyCorrection::GetElectronIDSF(const TString &Electron_ID_SF_Key,
                                     const float eta, const float pt,
                                     const float phi,
                                     const variation syst) const {
-  if (Electron_ID_SF_Key == "TopHNT") {
-    auto cset = cset_electron_TopHNT_idsf->at("sf");
-    if (syst == variation::nom) {
-      return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "nom"});
-    } else if (syst == variation::up) {
-      return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "up"});
-    } else if (syst == variation::down) {
-      return safeEvaluate(cset, "GetElectronRECOSF", {eta, pt, "down"});
-    } else {
-      throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid syst value");
-    }
-  } else {
-    // POG IDs
-    string key;
-    if (Run == 2)
-      key = "UL-Electron-ID-SF";
-    else if (Run == 3)
-      key = "Electron-ID-SF";
-    else
-      throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid run number");
+  const char *setKey = nullptr;
+  if (Run == 2)
+    setKey = "UL-Electron-ID-SF";
+  else if (Run == 3)
+    setKey = "Electron-ID-SF";
+  else
+    throw runtime_error("[MyCorrection::GetElectronIDSF] Invalid run number");
 
-    auto cset = cset_electron->at(key);
-    return safeEvaluate(cset, "GetElectronIDSF",
-                        {DataEra.Data() + std::string("Prompt"),
-                         getSystString_EGM(syst), string(Electron_ID_SF_Key),
-                         eta, pt < 999.9f ? pt : 999.9f});
-  }
+  const auto &cset = cachedElectronIDSF.get(cset_electron, setKey);
+  return safeEvaluate(cset, "GetElectronIDSF",
+                      {EGM_era_prompt, getSystString_EGM(syst),
+                       Electron_ID_SF_Key.Data(),
+                       eta, pt < 999.9f ? pt : 999.9f});
 }
 
 float MyCorrection::GetElectronIDSF(const TString &key,
                                     const ElectronView &electron,
                                     const variation syst) const {
-  const float eta = key == "TopHNT" ? electron.ScEta()
-                                    : std::fabs(electron.Eta());
-  return GetElectronIDSF(key, eta, electron.Pt(), electron.Phi(), syst);
+  return GetElectronIDSF(key, std::fabs(electron.Eta()), electron.Pt(),
+                         electron.Phi(), syst);
 }
 
 float MyCorrection::GetElectronIDSF(
@@ -266,7 +233,10 @@ float MyCorrection::GetMuonTriggerEff(const TString &Muon_Trigger_Eff_Key,
 
   correction::Correction::Ref cset;
   try {
-    cset = cset_muon_trig_eff->at(string(Muon_Trigger_Eff_Key));
+    cset = cachedRefByKey(cachedMuonTriggerEff, cset_muon_trig_eff,
+                          std::string_view(Muon_Trigger_Eff_Key.Data(),
+                                           static_cast<std::size_t>(
+                                               Muon_Trigger_Eff_Key.Length())));
   } catch (const std::out_of_range &e) {
     if (!warned_missing_trig_eff) {
       cerr << "[MyCorrection::GetMuonTriggerEff] Warning: key "
@@ -334,32 +304,31 @@ float MyCorrection::GetMuonTriggerSF(const TString &key,
 float MyCorrection::GetElectronTriggerEff(
     const TString &Electron_Trigger_SF_Key, const float eta, const float pt,
     const float phi, const bool isDATA, const variation syst) const {
-  string key = isDATA ? "Electron-HLT-DataEff" : "Electron-HLT-McEff";
-  auto cset = cset_electron_hlt->at(key);
-  // hardcoded replacemet
-  string ValType = getSystString_EGM(syst);
-  if (ValType == "sf")
-    ValType = "nom";
-  else if (ValType == "sfup")
-    ValType = "up";
-  else if (ValType == "sfdown")
-    ValType = "down";
-  else
-    throw runtime_error(
-        "[MyCorrection::GetElectronTriggerEff] Invalid syst value");
+  const auto &cset =
+      isDATA ? cachedElectronHltDataEff.get(cset_electron_hlt,
+                                            "Electron-HLT-DataEff")
+             : cachedElectronHltMcEff.get(cset_electron_hlt,
+                                          "Electron-HLT-McEff");
+  // The efficiency corrections spell the variations differently from the SFs.
+  const char *ValType = getSystString_CUSTOM(syst);
+
+  // Whether the correction takes phi depends only on the file, so probe it
+  // once -- isInputInCorrection allocates a string per declared input.
+  int &hasPhi = isDATA ? electronHltDataEffHasPhi : electronHltMcEffHasPhi;
+  if (hasPhi < 0)
+    hasPhi = isInputInCorrection("phi", cset) ? 1 : 0;
+
   try {
-    if (!isInputInCorrection("phi", cset)) {
+    if (hasPhi == 0)
       return safeEvaluate(cset, "GetTriggerEff",
-                          {EGM_keys.at(GetEra().Data()), ValType,
-                           string(Electron_Trigger_SF_Key), eta, pt});
-    } else {
-      return safeEvaluate(cset, "GetTriggerEff",
-                          {EGM_keys.at(GetEra().Data()), ValType,
-                           string(Electron_Trigger_SF_Key), eta, pt, phi});
-    }
-  } catch (exception &e) {
+                          {EGM_era_key, ValType,
+                           Electron_Trigger_SF_Key.Data(), eta, pt});
+    return safeEvaluate(cset, "GetTriggerEff",
+                        {EGM_era_key, ValType, Electron_Trigger_SF_Key.Data(),
+                         eta, pt, phi});
+  } catch (const exception &e) {
     cerr << "[MyCorrection::GetElectronTriggerEff] " << e.what() << endl;
-    throw e;
+    throw;
   }
 }
 
@@ -367,22 +336,22 @@ float MyCorrection::GetElectronTriggerSF(const TString &Electron_Trigger_SF_Key,
                                          const float eta, const float pt,
                                          const float phi,
                                          const variation syst) const {
-  auto cset = cset_electron_hlt->at("Electron-HLT-SF");
+  const auto &cset = cachedElectronHltSF.get(cset_electron_hlt,
+                                             "Electron-HLT-SF");
+  if (electronHltSFHasPhi < 0)
+    electronHltSFHasPhi = isInputInCorrection("phi", cset) ? 1 : 0;
+
   try {
-    if (!isInputInCorrection("phi", cset)) {
+    if (electronHltSFHasPhi == 0)
       return safeEvaluate(cset, "GetTriggerEff",
-                          {EGM_keys.at(GetEra().Data()),
-                           getSystString_EGM(syst),
-                           string(Electron_Trigger_SF_Key), eta, pt});
-    } else {
-      return safeEvaluate(cset, "GetTriggerEff",
-                          {EGM_keys.at(GetEra().Data()),
-                           getSystString_EGM(syst),
-                           string(Electron_Trigger_SF_Key), eta, pt, phi});
-    }
-  } catch (exception &e) {
+                          {EGM_era_key, getSystString_EGM(syst),
+                           Electron_Trigger_SF_Key.Data(), eta, pt});
+    return safeEvaluate(cset, "GetTriggerEff",
+                        {EGM_era_key, getSystString_EGM(syst),
+                         Electron_Trigger_SF_Key.Data(), eta, pt, phi});
+  } catch (const exception &e) {
     cerr << "[MyCorrection::GetElectronTriggerSF] " << e.what() << endl;
-    throw e;
+    throw;
   }
 }
 
@@ -390,13 +359,160 @@ float MyCorrection::GetElectronTriggerSF(const TString &Electron_Trigger_SF_Key,
 float MyCorrection::GetPUWeight(const float nTrueInt, const variation syst,
                                 const TString &source) const {
   // nota bene: Input should be nTrueInt, not nPileUp
-  correction::Correction::Ref cset = nullptr;
-  cset = cset_puWeights->at(LUM_keys.at(GetEra().Data()));
+  static_cast<void>(source);
+  const auto &cset = cachedPUWeight.get(cset_puWeights, LUM_era_key.c_str());
   try {
     return safeEvaluate(cset, "GetPUWeight",
                         {nTrueInt, getSystString_LUM(syst)});
-  } catch (exception &e) {
+  } catch (const exception &e) {
     cerr << "[MyCorrection::GetPUWeight] " << e.what() << endl;
     return 1.;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Tau identification scale factors (DeepTau 2018v2p5)
+//
+// Argument order below is fixed by the tau.json.gz input axes:
+//   DeepTau2018v2p5VSjet : pt, dm, genmatch, wp, wp_VSe, syst, flag
+//   DeepTau2018v2p5VSe   : eta, dm, genmatch, wp, syst
+//   DeepTau2018v2p5VSmu  : eta, genmatch, wp, wp_VSe, wp_VSjet, syst
+// correctionlib matches positionally, so the order must not be rearranged.
+// ---------------------------------------------------------------------------
+
+float MyCorrection::GetTauIDSF_vsJetRaw(const TauView::TauID &id,
+                                        const float pt, const int dm,
+                                        const int genmatch,
+                                        const variation syst,
+                                        const TString &flag) const {
+  if (IsDATA)
+    return 1.f;
+  const auto &cset = cachedTauIDSFvsJet.get(cset_tau, "DeepTau2018v2p5VSjet");
+  return safeEvaluate(cset, "GetTauIDSF_vsJet",
+                      {static_cast<double>(pt), dm, genmatch,
+                       string(ToCorrectionString(id.vsJet)),
+                       string(ToCorrectionString(id.vsE)),
+                       getSystString_TAU(syst), string(flag.Data())});
+}
+
+float MyCorrection::GetTauIDSF_vsERaw(const TauView::TauID &id, const float eta,
+                                      const int dm, const int genmatch,
+                                      const variation syst) const {
+  if (IsDATA)
+    return 1.f;
+  const auto &cset = cachedTauIDSFvsE.get(cset_tau, "DeepTau2018v2p5VSe");
+  return safeEvaluate(cset, "GetTauIDSF_vsE",
+                      {static_cast<double>(eta), dm, genmatch,
+                       string(ToCorrectionString(id.vsE)),
+                       getSystString_TAU(syst)});
+}
+
+float MyCorrection::GetTauIDSF_vsMuRaw(const TauView::TauID &id,
+                                       const float eta, const int genmatch,
+                                       const variation syst) const {
+  if (IsDATA)
+    return 1.f;
+  const auto &cset = cachedTauIDSFvsMu.get(cset_tau, "DeepTau2018v2p5VSmu");
+  return safeEvaluate(cset, "GetTauIDSF_vsMu",
+                      {static_cast<double>(eta), genmatch,
+                       string(ToCorrectionString(id.vsMu)),
+                       string(ToCorrectionString(id.vsE)),
+                       string(ToCorrectionString(id.vsJet)),
+                       getSystString_TAU(syst)});
+}
+
+float MyCorrection::GetTauIDSF_vsJet(const TauView::TauID &id,
+                                     const TauView &tau,
+                                     const variation syst) const {
+  return GetTauIDSF_vsJetRaw(id, tau.Pt(), tau.DecayMode(), tau.GenPartFlav(),
+                             syst);
+}
+
+float MyCorrection::GetTauIDSF_vsE(const TauView::TauID &id, const TauView &tau,
+                                   const variation syst) const {
+  return GetTauIDSF_vsERaw(id, tau.Eta(), tau.DecayMode(), tau.GenPartFlav(),
+                           syst);
+}
+
+float MyCorrection::GetTauIDSF_vsMu(const TauView::TauID &id,
+                                    const TauView &tau,
+                                    const variation syst) const {
+  return GetTauIDSF_vsMuRaw(id, tau.Eta(), tau.GenPartFlav(), syst);
+}
+
+namespace {
+
+// A stale index would read a neighbouring tau and silently mis-weight the
+// event, so it is reported rather than clamped.  Matches GetMuonIDSF.
+inline void requireTauIndex(const char *where, const std::size_t index,
+                            const std::size_t size) {
+  if (index >= size)
+    throw SKNano::LogicError(string("[MyCorrection::") + where +
+                             "] index out of range");
+}
+
+} // namespace
+
+float MyCorrection::GetTauIDSF_vsJet(const TauView::TauID &id,
+                                     const TauViewCollection &taus,
+                                     const std::vector<std::size_t> &indices,
+                                     const variation syst) const {
+  float weight = 1.f;
+  for (const std::size_t index : indices) {
+    requireTauIndex("GetTauIDSF_vsJet", index, taus.size());
+    weight *= GetTauIDSF_vsJet(id, taus[index], syst);
+  }
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsE(const TauView::TauID &id,
+                                   const TauViewCollection &taus,
+                                   const std::vector<std::size_t> &indices,
+                                   const variation syst) const {
+  float weight = 1.f;
+  for (const std::size_t index : indices) {
+    requireTauIndex("GetTauIDSF_vsE", index, taus.size());
+    weight *= GetTauIDSF_vsE(id, taus[index], syst);
+  }
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsMu(const TauView::TauID &id,
+                                    const TauViewCollection &taus,
+                                    const std::vector<std::size_t> &indices,
+                                    const variation syst) const {
+  float weight = 1.f;
+  for (const std::size_t index : indices) {
+    requireTauIndex("GetTauIDSF_vsMu", index, taus.size());
+    weight *= GetTauIDSF_vsMu(id, taus[index], syst);
+  }
+  return weight;
+}
+
+// Whole-collection forms, for a collection that is already the selection.
+float MyCorrection::GetTauIDSF_vsJet(const TauView::TauID &id,
+                                     const TauViewCollection &taus,
+                                     const variation syst) const {
+  float weight = 1.f;
+  for (const auto tau : taus)
+    weight *= GetTauIDSF_vsJet(id, tau, syst);
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsE(const TauView::TauID &id,
+                                   const TauViewCollection &taus,
+                                   const variation syst) const {
+  float weight = 1.f;
+  for (const auto tau : taus)
+    weight *= GetTauIDSF_vsE(id, tau, syst);
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsMu(const TauView::TauID &id,
+                                    const TauViewCollection &taus,
+                                    const variation syst) const {
+  float weight = 1.f;
+  for (const auto tau : taus)
+    weight *= GetTauIDSF_vsMu(id, tau, syst);
+  return weight;
 }

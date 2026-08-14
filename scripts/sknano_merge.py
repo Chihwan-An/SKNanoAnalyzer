@@ -320,17 +320,24 @@ def main() -> int:
     )
 
     try:
-        with tempfile.TemporaryDirectory(
-            prefix=f".{output.name}.hadd.", dir=temp_parent
-        ) as merge_temp:
+        merge_temp = Path(tempfile.mkdtemp(
+            prefix=f".{output.name}.hadd.",
+            dir=temp_parent,
+        ))
+        try:
             _staged_hadd(
                 root,
                 inputs,
                 partial,
                 args.jobs,
                 args.batch_size,
-                Path(merge_temp),
+                merge_temp,
             )
+        finally:
+            # NFS can briefly retain an entry after hadd has closed and
+            # unlinked it.  Cleanup must not invalidate a complete merge; the
+            # output is validated below before publication or input deletion.
+            shutil.rmtree(merge_temp, ignore_errors=True)
         merged = inspect_file(root, partial)
         if {name: data.schema for name, data in merged.items()} != schemas:
             raise RuntimeError("merged RNTuple schema differs from the inputs")

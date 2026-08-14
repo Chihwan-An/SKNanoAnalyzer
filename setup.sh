@@ -26,7 +26,11 @@ fi
 # Set up environment
 export SKNANO_HOME=`pwd`
 export SKNANO_RUNLOG="/gv0/Users/$USER/SKNanoRunlog"
-export SKNANO_OUTPUT="/data9/Users/$USER/SKNanoOutput"
+export SKNANO_OUTPUT="/gv0/Users/$USER/SKNanoOutput"
+# Root of the input productions. Sample metadata stores only the part below
+# this, so moving to another cluster is one variable rather than a rewrite of
+# every sample json.
+export SKNANO_INPUT_ROOT="/gv0/DATA/SKNano/NanoAODv15_RNTuple"
 echo "@@@@ Working Directory: $SKNANO_HOME"
 
 CONFIG_FILE="$SKNANO_HOME/config/config.$USER"
@@ -46,6 +50,9 @@ if [ -f "${CONFIG_FILE}" ]; then
     fi
     if grep -q '\[SKNANO_OUTPUT\]' "${CONFIG_FILE}"; then
         export SKNANO_OUTPUT=$(grep '\[SKNANO_OUTPUT\]' "${CONFIG_FILE}" | cut -d' ' -f2)
+    fi
+    if grep -q '\[SKNANO_INPUT_ROOT\]' "${CONFIG_FILE}"; then
+        export SKNANO_INPUT_ROOT=$(grep '\[SKNANO_INPUT_ROOT\]' "${CONFIG_FILE}" | cut -d' ' -f2)
     fi
 else
     echo -e "\033[31m@@@@ Configuration file $CONFIG_FILE not found\033[0m"

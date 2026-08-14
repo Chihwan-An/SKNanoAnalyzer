@@ -6,7 +6,6 @@ import os
 import re
 import tempfile
 from contextlib import contextmanager
-from multiprocessing import Pool
 #This script is used to generate the path information for the sample data
 #Sample information is stored in the CommonSampleInfo.json
 #This script will generate the path information for the sample data
@@ -21,51 +20,6 @@ def loadCommonSampleInfo(era):
         print(f'Error: on {era}')
         print(e)
     return sampleInfos
-
-# def fillSamplePath(era):
-#     sampleInfos = loadCommonSampleInfo(era)
-#     for alias,sampleInfo in sampleInfos.items():
-        # if sampleInfo['isMC']:
-        #     path = os.path.join(basePath,era,'MC',sampleInfo['PD'])
-        #     filePaths = []
-        #     #Folder structure is not fixed yet, so let's do the recursive search until the .root file appears, and save all absolute paths
-        #     for root, dirs, files in os.walk(path):
-        #         for file in files:
-        #             if file.endswith('.root'):
-        #                 filePaths.append(os.path.join(root,file))
-        #     #sort filePaths by tree*.root
-        #     #filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0])) 
-        #     #now save the path information to another json file
-        #     newjsondict = {}
-        #     newjsondict['name'] = alias
-        #     for key in sampleInfo:
-        #         newjsondict[key] = sampleInfo[key]
-        #     fileJsonPath = os.path.join(os.environ['SKNANO_DATA'],era,'Sample','ForSNU',alias+'.json')
-        #     newjsondict['path'] = filePaths
-        #     with open(fileJsonPath,'w') as f:
-        #         json.dump(newjsondict,f,indent=4)
-        # else:
-        #     for period in sampleInfo['periods']:
-        #         path = os.path.join(basePath,era,'DATA',alias,f"Period{period}")
-        #         filePaths = []
-        #         #Folder structure is not fixed yet, so let's do the recursive search until the .root file appears, and save all absolute paths
-        #         for root, dirs, files in os.walk(path):
-        #             for file in files:
-        #                 if file.endswith('.root'):
-        #                     filePaths.append(os.path.join(root,file))
-        #         #sort filePaths by tree*.root
-        #         #filePaths = sorted(filePaths,key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
-        #         #now save the path information to another json file
-        #         newjsondict = {}
-#         newjsondict['name'] = alias
-#         for key in sampleInfo:
-#             if key == 'periods':
-#                 continue
-#             newjsondict[key] = sampleInfo[key]
-#         fileJsonPath = os.path.join(os.environ['SKNANO_DATA'],era,'Sample','ForSNU',alias+f'_{period}.json')
-#         newjsondict['path'] = filePaths
-#         with open(fileJsonPath,'w') as f:
-#             json.dump(newjsondict,f,indent=4)
 
 def atomic_write_json(target_path, payload):
     """Write JSON atomically to avoid partial writes when multiple jobs run."""
@@ -90,61 +44,33 @@ def skim_tree_info_lock(lock_path):
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)
 
-# Top-level function to call either process_mc_sample or process_data_sample
-def process_sample(fn, alias, sampleInfo, era, basePath):
-    fn(alias, sampleInfo, era, basePath)
+def checkSamplePaths(era):
+    """Report how each registry entry resolves against $SKNANO_INPUT_ROOT.
 
-def process_mc_sample(alias, sampleInfo, era, basePath):
-    path = os.path.join(basePath, era, 'MC', sampleInfo['PD'])
-    filePaths = []
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            if file.endswith('.root'):
-                filePaths.append(os.path.join(root, file))
-    #filePaths = sorted(filePaths, key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
+    Sample inputs are derived from era plus PD (MC) or name and period (DATA),
+    so there is nothing to write out any more -- what used to be
+    --fillSamplePath. What is still worth doing is asking whether the
+    derivation finds anything, which is how a half-migrated production or a
+    renamed dataset shows up before a submission does.
+    """
+    from python.sample_paths import resolve_sample_paths
 
-    newjsondict = {'name': alias}
-    newjsondict.update(sampleInfo)
-    fileJsonPath = os.path.join(os.environ['SKNANO_DATA'], era, 'Sample', 'ForSNU', alias + '.json')
-    newjsondict['path'] = filePaths
-    with open(fileJsonPath, 'w') as f:
-        json.dump(newjsondict, f, indent=4)
-
-def process_data_sample(alias, sampleInfo, era, basePath):
-    for period in sampleInfo['periods']:
-        path = os.path.join(basePath, era, 'DATA', alias, f"Period{period}")
-        filePaths = []
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                if file.endswith('.root'):
-                    filePaths.append(os.path.join(root, file))
-        #filePaths = sorted(filePaths, key=lambda x: int(x.split('tree_')[-1].split('.root')[0]))
-
-        newjsondict = {'name': alias}
-        for key in sampleInfo:
-            if key == 'periods':
-                continue
-            newjsondict[key] = sampleInfo[key]
-        fileJsonPath = os.path.join(os.environ['SKNANO_DATA'], era, 'Sample', 'ForSNU', alias + f'_{period}.json')
-        newjsondict['path'] = filePaths
-        with open(fileJsonPath, 'w') as f:
-            json.dump(newjsondict, f, indent=4)
-
-def fillSamplePath(era):
     sampleInfos = loadCommonSampleInfo(era)
-    
-    # Create a list of tasks for multiprocessing
-    tasks = []
-    for alias, sampleInfo in sampleInfos.items():
-        if sampleInfo['isMC']:
-            tasks.append((process_mc_sample, alias, sampleInfo, era, basePath))
-        else:
-            tasks.append((process_data_sample, alias, sampleInfo, era, basePath))
-
-    # Use multiprocessing to parallelize
-    with Pool(processes=16) as pool:
-        pool.starmap(process_sample, tasks)
-
+    resolved = missing = 0
+    for alias, sampleInfo in sorted(sampleInfos.items()):
+        periods = [None] if sampleInfo.get('isMC') else sampleInfo.get('periods', [])
+        for period in periods:
+            label = alias if period is None else f'{alias}_{period}'
+            try:
+                paths = resolve_sample_paths(
+                    dict(sampleInfo, name=alias), era, period)
+            except Exception as error:
+                print(f'\033[91m  {label}: {error}\033[0m')
+                missing += 1
+                continue
+            print(f'  {label}: {len(paths)} files')
+            resolved += 1
+    print(f'{era}: {resolved} resolved, {missing} unresolved')
 
 
 def updateXsec(era):
@@ -212,7 +138,15 @@ def makeSkimTreeInfo(era,skimTreeFolder,skimTreeSuffix,skimTreeOrigPD):
         skimTreeOrigPD = data_match.group("pd")
         
     sampleInfos = loadCommonSampleInfo(era)
-    skimJsonFolderPath = os.path.join(os.environ['SKNANO_DATA'],era,'Sample','Skim')
+    # Skim metadata belongs to the analysis that produced the skim, not to the
+    # backend. Write it into the module directory, which is where SKNano.py
+    # discovers it from.
+    module_root = os.environ.get('SKNANO_SKIM_METADATA_DIR')
+    if not module_root:
+        raise SystemExit(
+            'SKNANO_SKIM_METADATA_DIR is not set; point it at the '
+            '<module>/<Analysis>/data/Skim directory that owns these skims')
+    skimJsonFolderPath = os.path.join(module_root, era)
     os.makedirs(skimJsonFolderPath, exist_ok=True)
     skimTreeSummaryJsonPath = os.path.join(skimJsonFolderPath,'skimTreeInfo.json')
     lock_path = os.path.join(skimJsonFolderPath, '.skimTreeInfo.lock')
@@ -265,7 +199,7 @@ def makeSkimTreeInfo(era,skimTreeFolder,skimTreeSuffix,skimTreeOrigPD):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fillSamplePath', action='store_true',help='Fill the path information')
+    parser.add_argument('--checkSamplePaths', action='store_true',help='Report how each sample resolves under $SKNANO_INPUT_ROOT')
     parser.add_argument('--updateXsec',action='store_true',help='update the Xsec to json from Xsec formula')
     parser.add_argument('--updateMcInfo',action='store_true',help='update the MC information to json from result of GetEffLumi(SumW, nmc)')
     ###below arguments are used for SKFlat.py for automatic update of the skim information
@@ -285,8 +219,8 @@ if __name__ == '__main__':
                 basePath = os.environ['SKNANO_RUN3_NANOAODPATH']
             elif era in run2eras:
                 basePath = os.environ['SKNANO_RUN2_NANOAODPATH']
-            if args.fillSamplePath:
-                fillSamplePath(era)
+            if args.checkSamplePaths:
+                checkSamplePaths(era)
             if args.updateXsec:
                 updateXsec(era)
             if args.updateMcInfo:
@@ -300,8 +234,8 @@ if __name__ == '__main__':
             basePath = os.environ['SKNANO_RUN3_NANOAODPATH']
         elif era in run2eras:
             basePath = os.environ['SKNANO_RUN2_NANOAODPATH']
-        if args.fillSamplePath:
-            fillSamplePath(era)
+        if args.checkSamplePaths:
+            checkSamplePaths(era)
         if args.updateXsec:
             updateXsec(era)
         if args.updateMcInfo:

@@ -25,6 +25,7 @@ using namespace std;
 #include "JetTaggingParameter.h"
 #include "GenView.h"
 #include "MuonView.h"
+#include "TauView.h"
 #include "ElectronView.h"
 #include "FatJetView.h"
 #include "Particle.h"
@@ -118,6 +119,34 @@ public:
     float GetElectronIDSF(const TString &key, const ElectronView &electron, const variation syst = variation::nom) const;
     float GetElectronIDSF(const TString &key, const ElectronViewCollection &electrons, const variation syst = variation::nom) const;
     // photon
+
+    // tau
+    float GetTauIDSF_vsJetRaw(const TauView::ID &id, const float pt,
+                              const int dm, const int genmatch,
+                              const variation syst = variation::nom,
+                              const TString &flag = "pt") const;
+    float GetTauIDSF_vsERaw(const TauView::ID &id, const float eta,
+                            const int dm, const int genmatch,
+                            const variation syst = variation::nom) const;
+    float GetTauIDSF_vsMuRaw(const TauView::ID &id, const float eta,
+                             const int genmatch,
+                             const variation syst = variation::nom) const;
+    float GetTauIDSF_vsJet(const TauView::ID &id, const TauView &tau,
+                           const variation syst = variation::nom) const;
+    float GetTauIDSF_vsE(const TauView::ID &id, const TauView &tau,
+                         const variation syst = variation::nom) const;
+    float GetTauIDSF_vsMu(const TauView::ID &id, const TauView &tau,
+                          const variation syst = variation::nom) const;
+    // Collection forms return the product over the given indices.
+    float GetTauIDSF_vsJet(const TauView::ID &id, const TauViewCollection &taus,
+                           const std::vector<std::size_t> &indices,
+                           const variation syst = variation::nom) const;
+    float GetTauIDSF_vsE(const TauView::ID &id, const TauViewCollection &taus,
+                         const std::vector<std::size_t> &indices,
+                         const variation syst = variation::nom) const;
+    float GetTauIDSF_vsMu(const TauView::ID &id, const TauViewCollection &taus,
+                          const std::vector<std::size_t> &indices,
+                          const variation syst = variation::nom) const;
 
     // Trigger
     // Single lepton trigger from POG
@@ -382,6 +411,7 @@ private:
     
 
     unique_ptr<CorrectionSet> cset_muon;
+    unique_ptr<CorrectionSet> cset_tau;
     unique_ptr<CorrectionSet> cset_muon_trig_eff;
     unique_ptr<CorrectionSet> cset_muon_trig_sf;
     unique_ptr<CorrectionSet> cset_puWeights;
@@ -475,6 +505,11 @@ private:
 
     inline const char *getSystString_MUO(const variation syst) const {
         static constexpr char table[3][12] = {"nominal", "systup", "systdown"};
+        return pickSystString(syst, table);
+    }
+
+    inline const char *getSystString_TAU(const variation syst) const {
+        static constexpr char table[3][12] = {"nom", "up", "down"};
         return pickSystString(syst, table);
     }
 

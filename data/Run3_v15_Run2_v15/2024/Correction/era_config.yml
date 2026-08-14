@@ -37,6 +37,7 @@ snapshots:
   BTV: latest
   EGM: latest
   JME: latest
+  TAU: latest
 
 # Printed in red at startup. Use for known-wrong inputs we are living with.
 warnings:
@@ -65,6 +66,7 @@ pog_files:
   jerc:               {pog: JME, name: jet_jerc.json.gz,    required: true}
   jetvetomap:         {pog: JME, name: jetvetomaps.json.gz, required: true}
   muon:               {pog: MUO, name: muon_Z.json.gz}
+  tau:                {pog: TAU, name: tau.json.gz}
   # No dedicated 2024 muon trigger SF yet; reuse the muon_Z file.
   muon_trig_sf:       {pog: MUO, name: muon_Z.json.gz}
   puWeights:          {pog: LUM, name: puWeights_BCDEFGHI.json.gz}

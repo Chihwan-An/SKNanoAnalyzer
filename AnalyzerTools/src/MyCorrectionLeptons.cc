@@ -380,13 +380,14 @@ float MyCorrection::GetPUWeight(const float nTrueInt, const variation syst,
 // correctionlib matches positionally, so the order must not be rearranged.
 // ---------------------------------------------------------------------------
 
-float MyCorrection::GetTauIDSF_vsJetRaw(const TauView::ID &id, const float pt,
-                                        const int dm, const int genmatch,
+float MyCorrection::GetTauIDSF_vsJetRaw(const TauView::TauID &id,
+                                        const float pt, const int dm,
+                                        const int genmatch,
                                         const variation syst,
                                         const TString &flag) const {
   if (IsDATA)
     return 1.f;
-  auto cset = cset_tau->at("DeepTau2018v2p5VSjet");
+  const auto &cset = cachedTauIDSFvsJet.get(cset_tau, "DeepTau2018v2p5VSjet");
   return safeEvaluate(cset, "GetTauIDSF_vsJet",
                       {static_cast<double>(pt), dm, genmatch,
                        string(ToCorrectionString(id.vsJet)),
@@ -394,24 +395,24 @@ float MyCorrection::GetTauIDSF_vsJetRaw(const TauView::ID &id, const float pt,
                        getSystString_TAU(syst), string(flag.Data())});
 }
 
-float MyCorrection::GetTauIDSF_vsERaw(const TauView::ID &id, const float eta,
+float MyCorrection::GetTauIDSF_vsERaw(const TauView::TauID &id, const float eta,
                                       const int dm, const int genmatch,
                                       const variation syst) const {
   if (IsDATA)
     return 1.f;
-  auto cset = cset_tau->at("DeepTau2018v2p5VSe");
+  const auto &cset = cachedTauIDSFvsE.get(cset_tau, "DeepTau2018v2p5VSe");
   return safeEvaluate(cset, "GetTauIDSF_vsE",
                       {static_cast<double>(eta), dm, genmatch,
                        string(ToCorrectionString(id.vsE)),
                        getSystString_TAU(syst)});
 }
 
-float MyCorrection::GetTauIDSF_vsMuRaw(const TauView::ID &id, const float eta,
-                                       const int genmatch,
+float MyCorrection::GetTauIDSF_vsMuRaw(const TauView::TauID &id,
+                                       const float eta, const int genmatch,
                                        const variation syst) const {
   if (IsDATA)
     return 1.f;
-  auto cset = cset_tau->at("DeepTau2018v2p5VSmu");
+  const auto &cset = cachedTauIDSFvsMu.get(cset_tau, "DeepTau2018v2p5VSmu");
   return safeEvaluate(cset, "GetTauIDSF_vsMu",
                       {static_cast<double>(eta), genmatch,
                        string(ToCorrectionString(id.vsMu)),
@@ -420,49 +421,98 @@ float MyCorrection::GetTauIDSF_vsMuRaw(const TauView::ID &id, const float eta,
                        getSystString_TAU(syst)});
 }
 
-float MyCorrection::GetTauIDSF_vsJet(const TauView::ID &id, const TauView &tau,
+float MyCorrection::GetTauIDSF_vsJet(const TauView::TauID &id,
+                                     const TauView &tau,
                                      const variation syst) const {
   return GetTauIDSF_vsJetRaw(id, tau.Pt(), tau.DecayMode(), tau.GenPartFlav(),
                              syst);
 }
 
-float MyCorrection::GetTauIDSF_vsE(const TauView::ID &id, const TauView &tau,
+float MyCorrection::GetTauIDSF_vsE(const TauView::TauID &id, const TauView &tau,
                                    const variation syst) const {
   return GetTauIDSF_vsERaw(id, tau.Eta(), tau.DecayMode(), tau.GenPartFlav(),
                            syst);
 }
 
-float MyCorrection::GetTauIDSF_vsMu(const TauView::ID &id, const TauView &tau,
+float MyCorrection::GetTauIDSF_vsMu(const TauView::TauID &id,
+                                    const TauView &tau,
                                     const variation syst) const {
   return GetTauIDSF_vsMuRaw(id, tau.Eta(), tau.GenPartFlav(), syst);
 }
 
-float MyCorrection::GetTauIDSF_vsJet(const TauView::ID &id,
+namespace {
+
+// A stale index would read a neighbouring tau and silently mis-weight the
+// event, so it is reported rather than clamped.  Matches GetMuonIDSF.
+inline void requireTauIndex(const char *where, const std::size_t index,
+                            const std::size_t size) {
+  if (index >= size)
+    throw SKNano::LogicError(string("[MyCorrection::") + where +
+                             "] index out of range");
+}
+
+} // namespace
+
+float MyCorrection::GetTauIDSF_vsJet(const TauView::TauID &id,
                                      const TauViewCollection &taus,
                                      const std::vector<std::size_t> &indices,
                                      const variation syst) const {
   float weight = 1.f;
-  for (auto i : indices)
-    weight *= GetTauIDSF_vsJet(id, taus[i], syst);
+  for (const std::size_t index : indices) {
+    requireTauIndex("GetTauIDSF_vsJet", index, taus.size());
+    weight *= GetTauIDSF_vsJet(id, taus[index], syst);
+  }
   return weight;
 }
 
-float MyCorrection::GetTauIDSF_vsE(const TauView::ID &id,
+float MyCorrection::GetTauIDSF_vsE(const TauView::TauID &id,
                                    const TauViewCollection &taus,
                                    const std::vector<std::size_t> &indices,
                                    const variation syst) const {
   float weight = 1.f;
-  for (auto i : indices)
-    weight *= GetTauIDSF_vsE(id, taus[i], syst);
+  for (const std::size_t index : indices) {
+    requireTauIndex("GetTauIDSF_vsE", index, taus.size());
+    weight *= GetTauIDSF_vsE(id, taus[index], syst);
+  }
   return weight;
 }
 
-float MyCorrection::GetTauIDSF_vsMu(const TauView::ID &id,
+float MyCorrection::GetTauIDSF_vsMu(const TauView::TauID &id,
                                     const TauViewCollection &taus,
                                     const std::vector<std::size_t> &indices,
                                     const variation syst) const {
   float weight = 1.f;
-  for (auto i : indices)
-    weight *= GetTauIDSF_vsMu(id, taus[i], syst);
+  for (const std::size_t index : indices) {
+    requireTauIndex("GetTauIDSF_vsMu", index, taus.size());
+    weight *= GetTauIDSF_vsMu(id, taus[index], syst);
+  }
+  return weight;
+}
+
+// Whole-collection forms, for a collection that is already the selection.
+float MyCorrection::GetTauIDSF_vsJet(const TauView::TauID &id,
+                                     const TauViewCollection &taus,
+                                     const variation syst) const {
+  float weight = 1.f;
+  for (const auto tau : taus)
+    weight *= GetTauIDSF_vsJet(id, tau, syst);
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsE(const TauView::TauID &id,
+                                   const TauViewCollection &taus,
+                                   const variation syst) const {
+  float weight = 1.f;
+  for (const auto tau : taus)
+    weight *= GetTauIDSF_vsE(id, tau, syst);
+  return weight;
+}
+
+float MyCorrection::GetTauIDSF_vsMu(const TauView::TauID &id,
+                                    const TauViewCollection &taus,
+                                    const variation syst) const {
+  float weight = 1.f;
+  for (const auto tau : taus)
+    weight *= GetTauIDSF_vsMu(id, tau, syst);
   return weight;
 }

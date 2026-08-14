@@ -12,7 +12,7 @@ using sknano_test::MakeTauCollection;
 using sknano_test::MakeTaus;
 
 // Medium vsJet, VVLoose vsE, Loose vsMu.
-const TauView::ID kMediumTau{TauWP::Medium, TauWP::VVLoose, TauWPvsMu::Loose,
+const TauView::TauID kMediumTau{LeptonID::TauWorkingPoint::MEDIUM, LeptonID::TauWorkingPoint::VVLOOSE, LeptonID::TauWorkingPointVsMu::LOOSE,
                              true, 0.2f};
 
 TEST(SelectTauIndices, KeepsOnlyTausPassingEveryCut) {

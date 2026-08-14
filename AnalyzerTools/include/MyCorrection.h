@@ -121,31 +121,37 @@ public:
     // photon
 
     // tau
-    float GetTauIDSF_vsJetRaw(const TauView::ID &id, const float pt,
+    float GetTauIDSF_vsJetRaw(const TauView::TauID &id, const float pt,
                               const int dm, const int genmatch,
                               const variation syst = variation::nom,
                               const TString &flag = "pt") const;
-    float GetTauIDSF_vsERaw(const TauView::ID &id, const float eta,
+    float GetTauIDSF_vsERaw(const TauView::TauID &id, const float eta,
                             const int dm, const int genmatch,
                             const variation syst = variation::nom) const;
-    float GetTauIDSF_vsMuRaw(const TauView::ID &id, const float eta,
+    float GetTauIDSF_vsMuRaw(const TauView::TauID &id, const float eta,
                              const int genmatch,
                              const variation syst = variation::nom) const;
-    float GetTauIDSF_vsJet(const TauView::ID &id, const TauView &tau,
+    float GetTauIDSF_vsJet(const TauView::TauID &id, const TauView &tau,
                            const variation syst = variation::nom) const;
-    float GetTauIDSF_vsE(const TauView::ID &id, const TauView &tau,
+    float GetTauIDSF_vsE(const TauView::TauID &id, const TauView &tau,
                          const variation syst = variation::nom) const;
-    float GetTauIDSF_vsMu(const TauView::ID &id, const TauView &tau,
+    float GetTauIDSF_vsMu(const TauView::TauID &id, const TauView &tau,
                           const variation syst = variation::nom) const;
     // Collection forms return the product over the given indices.
-    float GetTauIDSF_vsJet(const TauView::ID &id, const TauViewCollection &taus,
+    float GetTauIDSF_vsJet(const TauView::TauID &id, const TauViewCollection &taus,
                            const std::vector<std::size_t> &indices,
                            const variation syst = variation::nom) const;
-    float GetTauIDSF_vsE(const TauView::ID &id, const TauViewCollection &taus,
+    float GetTauIDSF_vsE(const TauView::TauID &id, const TauViewCollection &taus,
                          const std::vector<std::size_t> &indices,
                          const variation syst = variation::nom) const;
-    float GetTauIDSF_vsMu(const TauView::ID &id, const TauViewCollection &taus,
+    float GetTauIDSF_vsMu(const TauView::TauID &id, const TauViewCollection &taus,
                           const std::vector<std::size_t> &indices,
+                          const variation syst = variation::nom) const;
+    float GetTauIDSF_vsJet(const TauView::TauID &id, const TauViewCollection &taus,
+                           const variation syst = variation::nom) const;
+    float GetTauIDSF_vsE(const TauView::TauID &id, const TauViewCollection &taus,
+                         const variation syst = variation::nom) const;
+    float GetTauIDSF_vsMu(const TauView::TauID &id, const TauViewCollection &taus,
                           const variation syst = variation::nom) const;
 
     // Trigger
@@ -369,8 +375,16 @@ private:
     public:
         const correction::Correction::Ref &
         get(const unique_ptr<CorrectionSet> &set, const char *key) const {
-            if (!ref_)
+            if (!ref_) {
+                // Optional sets stay null when the era yml does not list them.
+                // Say so here rather than dereferencing a null unique_ptr.
+                if (!set)
+                    throw SKNano::ConfigError(
+                        string("[MyCorrection] no correction set loaded for "
+                               "this era, cannot resolve '") +
+                        key + "'");
                 ref_ = set->at(key);
+            }
             return ref_;
         }
 
@@ -458,6 +472,9 @@ private:
     LazyRef cachedElectronHltMcEff;
     LazyRef cachedBTaggingWP;
     LazyRef cachedCTaggingWP;
+    LazyRef cachedTauIDSFvsJet;
+    LazyRef cachedTauIDSFvsE;
+    LazyRef cachedTauIDSFvsMu;
 
     // Whether the electron HLT corrections declare a "phi" input.  Probing
     // this per electron used to allocate a vector of all input names.

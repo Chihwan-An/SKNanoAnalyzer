@@ -227,8 +227,15 @@ MyCorrection::cachedRefByKey(CorrectionRefCache &cache,
                              const unique_ptr<CorrectionSet> &set,
                              std::string_view key) const {
   auto it = cache.find(key);
-  if (it == cache.end())
+  if (it == cache.end()) {
+    // Optional sets stay null when the era yml does not list them.
+    if (!set)
+      throw SKNano::ConfigError(
+          "[MyCorrection] no correction set loaded for this era, cannot "
+          "resolve '" +
+          string(key) + "'");
     it = cache.emplace(string(key), set->at(string(key))).first;
+  }
   return it->second;
 }
 

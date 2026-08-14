@@ -20,7 +20,7 @@ bool TauJsonAvailable() {
     return stat(path.c_str(), &sb) == 0;
 }
 
-const TauView::ID kTestID{TauWP::Medium, TauWP::Tight, TauWPvsMu::Tight, true,
+const TauView::TauID kTestID{LeptonID::TauWorkingPoint::MEDIUM, LeptonID::TauWorkingPoint::TIGHT, LeptonID::TauWorkingPointVsMu::TIGHT, true,
                           0.2f};
 
 TEST(TauCorrection, IdentificationScaleFactorIsPhysical) {

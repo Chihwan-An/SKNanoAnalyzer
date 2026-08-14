@@ -5,8 +5,8 @@
 #include <cstddef>
 
 #include "EventRange.h"
+#include "LeptonIDEnums.h"
 #include "TLorentzVector.h"
-#include "TString.h"
 #include "ViewColumns.h"
 
 struct TauSoA {
@@ -31,44 +31,24 @@ struct TauSoA {
     std::size_t size() const { return pt.size(); }
 };
 
-enum class TauWP : unsigned char {
-    None = 0, VVVLoose = 1, VVLoose = 2, VLoose = 3, Loose = 4,
-    Medium = 5, Tight = 6, VTight = 7, VVTight = 8
-};
-
-// vsMu discriminator has only four WPs
-enum class TauWPvsMu : unsigned char {
-    None = 0, VLoose = 1, Loose = 2, Medium = 3, Tight = 4
-};
-
-inline const char *ToCorrectionString(TauWP wp) {
-    switch (wp) {
-    case TauWP::VVVLoose: return "VVVLoose";
-    case TauWP::VVLoose:  return "VVLoose";
-    case TauWP::VLoose:   return "VLoose";
-    case TauWP::Loose:    return "Loose";
-    case TauWP::Medium:   return "Medium";
-    case TauWP::Tight:    return "Tight";
-    case TauWP::VTight:   return "VTight";
-    case TauWP::VVTight:  return "VVTight";
-    case TauWP::None:     return "None";
-    }
-    return "None";
-}
-
-inline const char *ToCorrectionString(TauWPvsMu wp) {
-    switch (wp) {
-    case TauWPvsMu::VLoose: return "VLoose";
-    case TauWPvsMu::Loose:  return "Loose";
-    case TauWPvsMu::Medium: return "Medium";
-    case TauWPvsMu::Tight:  return "Tight";
-    case TauWPvsMu::None:   return "None";
-    }
-    return "None";
-}
-
 class TauView {
 public:
+    using WorkingPoint = LeptonID::TauWorkingPoint;
+    using WorkingPointVsMu = LeptonID::TauWorkingPointVsMu;
+
+    // A tau ID is a point on each of the three DeepTau axes plus the two
+    // quality cuts that always travel with them.  Unlike MuonID this cannot be
+    // a flat enum: the axes are chosen independently, and the TAU POG scale
+    // factors are keyed by the same combination, so the analyzer has to name
+    // all three anyway.  NONE on an axis disables it.
+    struct TauID {
+        WorkingPoint vsJet = WorkingPoint::NONE;
+        WorkingPoint vsE = WorkingPoint::NONE;
+        WorkingPointVsMu vsMu = WorkingPointVsMu::NONE;
+        bool requireNewDM = true;
+        float maxDz = 0.2f;
+    };
+
     TauView() = default;
     TauView(const TauSoA *storage, std::size_t index)
         : store_(storage), index_(index) {}
@@ -127,36 +107,7 @@ public:
     bool passMIDvMu() const { return muonId() >= 3; }
     bool passTIDvMu() const { return muonId() >= 4; }
 
-    struct ID {
-        TauWP vsJet = TauWP::None;
-        TauWP vsE = TauWP::None;
-        TauWPvsMu vsMu = TauWPvsMu::None;
-        bool requireNewDM = true;
-        float maxDz = 0.2f;
-    };
-
-    bool PassID(const ID &id) const {
-        if (id.requireNewDM && !idDecayModeNewDMs())
-            return false;
-        if (std::abs(dZ()) >= id.maxDz)
-            return false;
-        if (jetId() < static_cast<unsigned char>(id.vsJet))
-            return false;
-        if (electronId() < static_cast<unsigned char>(id.vsE))
-            return false;
-        if (muonId() < static_cast<unsigned char>(id.vsMu))
-            return false;
-        return true;
-    }
-
-    bool PassID(const TString &id) const {
-        if (id == "NoCut")
-            return true;
-        if (id == "TestID")
-            return idDecayModeNewDMs() && std::abs(dZ()) < 0.2f &&
-                   passTIDvEl() && passTIDvJet() && passTIDvMu();
-        return false;
-    }
+    bool PassID(const TauID &id) const;
 
     TLorentzVector P4() const {
         TLorentzVector value;

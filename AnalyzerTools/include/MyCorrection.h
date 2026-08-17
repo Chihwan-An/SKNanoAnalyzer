@@ -542,6 +542,10 @@ private:
     // "ScaleFactor", "SFUncertainty", "Total", ...).
     mutable CorrectionRefCache cachedFatJetCorrections;
     mutable correction::CompoundCorrection::Ref cachedFatJetJESCompound;
+    // Input names of the AK8 JES compound, resolved once, plus the buffer they
+    // are filled into. The set of inputs differs by era and sample type.
+    mutable vector<string> cachedFatJetJESInputs;
+    mutable vector<correction::Variable::Type> cachedFatJetJESArgs;
     mutable CorrectionRefCache cachedMuonIDSF;
     mutable CorrectionRefCache cachedMuonTriggerEff;
 

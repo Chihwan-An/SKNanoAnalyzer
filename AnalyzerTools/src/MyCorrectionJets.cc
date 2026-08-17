@@ -422,24 +422,38 @@ float MyCorrection::GetFJESSF(const float area, const float eta, const float pt,
     cachedFatJetJESCompound = cset_jerc_fatjet->compound().at(key);
   }
 
-  // The input layout follows the same per-era rules as the AK4 compound key:
-  // rho comes before phi, and only some eras carry phi and/or the run.
-  if (GetEra() == "2023BPix") {
-    if (IsDATA)
-      return safeEvaluateFloats(
-          cachedFatJetJESCompound, "GetFJESSF",
-          std::array<float, 6>{area, eta, pt, rho, phi,
-                               static_cast<float>(runNumber)});
-    return safeEvaluateFloats(cachedFatJetJESCompound, "GetFJESSF",
-                              std::array<float, 5>{area, eta, pt, rho, phi});
+  // Which inputs the compound wants varies by era and by sample type: 2024
+  // takes (JetA, JetEta, JetPt, Rho, JetPhi) in simulation and the same plus
+  // run on data, while other campaigns drop phi. Read the declared inputs and
+  // fill them by name rather than hard-coding a layout per era, so a new
+  // campaign cannot silently pass the wrong arity.
+  if (cachedFatJetJESArgs.empty()) {
+    for (const auto &input : cachedFatJetJESCompound->inputs())
+      cachedFatJetJESInputs.emplace_back(input.name());
+    cachedFatJetJESArgs.resize(cachedFatJetJESInputs.size());
   }
-  if (GetEra() == "2023" && IsDATA)
-    return safeEvaluateFloats(
-        cachedFatJetJESCompound, "GetFJESSF",
-        std::array<float, 5>{area, eta, pt, rho,
-                             static_cast<float>(runNumber)});
-  return safeEvaluateFloats(cachedFatJetJESCompound, "GetFJESSF",
-                            std::array<float, 4>{area, eta, pt, rho});
+  for (std::size_t i = 0; i < cachedFatJetJESInputs.size(); ++i) {
+    const string &name = cachedFatJetJESInputs[i];
+    double value = 0.;
+    if (name == "JetA")
+      value = area;
+    else if (name == "JetEta")
+      value = eta;
+    else if (name == "JetPt")
+      value = pt;
+    else if (name == "Rho")
+      value = rho;
+    else if (name == "JetPhi")
+      value = phi;
+    else if (name == "run")
+      value = runNumber;
+    else
+      throw SKNano::ConfigError(
+          "[MyCorrection::GetFJESSF] Unhandled AK8 JES input '" + name + "'");
+    cachedFatJetJESArgs[i] = value;
+  }
+  return safeEvaluate(cachedFatJetJESCompound, "GetFJESSF",
+                      cachedFatJetJESArgs);
 }
 
 float MyCorrection::GetFJESUncertainty(const float eta, const float pt,

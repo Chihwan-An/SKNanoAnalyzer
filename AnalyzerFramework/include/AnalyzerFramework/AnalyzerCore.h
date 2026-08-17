@@ -635,6 +635,8 @@ protected:
     std::shared_ptr<JetSoA> CreateJetSoA() const;
     void PopulateJetNominal(const std::shared_ptr<JetSoA> &storage);
     void PopulateJetJERVariations(const std::shared_ptr<JetSoA> &storage);
+    void PopulateJetJESVariations(const std::shared_ptr<JetSoA> &storage,
+                                  const TString &source = "total") const;
     void InitialiseJetSystematics(JetSoA &storage) const;
     void PopulateJetStorageWithoutCorrections(JetSoA &storage) const;
     void ApplyJetEnergyCorrections(JetSoA &storage, float rho);

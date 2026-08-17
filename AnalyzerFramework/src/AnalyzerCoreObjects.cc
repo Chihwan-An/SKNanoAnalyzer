@@ -2,11 +2,27 @@
 #include "JetView.h"
 #include "TObjArray.h"
 #include "TObjString.h"
+#include "TRandom3.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <vector>
+
+namespace {
+// Same seed for the nominal smearing and its variations, so they share the
+// Gaussian pull and the variation stays a coherent shift. Depends only on the
+// event and the muon direction, so it reproduces across passes.
+inline unsigned int MuonSmearSeed(const unsigned long long eventNumber,
+                                  const float eta, const float phi) {
+  const unsigned int etaBits =
+      static_cast<unsigned int>(std::fabs(eta) * 1000.f);
+  const unsigned int phiBits =
+      static_cast<unsigned int>(std::fabs(phi) * 1000.f);
+  return static_cast<unsigned int>(eventNumber & 0xFFFFFFFFull) ^
+         (etaBits << 8) ^ phiBits;
+}
+} // namespace
 
 // Objects
 Event AnalyzerCore::GetEvent() {
@@ -217,6 +233,7 @@ MuonViewCollection AnalyzerCore::GetAllMuonViews() {
   storage->puppiIsoId.bind(&Muon_puppiIsoId);
   storage->tkIsoId.bind(&Muon_tkIsoId);
   storage->nTrackerLayers.bind(&Muon_nTrackerLayers);
+  storage->tunepRelPt.bind(&Muon_tunepRelPt);
   storage->softMva.bind(&Muon_softMva);
   storage->softMvaRun3.bind(&Muon_softMvaRun3);
   storage->mvaLowPt.bind(&Muon_mvaLowPt);
@@ -240,6 +257,13 @@ void AnalyzerCore::PopulateMuonMomentum(MuonSoA &storage) {
   storage.miniAODPt.assign(count, 0.f);
   storage.momentumScaleUp.assign(count, 0.f);
   storage.momentumScaleDown.assign(count, 0.f);
+  storage.tunePPt.assign(count, 0.f);
+  storage.highPtRegime.assign(count, 0);
+  storage.highPtPt.assign(count, 0.f);
+  storage.highPtScaleUp.assign(count, 0.f);
+  storage.highPtScaleDown.assign(count, 0.f);
+  storage.highPtResUp.assign(count, 0.f);
+  storage.highPtResDown.assign(count, 0.f);
 
   GenViewCollection truth;
   bool truthLoaded = false;
@@ -292,6 +316,77 @@ void AnalyzerCore::PopulateMuonMomentum(MuonSoA &storage) {
     storage.momentumScaleUp[index] = pt * (scale.scale + scale.error);
     storage.momentumScaleDown[index] = pt * (scale.scale - scale.error);
     storage.correctedPt[index] = pt * scale.scale;
+
+    // ---- High-pT lanes --------------------------------------------------
+    // The regime is decided on the pre-correction TuneP pt and latched here,
+    // so later passes cannot reclassify a muon that a correction moved across
+    // the boundary.
+    const float tunePPt = pt * storage.tunepRelPt[index];
+    const bool highPt = tunePPt >= MyCorrection::HIGHPT_MUON_MIN_PT;
+    storage.tunePPt[index] = tunePPt;
+    storage.highPtRegime[index] = highPt ? 1 : 0;
+
+    if (!highPt) {
+      // Below the boundary the medium-pT correction already covers scale and
+      // resolution, so the high-pT lanes just mirror it. Smearing here would
+      // double count against Rochester and its uncertainty.
+      storage.highPtPt[index] = storage.correctedPt[index];
+      storage.highPtScaleUp[index] = storage.momentumScaleUp[index];
+      storage.highPtScaleDown[index] = storage.momentumScaleDown[index];
+      storage.highPtResUp[index] = storage.correctedPt[index];
+      storage.highPtResDown[index] = storage.correctedPt[index];
+      continue;
+    }
+
+    if (!myCorr) {
+      storage.highPtPt[index] = tunePPt;
+      storage.highPtScaleUp[index] = tunePPt;
+      storage.highPtScaleDown[index] = tunePPt;
+      storage.highPtResUp[index] = tunePPt;
+      storage.highPtResDown[index] = tunePPt;
+      continue;
+    }
+
+    // The Generalized Endpoint bias belongs to data, so it is removed there
+    // and simulation is left alone.
+    if (IsDATA) {
+      const float corrected = myCorr->GetMuonGEScaledPt(
+          tunePPt, eta, phi, charge, MyCorrection::variation::nom);
+      storage.highPtPt[index] = corrected;
+      // Data is never varied: the nuisance rides on the simulation templates.
+      storage.highPtScaleUp[index] = corrected;
+      storage.highPtScaleDown[index] = corrected;
+      storage.highPtResUp[index] = corrected;
+      storage.highPtResDown[index] = corrected;
+      continue;
+    }
+
+    storage.highPtPt[index] = tunePPt;
+    // Shift by the kappa uncertainty alone. Moving simulation by the full
+    // kappa would make the nuisance the size of the correction rather than of
+    // its error, which at TeV momenta is a large difference.
+    storage.highPtScaleUp[index] = myCorr->GetMuonGESigmaShiftedPt(
+        tunePPt, eta, phi, charge, MyCorrection::variation::up);
+    storage.highPtScaleDown[index] = myCorr->GetMuonGESigmaShiftedPt(
+        tunePPt, eta, phi, charge, MyCorrection::variation::down);
+
+    // Extra resolution smearing, simulation and high-pT regime only.
+    const float momentum = storage.highPtPt[index] * std::cosh(eta);
+    const unsigned int seed = MuonSmearSeed(event, eta, phi);
+    const float nomFactor = myCorr->GetMuonHighPtSmearFactor(
+        momentum, eta, seed, MyCorrection::variation::nom);
+    const float upFactor = myCorr->GetMuonHighPtSmearFactor(
+        momentum, eta, seed, MyCorrection::variation::up);
+    const float downFactor = myCorr->GetMuonHighPtSmearFactor(
+        momentum, eta, seed, MyCorrection::variation::down);
+    storage.highPtPt[index] *= nomFactor;
+    // Variations ride on the nominal as a ratio so the shared pull cancels.
+    const float ratioUp = (nomFactor > 0.f) ? upFactor / nomFactor : 1.f;
+    const float ratioDown = (nomFactor > 0.f) ? downFactor / nomFactor : 1.f;
+    storage.highPtResUp[index] = storage.highPtPt[index] * ratioUp;
+    storage.highPtResDown[index] = storage.highPtPt[index] * ratioDown;
+    storage.highPtScaleUp[index] *= nomFactor;
+    storage.highPtScaleDown[index] *= nomFactor;
   }
   storage.momentumReady = true;
 }
@@ -334,6 +429,35 @@ AnalyzerCore::SelectMuonIndices(const MuonViewCollection &muons,
                                 const float fetamax) const {
   auto seed_indices = AllIndices(muons);
   return SelectMuonIndices(muons, seed_indices, ID, ptmin, fetamax);
+}
+
+std::vector<std::size_t> AnalyzerCore::SelectHighPtMuonIndices(
+    const MuonViewCollection &muons,
+    const std::vector<std::size_t> &seed_indices, const MuonView::MuonID ID,
+    const float ptmin, const float fetamax) const {
+  std::vector<std::size_t> selected;
+  selected.reserve(muons.size());
+  for (auto i : seed_indices) {
+    const auto &mu = muons[i];
+    // Cut on the high-pT momentum rather than Pt(): above the boundary that is
+    // TuneP with the Generalized Endpoint scale, which is what the analysis
+    // actually uses for these muons.
+    if (!(mu.HighPtPt() > ptmin))
+      continue;
+    if (!(std::abs(mu.Eta()) < fetamax))
+      continue;
+    if (!mu.PassID(ID))
+      continue;
+    selected.push_back(i);
+  }
+  return selected;
+}
+
+std::vector<std::size_t> AnalyzerCore::SelectHighPtMuonIndices(
+    const MuonViewCollection &muons, const MuonView::MuonID ID,
+    const float ptmin, const float fetamax) const {
+  auto seed_indices = AllIndices(muons);
+  return SelectHighPtMuonIndices(muons, seed_indices, ID, ptmin, fetamax);
 }
 
 ElectronViewCollection AnalyzerCore::GetAllElectronViews() {

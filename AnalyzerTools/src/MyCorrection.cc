@@ -35,6 +35,8 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   // only jetid and jet, jerc are available for 2024 for now, I change optional
   // flag to true for other sets
   loadCorrectionSet("muon SF", config.json_muon, cset_muon, true);
+  loadCorrectionSet("muon HighPt SF", config.json_muon_highpt, cset_muon_highpt,
+                    true);
   loadCorrectionSet("puWeights", config.json_puWeights, cset_puWeights, true);
   loadCorrectionSet("btagging", config.json_btagging, cset_btagging, true);
   loadCorrectionSet("ctagging", config.json_ctagging, cset_ctagging, true);
@@ -166,6 +168,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
   const string external_roccor_str(external_roccor);
 
   config.json_muon = json_pog_path_str + "/MUO";
+  config.json_muon_highpt = json_pog_path_str + "/MUO";
   config.json_muon_trig_eff = sknano_data_str;
   config.json_muon_trig_sf =
       json_pog_path_str + "/MUO"; // temporary due to no mu trig sf for 2024
@@ -209,6 +212,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
         "/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/";
     const string tag_temp = "/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/";
     config.json_muon += tag + "muon_Z.json.gz";
+    config.json_muon_highpt += tag + "muon_HighPt.json.gz";
     config.json_muon_trig_eff += "/2024/MUO/muon_trig.json";
     config.json_muon_trig_sf += tag + "muon_Z.json.gz";
     config.json_puWeights += tag + "puWeights_BCDEFGHI.json.gz";

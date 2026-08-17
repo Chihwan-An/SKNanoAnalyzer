@@ -127,10 +127,19 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   if (!IsData) {
     JME_JER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK4PFPuppi";
     JME_JES_GT["2024"] = "Summer24Prompt24_V5_MC_######_AK4PFPuppi";
+    JME_FJER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK8PFPuppi";
+    JME_FJES_GT["2024"] = "Summer24Prompt24_V5_MC_######_AK8PFPuppi";
   } else {
     JME_JER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK4PFPuppi";
     JME_JES_GT["2024"] = "Summer24Prompt24_V5_DATA_######_AK4PFPuppi";
+    // Resolution is only ever measured in simulation, so the JER key stays on
+    // the MC one for data as well; only the JES levels differ.
+    JME_FJER_GT["2024"] = "Summer24Prompt24_JRV2_MC_######_AK8PFPuppi";
+    JME_FJES_GT["2024"] = "Summer24Prompt24_V5_DATA_######_AK8PFPuppi";
   }
+  // Resolution and JES uncertainties are only ever provided for simulation, so
+  // these templates stay on the MC form for both sample types.
+  JME_FJES_UNC_GT["2024"] = "Summer24Prompt24_V5_MC_######_AK8PFPuppi";
 
   JME_vetomap_keys["2024"] = "Summer24Prompt24_RunBCDEFGHI_V1";
 
@@ -232,7 +241,7 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     // config.json_photon += "/2023_Summer23BPix/photon.json.gz";
     config.json_jetid += tag + "jetid.json.gz";
     config.json_jerc += tag + "jet_jerc.json.gz";
-    // config.json_jerc_fatjet += "/2023_Summer23BPix/fatJet_jerc.json.gz";
+    config.json_jerc_fatjet += tag + "fatJet_jerc.json.gz";
     config.json_jetvetomap += tag + "jetvetomaps.json.gz";
     // config.json_met += "/2023_Summer23BPix/met.json.gz";
     config.txt_roccor += "/RoccoR2023BPix.txt";

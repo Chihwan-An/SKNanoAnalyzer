@@ -327,6 +327,116 @@ float MyCorrection::GetJESUncertainty(const float eta, const float pt,
                         "GetJESUncertainty", eta, pt);
 }
 
+// ---------------------------------------------------------------------------
+// AK8 (fat jet) JERC. Same shape as the AK4 functions above, reading
+// fatJet_jerc.json.gz instead. Kept separate rather than parameterised because
+// the key templates, the correction set and the caching all differ.
+// ---------------------------------------------------------------------------
+
+const correction::Correction::Ref &
+MyCorrection::getFatJetCorrection(const char *level) const {
+  const string era = GetEra().Data();
+  const string cacheKey = string(level) + "@" + era;
+  auto it = cachedFatJetCorrections.find(cacheKey);
+  if (it != cachedFatJetCorrections.end())
+    return it->second;
+
+  const string levelStr(level);
+  const bool isResolution =
+      (levelStr == "PtResolution" || levelStr == "ScaleFactor" ||
+       levelStr == "SFUncertainty");
+  // JES uncertainties are only published for simulation, so they use the MC
+  // template even when running on data.
+  const auto &table = isResolution ? JME_FJER_GT : JME_FJES_UNC_GT;
+  const auto tableIt = table.find(era);
+  if (tableIt == table.end())
+    throw SKNano::ConfigError(
+        "[MyCorrection::getFatJetCorrection] No AK8 JERC key for era " + era);
+
+  string key = tableIt->second;
+  const auto marker = key.find("######");
+  if (marker == string::npos)
+    throw SKNano::ConfigError(
+        "[MyCorrection::getFatJetCorrection] Invalid AK8 key template");
+  key.replace(marker, 6, level);
+
+  if (!cset_jerc_fatjet)
+    throw SKNano::ConfigError(
+        "[MyCorrection::getFatJetCorrection] fatJet_jerc.json.gz is not loaded "
+        "for era " + era);
+
+  return cachedFatJetCorrections.emplace(cacheKey, cset_jerc_fatjet->at(key))
+      .first->second;
+}
+
+float MyCorrection::GetFJER(const float eta, const float pt,
+                            const float rho) const {
+  return safeEvaluate3D(getFatJetCorrection("PtResolution"), "GetFJER", eta, pt,
+                        rho);
+}
+
+float MyCorrection::GetFJERSF(const float eta, const float pt,
+                              const variation syst,
+                              const TString &source) const {
+  static_cast<void>(source);
+  const auto &cset = getFatJetCorrection("ScaleFactor");
+  const float sf = safeEvaluate2D(cset, "GetFJERSF", eta, pt);
+  if (syst == variation::nom)
+    return sf;
+  // 2024 splits the scale factor and its uncertainty into two corrections,
+  // matching how the AK4 side handles this era.
+  const float unc = safeEvaluate2D(getFatJetCorrection("SFUncertainty"),
+                                   "GetFJERSFUncertainty", eta, pt);
+  return (syst == variation::up) ? sf + unc : std::max(sf - unc, 0.f);
+}
+
+float MyCorrection::GetFJESSF(const float area, const float eta, const float pt,
+                              const float phi, const float rho,
+                              const unsigned int runNumber) const {
+  if (!cset_jerc_fatjet)
+    throw SKNano::ConfigError(
+        "[MyCorrection::GetFJESSF] fatJet_jerc.json.gz is not loaded");
+
+  const string era = GetEra().Data();
+  const auto it = JME_FJES_GT.find(era);
+  if (it == JME_FJES_GT.end())
+    throw SKNano::ConfigError(
+        "[MyCorrection::GetFJESSF] No AK8 JES key for era " + era);
+  string key = it->second;
+  const auto marker = key.find("######");
+  if (marker == string::npos)
+    throw SKNano::ConfigError(
+        "[MyCorrection::GetFJESSF] Invalid AK8 JES key template");
+  key.replace(marker, 6, "L1L2L3Res");
+  const auto cset = cset_jerc_fatjet->compound().at(key);
+
+  // Argument order is (JetA, JetEta, JetPt, Rho, JetPhi[, run]) -- rho comes
+  // before phi, and only the data key carries the run.
+  if (IsDATA)
+    return safeEvaluateFloats(
+        cset, "GetFJESSF",
+        std::array<float, 6>{area, eta, pt, rho, phi,
+                             static_cast<float>(runNumber)});
+  return safeEvaluateFloats(cset, "GetFJESSF",
+                            std::array<float, 5>{area, eta, pt, rho, phi});
+}
+
+float MyCorrection::GetFJESUncertainty(const float eta, const float pt,
+                                       const TString &source) const {
+  const string level = source.IsNull() ? "Total" : source.Data();
+  return safeEvaluate2D(getFatJetCorrection(level.c_str()),
+                        "GetFJESUncertainty", eta, pt);
+}
+
+float MyCorrection::GetFJESUncertaintySF(const float eta, const float pt,
+                                         const variation syst,
+                                         const TString &source) const {
+  if (syst == variation::nom)
+    return 1.f;
+  const float unc = GetFJESUncertainty(eta, pt, source);
+  return (syst == variation::up) ? 1.f + unc : 1.f - unc;
+}
+
 float MyCorrection::GetJESUncertaintySF(const float eta, const float pt,
                                         const variation syst,
                                         const TString &source) const {

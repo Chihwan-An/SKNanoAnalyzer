@@ -209,6 +209,15 @@ public:
     float GetJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
     float GetJESUncertaintySF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
     float GetJESUncertainty(const float eta, const float pt, const TString &source = "total") const;
+
+    // ---- AK8 (fat jet) JERC, from fatJet_jerc.json.gz -----------------------
+    // Mirrors the AK4 functions above. Note the JES uncertainty source names
+    // are capitalised here ("Total"), matching the AK8 key naming.
+    float GetFJER(const float eta, const float pt, const float rho) const;
+    float GetFJERSF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "total") const;
+    float GetFJESSF(const float area, const float eta, const float pt, const float phi, const float rho, const unsigned int runNumber) const;
+    float GetFJESUncertainty(const float eta, const float pt, const TString &source = "Total") const;
+    float GetFJESUncertaintySF(const float eta, const float pt, const variation syst = variation::nom, const TString &source = "Total") const;
     void EvaluateJetCorrectionBatch(
         const SKNano::JetCorrectionBatchInput &input,
         SKNano::JetCorrectionBatchOutput &output,
@@ -413,6 +422,10 @@ private:
 
     const correction::Correction::Ref &getJERPtResolutionCorrection() const;
     const correction::Correction::Ref &getJERScaleFactorCorrection() const;
+    // Resolves and caches one AK8 correction level ("PtResolution",
+    // "ScaleFactor", "SFUncertainty", "Total", ...).
+    const correction::Correction::Ref &getFatJetCorrection(const char *level) const;
+    mutable unordered_map<string, correction::Correction::Ref> cachedFatJetCorrections;
     const correction::Correction::Ref &getJERSFUncertaintyCorrection() const;
     const correction::Correction::Ref &getJESUncertaintyCorrection(const string &source) const;
     float safeEvaluate2D(const correction::Correction::Ref &cset, const string &function_name, float x, float y) const;
@@ -474,6 +487,10 @@ private:
     unordered_map<string, string> EGM_keys;
     unordered_map<string, string> JME_JER_GT;
     unordered_map<string, string> JME_JES_GT;
+    // AK8 counterparts, from fatJet_jerc.json.gz.
+    unordered_map<string, string> JME_FJER_GT;
+    unordered_map<string, string> JME_FJES_GT;
+    unordered_map<string, string> JME_FJES_UNC_GT;
     unordered_map<string, string> JME_vetomap_keys;
     unordered_map<string, string> JME_PILEUP_keys;
     unordered_map<string, string> JME_MET_keys;

@@ -343,6 +343,7 @@ public:
     MuonViewCollection GetAllMuonViews();
     void PopulateMuonMomentum(MuonSoA &storage);
     void PopulateElectronMomentum(ElectronSoA &storage);
+    void PopulateFatJetCorrections(FatJetSoA &storage);
     GenViewCollection GetAllGenViews();
     JetViewCollection GetAllJetViews();
     SelectedJetViewCollection SelectJetViews(
@@ -389,9 +390,13 @@ public:
     // Select objects
     std::vector<std::size_t> SelectJetIndices(const JetViewCollection &jets, const std::vector<size_t> &seed_indices, const JetView::JetID, const float ptmin, const float fetamax, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
     std::vector<std::size_t> SelectJetIndices(const JetViewCollection &jets, const JetView::JetID, const float ptmin, const float fetamax, const MyCorrection::variation &JESVariation = MyCorrection::variation::nom, const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
+    // Cuts on the corrected/smeared AK8 momentum, matching SelectJetIndices.
+    // JES and JER cannot both be varied in one call.
     FatJetViewCollection SelectFatJets(const FatJetViewCollection &fatjets,
                                        FatJetView::ID id, float ptmin,
-                                       float fetamax) const;
+                                       float fetamax,
+                                       const MyCorrection::variation &JESVariation = MyCorrection::variation::nom,
+                                       const MyCorrection::variation &JERVariation = MyCorrection::variation::nom) const;
     std::vector<std::size_t> JetsVetoLeptonInside(const JetViewCollection& jets,
                                    const std::vector<std::size_t>& jet_indices,
                                    const ElectronViewCollection& electrons,

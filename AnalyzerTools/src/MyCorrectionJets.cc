@@ -147,7 +147,12 @@ MyCorrection::getJERSFUncertaintyCorrection() const {
 
 const correction::Correction::Ref &
 MyCorrection::getJESUncertaintyCorrection(const string &source) const {
-  const string sourceKey = source.empty() ? "total" : source;
+  // The JSON spells the summed source "Total"; "total" is not a key and would
+  // throw. Accept either so the default argument and any lower-case caller
+  // resolve to the same correction.
+  string sourceKey = source.empty() ? "Total" : source;
+  if (sourceKey == "total")
+    sourceKey = "Total";
   auto it = cachedJESUncertaintyCorrections.find(sourceKey);
   if (it == cachedJESUncertaintyCorrections.end()) {
     string cset_string = JME_JES_GT.at(GetEra().Data());

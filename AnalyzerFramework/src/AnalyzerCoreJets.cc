@@ -463,10 +463,18 @@ void AnalyzerCore::PopulateJetJERVariations(
 
 void AnalyzerCore::ApplyJetScaleVariation(JetViewCollection &jets,
                                           const TString &source) const {
+  auto storagePtr = jets.storage();
+  if (!storagePtr)
+    return;
+  PopulateJetJESVariations(storagePtr, source);
+}
+
+// Also reachable lazily through JetSoA::ensureJesVariations, which is how the
+// JesPt*/JesMass* accessors get their lanes filled.
+void AnalyzerCore::PopulateJetJESVariations(
+    const std::shared_ptr<JetSoA> &storagePtr, const TString &source) const {
   if (!myCorr || IsDATA)
     return;
-
-  auto storagePtr = jets.storage();
   if (!storagePtr)
     return;
   storagePtr->ensureNominal();
@@ -623,6 +631,14 @@ JetViewCollection AnalyzerCore::GetAllJetViews() {
           "[GetAllJetViews] expired Jet storage during JER variation "
           "materialization");
     PopulateJetJERVariations(locked);
+  };
+  storage->populateJesVariations = [this, weakStorage]() {
+    auto locked = weakStorage.lock();
+    if (!locked)
+      throw SKNano::EventDataError(
+          "[GetAllJetViews] expired Jet storage during JES variation "
+          "materialization");
+    PopulateJetJESVariations(locked);
   };
 
   cachedJetViews = JetViewCollection(std::move(storage));

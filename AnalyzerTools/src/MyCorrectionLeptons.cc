@@ -185,7 +185,7 @@ float MyCorrection::GetMuonRECOSF(const MuonView &muon,
     return 1.f;
   auto cset = cset_muon->at("NUM_TrackerMuons_DEN_genTracks");
   return safeEvaluate(cset, "GetMuonRECOSF",
-                      {muon.Eta(), std::max(40.f, muon.MiniAODPt()),
+                      {muon.Eta(), std::max(40.f, muon.Pt()),
                        getSystString_MUO(syst)});
 }
 
@@ -349,7 +349,7 @@ float MyCorrection::GetMuonIDSF(const TString &key, const MuonView &muon,
   auto cset = cset_muon->at(string(key));
   return safeEvaluate(
       cset, "GetMuonIDSF",
-      {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_MUO(syst)});
+      {fabs(muon.Eta()), muon.Pt(), getSystString_MUO(syst)});
 }
 
 float MyCorrection::GetMuonIDSF(
@@ -569,7 +569,7 @@ float MyCorrection::GetMuonTriggerSF(const TString &key,
     try {
       const auto cset = set->at(key.Data());
       weight = safeEvaluate(cset, "GetMuonTriggerSF",
-                            {muon.Eta(), std::max(minPt, muon.MiniAODPt()),
+                            {muon.Eta(), std::max(minPt, muon.Pt()),
                              getSystString_MUO(syst)});
       return true;
     } catch (const std::out_of_range &) {

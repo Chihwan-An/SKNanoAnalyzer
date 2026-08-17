@@ -219,7 +219,9 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     // config.json_btagging_R += "/2023BPix/BTV/" + btagging_R_file;
     // config.json_ctagging_R += "/2023BPix/BTV/" + ctagging_R_file;
     config.json_electron += tag + "electron.json.gz";
-    config.json_electron_variation = tag + "electronSS_EtDependent.json.gz";
+    // Append: the base path set above is the POG/EGM directory. Assigning here
+    // would drop it and the file would silently fail to load.
+    config.json_electron_variation += tag + "electronSS_EtDependent.json.gz";
     config.json_electron_hlt += tag + "electronHlt.json.gz";
     // config.json_photon += "/2023_Summer23BPix/photon.json.gz";
     config.json_jetid += tag + "jetid.json.gz";

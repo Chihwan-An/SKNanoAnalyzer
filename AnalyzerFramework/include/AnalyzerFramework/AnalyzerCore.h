@@ -371,9 +371,18 @@ public:
     GenVisTauViewCollection GetAllGenVisTauViews();
     std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const std::vector<std::size_t> &seed_indices, const MuonView::MuonID ID, const float ptmin, const float fetamax) const;
     std::vector<std::size_t> SelectMuonIndices(const MuonViewCollection &muons, const MuonView::MuonID ID, const float ptmin, const float fetamax) const;
+    // High-pT muon selection (MUO POG "High pT" prescription). Cuts on
+    // MuonView::HighPtPt() instead of Pt(), so muons past ~200 GeV are judged
+    // on TuneP with the Generalized Endpoint scale. Opt-in: SelectMuonIndices
+    // above is unchanged.
+    std::vector<std::size_t> SelectHighPtMuonIndices(const MuonViewCollection &muons, const std::vector<std::size_t> &seed_indices, const MuonView::MuonID ID, const float ptmin, const float fetamax) const;
+    std::vector<std::size_t> SelectHighPtMuonIndices(const MuonViewCollection &muons, const MuonView::MuonID ID, const float ptmin, const float fetamax) const;
     MuonViewCollection SelectMuonViews(const MuonViewCollection &muons,
         std::vector<std::size_t> indices, bool sortByPt = true) const;
-    ElectronViewCollection GetAllElectronViews();
+    // skipCrack drops electrons in the ECAL gap up front. Off by default, which
+    // keeps the collection as NanoAOD delivers it; PassID rejects gap
+    // electrons anyway, so this only matters when counting with NOCUT.
+    ElectronViewCollection GetAllElectronViews(bool skipCrack = false);
     std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const std::vector<size_t> &seed_indices, const ElectronView::ElectronID ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
     std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const ElectronView::ElectronID ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
     ElectronViewCollection SelectElectronViews(

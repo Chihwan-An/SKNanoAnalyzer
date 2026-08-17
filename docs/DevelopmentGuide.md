@@ -5,6 +5,8 @@
 - [Repository setup](#repository-setup)
 - [Systematic-aware corrections](#systematic-aware-corrections)
 - [Typed constants and identifiers](#typed-constants-and-identifiers)
+- [Unit tests](#unit-tests)
+- [Repository size](#repository-size)
 - [Testing another pull request](#testing-another-pull-request)
 - [GitLab authentication in GitHub Actions](#gitlab-authentication-in-github-actions)
 
@@ -72,6 +74,69 @@ embedding numeric literals. `AnalyzerCore.h` already includes this header:
 if (std::abs(mass - Z_MASS) < 15.)
     return false;
 ```
+
+## Unit tests
+
+Tests are [GoogleTest](https://google.github.io/googletest/) suites registered
+with `ctest`. gtest is declared in [`Nano.yml`](Nano.yml), so a rebuilt
+environment already has it.
+
+```bash
+source setup.sh
+./scripts/build.sh
+ctest --test-dir "$SKNANO_BUILDDIR" --output-on-failure
+ctest --test-dir "$SKNANO_BUILDDIR" -N    # list without running
+```
+
+`BUILD_TESTING` is on by default via `include(CTest)`; configure with
+`-DBUILD_TESTING=OFF` to skip building them.
+
+A module keeps its suites in `<Module>/tests/`, wired from that module's
+`CMakeLists.txt`:
+
+```cmake
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
+```
+
+Hand-built SoA fixtures live in
+[`DataFormats/tests`](../DataFormats/tests) and are exported as the
+`SKNanoTestSupport` interface target — link that rather than naming the
+directory by path.
+
+Two rules keep the suites usable on machines that are not this one:
+
+- **Do not set the `ENVIRONMENT` test property.** `ctest` inherits the shell it
+  runs in, so a suite sees whatever `setup.sh` exported. Copying variables in
+  at configure time pins them to whoever configured the tree.
+- **Skip, do not fail, when an input is unreachable.** Which correction files
+  exist is decided by the era yml, so probe the object and
+  `GTEST_SKIP()` on the exception instead of testing a hardcoded path.
+  `AnalyzerTools/tests/TauCorrectionTest.cc` does this.
+
+Layer and codegen checks (`scripts/check_layers.sh`, the analysis-module
+contract tests) are plain scripts or assert-based executables registered the
+same way; they predate gtest and there is no need to convert them.
+
+## Repository size
+
+`.git` is far larger than the working tree, because `data/` used to carry
+enumerated input paths and multi-megabyte JSON that does not delta-compress.
+The sources of growth are gone — sample inputs derive from
+`$SKNANO_INPUT_ROOT` and the large LUTs live with the module that owns them —
+but the objects already written stay in history.
+
+Reclaiming them means rewriting history: `git filter-repo` to drop the large
+blobs, a force-push of every branch, and every existing clone becoming invalid.
+That is a coordinated operation, not a cleanup commit, so it is deliberately not
+bundled with the changes that stopped the growth. Until it happens, avoid
+committing anything large under `data/`: the era yml resolves correction files
+from outside the repository and sample inputs need no paths at all.
+
+A local `git gc` is safe and worth running; note that interrupted operations can
+leave `.git/objects/pack/tmp_pack_*` files behind, which `gc` will not remove on
+its own.
 
 ## Testing another pull request
 

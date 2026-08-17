@@ -135,7 +135,51 @@ TauViewCollection AnalyzerCore::GetAllTauViews() {
   storage->idDeepTau2018v2p5VSe.bind(&Tau_idDeepTau2018v2p5VSe);
   storage->idDeepTau2018v2p5VSjet.bind(&Tau_idDeepTau2018v2p5VSjet);
   storage->idDeepTau2018v2p5VSmu.bind(&Tau_idDeepTau2018v2p5VSmu);
+  storage->rawDeepTau2018v2p5VSe.bind(&Tau_rawDeepTau2018v2p5VSe);
+  storage->rawDeepTau2018v2p5VSjet.bind(&Tau_rawDeepTau2018v2p5VSjet);
+  storage->rawDeepTau2018v2p5VSmu.bind(&Tau_rawDeepTau2018v2p5VSmu);
   return TauViewCollection(std::move(storage));
+}
+
+std::vector<std::size_t>
+AnalyzerCore::SelectTauIndices(const TauViewCollection &taus,
+                               const std::vector<std::size_t> &seed_indices,
+                               const TauView::TauID &id, const float ptmin,
+                               const float fetamax) const {
+  std::vector<std::size_t> selected;
+  selected.reserve(taus.size());
+  for (auto i : seed_indices) {
+    const auto &tau = taus[i];
+    if (!(tau.Pt() > ptmin))
+      continue;
+    if (!(std::abs(tau.Eta()) < fetamax))
+      continue;
+    if (!tau.PassID(id))
+      continue;
+    selected.push_back(i);
+  }
+  return selected;
+}
+
+std::vector<std::size_t>
+AnalyzerCore::SelectTauIndices(const TauViewCollection &taus,
+                               const TauView::TauID &id, const float ptmin,
+                               const float fetamax) const {
+  auto seed_indices = AllIndices(taus);
+  return SelectTauIndices(taus, seed_indices, id, ptmin, fetamax);
+}
+
+TauViewCollection
+AnalyzerCore::SelectTauViews(const TauViewCollection &taus,
+                             std::vector<std::size_t> indices,
+                             bool sortByPt) const {
+  if (sortByPt) {
+    std::sort(indices.begin(), indices.end(),
+              [&](std::size_t lhs, std::size_t rhs) {
+                return taus[lhs].Pt() > taus[rhs].Pt();
+              });
+  }
+  return TauViewCollection(taus.storage(), std::move(indices));
 }
 
 GenDressedLeptonViewCollection AnalyzerCore::GetAllGenDressedLeptonViews() {

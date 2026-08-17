@@ -145,7 +145,11 @@ def classify_errors(manifest: dict, max_files: int = 2000) -> tuple[Counter, lis
         if not workdir.is_dir():
             continue
         error_files = list(workdir.glob("job_*.err"))
-        error_files.extend([workdir / "hadd.err", workdir / "postproc.err"])
+        error_files.extend([
+            workdir / "hadd.err",
+            workdir / "move.err",
+            workdir / "postproc.err",
+        ])
         for path in error_files:
             if inspected >= max_files:
                 return categories, examples

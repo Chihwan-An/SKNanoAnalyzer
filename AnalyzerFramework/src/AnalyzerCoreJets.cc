@@ -265,8 +265,6 @@ AnalyzerCore::MatchJetsToGenJets(const JetViewCollection &jets,
   const float maxDR = 0.2f;
   const float maxDR2 = maxDR * maxDR;
   const float ptJerCut = 3.f;
-  constexpr float pi = 3.14159265358979323846f;
-  constexpr float twoPi = 6.28318530717958647692f;
 
   // 후보 수집
   for (std::size_t i = 0; i < njet; ++i) {
@@ -285,13 +283,8 @@ AnalyzerCore::MatchJetsToGenJets(const JetViewCollection &jets,
       const float genPhi = genPhiInput[j];
       const float genPt = genPtInput[j];
 
-      const float dEta = jetEta - genEta;
-      float dPhi = jetPhi - genPhi;
-      if (dPhi > pi)
-        dPhi -= twoPi;
-      else if (dPhi <= -pi)
-        dPhi += twoPi;
-      const float dr2 = dEta * dEta + dPhi * dPhi;
+      const float dr2 =
+          SKNano::Geometry::DeltaR2(jetEta, jetPhi, genEta, genPhi);
       if (dr2 >= maxDR2)
         continue;
 
@@ -850,88 +843,21 @@ std::vector<std::size_t> AnalyzerCore::JetsVetoLeptonInside(
     const std::vector<std::size_t> &electron_indices,
     const MuonViewCollection &muons,
     const std::vector<std::size_t> &muon_indices, const float dR) const {
-  std::vector<std::size_t> filtered;
   if (jets.empty() || jet_indices.empty())
-    return filtered;
+    return {};
 
-  filtered.reserve(jet_indices.size());
-  const float dR2 = dR * dR;
+  // A stale index is a caller bug, but this has always dropped them quietly
+  // rather than throwing, so keep doing that.
+  std::vector<std::size_t> seed;
+  seed.reserve(jet_indices.size());
+  for (const std::size_t idx : jet_indices)
+    if (idx < jets.size())
+      seed.push_back(idx);
 
-  constexpr float PI = 3.14159265358979323846f;
-  constexpr float TWOPI = 2.0f * PI;
-
-  auto deltaPhiWrap = [PI, TWOPI](float dphi) noexcept -> float {
-    if (dphi > PI)
-      dphi -= TWOPI;
-    else if (dphi <= -PI)
-      dphi += TWOPI;
-    return dphi;
-  };
-
-  const std::size_t nEle = electron_indices.size();
-  const std::size_t nMu = muon_indices.size();
-
-  std::vector<float> ele_eta, ele_phi, mu_eta, mu_phi;
-  ele_eta.reserve(nEle);
-  ele_phi.reserve(nEle);
-  mu_eta.reserve(nMu);
-  mu_phi.reserve(nMu);
-
-  for (std::size_t i = 0; i < nEle; ++i) {
-    const auto &e = electrons[electron_indices[i]];
-    ele_eta.push_back(e.Eta());
-    ele_phi.push_back(e.Phi());
-  }
-  for (std::size_t i = 0; i < nMu; ++i) {
-    const auto &m = muons[muon_indices[i]];
-    mu_eta.push_back(m.Eta());
-    mu_phi.push_back(m.Phi());
-  }
-
-  // 2) jet 루프
-  for (const auto idx : jet_indices) {
-    if (idx >= jets.size())
-      continue;
-
-    const auto &j = jets[idx];
-    const float j_eta = j.Eta();
-    const float j_phi = j.Phi();
-
-    bool veto = false;
-
-    // electrons
-    for (std::size_t i = 0; i < nEle; ++i) {
-      const float dEta = j_eta - ele_eta[i];
-      float dPhi = j_phi - ele_phi[i];
-      dPhi = deltaPhiWrap(dPhi);
-
-      const float dr2 = dEta * dEta + dPhi * dPhi;
-      if (dr2 < dR2) {
-        veto = true;
-        break;
-      }
-    }
-    if (veto)
-      continue;
-
-    // muons
-    for (std::size_t i = 0; i < nMu; ++i) {
-      const float dEta = j_eta - mu_eta[i];
-      float dPhi = j_phi - mu_phi[i];
-      dPhi = deltaPhiWrap(dPhi);
-
-      const float dr2 = dEta * dEta + dPhi * dPhi;
-      if (dr2 < dR2) {
-        veto = true;
-        break;
-      }
-    }
-
-    if (!veto)
-      filtered.push_back(idx);
-  }
-
-  return filtered;
+  return RemoveOverlapIndices(
+      jets,
+      RemoveOverlapIndices(jets, seed, electrons, electron_indices, dR),
+      muons, muon_indices, dR);
 }
 
 bool AnalyzerCore::PassJetVetoMap(const JetViewCollection &AllJets,

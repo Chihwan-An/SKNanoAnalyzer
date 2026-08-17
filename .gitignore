@@ -9,7 +9,6 @@ external/lhapdf/*
 external/libtorch/*
 config/config.*
 !config/config.default
-**/Skim*.json
 external/** 
 *.onnx
 !external/KinematicFitter
@@ -47,7 +46,13 @@ TTLJ_test.json
 jet_jerc.json
 
 #Temporary Added to my personal temp files
-DataCOPY/** 
+DataCOPY/**
 MCCOPY/**
 .vscode/**
 .cursor/**
+
+# Local agent guidance (per-user, not shared)
+CLAUDE.md
+AGENTS.md
+.claude/
+unrelated_analysis_results*/

@@ -6,159 +6,162 @@
 
 // JetID
 
+namespace {
+
+// The jet ID corrections mix real and integer inputs, so they cannot go
+// through safeEvaluateFloats.  Fill a reused buffer instead of letting the
+// braced-init-list allocate a fresh 9-element vector for every jet.
+float evaluateJetID(const correction::Correction::Ref &cset, float abseta,
+                    float chHEF, float neHEF, float chEmEF, float neEmEF,
+                    float muEF, int chMult, int neMult) {
+  static thread_local vector<correction::Variable::Type> args(9);
+  args[0] = static_cast<double>(abseta);
+  args[1] = static_cast<double>(chHEF);
+  args[2] = static_cast<double>(neHEF);
+  args[3] = static_cast<double>(chEmEF);
+  args[4] = static_cast<double>(neEmEF);
+  args[5] = static_cast<double>(muEF);
+  args[6] = chMult;
+  args[7] = neMult;
+  args[8] = chMult + neMult;
+  return cset->evaluate(args);
+}
+
+} // namespace
+
 bool MyCorrection::PassJetID(const JetView &jet, const JetView::JetID &id) const {
-  correction::Correction::Ref cset = nullptr;
-  float out = 0.f;
+  const correction::Correction::Ref *cset = nullptr;
   switch (id) {
   case JetView::JetID::TIGHT:
-    cset = cset_jetid->at("AK4PUPPI_Tight");
-    out = cset->evaluate(
-        {fabs(jet.Eta()), jet.ChHEF(), jet.NeHEF(), jet.ChEmEF(), jet.NeEmEF(),
-         jet.MuEF(), static_cast<int>(jet.ChMultiplicity()),
-         static_cast<int>(jet.NeMultiplicity()),
-         static_cast<int>(jet.ChMultiplicity() + jet.NeMultiplicity())});
-    return out > 0.5;
+    cset = &cachedJetIDTight.get(cset_jetid, "AK4PUPPI_Tight");
+    break;
   case JetView::JetID::TIGHTLEPVETO:
-    cset = cset_jetid->at("AK4PUPPI_TightLeptonVeto");
-    out = cset->evaluate(
-        {fabs(jet.Eta()), jet.ChHEF(), jet.NeHEF(), jet.ChEmEF(), jet.NeEmEF(),
-         jet.MuEF(), static_cast<int>(jet.ChMultiplicity()),
-         static_cast<int>(jet.NeMultiplicity()),
-         static_cast<int>(jet.ChMultiplicity() + jet.NeMultiplicity())});
-    return out > 0.5;
+    cset = &cachedJetIDTightLepVeto.get(cset_jetid, "AK4PUPPI_TightLeptonVeto");
+    break;
   case JetView::JetID::NOCUT:
     return true;
   default:
     throw runtime_error("[MyCorrection::PassJetID] Invalid JetID type");
   }
+  return evaluateJetID(*cset, fabs(jet.Eta()), jet.ChHEF(), jet.NeHEF(),
+                       jet.ChEmEF(), jet.NeEmEF(), jet.MuEF(),
+                       static_cast<int>(jet.ChMultiplicity()),
+                       static_cast<int>(jet.NeMultiplicity())) > 0.5;
 }
 
 bool MyCorrection::PassFatJetID(const FatJetView &fatjet,
                                 FatJetView::ID id) const {
-  correction::Correction::Ref cset = nullptr;
-  float out;
+  const correction::Correction::Ref *cset = nullptr;
   switch (id) {
   case FatJetView::ID::TIGHT:
-    cset = cset_jetid->at("AK8PUPPI_Tight");
-    out = cset->evaluate({fabs(fatjet.Eta()), fatjet.chHEF(), fatjet.neHEF(),
-                          fatjet.chEmEF(), fatjet.neEmEF(), fatjet.muEF(),
-                          fatjet.chMultiplicity(), fatjet.neMultiplicity(),
-                          fatjet.chMultiplicity() + fatjet.neMultiplicity()});
-    return out > 0.5; // return is real
+    cset = &cachedFatJetIDTight.get(cset_jetid, "AK8PUPPI_Tight");
     break;
   case FatJetView::ID::TIGHTLEPVETO:
-    cset = cset_jetid->at("AK8PUPPI_TightLeptonVeto");
-    out = cset->evaluate({fabs(fatjet.Eta()), fatjet.chHEF(), fatjet.neHEF(),
-                          fatjet.chEmEF(), fatjet.neEmEF(), fatjet.muEF(),
-                          fatjet.chMultiplicity(), fatjet.neMultiplicity(),
-                          fatjet.chMultiplicity() + fatjet.neMultiplicity()});
-    return out > 0.5; // return is real
+    cset =
+        &cachedFatJetIDTightLepVeto.get(cset_jetid, "AK8PUPPI_TightLeptonVeto");
     break;
   case FatJetView::ID::NOCUT:
-    // No cut, always return true
     return true;
-    break;
   default:
     throw runtime_error("[MyCorrection::PassFatJetID] Invalid JetID type");
   }
+  return evaluateJetID(*cset, fabs(fatjet.Eta()), fatjet.chHEF(),
+                       fatjet.neHEF(), fatjet.chEmEF(), fatjet.neEmEF(),
+                       fatjet.muEF(), fatjet.chMultiplicity(),
+                       fatjet.neMultiplicity()) > 0.5;
 }
 
 // JERC
 float MyCorrection::safeEvaluate2D(const correction::Correction::Ref &cset,
-                                   const string &function_name, float x,
+                                   std::string_view function_name, float x,
                                    float y) const {
-  if (!cset) {
-    throw SKNano::ConfigError("[MyCorrection::" + function_name +
-                              "] Correction set is null");
-  }
+  if (!cset)
+    throwNullCorrection(function_name);
 
-  static thread_local vector<correction::Variable::Type> args;
-  args.clear();
-  args.emplace_back(x);
-  args.emplace_back(y);
+  static thread_local vector<correction::Variable::Type> args(2);
+  args[0] = static_cast<double>(x);
+  args[1] = static_cast<double>(y);
   try {
     return cset->evaluate(args);
   } catch (const std::exception &e) {
-    std::ostringstream oss;
-    oss << "[MyCorrection::" << function_name
-        << "] Error during evaluation: " << e.what() << "; arguments ("
-        << args.size() << "): ";
-    for (const auto &arg : args)
-      std::visit([&oss](const auto &value) { oss << value << " "; }, arg);
-    throw SKNano::CorrectionError(oss.str());
+    throwEvaluationError(function_name, e, args);
   }
 }
 
 float MyCorrection::safeEvaluate3D(const correction::Correction::Ref &cset,
-                                   const string &function_name, float x,
+                                   std::string_view function_name, float x,
                                    float y, float z) const {
-  if (!cset) {
-    throw SKNano::ConfigError("[MyCorrection::" + function_name +
-                              "] Correction set is null");
-  }
+  if (!cset)
+    throwNullCorrection(function_name);
 
-  static thread_local vector<correction::Variable::Type> args;
-  args.clear();
-  args.emplace_back(x);
-  args.emplace_back(y);
-  args.emplace_back(z);
+  static thread_local vector<correction::Variable::Type> args(3);
+  args[0] = static_cast<double>(x);
+  args[1] = static_cast<double>(y);
+  args[2] = static_cast<double>(z);
   try {
     return cset->evaluate(args);
   } catch (const std::exception &e) {
-    std::ostringstream oss;
-    oss << "[MyCorrection::" << function_name
-        << "] Error during evaluation: " << e.what() << "; arguments ("
-        << args.size() << "): ";
-    for (const auto &arg : args)
-      std::visit([&oss](const auto &value) { oss << value << " "; }, arg);
-    throw SKNano::CorrectionError(oss.str());
+    throwEvaluationError(function_name, e, args);
   }
 }
 
+namespace {
+
+// The JERC global tags carry a "######" placeholder that names the correction
+// level.  Substituting it is a load-time operation, never a per-jet one.
+string substituteJercLevel(const string &global_tag, std::string_view level,
+                           const char *context) {
+  const auto marker = global_tag.find("######");
+  if (marker == string::npos)
+    throw SKNano::ConfigError(string("[MyCorrection::") + context +
+                              "] JERC global tag '" + global_tag +
+                              "' has no ###### placeholder");
+  string key = global_tag;
+  key.replace(marker, 6, level);
+  return key;
+}
+
+} // namespace
+
 const correction::Correction::Ref &
 MyCorrection::getJERPtResolutionCorrection() const {
-  if (!cachedJERPtResolution) {
-    string cset_string = JME_JER_GT.at(GetEra().Data());
-    cset_string.replace(cset_string.find("######"), 6, "PtResolution");
-    cachedJERPtResolution = cset_jerc->at(cset_string);
-  }
+  if (!cachedJERPtResolution)
+    cachedJERPtResolution = cset_jerc->at(
+        substituteJercLevel(JER_global_tag, "PtResolution", "GetJER"));
   return cachedJERPtResolution;
 }
 
 const correction::Correction::Ref &
 MyCorrection::getJERScaleFactorCorrection() const {
-  if (!cachedJERScaleFactor) {
-    string cset_string = JME_JER_GT.at(GetEra().Data());
-    cset_string.replace(cset_string.find("######"), 6, "ScaleFactor");
-    cachedJERScaleFactor = cset_jerc->at(cset_string);
-  }
+  if (!cachedJERScaleFactor)
+    cachedJERScaleFactor = cset_jerc->at(
+        substituteJercLevel(JER_global_tag, "ScaleFactor", "GetJERSF"));
   return cachedJERScaleFactor;
 }
 
 const correction::Correction::Ref &
 MyCorrection::getJERSFUncertaintyCorrection() const {
-  if (!cachedJERSFUncertainty) {
-    string cset_string = JME_JER_GT.at(GetEra().Data());
-    cset_string.replace(cset_string.find("######"), 6, "SFUncertainty");
-    cachedJERSFUncertainty = cset_jerc->at(cset_string);
-  }
+  if (!cachedJERSFUncertainty)
+    cachedJERSFUncertainty = cset_jerc->at(
+        substituteJercLevel(JER_global_tag, "SFUncertainty", "GetJERSF"));
   return cachedJERSFUncertainty;
 }
 
 const correction::Correction::Ref &
-MyCorrection::getJESUncertaintyCorrection(const string &source) const {
-  // The JSON spells the summed source "Total"; "total" is not a key and would
-  // throw. Accept either so the default argument and any lower-case caller
-  // resolve to the same correction.
-  string sourceKey = source.empty() ? "Total" : source;
+MyCorrection::getJESUncertaintyCorrection(std::string_view source) const {
+  // The JSON spells the summed source "Total" (..._V5_MC_Total_AK4PFPuppi);
+  // there is no lower-case key, so "total" resolves to nothing and throws.
+  // Accept either spelling so the default argument and any lower-case caller
+  // land on the same correction.
+  std::string_view sourceKey = source.empty() ? "Total" : source;
   if (sourceKey == "total")
     sourceKey = "Total";
   auto it = cachedJESUncertaintyCorrections.find(sourceKey);
   if (it == cachedJESUncertaintyCorrections.end()) {
-    string cset_string = JME_JES_GT.at(GetEra().Data());
-    cset_string.replace(cset_string.find("######"), 6, sourceKey);
+    const string key = substituteJercLevel(JES_global_tag, sourceKey,
+                                           "GetJESUncertainty");
     it = cachedJESUncertaintyCorrections
-             .emplace(sourceKey, cset_jerc->at(cset_string))
+             .emplace(string(sourceKey), cset_jerc->at(key))
              .first;
   }
   return it->second;
@@ -239,202 +242,88 @@ MyCorrection::GetJERSFVariations(const float eta, const float pt,
 float MyCorrection::GetJESSF(const float area, const float eta, const float pt,
                              const float phi, const float rho,
                              const unsigned int runNumber) const {
-  const string era = GetEra().Data();
-  if (!preparedJESValid || preparedJESEra != era ||
-      preparedJESIsData != IsDATA) {
-    const string keyTemplate = JME_JES_GT.at(era);
-    const auto makeKey = [&keyTemplate](const char *level) {
-      string key = keyTemplate;
-      const auto marker = key.find("######");
-      if (marker == string::npos)
-        throw SKNano::ConfigError("[MyCorrection::GetJESSF] Invalid JES key template");
-      key.replace(marker, 6, level);
-      return key;
+  // The era and the data/MC mode are fixed once the object is constructed, so
+  // bind the refs and the input layout on first use and never look at the era
+  // string again -- this used to build a std::string per jet.
+  if (!preparedJESValid) {
+    const auto levelKey = [this](const char *level) {
+      return substituteJercLevel(JES_global_tag, level, "GetJESSF");
     };
 
-    preparedJESCompound = nullptr;
-    preparedJESL1 = nullptr;
-    preparedJESL2 = nullptr;
-    preparedJESL3 = nullptr;
-    preparedJESResidual = nullptr;
-    if (era != "2024") {
-      preparedJESCompound = cset_jerc->compound().at(makeKey("L1L2L3Res"));
-    } else {
-      preparedJESL1 = cset_jerc->at(makeKey("L1FastJet"));
-      preparedJESL2 = cset_jerc->at(makeKey("L2Relative"));
-      preparedJESL3 = cset_jerc->at(makeKey("L3Absolute"));
+    if (GetEra() == "2024") {
+      preparedJESLayout = JESLayout::Factorized;
+      preparedJESL1 = cset_jerc->at(levelKey("L1FastJet"));
+      preparedJESL2 = cset_jerc->at(levelKey("L2Relative"));
+      preparedJESL3 = cset_jerc->at(levelKey("L3Absolute"));
       if (IsDATA)
-        preparedJESResidual = cset_jerc->at(makeKey("L2L3Residual"));
+        preparedJESResidual = cset_jerc->at(levelKey("L2L3Residual"));
+    } else {
+      preparedJESCompound = cset_jerc->compound().at(levelKey("L1L2L3Res"));
+      if (GetEra() == "2023BPix")
+        preparedJESLayout = IsDATA ? JESLayout::CompoundAreaEtaPtRhoPhiRun
+                                   : JESLayout::CompoundAreaEtaPtRhoPhi;
+      else if (GetEra() == "2023" && IsDATA)
+        preparedJESLayout = JESLayout::CompoundAreaEtaPtRhoRun;
+      else
+        preparedJESLayout = JESLayout::CompoundAreaEtaPtRho;
     }
-    preparedJESEra = era;
-    preparedJESIsData = IsDATA;
     preparedJESValid = true;
   }
 
-  if (era != "2024") {
-    if (GetEra() == "2023BPix") {
-      if (IsDATA)
-        return safeEvaluateFloats(
-            preparedJESCompound, "GetJESSF",
-            std::array<float, 6>{area, eta, pt, rho, phi,
-                                 static_cast<float>(runNumber)});
-      return safeEvaluateFloats(
-          preparedJESCompound, "GetJESSF",
-          std::array<float, 5>{area, eta, pt, rho, phi});
-    } else if (GetEra() == "2023") {
-      if (IsDATA)
-        return safeEvaluateFloats(
-            preparedJESCompound, "GetJESSF",
-            std::array<float, 5>{area, eta, pt, rho,
-                                 static_cast<float>(runNumber)});
-      return safeEvaluateFloats(
-          preparedJESCompound, "GetJESSF",
-          std::array<float, 4>{area, eta, pt, rho});
-    }
+  switch (preparedJESLayout) {
+  case JESLayout::CompoundAreaEtaPtRhoPhiRun:
     return safeEvaluateFloats(
         preparedJESCompound, "GetJESSF",
-        std::array<float, 4>{area, eta, pt, rho});
+        std::array<float, 6>{area, eta, pt, rho, phi,
+                             static_cast<float>(runNumber)});
+  case JESLayout::CompoundAreaEtaPtRhoPhi:
+    return safeEvaluateFloats(preparedJESCompound, "GetJESSF",
+                              std::array<float, 5>{area, eta, pt, rho, phi});
+  case JESLayout::CompoundAreaEtaPtRhoRun:
+    return safeEvaluateFloats(
+        preparedJESCompound, "GetJESSF",
+        std::array<float, 5>{area, eta, pt, rho,
+                             static_cast<float>(runNumber)});
+  case JESLayout::CompoundAreaEtaPtRho:
+    return safeEvaluateFloats(preparedJESCompound, "GetJESSF",
+                              std::array<float, 4>{area, eta, pt, rho});
+  case JESLayout::Factorized:
+    break;
   }
-  else{
-    float current_pt = pt;
-    float sf_L1 = safeEvaluateFloats(
-        preparedJESL1, "GetJESCorrection",
-        std::array<float, 4>{area, eta, current_pt, rho});
-    current_pt = current_pt * sf_L1;
-    float sf_L2 = safeEvaluateFloats(
-        preparedJESL2, "GetJESCorrection",
-        std::array<float, 3>{eta, phi, current_pt});
-    current_pt = current_pt * sf_L2;
-    float sf_L3 = safeEvaluateFloats(
-        preparedJESL3, "GetJESCorrection",
-        std::array<float, 2>{eta, current_pt});
-    current_pt = current_pt * sf_L3;
-    float sf_res = 1.;
-    if (IsDATA) {
-      if(abs(eta) >=2.0 && abs(eta) < 2.5) current_pt = std::max(30.001f, current_pt);
-      sf_res = safeEvaluateFloats(
-          preparedJESResidual, "GetJESCorrection",
-          std::array<float, 3>{static_cast<float>(runNumber), eta,
-                               current_pt});
-    }
-    return sf_L1 * sf_L2 * sf_L3 * sf_res;
+
+  float current_pt = pt;
+  const float sf_L1 =
+      safeEvaluateFloats(preparedJESL1, "GetJESCorrection",
+                         std::array<float, 4>{area, eta, current_pt, rho});
+  current_pt = current_pt * sf_L1;
+  const float sf_L2 =
+      safeEvaluateFloats(preparedJESL2, "GetJESCorrection",
+                         std::array<float, 3>{eta, phi, current_pt});
+  current_pt = current_pt * sf_L2;
+  const float sf_L3 =
+      safeEvaluateFloats(preparedJESL3, "GetJESCorrection",
+                         std::array<float, 2>{eta, current_pt});
+  current_pt = current_pt * sf_L3;
+  float sf_res = 1.;
+  if (IsDATA) {
+    if (abs(eta) >= 2.0 && abs(eta) < 2.5)
+      current_pt = std::max(30.001f, current_pt);
+    sf_res = safeEvaluateFloats(
+        preparedJESResidual, "GetJESCorrection",
+        std::array<float, 3>{static_cast<float>(runNumber), eta, current_pt});
   }
+  return sf_L1 * sf_L2 * sf_L3 * sf_res;
 }
 
 float MyCorrection::GetJESUncertainty(const float eta, const float pt,
                                       const TString &source) const {
-  return safeEvaluate2D(getJESUncertaintyCorrection(source.Data()),
+  // AnalyzerCore::ApplyJetScaleVariation walks 27 sources for every jet, so
+  // the source key is passed as a view and looked up without building a
+  // std::string.
+  const std::string_view sourceKey(source.Data(),
+                                   static_cast<std::size_t>(source.Length()));
+  return safeEvaluate2D(getJESUncertaintyCorrection(sourceKey),
                         "GetJESUncertainty", eta, pt);
-}
-
-// ---------------------------------------------------------------------------
-// AK8 (fat jet) JERC. Same shape as the AK4 functions above, reading
-// fatJet_jerc.json.gz instead. Kept separate rather than parameterised because
-// the key templates, the correction set and the caching all differ.
-// ---------------------------------------------------------------------------
-
-const correction::Correction::Ref &
-MyCorrection::getFatJetCorrection(const char *level) const {
-  const string era = GetEra().Data();
-  const string cacheKey = string(level) + "@" + era;
-  auto it = cachedFatJetCorrections.find(cacheKey);
-  if (it != cachedFatJetCorrections.end())
-    return it->second;
-
-  const string levelStr(level);
-  const bool isResolution =
-      (levelStr == "PtResolution" || levelStr == "ScaleFactor" ||
-       levelStr == "SFUncertainty");
-  // JES uncertainties are only published for simulation, so they use the MC
-  // template even when running on data.
-  const auto &table = isResolution ? JME_FJER_GT : JME_FJES_UNC_GT;
-  const auto tableIt = table.find(era);
-  if (tableIt == table.end())
-    throw SKNano::ConfigError(
-        "[MyCorrection::getFatJetCorrection] No AK8 JERC key for era " + era);
-
-  string key = tableIt->second;
-  const auto marker = key.find("######");
-  if (marker == string::npos)
-    throw SKNano::ConfigError(
-        "[MyCorrection::getFatJetCorrection] Invalid AK8 key template");
-  key.replace(marker, 6, level);
-
-  if (!cset_jerc_fatjet)
-    throw SKNano::ConfigError(
-        "[MyCorrection::getFatJetCorrection] fatJet_jerc.json.gz is not loaded "
-        "for era " + era);
-
-  return cachedFatJetCorrections.emplace(cacheKey, cset_jerc_fatjet->at(key))
-      .first->second;
-}
-
-float MyCorrection::GetFJER(const float eta, const float pt,
-                            const float rho) const {
-  return safeEvaluate3D(getFatJetCorrection("PtResolution"), "GetFJER", eta, pt,
-                        rho);
-}
-
-float MyCorrection::GetFJERSF(const float eta, const float pt,
-                              const variation syst,
-                              const TString &source) const {
-  static_cast<void>(source);
-  const auto &cset = getFatJetCorrection("ScaleFactor");
-  const float sf = safeEvaluate2D(cset, "GetFJERSF", eta, pt);
-  if (syst == variation::nom)
-    return sf;
-  // 2024 splits the scale factor and its uncertainty into two corrections,
-  // matching how the AK4 side handles this era.
-  const float unc = safeEvaluate2D(getFatJetCorrection("SFUncertainty"),
-                                   "GetFJERSFUncertainty", eta, pt);
-  return (syst == variation::up) ? sf + unc : std::max(sf - unc, 0.f);
-}
-
-float MyCorrection::GetFJESSF(const float area, const float eta, const float pt,
-                              const float phi, const float rho,
-                              const unsigned int runNumber) const {
-  if (!cset_jerc_fatjet)
-    throw SKNano::ConfigError(
-        "[MyCorrection::GetFJESSF] fatJet_jerc.json.gz is not loaded");
-
-  const string era = GetEra().Data();
-  const auto it = JME_FJES_GT.find(era);
-  if (it == JME_FJES_GT.end())
-    throw SKNano::ConfigError(
-        "[MyCorrection::GetFJESSF] No AK8 JES key for era " + era);
-  string key = it->second;
-  const auto marker = key.find("######");
-  if (marker == string::npos)
-    throw SKNano::ConfigError(
-        "[MyCorrection::GetFJESSF] Invalid AK8 JES key template");
-  key.replace(marker, 6, "L1L2L3Res");
-  const auto cset = cset_jerc_fatjet->compound().at(key);
-
-  // Argument order is (JetA, JetEta, JetPt, Rho, JetPhi[, run]) -- rho comes
-  // before phi, and only the data key carries the run.
-  if (IsDATA)
-    return safeEvaluateFloats(
-        cset, "GetFJESSF",
-        std::array<float, 6>{area, eta, pt, rho, phi,
-                             static_cast<float>(runNumber)});
-  return safeEvaluateFloats(cset, "GetFJESSF",
-                            std::array<float, 5>{area, eta, pt, rho, phi});
-}
-
-float MyCorrection::GetFJESUncertainty(const float eta, const float pt,
-                                       const TString &source) const {
-  const string level = source.IsNull() ? "Total" : source.Data();
-  return safeEvaluate2D(getFatJetCorrection(level.c_str()),
-                        "GetFJESUncertainty", eta, pt);
-}
-
-float MyCorrection::GetFJESUncertaintySF(const float eta, const float pt,
-                                         const variation syst,
-                                         const TString &source) const {
-  if (syst == variation::nom)
-    return 1.f;
-  const float unc = GetFJESUncertainty(eta, pt, source);
-  return (syst == variation::up) ? 1.f + unc : 1.f - unc;
 }
 
 float MyCorrection::GetJESUncertaintySF(const float eta, const float pt,
@@ -451,6 +340,126 @@ float MyCorrection::GetJESUncertaintySF(const float eta, const float pt,
   float this_factor = 1.;
   this_factor += int_syst * GetJESUncertainty(eta, pt, source);
   return this_factor;
+}
+
+// ---------------------------------------------------------------------------
+// AK8 (fat jet) JERC, from fatJet_jerc.json.gz. Same shape as the AK4
+// functions above but kept separate: the global tags, the correction set and
+// the caching all differ, and the JES uncertainty levels are capitalised.
+// ---------------------------------------------------------------------------
+
+const correction::Correction::Ref &
+MyCorrection::getFatJetCorrection(std::string_view level) const {
+  auto it = cachedFatJetCorrections.find(level);
+  if (it != cachedFatJetCorrections.end())
+    return it->second;
+
+  if (!cset_jerc_fatjet)
+    throw SKNano::ConfigError(
+        "[MyCorrection::getFatJetCorrection] fatJet_jerc is not configured for "
+        "era " + string(GetEra().Data()));
+
+  // Resolution levels come from the JER tag; JES uncertainties are only
+  // published for simulation, so they use the MC JES tag even on data.
+  const bool isResolution =
+      (level == "PtResolution" || level == "ScaleFactor" ||
+       level == "SFUncertainty");
+  const string &tag = isResolution ? FJER_global_tag : FJES_unc_global_tag;
+  if (tag.empty())
+    throw SKNano::ConfigError(
+        "[MyCorrection::getFatJetCorrection] No AK8 global tag configured for "
+        "era " + string(GetEra().Data()));
+
+  const string key = substituteJercLevel(tag, level, "GetFatJetCorrection");
+  return cachedFatJetCorrections
+      .emplace(string(level), cset_jerc_fatjet->at(key))
+      .first->second;
+}
+
+float MyCorrection::GetFJER(const float eta, const float pt,
+                            const float rho) const {
+  return safeEvaluate3D(getFatJetCorrection("PtResolution"), "GetFJER", eta, pt,
+                        rho);
+}
+
+float MyCorrection::GetFJERSF(const float eta, const float pt,
+                              const variation syst,
+                              const TString &source) const {
+  static_cast<void>(source);
+  const float sf =
+      safeEvaluate2D(getFatJetCorrection("ScaleFactor"), "GetFJERSF", eta, pt);
+  if (syst == variation::nom)
+    return sf;
+  // Where the era splits the scale factor and its uncertainty into two
+  // corrections, combine them the way the AK4 side does. Eras that ship the
+  // uncertainty inside ScaleFactor have no SFUncertainty key, so fall back to
+  // the nominal rather than throwing.
+  float unc = 0.f;
+  try {
+    unc = safeEvaluate2D(getFatJetCorrection("SFUncertainty"),
+                         "GetFJERSFUncertainty", eta, pt);
+  } catch (const std::exception &) {
+    return sf;
+  }
+  return (syst == variation::up) ? sf + unc : std::max(sf - unc, 0.f);
+}
+
+float MyCorrection::GetFJESSF(const float area, const float eta, const float pt,
+                              const float phi, const float rho,
+                              const unsigned int runNumber) const {
+  if (!cset_jerc_fatjet)
+    throw SKNano::ConfigError(
+        "[MyCorrection::GetFJESSF] fatJet_jerc is not configured for era " +
+        string(GetEra().Data()));
+  if (FJES_global_tag.empty())
+    throw SKNano::ConfigError(
+        "[MyCorrection::GetFJESSF] No AK8 JES global tag for era " +
+        string(GetEra().Data()));
+
+  if (!cachedFatJetJESCompound) {
+    const string key =
+        substituteJercLevel(FJES_global_tag, "L1L2L3Res", "GetFJESSF");
+    cachedFatJetJESCompound = cset_jerc_fatjet->compound().at(key);
+  }
+
+  // The input layout follows the same per-era rules as the AK4 compound key:
+  // rho comes before phi, and only some eras carry phi and/or the run.
+  if (GetEra() == "2023BPix") {
+    if (IsDATA)
+      return safeEvaluateFloats(
+          cachedFatJetJESCompound, "GetFJESSF",
+          std::array<float, 6>{area, eta, pt, rho, phi,
+                               static_cast<float>(runNumber)});
+    return safeEvaluateFloats(cachedFatJetJESCompound, "GetFJESSF",
+                              std::array<float, 5>{area, eta, pt, rho, phi});
+  }
+  if (GetEra() == "2023" && IsDATA)
+    return safeEvaluateFloats(
+        cachedFatJetJESCompound, "GetFJESSF",
+        std::array<float, 5>{area, eta, pt, rho,
+                             static_cast<float>(runNumber)});
+  return safeEvaluateFloats(cachedFatJetJESCompound, "GetFJESSF",
+                            std::array<float, 4>{area, eta, pt, rho});
+}
+
+float MyCorrection::GetFJESUncertainty(const float eta, const float pt,
+                                       const TString &source) const {
+  const std::string_view level =
+      source.IsNull()
+          ? std::string_view("Total")
+          : std::string_view(source.Data(),
+                             static_cast<std::size_t>(source.Length()));
+  return safeEvaluate2D(getFatJetCorrection(level), "GetFJESUncertainty", eta,
+                        pt);
+}
+
+float MyCorrection::GetFJESUncertaintySF(const float eta, const float pt,
+                                         const variation syst,
+                                         const TString &source) const {
+  if (syst == variation::nom)
+    return 1.f;
+  const float unc = GetFJESUncertainty(eta, pt, source);
+  return (syst == variation::up) ? 1.f + unc : 1.f - unc;
 }
 
 void MyCorrection::EvaluateJetCorrectionBatch(
@@ -484,13 +493,10 @@ void MyCorrection::EvaluateJetCorrectionBatch(
 }
 
 bool MyCorrection::IsJetVetoZone(const float eta, const float phi,
-                                 TString mapCategory) const {
-  correction::Correction::Ref cset = nullptr;
-  string cset_string = JME_vetomap_keys.at(GetEra().Data());
-  cset = cset_jetvetomap->at(cset_string);
-  if (safeEvaluate(cset, "IsJetVetoZone", {mapCategory.Data(), eta, phi}) > 0)
-    return true;
-  return false;
+                                 const TString &mapCategory) const {
+  const auto &cset =
+      cachedJetVetoMap.get(cset_jetvetomap, JME_vetomap_key.c_str());
+  return safeEvaluate(cset, "IsJetVetoZone", {mapCategory.Data(), eta, phi}) > 0;
 }
 
 void MyCorrection::METXYCorrection(Particle &Met, const int RunNumber,

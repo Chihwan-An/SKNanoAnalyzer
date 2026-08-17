@@ -1,0 +1,117 @@
+version: 1
+status: confirmed
+metadata:
+  title: Nested validation example
+  cms_label: Preliminary
+  energy: 13.6
+tree:
+  rules:
+    - name: root_counter
+      kinds: [TH1]
+      pattern: '(?P<observable>CutFlow)'
+    - name: analysis_counter
+      kinds: [TH1]
+      pattern: 'HadronAnalyzer/(?P<observable>SelectedEvents)'
+    - name: validation
+      kinds: [TH1]
+      pattern: 'HadronAnalyzer/Validation/(?P<observable>[^/]+)'
+    - name: flavour_shapes
+      kinds: [TH1]
+      pattern: 'HadronAnalyzer/(?P<flavour>LightJet|CharmJet|BottomJet)/(?P<observable>.+)'
+    - name: rank_shapes
+      kinds: [TH1]
+      pattern: 'HadronAnalyzer/(?P<rank>Jet[0-3])/(?P<observable>[^/]+)'
+    - name: correlations
+      kinds: [TH2]
+      pattern: 'HadronAnalyzer/RecoVsGen/(?P<rank>Jet[0-3])/(?P<observable>[^/]+)'
+    - name: wcharm_inclusive
+      kinds: [TH1]
+      pattern: 'HadronAnalyzer/WCharmFragmentation/(?P<observable>RecoWMass|CharmJetPt)'
+    - name: wcharm_z
+      kinds: [TH1]
+      pattern: 'HadronAnalyzer/WCharmFragmentation/(?P<species>D0ToKPi|DstarToD0Pi|LambdaCToPKPi)/(?P<category>Inclusive|GenMatchedNoBottom)/ZByRecoWMass/(?P<mass_bin>[^/]+)'
+    - name: wcharm_correlations
+      kinds: [TH2]
+      pattern: 'HadronAnalyzer/WCharmFragmentation/(?P<species>D0ToKPi|DstarToD0Pi|LambdaCToPKPi)/(?P<category>Inclusive|GenMatchedNoBottom)/(?P<observable>ZVsRecoWMass)'
+styles:
+  observables:
+    D0/FitMassKPi: {x_label: '$m(K\pi)$ [GeV]'}
+    D0/PtFraction: {x_label: '$p_{T}(D^{0}) / p_{T}(jet)$'}
+    D0/DeltaRJet: {x_label: '$\Delta R(D^{0}, jet)$'}
+    D0/LxySignificance: {x_label: '$L_{xy}/\sigma(L_{xy})$'}
+    D0/CosTheta2D: {x_label: '$\cos\theta_{2D}$'}
+    Dstar/DeltaMass: {x_label: '$m(D^{*})-m(D^{0})$ [GeV]'}
+    Lambda/FitMass: {x_label: '$m(p\pi)$ [GeV]'}
+    LambdaC/FitMass: {x_label: '$m(pK\pi)$ [GeV]'}
+    LambdaC/PtFraction: {x_label: '$p_{T}(\Lambda_{c}) / p_{T}(jet)$'}
+    GenHadron/PtFraction: {x_label: '$p_{T}(hadron) / p_{T}(gen\ jet)$'}
+    GenHadron/DeltaRRecoJet: {x_label: '$\Delta R(hadron, reco\ jet)$'}
+    GenHadron/OriginCategory: {x_label: 'Generator-hadron origin'}
+    GenHadron/PdgCategory: {x_label: 'Generator-hadron species'}
+    D0Mass: {x_label: '$m(K\pi)$ [GeV]'}
+    DstarDeltaMass: {x_label: '$m(D^{*})-m(D^{0})$ [GeV]'}
+    LambdaMass: {x_label: '$m(p\pi)$ [GeV]'}
+    LambdaCMass: {x_label: '$m(pK\pi)$ [GeV]'}
+    LambdaCAcceptedHypothesisMass: {x_label: '$m(pK\pi)$, accepted hypotheses [GeV]'}
+    LambdaCGenMatchedHypothesisMass: {x_label: '$m(pK\pi)$, gen-matched hypotheses [GeV]'}
+    HadronTrackPt: {x_label: 'Hadron-track $p_{T}$ [GeV]'}
+    HadronTrackPtErrorRelative: {x_label: '$\sigma(p_{T})/p_{T}$'}
+  series:
+    LightJet: {label: Light jet, color: '#0072B2', order: 0}
+    CharmJet: {label: Charm jet, color: '#E69F00', order: 1}
+    BottomJet: {label: Bottom jet, color: '#009E73', order: 2}
+recipes:
+  - name: cutflow
+    renderer: hist1d
+    source: root_counter
+    enabled: true
+  - name: selected_events
+    renderer: hist1d
+    source: analysis_counter
+    enabled: true
+  - name: validation_histograms
+    renderer: hist1d
+    source: validation
+    enabled: true
+  - name: compare_flavours
+    renderer: overlay
+    source: flavour_shapes
+    enabled: true
+    facets: [observable]
+    series: flavour
+    normalize: unit
+    output: 'flavour/{observable}'
+  - name: compare_ranks
+    renderer: overlay
+    source: rank_shapes
+    enabled: true
+    facets: [observable]
+    series: rank
+    normalize: unit
+    output: 'rank/{observable}'
+  - name: reco_gen_correlations
+    renderer: heatmap
+    source: correlations
+    enabled: true
+    facets: [rank, observable]
+    style: {annotate: false, colorbar: Events}
+    output: 'correlation/{rank}/{observable}'
+  - name: wcharm_inclusive
+    renderer: hist1d
+    source: wcharm_inclusive
+    enabled: true
+    output: 'w_charm/{observable}'
+  - name: wcharm_z_by_mass
+    renderer: overlay
+    source: wcharm_z
+    enabled: true
+    facets: [species, mass_bin]
+    series: category
+    output: 'w_charm/{species}/z/{mass_bin}'
+  - name: wcharm_correlations
+    renderer: heatmap
+    source: wcharm_correlations
+    enabled: true
+    facets: [species, category, observable]
+    style: {annotate: false, colorbar: Events}
+    output: 'w_charm/{species}/{category}/{observable}'

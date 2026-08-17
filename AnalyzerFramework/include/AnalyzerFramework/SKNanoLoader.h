@@ -174,6 +174,11 @@ public:
         std::numeric_limits<std::size_t>::max();
     Long64_t rntupleTotalEntries = -1;
     bool rntupleClusterCache = true;
+    // ROOT's own RNTuple metrics wrap every page read in RNTupleTimer, which
+    // costs two clock() syscalls per read.  The framework's phase telemetry is
+    // independent of it, so this only turns on for an explicit
+    // SKNANO_PERFORMANCE_REPORT request.
+    bool rntupleMetrics = false;
 
     Long64_t performanceStartBytesRead = 0;
     int performanceStartReadCalls = 0;

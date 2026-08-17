@@ -325,7 +325,13 @@ public:
         requests.clear();
         activeBranchNames.clear();
         rntupleSource = nullptr;
+        ++sourceGeneration;
     }
+
+    // Bumped whenever the resolved column layout can change (new file attached,
+    // manager cleared).  Typed handles cache their resolved source per
+    // generation instead of re-resolving the field name on every access.
+    std::uint64_t generation() const noexcept { return sourceGeneration; }
 
     void bindEntrySource(const Long64_t *ptr) {
         entrySource = ptr;
@@ -347,6 +353,7 @@ public:
 
     void attachRNTuple(SKNano::RNTupleSource *source) {
         rntupleSource = source;
+        ++sourceGeneration;
         for (auto *branch : branches) {
             branch->attachRNTuple(source);
             branch->bindEntrySource(entrySource);
@@ -599,6 +606,7 @@ private:
     std::vector<std::unique_ptr<BranchBase>> ownedBranches;
     std::unordered_map<std::string, Request> requests;
     std::unordered_set<std::string> activeBranchNames;
+    std::uint64_t sourceGeneration = 1;
 };
 
 template <typename T>
@@ -620,20 +628,32 @@ private:
         : manager(manager_), branchName(std::move(branchName_)),
           requirement(requirement_) {}
 
+    // Resolving a column by name costs a request validation plus dynamic_cast
+    // chains, so the result is cached for as long as the manager keeps the same
+    // column layout.  A new file (or a cleared manager) bumps the generation and
+    // forces a full re-resolve, which is what keeps optional fields honest when
+    // their availability differs between files.
     SKNano::ColumnSource<T> *requireSource() const {
         if (!manager)
             throw SKNano::LogicError("[ColumnHandle] detached handle access");
+        const auto currentGeneration = manager->generation();
+        if (cachedSource && cachedGeneration == currentGeneration)
+            return cachedSource;
         auto *source = manager->resolveColumn<T>(branchName, requirement);
         if (!source)
             throw SKNano::ConfigError(
                 "[ColumnHandle] optional RNTuple field '" + branchName +
                 "' accessed without checking available()");
+        cachedSource = source;
+        cachedGeneration = currentGeneration;
         return source;
     }
 
     BranchManager *manager = nullptr;
     std::string branchName;
     ColumnRequirement requirement = ColumnRequirement::Required;
+    mutable SKNano::ColumnSource<T> *cachedSource = nullptr;
+    mutable std::uint64_t cachedGeneration = 0;
 };
 
 template <typename T>
@@ -654,17 +674,24 @@ private:
     BranchScalar<T> *requireSource() const {
         if (!manager)
             throw SKNano::LogicError("[ScalarHandle] detached handle access");
+        const auto currentGeneration = manager->generation();
+        if (cachedSource && cachedGeneration == currentGeneration)
+            return cachedSource;
         auto *source = manager->resolveScalar<T>(branchName, requirement);
         if (!source)
             throw SKNano::ConfigError(
                 "[ScalarHandle] optional RNTuple field '" + branchName +
                 "' accessed without checking available()");
+        cachedSource = source;
+        cachedGeneration = currentGeneration;
         return source;
     }
 
     BranchManager *manager = nullptr;
     std::string branchName;
     ColumnRequirement requirement = ColumnRequirement::Required;
+    mutable BranchScalar<T> *cachedSource = nullptr;
+    mutable std::uint64_t cachedGeneration = 0;
 };
 
 template <typename T>

@@ -17,6 +17,7 @@
 #include <string>
 #include <type_traits>
 #include <typeindex>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -108,6 +109,20 @@ class RNTupleSource::Impl {
 public:
     std::unique_ptr<ROOT::RNTupleReader> reader;
     std::string file;
+    // Top-level field name -> on-disk type name, snapshotted once per file.
+    // RNTupleReader::GetDescriptor() clones the descriptor under a lock and
+    // FindFieldId() is a linear scan over every top-level field, so neither may
+    // be called from the per-entry read path.
+    std::unordered_map<std::string, std::string> fieldTypes;
+
+    void snapshotFields() {
+        fieldTypes.clear();
+        if (!reader)
+            return;
+        const auto &descriptor = reader->GetDescriptor();
+        for (const auto &field : descriptor.GetTopLevelFields())
+            fieldTypes.emplace(field.GetFieldName(), field.GetTypeName());
+    }
 };
 
 RNTupleSource::RNTupleSource() : impl_(std::make_unique<Impl>()) {}
@@ -127,6 +142,7 @@ void RNTupleSource::open(const std::string &ntupleName,
         auto reader = ROOT::RNTupleReader::Open(ntupleName, fileName, options);
         impl_->reader = std::move(reader);
         impl_->file = fileName;
+        impl_->snapshotFields();
     } catch (const std::exception &error) {
         throw SKNano::ConfigError("[RNTupleSource] cannot open '" + ntupleName +
                                   "' in " + fileName + ": " + error.what());
@@ -136,6 +152,7 @@ void RNTupleSource::open(const std::string &ntupleName,
 void RNTupleSource::close() {
     impl_->reader.reset();
     impl_->file.clear();
+    impl_->fieldTypes.clear();
 }
 
 bool RNTupleSource::isOpen() const noexcept {
@@ -151,18 +168,16 @@ std::uint64_t RNTupleSource::entries() const {
 bool RNTupleSource::hasField(const std::string &name) const {
     if (!impl_->reader)
         return false;
-    return impl_->reader->GetDescriptor().FindFieldId(name) !=
-           ROOT::kInvalidDescriptorId;
+    return impl_->fieldTypes.find(name) != impl_->fieldTypes.end();
 }
 
 std::string RNTupleSource::fieldType(const std::string &name) const {
     if (!impl_->reader)
         throw SKNano::LogicError("[RNTupleSource] no RNTuple is open");
-    const auto &descriptor = impl_->reader->GetDescriptor();
-    const auto id = descriptor.FindFieldId(name);
-    if (id == ROOT::kInvalidDescriptorId)
+    const auto entry = impl_->fieldTypes.find(name);
+    if (entry == impl_->fieldTypes.end())
         return {};
-    return descriptor.GetFieldDescriptor(id).GetTypeName();
+    return entry->second;
 }
 
 const std::string &RNTupleSource::fileName() const noexcept {

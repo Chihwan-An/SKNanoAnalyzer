@@ -250,25 +250,55 @@ Important submission options are:
 - `--ncpu`: requested CPU count; the default is 1.
 - `--userflags`: comma-separated analyzer flags.
 - `--batchname`: custom batch name.
+- `--no-hadd`: skip the per-sample merge step and move the individual shards
+  to `SKNANO_OUTPUT/<Analyzer>/<era>/<sample>/hists_*.root`.
 - `--skimming_mode`: enable skimming output and post-processing.
 
 ## How to make a sample list
 
-For NanoAOD stored under `/gv0`, update the sample metadata in
-`data/$SKNANO_VERSION/$ERA/Sample/CommonSampleInfo.json`:
+`data/$SKNANO_VERSION/$ERA/Sample/CommonSampleInfo.json` is the only sample
+metadata. There is no per-sample json: input files are *derived*, so adding a
+sample is one entry.
 
-1. Update CommonSampleInfo.json with the alias of the sample and the name of the sample used for crab submission.
-2. Run the following command. It will search for root files under `/gv0/Users/$USER/SKNano/` and update the sample list.
-```bash
-./scripts/makeSamplePathInfo.py --era $ERA
+```json
+"TTLL_powheg": {
+    "isMC": 1,
+    "PD": "TTto2L2Nu_TuneCP5_13p6TeV_powheg-pythia8",
+    "xsec": 87.31
+}
 ```
-3. Run GetEffLumi analyzer to calculate the number of events(data) or sum of weights(MC) for each sample.
+
+Inputs resolve under `$SKNANO_INPUT_ROOT`, which is the one site-local piece
+and lives in the environment rather than in the metadata:
+
+| | resolved glob |
+| --- | --- |
+| MC | `$SKNANO_INPUT_ROOT/<era>/<PD>/**/*.root` |
+| DATA | `$SKNANO_INPUT_ROOT/<era>/<alias>/*_Run<era><period>_*/**/*.root` |
+
+A DATA entry lists its `periods`; a reprocessing period such as `I_v2` selects
+the `_v2` CRAB submission and a plain `I` excludes it. Files being written right
+now (`.tmp_*.root`) are never picked up.
+
+For a production that does not follow the layout, add `path_glob` — relative to
+the input root, or absolute if it starts with `/`. An explicit `path` list still
+works but pins the entry to one mount, so prefer the glob.
+
+`setup.sh` sets `SKNANO_INPUT_ROOT`; override it per user with
+`[SKNANO_INPUT_ROOT] /some/other/production` in `config/config.$USER`, which is
+also how you point at an older production while a new one is still filling.
+
+Check what resolves before submitting anything:
+
+```bash
+python3 python/sampleManager.py --era $ERA --checkSamplePaths
+```
+
+Then fill in the normalisation, which every MC job divides by:
+
 ```bash
 SKNano.py -a GetEffLumi -i $SAMPLENAME -e $ERA -n 10
-```
-4. After the job is done, update the CommonSampleInfo.json.
-```bash
-./scripts/parseEffLumi.py --era $ERA
+python3 python/sampleManager.py --era $ERA --updateMcInfo
 ```
 
 ## Skimming mode
@@ -277,8 +307,11 @@ Passing `--skimming_mode` writes skim output below
 merge layer with skim post-processing.
 
 An analyzer name beginning with `Skim_` prompts for skimming mode; the explicit
-`--skimming_mode` flag avoids the prompt. Post-processing creates the skimmed
-sample directory and metadata below `$SKNANO_DATA/$ERA/Sample/Skim`.
+`--skimming_mode` flag avoids the prompt. Post-processing writes the skim
+metadata into the module that produced the skim, under
+`<module>/<Analysis>/data/Skim/$ERA/`; point `SKNANO_SKIM_METADATA_DIR` at that
+directory first. A skim belongs to an analysis, not to the backend, so it is
+discovered from the module the same way module sample jsons are.
 
 Do not run multiple skimming DAGs that update the same sample metadata at the
 same time. After post-processing completes, submit the generated

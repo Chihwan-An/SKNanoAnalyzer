@@ -101,3 +101,7 @@ set(ROOTMAP "libAnalyzerTools.rootmap")
 set(PCM "libAnalyzerTools_rdict.pcm")
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${ROOTMAP}" "${CMAKE_CURRENT_BINARY_DIR}/${PCM}" DESTINATION lib)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

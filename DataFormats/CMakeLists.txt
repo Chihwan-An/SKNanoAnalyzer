@@ -41,3 +41,7 @@ message(STATUS "ROOTMAP: ${ROOTMAP}")
 message(STATUS "PCM: ${PCM}")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${ROOTMAP}" "${CMAKE_CURRENT_BINARY_DIR}/${PCM}" DESTINATION lib)
 install(FILES ${HEADERS} DESTINATION include)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

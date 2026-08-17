@@ -56,6 +56,13 @@ submodule and export `SKNANO_ANALYSIS_MODULE_DIRS` so the usual clean build
 automatically includes it. Each build installs `share/sknano/analyzers.manifest`;
 `SKNano.py` checks this file before creating jobs.
 
+Several people can each pin their own module at the same time: any top-level
+submodule directory matching `*_Analyzers` (e.g. `<owner>_Analyzers`) with a
+`CMakeLists.txt` is picked up automatically by both `setup.sh` and the
+top-level `CMakeLists.txt`, without editing either file.
+`SKNANO_ANALYSIS_MODULE_DIRS` still overrides this auto-detection if set
+explicitly.
+
 ## Custom input schemas
 
 The canonical schema in the backend describes only official NanoAOD fields.
@@ -85,6 +92,25 @@ generator tests belong in the module repository.
 Keep the backend and analysis histories independent. The backend branch records
 only a submodule commit. Update it intentionally, rebuild, run the module smoke
 tests, and commit the new gitlink. Batch run manifests record both revisions.
+
+**A module pin belongs to your branch, never to `main`.** Most module
+repositories are private, so a `<owner>_Analyzers` entry in `.gitmodules` on
+`main` gives everyone else a clone that cannot complete and a submodule they
+have no access to. Pin your modules on your own branch; when you send backend
+work upstream, drop the `.gitmodules` entry and the gitlinks from what you
+propose. Nothing under `<owner>_Analyzers/` is backend work by definition, so
+nothing is lost by leaving it behind.
+
+Skim metadata follows the same ownership. A skim is produced by an analysis, so
+its `skimTreeInfo.json` and per-skim sample jsons live in
+`<module>/<Analysis>/data/Skim/<era>/` and are discovered from there, the same
+way module sample jsons are. Point `SKNANO_SKIM_METADATA_DIR` at that directory
+before running the skim post-processing.
+
+The same rule applies to the rest of the backend: it must not name a concrete
+analyzer. Documentation for your analyses belongs in your module repository,
+not in `docs/`, and `scripts/check_layers.sh` discovers analyzer class names
+from whichever modules are checked out rather than listing any of them.
 
 ```bash
 git submodule add git@github.com:ORG/MyAnalyzers.git MyAnalyzers

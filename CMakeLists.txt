@@ -62,6 +62,12 @@ endif()
 
 option(SKNANO_USE_NATIVE_ARCH "Build with -march=native for same-machine local runs" OFF)
 option(SKNANO_ENABLE_LTO "Enable interprocedural optimization in Release builds" OFF)
+# Baseline ISA for portable builds, e.g. x86-64-v3 for AVX2/FMA.  Applied after
+# the toolchain's own -march so it wins; leave empty to keep the toolchain
+# default (conda ships -march=nocona, i.e. SSE3).  Every machine that loads the
+# resulting libraries must support the selected level.
+set(SKNANO_ARCH "" CACHE STRING
+    "Target ISA level passed to -march (empty: toolchain default)")
 set(SKNANO_NUMERIC_MODE "StrictReference" CACHE STRING
     "Numeric policy: StrictReference or FastValidated")
 set_property(CACHE SKNANO_NUMERIC_MODE PROPERTY STRINGS StrictReference FastValidated)
@@ -96,6 +102,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     endif()
     if(SKNANO_USE_NATIVE_ARCH)
         add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-march=native>)
+    elseif(SKNANO_ARCH)
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-march=${SKNANO_ARCH}>)
+    endif()
+    if((SKNANO_USE_NATIVE_ARCH OR SKNANO_ARCH) AND
+       CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # abseil's raw_hash_set.h includes <bmi2intrin.h> directly whenever
+        # __BMI2__ is defined, and GCC refuses that header outside
+        # <x86gprintrin.h>.  BMI2 is integer bit-manipulation nothing here
+        # uses, so drop that one feature and keep the rest of the ISA level.
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-mno-bmi2>)
     endif()
 
     if(SKNANO_PGO_PHASE STREQUAL "GENERATE")
@@ -154,8 +170,18 @@ add_subdirectory(AnalyzerTools)
 add_subdirectory(AnalyzerFramework)
 add_subdirectory(CommonAnalyzers)
 
-set(SKNANO_ANALYSIS_MODULE_DIRS "" CACHE STRING
-    "Semicolon-separated external SKNano analysis module directories")
+set(_sknano_default_analysis_module_dirs "")
+file(GLOB _sknano_candidate_module_dirs
+    LIST_DIRECTORIES true
+    "${CMAKE_SOURCE_DIR}/*_Analyzers")
+foreach(_sknano_candidate_dir IN LISTS _sknano_candidate_module_dirs)
+    if(IS_DIRECTORY "${_sknano_candidate_dir}"
+       AND EXISTS "${_sknano_candidate_dir}/CMakeLists.txt")
+        list(APPEND _sknano_default_analysis_module_dirs "${_sknano_candidate_dir}")
+    endif()
+endforeach()
+set(SKNANO_ANALYSIS_MODULE_DIRS "${_sknano_default_analysis_module_dirs}"
+    CACHE STRING "Semicolon-separated external SKNano analysis module directories")
 set(_sknano_module_index 0)
 foreach(_sknano_module_dir IN LISTS SKNANO_ANALYSIS_MODULE_DIRS)
     if(NOT IS_ABSOLUTE "${_sknano_module_dir}")

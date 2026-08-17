@@ -183,14 +183,39 @@ for module_dir in getAnalysisModuleDirs():
                 if key not in {"name", "path", "path_glob"}
             }
             moduleSampleJsons[era][name] = sample_path
-skimInfoJsons = {}
 
-
-for era in Run.keys():
-    try:
-        skimInfoJsons[era] = json.load(open(os.path.join(SKNANO_DATA,era,'Sample','Skim','skimTreeInfo.json')))
-    except:
-        print(f"\033[93mWarning: {era} skimTreeInfo.json is not exist\033[0m")
+# Skims are produced by an analysis, not by the backend, so their metadata
+# lives in the module that produced them -- <module>/data/Skim/<era>/, with
+# skimTreeInfo.json as the registry and one json per skimmed sample beside it.
+SKIM_INFO_BASENAME = "skimTreeInfo.json"
+skimInfoJsons = {era: {} for era in Run.keys()}
+moduleSkimJsons = {era: {} for era in Run.keys()}
+for module_dir in getAnalysisModuleDirs():
+    patterns = [
+        os.path.join(module_dir, "data", "Skim", "*", "*.json"),
+        os.path.join(module_dir, "*", "data", "Skim", "*", "*.json"),
+    ]
+    for pattern in patterns:
+        for skim_path in sorted(glob.glob(pattern)):
+            era = Path(skim_path).parent.name
+            if era not in Run:
+                continue
+            with open(skim_path, encoding="utf-8") as handle:
+                payload = json.load(handle)
+            if Path(skim_path).name == SKIM_INFO_BASENAME:
+                overlap = set(payload) & set(skimInfoJsons[era])
+                if overlap:
+                    raise RuntimeError(
+                        f"duplicate skim entries for era {era}: {sorted(overlap)}")
+                skimInfoJsons[era].update(payload)
+                continue
+            # Keyed by filename, not by the "name" field: a data skim writes
+            # one file per period and they all carry the period-less name.
+            name = Path(skim_path).stem
+            if name in moduleSkimJsons[era]:
+                raise RuntimeError(
+                    f"duplicate skim sample '{name}' for era {era}")
+            moduleSkimJsons[era][name] = skim_path
 
 ##############################
 def isMCandGetPeriod(sample):
@@ -235,6 +260,8 @@ def getFinalOutputPath(era, sample, argparser, userflags):
     analyzer_name = argparser.Analyzer
     if len(userflags) > 0:
         analyzer_name += f"/{'_'.join(userflags)}"
+    if getattr(argparser, 'no_hadd', False):
+        return os.path.join(SKNANO_OUTPUT, analyzer_name, era, sample, 'hists_*.root')
     return os.path.join(SKNANO_OUTPUT, analyzer_name, era, sample + '.root')
 
 def sourceSnapshotIgnore(src, names):
@@ -384,6 +411,24 @@ def copyMetadataSnapshotFile(master_dir, source_path):
     shutil.copy2(source_path, target)
     return target
 
+def snapshotResolvedInputs(master_dir, era, sample, sample_paths):
+    """Record the files a sample actually resolved to.
+
+    A sample json that carries a glob says which files to look for, not which
+    files were there at submission time. Without this the run is no longer
+    reproducible once the production grows, which is the one thing the old
+    enumerated path lists were good at.
+    """
+    target = os.path.join(master_dir, METADATA_SNAPSHOT_DIRNAME,
+                          "resolved_inputs", era, f"{sample}.json")
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, "w", encoding="utf-8") as handle:
+        json.dump({"era": era, "sample": sample,
+                   "input_root": os.environ.get("SKNANO_INPUT_ROOT", ""),
+                   "nfiles": len(sample_paths), "files": sample_paths},
+                  handle, indent=2)
+    return target
+
 def snapshotSampleMetadata(master_dir, era, sample, sample_json_path):
     copied = []
     common_info = os.path.join(SKNANO_DATA, era, 'Sample', 'CommonSampleInfo.json')
@@ -396,10 +441,14 @@ def snapshotSampleMetadata(master_dir, era, sample, sample_json_path):
         copied.append(copied_path)
 
     if sample.startswith("Skim_"):
-        skim_info = os.path.join(SKNANO_DATA, era, 'Sample', 'Skim', 'skimTreeInfo.json')
-        copied_path = copyMetadataSnapshotFile(master_dir, skim_info)
-        if copied_path:
-            copied.append(copied_path)
+        # The registry that named this skim lives with the module that made it.
+        for module_dir in getAnalysisModuleDirs():
+            for pattern in (os.path.join(module_dir, "data", "Skim", era, SKIM_INFO_BASENAME),
+                            os.path.join(module_dir, "*", "data", "Skim", era, SKIM_INFO_BASENAME)):
+                for skim_info in sorted(glob.glob(pattern)):
+                    copied_path = copyMetadataSnapshotFile(master_dir, skim_info)
+                    if copied_path:
+                        copied.append(copied_path)
     return copied
 
 def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot, submit_result=None):
@@ -440,6 +489,7 @@ def writeRunManifest(master_dir, argparser, userflags, dag_list, source_snapshot
             'skimming_mode': SKIMMING_MODE,
             'failure_policy': argparser.FailurePolicy,
             'max_event_errors': argparser.MaxEventErrors,
+            'no_hadd': argparser.no_hadd,
             'no_exec': argparser.no_exec,
         },
         'samples': [
@@ -606,6 +656,8 @@ def setParser():
     choices=['fail-fast', 'skip-event'], help="Event failure handling policy. Default: fail-fast")
     parser.add_argument('--max-event-errors', dest='MaxEventErrors', default=1, type=int,
     help="Maximum event-local errors before failing a job. Use -1 for unlimited. Default: 1")
+    parser.add_argument('--no-hadd', dest='no_hadd', action='store_true', default=False,
+    help="Skip hadd and move the per-job ROOT outputs to a sample directory under SKNANO_OUTPUT")
     parser.add_argument('--no_exec', action='store_true', default=False, help="only produce working area, not submitting to the condor pool")
     
     #Note: this option will change the behavior of the script. output directory will be changed to Your GV0, hadd will be disabled, and will create the info json of skimmed tree   
@@ -676,17 +728,34 @@ def jobProducer(era, sample, argparse, masterJobDirectory, userflags, isample, t
     if sample.startswith("Skim_"):
         SkimInfo = skimInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
         sampleInfo = sampleInfoJsons[era][SkimInfo['PD']]
-        sample_json_path = os.path.join(SKNANO_DATA,era,'Sample','Skim',sample+'.json')
-        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
+        sample_json_path = moduleSkimJsons[era].get(sample)
+        if not sample_json_path:
+            raise RuntimeError(
+                f"no skim metadata for '{sample}' in era {era}; it belongs in "
+                "<module>/data/Skim/<era>/ of the analysis that produced it")
+        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)), era, period)
         metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
+        metadata_snapshot_files.append(
+            snapshotResolvedInputs(masterJobDirectory, era, sample, samplePaths))
         sample = SkimInfo['PD']
     else:
-        sampleInfo = sampleInfoJsons[era][sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)]
-        sample_json_path = moduleSampleJsons[era].get(
-            sample, os.path.join(SKNANO_DATA,era,'Sample','ForSNU',sample+'.json'))
-        samplePaths = resolve_sample_paths(json.load(open(sample_json_path)))
+        sample_key = sample if isMC else re.sub(f"_{re.escape(period)}$", "", sample)
+        sampleInfo = sampleInfoJsons[era][sample_key]
+        # A module may ship its own sample json. Otherwise the registry entry is
+        # the whole description: the inputs derive from era plus PD (MC) or
+        # name and period (DATA), so there is no per-sample file to read.
+        sample_json_path = moduleSampleJsons[era].get(sample)
+        if sample_json_path:
+            sample_spec = json.load(open(sample_json_path))
+        else:
+            sample_spec = dict(sampleInfo, name=sample_key)
+            sample_json_path = os.path.join(
+                SKNANO_DATA, era, 'Sample', 'CommonSampleInfo.json')
+        samplePaths = resolve_sample_paths(sample_spec, era, period)
         metadata_snapshot_files = snapshotSampleMetadata(masterJobDirectory, era, sample, sample_json_path)
-        
+        metadata_snapshot_files.append(
+            snapshotResolvedInputs(masterJobDirectory, era, sample, samplePaths))
+
     samplePaths = jobFileDivider(samplePaths, njobs)
 
     
@@ -894,6 +963,37 @@ def makeHaddJobs(working_dir,argparser,sample):
 
     return job_dict
 
+def makeMoveJobs(working_dir,argparser,sample):
+    AnalyzerName = argparser.Analyzer
+    userflags = getUserFlagsList(argparser.Userflags)
+    if len(userflags) > 0:
+        AnalyzerName += f"/{'_'.join(userflags)}"
+    era = working_dir.split('/')[-2]
+    target_dir = os.path.join(SKNANO_OUTPUT, AnalyzerName, era, sample)
+    os.makedirs(target_dir, exist_ok=True)
+
+    template_path = os.path.join(SKNANO_HOME, "templates", "move.sh")
+    with open(template_path, 'r') as f:
+        move_content = f.read()
+    move_content = move_content.replace("[WORKDIR]", working_dir)
+    move_content = move_content.replace("[TARGETDIR]", target_dir)
+    move_content = move_content.replace(
+        "[PROVENANCE]",
+        os.path.join(os.path.dirname(os.path.dirname(working_dir)), RUN_MANIFEST_NAME),
+    )
+    with open(os.path.join(working_dir,"move.sh"),'w') as f:
+        f.write(move_content)
+
+    job_dict = hadd_job.copy()
+    job_dict['executable'] = os.path.join(working_dir,"move.sh")
+    job_dict['JobBatchName'] = f"Move_{working_dir.split('/')[-1]}_{working_dir.split('/')[-2]}"
+    job_dict['RequestCpus'] = 1
+    job_dict['RequestMemory'] = '1024 MB'
+    job_dict['output'] = os.path.join(working_dir,"move.out")
+    job_dict['error'] = os.path.join(working_dir,"move.err")
+
+    return job_dict
+
 def makeSkimPostProcsJobs(working_dir,sample, argparser,era):
     AnalyzerName = argparser.Analyzer
     userflags = getUserFlagsList(argparser.Userflags)
@@ -944,6 +1044,7 @@ def getEachAnalyzerToPostDag(kwarg):
     hadd_sub_dict = kwarg['hadd_sub_dict']
     totalNumberOfJobs = kwarg['totalNumberofJobs']
     batchname = kwarg['batchname']
+    postproc_label = kwarg.get('postproc_label', 'Hadd')
     
     if totalNumberOfJobs == 0:
         return
@@ -955,7 +1056,7 @@ def getEachAnalyzerToPostDag(kwarg):
     }
     
     hadd_layer = {
-        'name' :  f"Postproc_{batchname}" if SKIMMING_MODE else f"Hadd_{batchname}",
+        'name' :  f"Postproc_{batchname}" if SKIMMING_MODE else f"{postproc_label}_{batchname}",
         'submit_description' : htcondor.Submit(hadd_sub_dict)
     }
     
@@ -968,6 +1069,9 @@ def renderSubmissionSummary(dag_list, master_dir, argparser, userflags, submit_r
     cluster_id = submit_result.get('cluster_id') if submit_result else None
     dag_file = submit_result.get('dag_file') if submit_result else None
     status = "Prepared only (--no_exec)" if argparser.no_exec else f"Submitted cluster {cluster_id}"
+    hadd_status = "not applicable (skimming)" if SKIMMING_MODE else (
+        "disabled" if argparser.no_hadd else "enabled"
+    )
 
     if not _RICH_AVAILABLE:
         print("\nSKNano submission summary")
@@ -976,6 +1080,7 @@ def renderSubmissionSummary(dag_list, master_dir, argparser, userflags, submit_r
         print(f"  Eras: {', '.join(eras) if eras else '-'}")
         print(f"  Samples: {total_samples}")
         print(f"  Analyzer jobs: {total_jobs}")
+        print(f"  Hadd: {hadd_status}")
         print(f"  Master directory: {master_dir}")
         if dag_file:
             print(f"  Final DAG: {dag_file}")
@@ -995,6 +1100,7 @@ def renderSubmissionSummary(dag_list, master_dir, argparser, userflags, submit_r
     overview.add_row("Analyzer", argparser.Analyzer)
     overview.add_row("Mode", "python" if argparser.python else "C++ ROOT macro")
     overview.add_row("Skimming", str(SKIMMING_MODE))
+    overview.add_row("Hadd", hadd_status)
     overview.add_row("Eras", ", ".join(eras) if eras else "-")
     overview.add_row("Samples", str(total_samples))
     overview.add_row("Analyzer jobs", str(total_jobs))
@@ -1202,12 +1308,12 @@ if __name__ == '__main__':
             if SKIMMING_MODE:
                 postproc_sub_dict = makeSkimPostProcsJobs(working_dir,sample,args,era)
             else:
-                hadd_sub_dict = makeHaddJobs(working_dir,args,sample)
+                hadd_sub_dict = makeMoveJobs(working_dir,args,sample) if args.no_hadd else makeHaddJobs(working_dir,args,sample)
             
             if SKIMMING_MODE:
                 dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':postproc_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
             else:
-                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':hadd_sub_dict,'totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
+                dag_list.append({'era':era,'sample':sample,'analyzer_sub_dict':analyzer_sub_dict,'hadd_sub_dict':hadd_sub_dict,'postproc_label':'Move' if args.no_hadd else 'Hadd','totalNumberofJobs':totalNumberofJobs,'working_dir':working_dir,'batchname':f"{args.Analyzer}_{era}_{sample}",'metadata_snapshot_files':metadata_snapshot_files})
             if dag_list is not None:
                 if SKIMMING_MODE:
                     postproc_layers.append(getEachAnalyzerToPostDag(dag_list[-1]))

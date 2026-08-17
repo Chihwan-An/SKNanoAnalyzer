@@ -43,7 +43,7 @@ snapshots:
 warnings:
   - "ONNX models for TopPt reweight are 13TeV, not 13.6TeV. Update when available."
   - "No 2024 RoccoR release yet; falling back to the 2023BPix file."
-  - "No 2024 Generalized Endpoint kappa map and no 2024 high-pT muon smearing map. The high-pT momentum lanes (HighPtPt, HighPtScaleUp/Down, HighPtResUp/Down) all equal TuneP, so the GE and resolution nuisances are identically zero. The high-pT ID/RECO/HLT scale factors from muon_HighPt.json.gz are unaffected."
+  - "No 2024 entry in any of the three hard-coded high-pT muon maps (Generalized Endpoint kappa, smearing strength, resolution polynomial). Every high-pT momentum lane (HighPtPt, HighPtScaleUp/Down, HighPtResUp/Down) equals TuneP, so the GE and resolution nuisances are identically zero, and GetMuonHighPtResolution returns 0 for every muon. The high-pT ID/RECO/HLT scale factors from muon_HighPt.json.gz are unaffected."
 
 # Era-dependent keys inside the correctionlib files.
 keys:

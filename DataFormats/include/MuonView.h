@@ -49,6 +49,7 @@ struct MuonSoA {
     ColumnView<unsigned char> puppiIsoId;
     ColumnView<unsigned char> tkIsoId;
     ColumnView<unsigned char> nTrackerLayers;
+    ColumnView<float> tunepRelPt;
     ColumnView<float> softMva;
     ColumnView<float> softMvaRun3;
     ColumnView<float> mvaLowPt;
@@ -61,6 +62,15 @@ struct MuonSoA {
     std::vector<float> miniAODPt;
     std::vector<float> momentumScaleUp;
     std::vector<float> momentumScaleDown;
+    // High-pT lanes. Filled alongside the ones above so a muon carries both
+    // treatments and the analyzer picks which one it selected on.
+    std::vector<float> tunePPt;
+    std::vector<unsigned char> highPtRegime;
+    std::vector<float> highPtPt;
+    std::vector<float> highPtScaleUp;
+    std::vector<float> highPtScaleDown;
+    std::vector<float> highPtResUp;
+    std::vector<float> highPtResDown;
     std::function<void()> populateMomentum;
     mutable bool momentumReady = false;
     mutable bool momentumComputing = false;
@@ -107,6 +117,51 @@ public:
     float MiniAODPt() const { assertCurrentEvent(); return store->miniAODPt[idx]; }
     float MomentumScaleUp() const { assertCurrentEvent(); return store->momentumScaleUp[idx]; }
     float MomentumScaleDown() const { assertCurrentEvent(); return store->momentumScaleDown[idx]; }
+
+    // ---- High-pT treatment (MUO POG "High pT" prescription) -----------------
+    // Opt-in: the default Pt() above is unchanged. Use SelectHighPtMuonIndices
+    // and these accessors when the analysis runs muons past ~200 GeV.
+
+    // TuneP momentum before any correction. This is what decides the regime.
+    float TunePPt() const {
+        assertCurrentEvent();
+        return idx < store->tunePPt.size() ? store->tunePPt[idx] : Pt();
+    }
+    // Latched at populate time from the pre-correction TuneP pt. Deciding this
+    // later, from corrected values, would misclassify any muon that the scale
+    // correction or the smearing pushed across the boundary.
+    bool IsHighPtRegime() const {
+        assertCurrentEvent();
+        return idx < store->highPtRegime.size() && store->highPtRegime[idx] != 0;
+    }
+    // Below the boundary this is the medium-pT (Rochester) momentum; above it,
+    // TuneP with the Generalized Endpoint scale on data and the extra
+    // resolution smearing in simulation.
+    float HighPtPt() const {
+        assertCurrentEvent();
+        return idx < store->highPtPt.size() ? store->highPtPt[idx] : Pt();
+    }
+    float HighPtScaleUp() const {
+        assertCurrentEvent();
+        return idx < store->highPtScaleUp.size() ? store->highPtScaleUp[idx] : HighPtPt();
+    }
+    float HighPtScaleDown() const {
+        assertCurrentEvent();
+        return idx < store->highPtScaleDown.size() ? store->highPtScaleDown[idx] : HighPtPt();
+    }
+    float HighPtResUp() const {
+        assertCurrentEvent();
+        return idx < store->highPtResUp.size() ? store->highPtResUp[idx] : HighPtPt();
+    }
+    float HighPtResDown() const {
+        assertCurrentEvent();
+        return idx < store->highPtResDown.size() ? store->highPtResDown[idx] : HighPtPt();
+    }
+    // Full momentum from the high-pT lane. The reco scale factor is binned in
+    // p rather than pt, so callers need this rather than HighPtPt().
+    float HighPtMomentum() const {
+        return HighPtPt() * std::cosh(Eta());
+    }
 
     float TkRelIso() const { return store->tkRelIso[idx]; }
     float PfRelIso03() const { return store->pfRelIso03[idx]; }

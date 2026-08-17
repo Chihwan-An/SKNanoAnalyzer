@@ -1,8 +1,144 @@
 #include "MyCorrection.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iostream>
+#include <string>
+#include <unordered_map>
 #include <vector>
+
+#include "TRandom3.h"
+
+namespace {
+
+// ---------------------------------------------------------------------------
+// Generalized Endpoint curvature bias kappa_b, in 1/TeV, with its uncertainty.
+//
+// Above ~200 GeV the momentum comes largely from the muon system, so the scale
+// bias measured at the Z peak from tracker information alone does not describe
+// it. The GE method injects additive biases into simulation and picks the one
+// that reproduces data in q/pT. Source: MUO POG "High pT: Momentum Scale"
+// (methodology in AN-2018/008).
+//
+// Grid is [phi bin][eta bin]. Phi bins are [-180,-60), [-60,60), [60,180]
+// degrees; eta bins are [-2.4,-2.1), [-2.1,-1.2), [-1.2,0), [0,1.2), [1.2,2.1),
+// [2.1,2.4]. Eta keeps its sign here -- do not fold to |eta|.
+//
+// 2024 and 2025 are deliberately absent: those measurements use a different
+// binning and are not settled. Eras without a map are left uncorrected rather
+// than treated as an error.
+// ---------------------------------------------------------------------------
+struct GECell {
+  float kappa;
+  float sigma;
+};
+
+// Binning is per era rather than fixed: the published 2022-2023 maps are
+// 3 phi x 6 eta, while the 2024/2025 measurement uses a finer grid. Edges are
+// the inner boundaries; a value below the first edge lands in bin 0 and one
+// above the last edge in the final bin. Cells are indexed [phi][eta].
+struct GEMap {
+  std::vector<float> phiEdgesDeg; // inner boundaries in degrees
+  std::vector<float> etaEdges;    // inner boundaries, signed eta
+  std::vector<std::vector<GECell>> cells;
+
+  const GECell *find(const float eta, const float phi) const {
+    if (std::fabs(eta) > 2.4f)
+      return nullptr;
+    const float phiDeg = phi * 180.f / static_cast<float>(M_PI);
+    std::size_t iphi = 0;
+    while (iphi < phiEdgesDeg.size() && phiDeg >= phiEdgesDeg[iphi])
+      ++iphi;
+    std::size_t ieta = 0;
+    while (ieta < etaEdges.size() && eta >= etaEdges[ieta])
+      ++ieta;
+    if (iphi >= cells.size() || ieta >= cells[iphi].size())
+      return nullptr;
+    return &cells[iphi][ieta];
+  }
+};
+
+const std::vector<float> kGePhiEdges3 = {-60.f, 60.f};
+const std::vector<float> kGeEtaEdges6 = {-2.1f, -1.2f, 0.f, 1.2f, 2.1f};
+
+const std::unordered_map<std::string, GEMap> kGeKappa = {
+    {"2022",
+     {kGePhiEdges3, kGeEtaEdges6,
+      {
+          {{-0.16f, 0.1f}, {-0.03f, 0.05f}, {-0.05f, 0.04f}, {0.f, 0.04f}, {0.07f, 0.06f}, {-0.06f, 0.11f}},
+          {{0.11f, 0.1f}, {-0.01f, 0.06f}, {0.06f, 0.04f}, {0.02f, 0.03f}, {0.05f, 0.05f}, {-0.06f, 0.1f}},
+          {{0.17f, 0.11f}, {0.16f, 0.04f}, {-0.04f, 0.04f}, {-0.01f, 0.03f}, {0.04f, 0.06f}, {-0.f, 0.09f}},
+      }}},
+    {"2022EE",
+     {kGePhiEdges3, kGeEtaEdges6,
+      {
+          {{-0.12f, 0.05f}, {-0.03f, 0.03f}, {0.013f, 0.022f}, {0.029f, 0.023f}, {-0.04f, 0.03f}, {-0.28f, 0.05f}},
+          {{0.24f, 0.05f}, {0.1f, 0.03f}, {-0.006f, 0.022f}, {-0.047f, 0.022f}, {-0.14f, 0.03f}, {-0.48f, 0.05f}},
+          {{0.28f, 0.05f}, {0.07f, 0.03f}, {-0.028f, 0.022f}, {0.018f, 0.022f}, {0.07f, 0.03f}, {0.05f, 0.05f}},
+      }}},
+    {"2023",
+     {kGePhiEdges3, kGeEtaEdges6,
+      {
+          {{-0.21f, 0.06f}, {-0.01f, 0.04f}, {0.01f, 0.027f}, {-0.045f, 0.03f}, {0.01f, 0.04f}, {0.f, 0.07f}},
+          {{0.08f, 0.07f}, {-0.04f, 0.04f}, {0.07f, 0.025f}, {0.03f, 0.027f}, {-0.13f, 0.04f}, {-0.36f, 0.06f}},
+          {{0.27f, 0.07f}, {0.05f, 0.04f}, {0.054f, 0.026f}, {0.02f, 0.027f}, {0.f, 0.04f}, {-0.04f, 0.06f}},
+      }}},
+    {"2023BPix",
+     {kGePhiEdges3, kGeEtaEdges6,
+      {
+          {{-0.25f, 0.08f}, {0.07f, 0.05f}, {0.02f, 0.04f}, {-0.02f, 0.04f}, {0.08f, 0.06f}, {0.12f, 0.09f}},
+          {{-0.05f, 0.08f}, {0.f, 0.05f}, {0.05f, 0.03f}, {-0.05f, 0.04f}, {-0.17f, 0.05f}, {-0.33f, 0.09f}},
+          {{0.24f, 0.09f}, {0.09f, 0.05f}, {-0.01f, 0.03f}, {0.03f, 0.04f}, {0.04f, 0.06f}, {-0.2f, 0.07f}},
+      }}},
+};
+
+// ---------------------------------------------------------------------------
+// High-pT muon momentum resolution.
+//
+// The width is a cubic in the FULL momentum p, not pT: the measurement fits
+// (1/p - 1/p_gen)/(1/p_gen) in bins of p. Source: Schulte & Zhong, "High-pT
+// muon resolution measurement for 2022 and 2023" (2024-06-03).
+// Index [0] = barrel |eta| < 1.2, [1] = forward 1.2 - 2.4.
+//
+// 2024 is absent: the POG has that measurement in progress and currently asks
+// analyses to evaluate the non-closure in their own phase space. With no entry
+// the nominal smearing is a no-op and only the uncertainty remains.
+// ---------------------------------------------------------------------------
+struct MuonResPoly {
+  float a0, a1, a2, a3;
+};
+using MuonResSet = std::array<MuonResPoly, 2>;
+
+const std::unordered_map<std::string, MuonResSet> kMuonResPoly = {
+    {"2022",
+     {{{0.01152f, 5.95e-5f, -2.92e-8f, 5.14e-12f},
+       {0.01405f, 5.28e-5f, -1.90e-8f, 3.01e-12f}}}},
+    {"2022EE",
+     {{{0.0126f, 5.89e-5f, -2.85e-8f, 4.92e-12f},
+       {0.0150f, 4.81e-5f, -1.42e-8f, 1.95e-12f}}}},
+    {"2023",
+     {{{0.0172f, 6.15e-5f, -3.14e-8f, 5.82e-12f},
+       {0.01424f, 5.31e-5f, -1.92e-8f, 3.21e-12f}}}},
+    {"2023BPix",
+     {{{0.0118f, 6.14e-5f, -3.12e-8f, 5.74e-12f},
+       {0.0141f, 5.38e-5f, -2.00e-8f, 3.42e-12f}}}},
+};
+
+// Extra smearing strength f = sqrt(smearfac^2 - 1): 10% -> 0.458, 5% -> 0.320.
+// f = 0 means simulation already matches data in that era and eta region.
+const std::unordered_map<std::string, std::array<float, 2>> kMuonSmearF = {
+    {"2022", {{0.000f, 0.320f}}},
+    {"2022EE", {{0.320f, 0.460f}}},
+    {"2023", {{0.320f, 0.460f}}},
+    {"2023BPix", {{0.000f, 0.568f}}},
+};
+
+// The systematic is a flat ten percent regardless of era and eta.
+constexpr float kMuonSmearSystF = 0.4583f;
+
+int MuonResEtaBin(const float eta) { return (std::fabs(eta) < 1.2f) ? 0 : 1; }
+
+} // namespace
 
 MyCorrection::MuonScaleAndError MyCorrection::GetMuonScaleAndError(
     int charge, float pt, float eta, float phi, int trackerLayers,

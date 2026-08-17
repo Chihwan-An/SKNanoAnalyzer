@@ -38,6 +38,7 @@ MyCorrection::MyCorrection(const TString &era, const TString &period,
   loadCorrectionSet(config, "jerc", cset_jerc);
   loadCorrectionSet(config, "jetvetomap", cset_jetvetomap);
   loadCorrectionSet(config, "muon", cset_muon);
+  loadCorrectionSet(config, "muon_highpt", cset_muon_highpt);
   loadCorrectionSet(config, "tau", cset_tau);
   loadCorrectionSet(config, "muon_trig_eff", cset_muon_trig_eff);
   loadCorrectionSet(config, "muon_trig_sf", cset_muon_trig_sf);

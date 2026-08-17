@@ -330,6 +330,19 @@ void AnalyzerCore::ApplyJetSmearingAndUncertainties(
       for (size_t i = 0; i < storage->size(); ++i) {
         storage->smearedPtNominal[i] = storage->correctedPt[i];
         storage->smearedMassNominal[i] = storage->correctedMass[i];
+        // Data has nothing to vary, but ResetJetLanes sizes the variation
+        // vectors, so the view accessors read them rather than falling back to
+        // the nominal. Mirror the nominal into them: an analyzer that loops
+        // over systematics on data then sees the nominal jet instead of a
+        // momentum of zero. AK8 gets this for free by leaving its lanes empty.
+        storage->smearedPtUp[i] = storage->correctedPt[i];
+        storage->smearedPtDown[i] = storage->correctedPt[i];
+        storage->smearedMassUp[i] = storage->correctedMass[i];
+        storage->smearedMassDown[i] = storage->correctedMass[i];
+        storage->jesPtUp[i] = storage->correctedPt[i];
+        storage->jesPtDown[i] = storage->correctedPt[i];
+        storage->jesMassUp[i] = storage->correctedMass[i];
+        storage->jesMassDown[i] = storage->correctedMass[i];
       }
     }
     return;

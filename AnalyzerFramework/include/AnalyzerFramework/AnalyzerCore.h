@@ -343,6 +343,8 @@ public:
     Event GetEvent();
     MuonViewCollection GetAllMuonViews();
     void PopulateMuonMomentum(MuonSoA &storage);
+    void PopulateElectronMomentum(ElectronSoA &storage);
+    void PopulateFatJetCorrections(FatJetSoA &storage);
     GenViewCollection GetAllGenViews();
     JetViewCollection GetAllJetViews();
     SelectedJetViewCollection SelectJetViews(

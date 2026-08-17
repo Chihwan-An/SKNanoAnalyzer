@@ -623,6 +623,12 @@ ElectronViewCollection AnalyzerCore::GetAllElectronViews(bool skipCrack) {
   storage->readRho = [this] {
     return static_cast<float>(Rho_fixedGridRhoFastjetAll.get());
   };
+  storage->populateMomentum = [this, storagePtr = storage.get()] {
+    PopulateElectronMomentum(*storagePtr);
+  };
+
+  if (skipCrack)
+    return ElectronViewCollection(std::move(storage), true);
 
   ElectronViewCollection result(std::move(storage));
   cachedElectronViews = result;

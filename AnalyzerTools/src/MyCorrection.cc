@@ -214,6 +214,8 @@ MyCorrection::GetEraConfig(TString era, const string &btagging_eff_file,
     config.json_muon += tag + "muon_Z.json.gz";
     config.json_muon_highpt += tag + "muon_HighPt.json.gz";
     config.json_muon_trig_eff += "/2024/MUO/muon_trig.json";
+    // Left on muon_Z.json.gz, which carries no HLT keys: GetMuonTriggerSF falls
+    // through to the high-pT set below, and that one needs a higher pt clamp.
     config.json_muon_trig_sf += tag + "muon_Z.json.gz";
     config.json_puWeights += tag + "puWeights_BCDEFGHI.json.gz";
     config.json_btagging += tag + "btagging.json.gz";

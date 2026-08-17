@@ -561,20 +561,24 @@ float MyCorrection::GetMuonTriggerSF(const TString &key,
   if (IsDATA)
     return 1.f;
   float weight = 1.f;
-  auto tryEval = [&](const unique_ptr<CorrectionSet> &set) {
+  // The pt clamp differs per set: the Z-based maps reach down to ~26 GeV while
+  // the high-pT maps start at 50 and throw below that.
+  auto tryEval = [&](const unique_ptr<CorrectionSet> &set, const float minPt) {
     if (!set)
       return false;
     try {
       const auto cset = set->at(key.Data());
       weight = safeEvaluate(cset, "GetMuonTriggerSF",
-                            {muon.Eta(), std::max(26.f, muon.MiniAODPt()),
+                            {muon.Eta(), std::max(minPt, muon.MiniAODPt()),
                              getSystString_MUO(syst)});
       return true;
     } catch (const std::out_of_range &) {
       return false;
     }
   };
-  if (tryEval(cset_muon_trig_sf) || tryEval(cset_muon))
+  if (tryEval(cset_muon_trig_sf, 26.f) ||
+      tryEval(cset_muon_highpt, HIGHPT_SF_MIN_MOMENTUM) ||
+      tryEval(cset_muon, 26.f))
     return weight;
   return 1.f;
 }

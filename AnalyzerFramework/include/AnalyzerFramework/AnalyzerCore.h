@@ -342,6 +342,7 @@ public:
     Event GetEvent();
     MuonViewCollection GetAllMuonViews();
     void PopulateMuonMomentum(MuonSoA &storage);
+    void PopulateElectronMomentum(ElectronSoA &storage);
     GenViewCollection GetAllGenViews();
     JetViewCollection GetAllJetViews();
     SelectedJetViewCollection SelectJetViews(
@@ -367,7 +368,10 @@ public:
     std::vector<std::size_t> SelectHighPtMuonIndices(const MuonViewCollection &muons, const MuonView::MuonID ID, const float ptmin, const float fetamax) const;
     MuonViewCollection SelectMuonViews(const MuonViewCollection &muons,
         std::vector<std::size_t> indices, bool sortByPt = true) const;
-    ElectronViewCollection GetAllElectronViews();
+    // skipCrack drops electrons in the ECAL gap up front. Off by default, which
+    // keeps the collection as NanoAOD delivers it; PassID rejects gap
+    // electrons anyway, so this only matters when counting with NOCUT.
+    ElectronViewCollection GetAllElectronViews(bool skipCrack = false);
     std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const std::vector<size_t> &seed_indices, const ElectronView::ElectronID ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
     std::vector<std::size_t> SelectElectronIndices(const ElectronViewCollection &electrons, const ElectronView::ElectronID ID, const float ptmin, const float fetamax, bool vetoHEM = false) const;
     ElectronViewCollection SelectElectronViews(

@@ -460,9 +460,79 @@ std::vector<std::size_t> AnalyzerCore::SelectHighPtMuonIndices(
   return SelectHighPtMuonIndices(muons, seed_indices, ID, ptmin, fetamax);
 }
 
-ElectronViewCollection AnalyzerCore::GetAllElectronViews() {
+void AnalyzerCore::PopulateElectronMomentum(ElectronSoA &storage) {
+  const std::size_t count = storage.size();
+  storage.correctedPt.assign(count, 0.f);
+  storage.scaleUpPt.assign(count, 0.f);
+  storage.scaleDownPt.assign(count, 0.f);
+  storage.smearUpPt.assign(count, 0.f);
+  storage.smearDownPt.assign(count, 0.f);
+
+  for (std::size_t index = 0; index < count; ++index) {
+    const float rawPt = storage.pt[index];
+    const float scEta = storage.scEta[index];
+    const float r9 = storage.r9[index];
+    const unsigned char seedGain = storage.seedGain[index];
+
+    if (!myCorr) {
+      storage.correctedPt[index] = rawPt;
+      storage.scaleUpPt[index] = rawPt;
+      storage.scaleDownPt[index] = rawPt;
+      storage.smearUpPt[index] = rawPt;
+      storage.smearDownPt[index] = rawPt;
+      continue;
+    }
+
+    if (IsDATA) {
+      // Data takes the scale only; there is nothing to smear.
+      const float scale =
+          myCorr->GetElectronScaleCorr(scEta, seedGain, RunNumber, r9, rawPt);
+      const float corrected = rawPt * scale;
+      storage.correctedPt[index] = corrected;
+      storage.scaleUpPt[index] = corrected;
+      storage.scaleDownPt[index] = corrected;
+      storage.smearUpPt[index] = corrected;
+      storage.smearDownPt[index] = corrected;
+      continue;
+    }
+
+    // Simulation takes the smearing. One Gaussian draw is shared by the
+    // nominal and every variation, which is what makes the variations
+    // coherent shifts rather than independent re-smearings.
+    const unsigned int seed = MuonSmearSeed(event, scEta, storage.phi[index]);
+    TRandom3 rng(seed);
+    const float draw = rng.Gaus(0.f, 1.f);
+
+    const float widthNom = myCorr->GetElectronSmearWidth(
+        rawPt, r9, scEta, MyCorrection::variation::nom);
+    const float widthUp = myCorr->GetElectronSmearWidth(
+        rawPt, r9, scEta, MyCorrection::variation::up);
+    const float widthDown = myCorr->GetElectronSmearWidth(
+        rawPt, r9, scEta, MyCorrection::variation::down);
+
+    const float corrected = rawPt * (1.f + widthNom * draw);
+    storage.correctedPt[index] = corrected;
+    // Smear variations rescale the raw momentum with the same draw.
+    storage.smearUpPt[index] = rawPt * (1.f + widthUp * draw);
+    storage.smearDownPt[index] = rawPt * (1.f + widthDown * draw);
+    // Scale variations multiply the already smeared momentum.
+    storage.scaleUpPt[index] =
+        corrected * myCorr->GetElectronScaleUnc(scEta, seedGain, RunNumber, r9,
+                                                rawPt,
+                                                MyCorrection::variation::up);
+    storage.scaleDownPt[index] =
+        corrected * myCorr->GetElectronScaleUnc(scEta, seedGain, RunNumber, r9,
+                                                rawPt,
+                                                MyCorrection::variation::down);
+  }
+  storage.momentumReady = true;
+}
+
+ElectronViewCollection AnalyzerCore::GetAllElectronViews(bool skipCrack) {
   const Long64_t entry = CurrentEntry();
-  if (cachedElectronViewsEntry == entry)
+  // Only the default collection is cached; a crack-skipping request is a
+  // different set of electrons and would otherwise poison the cache.
+  if (!skipCrack && cachedElectronViewsEntry == entry)
     return cachedElectronViews;
 
   auto storage = std::make_shared<ElectronSoA>();
@@ -509,6 +579,12 @@ ElectronViewCollection AnalyzerCore::GetAllElectronViews() {
   storage->readRho = [this] {
     return static_cast<float>(Rho_fixedGridRhoFastjetAll.get());
   };
+  storage->populateMomentum = [this, storagePtr = storage.get()] {
+    PopulateElectronMomentum(*storagePtr);
+  };
+
+  if (skipCrack)
+    return ElectronViewCollection(std::move(storage), true);
 
   ElectronViewCollection result(std::move(storage));
   cachedElectronViews = result;

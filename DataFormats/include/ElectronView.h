@@ -66,7 +66,41 @@ struct ElectronSoA {
     mutable bool rhoReady = false;
     mutable bool rhoComputing = false;
 
+    // Energy scale and smearing lanes. Run 3 NanoAOD ships uncalibrated, so
+    // the nominal correction lives here: a scale on data, a smearing in
+    // simulation. Populated lazily on first access, like the muon momentum.
+    std::vector<float> correctedPt;
+    std::vector<float> scaleUpPt;
+    std::vector<float> scaleDownPt;
+    std::vector<float> smearUpPt;
+    std::vector<float> smearDownPt;
+    std::function<void()> populateMomentum;
+    mutable bool momentumReady = false;
+    mutable bool momentumComputing = false;
+
     std::size_t size() const { return pt.size(); }
+
+    void ensureMomentum() const {
+        if (momentumReady)
+            return;
+        if (momentumComputing)
+            throw SKNano::LogicError("[ElectronSoA] recursive momentum computation");
+        if (!populateMomentum) {
+            // No provider bound (e.g. a standalone unit test); fall back to the
+            // uncorrected pt rather than failing.
+            return;
+        }
+        momentumComputing = true;
+        try {
+            populateMomentum();
+            momentumComputing = false;
+        } catch (...) {
+            momentumComputing = false;
+            throw;
+        }
+        if (!momentumReady)
+            throw SKNano::LogicError("[ElectronSoA] momentum provider did not publish a lane");
+    }
 
     float getRho() const {
         static_cast<void>(pt.size());
@@ -101,7 +135,33 @@ public:
 
     bool valid() const { return static_cast<bool>(store) && idx < store->size(); }
 
-    float Pt() const { return store->pt[idx]; }
+    // Carries the EGM energy correction: the scale on data, the smearing in
+    // simulation. Mirrors MuonView::Pt(), which is likewise corrected. Use
+    // MiniAODPt() for the uncorrected NanoAOD value.
+    float Pt() const {
+        assertCurrentEvent();
+        return idx < store->correctedPt.size() ? store->correctedPt[idx]
+                                               : store->pt[idx];
+    }
+    float MiniAODPt() const { return store->pt[idx]; }
+    // Scale variations ride on the smeared momentum; smear variations ride on
+    // the raw one with the nominal random draw. Both follow the EGM recipe.
+    float ScaleUpPt() const {
+        assertCurrentEvent();
+        return idx < store->scaleUpPt.size() ? store->scaleUpPt[idx] : Pt();
+    }
+    float ScaleDownPt() const {
+        assertCurrentEvent();
+        return idx < store->scaleDownPt.size() ? store->scaleDownPt[idx] : Pt();
+    }
+    float SmearUpPt() const {
+        assertCurrentEvent();
+        return idx < store->smearUpPt.size() ? store->smearUpPt[idx] : Pt();
+    }
+    float SmearDownPt() const {
+        assertCurrentEvent();
+        return idx < store->smearDownPt.size() ? store->smearDownPt[idx] : Pt();
+    }
     float Eta() const { return store->eta[idx]; }
     float Phi() const { return store->phi[idx]; }
     float M() const { return store->mass[idx]; }
@@ -173,7 +233,10 @@ private:
     bool Pass_HcToWALooseRun2() const;
     bool Pass_HcToWALooseRun3() const;
 
-    void assertCurrentEvent() const { static_cast<void>(store->size()); }
+    void assertCurrentEvent() const {
+        static_cast<void>(store->size());
+        store->ensureMomentum();
+    }
     const ElectronSoA *store = nullptr;
     std::size_t idx = 0;
 };

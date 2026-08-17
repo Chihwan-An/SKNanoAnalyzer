@@ -423,6 +423,66 @@ float MyCorrection::GetElectronScaleUnc(const float scEta,
   return 1.0;
 }
 
+float MyCorrection::GetElectronScaleCorr(const float scEta,
+                                         const unsigned char seedGain,
+                                         const unsigned int runNumber,
+                                         const float r9,
+                                         const float pt) const {
+  // The scale is a data-only correction; simulation carries the uncertainty
+  // instead (GetElectronScaleUnc).
+  if (!IsDATA)
+    return 1.f;
+  // Run 2 NanoAOD already has the EGM calibration applied, and its JSON ships
+  // uncertainties only -- reapplying here would double count.
+  if (Run != 3)
+    return 1.f;
+  if (!cset_electron_variation)
+    return 1.f;
+
+  // The gain axis is a category over {1, 6, 12}. A handful of NanoAOD
+  // electrons carry seedGain 0, which correctionlib rejects; dropping the
+  // correction for those beats killing the job over one object.
+  if (!(seedGain == 1 || seedGain == 6 || seedGain == 12)) {
+    static bool warned = false;
+    if (!warned) {
+      cerr << "[MyCorrection::GetElectronScaleCorr] Warning: unsupported "
+              "seedGain "
+           << static_cast<int>(seedGain)
+           << " (expected 1, 6 or 12); returning scale 1.0 for such electrons "
+              "(warn once)."
+           << endl;
+      warned = true;
+    }
+    return 1.f;
+  }
+
+  auto cset = cset_electron_variation->compound().at("Scale");
+  return safeEvaluate(cset, "GetElectronScaleCorr",
+                      {"scale", static_cast<float>(runNumber), scEta, r9, pt,
+                       static_cast<float>(seedGain)});
+}
+
+float MyCorrection::GetElectronSmearWidth(const float pt, const float r9,
+                                          const float scEta,
+                                          const variation syst) const {
+  // Smearing applies to simulation only.
+  if (IsDATA)
+    return 0.f;
+  if (Run != 3)
+    return 0.f;
+  if (!cset_electron_variation)
+    return 0.f;
+
+  const string systKey = (syst == variation::up)     ? "smear_up"
+                         : (syst == variation::down) ? "smear_down"
+                                                     : "smear";
+  auto cset = cset_electron_variation->at("SmearAndSyst");
+  const float width =
+      safeEvaluate(cset, "GetElectronSmearWidth", {systKey, pt, r9, scEta});
+  // smear_down can reach zero; a negative width would be meaningless.
+  return std::max(width, 0.f);
+}
+
 float MyCorrection::GetElectronRECOSF(const float eta, const float pt,
                                       const float phi,
                                       const variation syst) const {

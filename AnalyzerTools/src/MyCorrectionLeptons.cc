@@ -391,15 +391,14 @@ float MyCorrection::GetElectronScaleUnc(const float scEta,
     // The EtDependent JSON keeps the scale uncertainties in the SmearAndSyst
     // correction, keyed by syst, and they are already multiplicative factors
     // (scale_up = 1 + escale). The older schema exposed them through the scale
-    // correction under "total_uncertainty"; that key does not exist here, and
-    // neither does a bare "Scale" one -- every key carries the era tag.
+    // correction under "total_uncertainty", which this file does not have.
     static_cast<void>(seedGain);
     static_cast<void>(runNumber);
     auto cset = cset_electron_variation->at(EGM_smear_syst_key);
     const string systKey = (syst == variation::up) ? "scale_up" : "scale_down";
-    // The inputs are (syst, pt, r9, AbsScEta) -- the eta axis is folded.
+    // Inputs are (syst, pt, r9, ScEta) -- signed eta, not folded.
     return safeEvaluate(cset, "GetElectronScaleUnc",
-                        {systKey, pt, r9, std::fabs(scEta)});
+                        {systKey, pt, r9, scEta});
   }
   default:
     throw runtime_error(
@@ -426,31 +425,17 @@ float MyCorrection::GetElectronScaleCorr(const float scEta,
   if (!cset_electron_variation)
     return 1.f;
 
-  // The gain axis is a category over {1, 6, 12}. A handful of NanoAOD
-  // electrons carry seedGain 0, which correctionlib rejects; dropping the
-  // correction for those beats killing the job over one object.
-  if (!(seedGain == 1 || seedGain == 6 || seedGain == 12)) {
-    static bool warned = false;
-    if (!warned) {
-      cerr << "[MyCorrection::GetElectronScaleCorr] Warning: unsupported "
-              "seedGain "
-           << static_cast<int>(seedGain)
-           << " (expected 1, 6 or 12); returning scale 1.0 for such electrons "
-              "(warn once)."
-           << endl;
-      warned = true;
-    }
-    return 1.f;
-  }
-
+  // seedGain is a binned axis (edges 0/5/10/15) with clamp flow, not a
+  // category, so gains 1, 6 and 12 land in their own bins and anything else
+  // clamps rather than throwing. No guard needed.
+  //
   // Compound correction stacking EGMScaleVsRun, EleEtaR9, EleFineEtaR9, ElePT,
-  // EleGain and ElePTsplit. Inputs are
-  // (syst, run, ScEta, r9, AbsScEta, pt, seedGain) in that order; note both the
-  // signed and the folded eta appear, feeding different members of the stack.
+  // EleGain and ElePTsplit. Inputs are (syst, run, ScEta, r9, pt, seedGain) in
+  // that order, with signed eta throughout.
   auto cset = cset_electron_variation->compound().at(EGM_scale_compound_key);
   return safeEvaluate(cset, "GetElectronScaleCorr",
-                      {"scale", static_cast<float>(runNumber), scEta, r9,
-                       std::fabs(scEta), pt, static_cast<float>(seedGain)});
+                      {"scale", static_cast<float>(runNumber), scEta, r9, pt,
+                       static_cast<float>(seedGain)});
 }
 
 float MyCorrection::GetElectronSmearWidth(const float pt, const float r9,
@@ -467,10 +452,10 @@ float MyCorrection::GetElectronSmearWidth(const float pt, const float r9,
   const string systKey = (syst == variation::up)     ? "smear_up"
                          : (syst == variation::down) ? "smear_down"
                                                      : "smear";
-  // Inputs are (syst, pt, r9, AbsScEta) -- the eta axis is folded here.
+  // Inputs are (syst, pt, r9, ScEta) -- signed eta, not folded.
   auto cset = cset_electron_variation->at(EGM_smear_syst_key);
   const float width = safeEvaluate(cset, "GetElectronSmearWidth",
-                                   {systKey, pt, r9, std::fabs(scEta)});
+                                   {systKey, pt, r9, scEta});
   // smear_down can reach zero; a negative width would be meaningless.
   return std::max(width, 0.f);
 }

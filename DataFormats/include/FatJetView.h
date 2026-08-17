@@ -3,7 +3,9 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <iterator>
+#include <vector>
 
 #include "AnalysisException.h"
 #include "EventRange.h"
@@ -54,6 +56,51 @@ struct FatJetSoA {
     ColumnView<float> pfCandMass;
     ColumnView<int> pfCandPdgId;
     ColumnView<float> pfCandPuppiWeight;
+
+    // JEC/JER lanes, mirroring JetSoA. NanoAOD stores the momentum with the
+    // JEC that production happened to use; these carry the current one plus
+    // the smearing and its variations. Filled lazily on first access.
+    std::vector<float> correctedPt;
+    std::vector<float> correctedMass;
+    std::vector<float> smearedPtNominal;
+    std::vector<float> smearedMassNominal;
+    std::vector<float> smearedPtUp;
+    std::vector<float> smearedPtDown;
+    std::vector<float> smearedMassUp;
+    std::vector<float> smearedMassDown;
+    std::vector<float> jesPtUp;
+    std::vector<float> jesPtDown;
+    std::vector<float> jesMassUp;
+    std::vector<float> jesMassDown;
+    // SoftDrop mass follows the same set: the subjet corrections propagate
+    // into it, and the nominal one is not a no-op.
+    std::vector<float> sdMassNominal;
+    std::vector<float> sdMassJesUp;
+    std::vector<float> sdMassJesDown;
+    std::vector<float> sdMassJerUp;
+    std::vector<float> sdMassJerDown;
+    std::function<void()> populateCorrections;
+    mutable bool correctionsReady = false;
+    mutable bool correctionsComputing = false;
+
+    void ensureCorrections() const {
+        if (correctionsReady)
+            return;
+        if (correctionsComputing)
+            throw SKNano::LogicError("[FatJetSoA] recursive correction computation");
+        if (!populateCorrections)
+            return; // No provider bound; accessors fall back to the raw values.
+        correctionsComputing = true;
+        try {
+            populateCorrections();
+            correctionsComputing = false;
+        } catch (...) {
+            correctionsComputing = false;
+            throw;
+        }
+        if (!correctionsReady)
+            throw SKNano::LogicError("[FatJetSoA] correction provider did not publish a lane");
+    }
 
     std::size_t size() const { return pt.size(); }
     ColumnView<float> &score(JetTagging::FatJetTagger tagger,
@@ -184,7 +231,30 @@ public:
     short SubJetIdx1() const { return store_->subJetIdx1[index_]; }
     short SubJetIdx2() const { return store_->subJetIdx2[index_]; }
     unsigned char hadronFlavour() const { return store_->hadronFlavour[index_]; }
+    // Raw SoftDrop mass as stored in NanoAOD. Prefer SDMassNominal(), which
+    // carries the subjet corrections; the nominal one is not a no-op.
     float SDMass() const { return store_->softDropMass[index_]; }
+
+    // ---- JEC/JER lanes ------------------------------------------------------
+    // Pt()/M() above stay raw, matching JetView. Pick a lane explicitly, or let
+    // SelectFatJets hand back the projection you asked for.
+    float CorrectedPt() const { return lane(store_->correctedPt, Pt()); }
+    float CorrectedMass() const { return lane(store_->correctedMass, M()); }
+    float SmearedPtNominal() const { return lane(store_->smearedPtNominal, Pt()); }
+    float SmearedMassNominal() const { return lane(store_->smearedMassNominal, M()); }
+    float SmearedPtUp() const { return lane(store_->smearedPtUp, SmearedPtNominal()); }
+    float SmearedPtDown() const { return lane(store_->smearedPtDown, SmearedPtNominal()); }
+    float SmearedMassUp() const { return lane(store_->smearedMassUp, SmearedMassNominal()); }
+    float SmearedMassDown() const { return lane(store_->smearedMassDown, SmearedMassNominal()); }
+    float JesPtUp() const { return lane(store_->jesPtUp, SmearedPtNominal()); }
+    float JesPtDown() const { return lane(store_->jesPtDown, SmearedPtNominal()); }
+    float JesMassUp() const { return lane(store_->jesMassUp, SmearedMassNominal()); }
+    float JesMassDown() const { return lane(store_->jesMassDown, SmearedMassNominal()); }
+    float SDMassNominal() const { return lane(store_->sdMassNominal, SDMass()); }
+    float SDMassJesUp() const { return lane(store_->sdMassJesUp, SDMassNominal()); }
+    float SDMassJesDown() const { return lane(store_->sdMassJesDown, SDMassNominal()); }
+    float SDMassJerUp() const { return lane(store_->sdMassJerUp, SDMassNominal()); }
+    float SDMassJerDown() const { return lane(store_->sdMassJerDown, SDMassNominal()); }
     float Tau1() const { return store_->tau1[index_]; }
     float Tau2() const { return store_->tau2[index_]; }
     float Tau3() const { return store_->tau3[index_]; }
@@ -211,6 +281,13 @@ public:
     }
 
 private:
+    // Reads one correction lane, populating it on first access and falling
+    // back to the supplied raw value when no provider is bound.
+    float lane(const std::vector<float> &values, const float fallback) const {
+        store_->ensureCorrections();
+        return index_ < values.size() ? values[index_] : fallback;
+    }
+
     const FatJetSoA *store_ = nullptr;
     std::size_t index_ = 0;
 };

@@ -812,8 +812,280 @@ FatJetViewCollection AnalyzerCore::GetAllFatJets() {
   storage->pfCandMass.bind(&PFCand_mass);
   storage->pfCandPdgId.bind(&PFCand_pdgId);
   storage->pfCandPuppiWeight.bind(&PFCand_puppiWeight);
+  storage->populateCorrections = [this, storagePtr = storage.get()] {
+    PopulateFatJetCorrections(*storagePtr);
+  };
   return FatJetViewCollection(std::move(storage));
 
+}
+
+void AnalyzerCore::PopulateFatJetCorrections(FatJetSoA &storage) {
+  const std::size_t count = storage.size();
+  auto reset = [count](std::vector<float> &lane) { lane.assign(count, 0.f); };
+  reset(storage.correctedPt);
+  reset(storage.correctedMass);
+  reset(storage.smearedPtNominal);
+  reset(storage.smearedMassNominal);
+  reset(storage.smearedPtUp);
+  reset(storage.smearedPtDown);
+  reset(storage.smearedMassUp);
+  reset(storage.smearedMassDown);
+  reset(storage.jesPtUp);
+  reset(storage.jesPtDown);
+  reset(storage.jesMassUp);
+  reset(storage.jesMassDown);
+  reset(storage.sdMassNominal);
+  reset(storage.sdMassJesUp);
+  reset(storage.sdMassJesDown);
+  reset(storage.sdMassJerUp);
+  reset(storage.sdMassJerDown);
+
+  const float rho = static_cast<float>(Rho_fixedGridRhoFastjetAll.get());
+
+  // Seed per event, as the AK4 path does, so the smearing reproduces across
+  // runs. The offset keeps AK8 off the same draws as AK4.
+  if (!IsDATA)
+    gRandom->SetSeed(static_cast<int>(PuppiMET_pt * 1e6) + 1);
+
+  // Gen-level AK8 jets, for the scaling half of the hybrid smearing. There is
+  // no GenJetAK8 view, so the raw branches are read directly.
+  const std::size_t genCount =
+      IsDATA ? 0u : static_cast<std::size_t>(nGenJetAK8.get());
+
+  for (std::size_t index = 0; index < count; ++index) {
+    const float rawPt = storage.pt[index] * (1.f - storage.rawFactor[index]);
+    const float rawMass = storage.mass[index] * (1.f - storage.rawFactor[index]);
+    const float eta = storage.eta[index];
+    const float phi = storage.phi[index];
+    const float sdMass = storage.softDropMass[index];
+
+    if (!myCorr) {
+      storage.correctedPt[index] = storage.pt[index];
+      storage.correctedMass[index] = storage.mass[index];
+      storage.smearedPtNominal[index] = storage.pt[index];
+      storage.smearedMassNominal[index] = storage.mass[index];
+      storage.smearedPtUp[index] = storage.pt[index];
+      storage.smearedPtDown[index] = storage.pt[index];
+      storage.smearedMassUp[index] = storage.mass[index];
+      storage.smearedMassDown[index] = storage.mass[index];
+      storage.jesPtUp[index] = storage.pt[index];
+      storage.jesPtDown[index] = storage.pt[index];
+      storage.jesMassUp[index] = storage.mass[index];
+      storage.jesMassDown[index] = storage.mass[index];
+      storage.sdMassNominal[index] = sdMass;
+      storage.sdMassJesUp[index] = sdMass;
+      storage.sdMassJesDown[index] = sdMass;
+      storage.sdMassJerUp[index] = sdMass;
+      storage.sdMassJerDown[index] = sdMass;
+      continue;
+    }
+
+    // Re-derive the JEC from the raw momentum rather than trusting whatever
+    // JEC production happened to bake in.
+    const float jec = myCorr->GetFJESSF(storage.area[index], eta, rawPt, phi,
+                                        rho, RunNumber);
+    const float correctedPt = rawPt * jec;
+    const float correctedMass = rawMass * jec;
+    storage.correctedPt[index] = correctedPt;
+    storage.correctedMass[index] = correctedMass;
+
+    if (IsDATA) {
+      // Data gets neither smearing nor a JES variation: the uncertainty is a
+      // simulation nuisance. Every lane mirrors the corrected momentum so
+      // callers can use one accessor regardless of sample type.
+      storage.smearedPtNominal[index] = correctedPt;
+      storage.smearedMassNominal[index] = correctedMass;
+      storage.smearedPtUp[index] = correctedPt;
+      storage.smearedPtDown[index] = correctedPt;
+      storage.smearedMassUp[index] = correctedMass;
+      storage.smearedMassDown[index] = correctedMass;
+      storage.jesPtUp[index] = correctedPt;
+      storage.jesPtDown[index] = correctedPt;
+      storage.jesMassUp[index] = correctedMass;
+      storage.jesMassDown[index] = correctedMass;
+      storage.sdMassNominal[index] = sdMass;
+      storage.sdMassJesUp[index] = sdMass;
+      storage.sdMassJesDown[index] = sdMass;
+      storage.sdMassJerUp[index] = sdMass;
+      storage.sdMassJerDown[index] = sdMass;
+      continue;
+    }
+
+    // JES uncertainty is evaluated on the corrected momentum.
+    const float jesUp =
+        myCorr->GetFJESUncertaintySF(eta, correctedPt, MyCorrection::variation::up);
+    const float jesDown =
+        myCorr->GetFJESUncertaintySF(eta, correctedPt, MyCorrection::variation::down);
+
+    // Hybrid smearing: scale toward the matched gen jet when there is one,
+    // otherwise draw a stochastic term from the resolution.
+    const float resolution = myCorr->GetFJER(eta, correctedPt, rho);
+    float matchedGenPt = -1.f;
+    float bestDR = 0.4f; // AK8 matching cone is R/2 = 0.4
+    for (std::size_t g = 0; g < genCount; ++g) {
+      const float dEta = eta - GenJetAK8_eta[g];
+      float dPhi = phi - GenJetAK8_phi[g];
+      while (dPhi > static_cast<float>(M_PI))
+        dPhi -= 2.f * static_cast<float>(M_PI);
+      while (dPhi < -static_cast<float>(M_PI))
+        dPhi += 2.f * static_cast<float>(M_PI);
+      const float dR = std::sqrt(dEta * dEta + dPhi * dPhi);
+      if (dR >= bestDR)
+        continue;
+      // The gen jet also has to be compatible in momentum, else this is a
+      // coincidental overlap rather than the same jet.
+      if (std::fabs(correctedPt - GenJetAK8_pt[g]) >=
+          3.f * resolution * correctedPt)
+        continue;
+      bestDR = dR;
+      matchedGenPt = GenJetAK8_pt[g];
+    }
+
+    // One unit draw per jet, reused by the nominal and both variations.
+    // Drawing separately per variation would decorrelate them from the
+    // nominal and turn a coherent shift into extra smearing.
+    const float unitDraw = gRandom->Gaus(0.f, 1.f);
+    auto smearFactor = [&](const MyCorrection::variation syst) {
+      const float sf = myCorr->GetFJERSF(eta, correctedPt, syst);
+      if (matchedGenPt > 0.f) {
+        const float ratio = (correctedPt - matchedGenPt) / correctedPt;
+        return std::max(0.f, 1.f + (sf - 1.f) * ratio);
+      }
+      if (sf <= 1.f)
+        return 1.f;
+      const float width = resolution * std::sqrt(sf * sf - 1.f);
+      return std::max(0.f, 1.f + width * unitDraw);
+    };
+
+    const float nomFactor = smearFactor(MyCorrection::variation::nom);
+    const float upFactor = smearFactor(MyCorrection::variation::up);
+    const float downFactor = smearFactor(MyCorrection::variation::down);
+
+    storage.smearedPtNominal[index] = correctedPt * nomFactor;
+    storage.smearedMassNominal[index] = correctedMass * nomFactor;
+    storage.smearedPtUp[index] = correctedPt * upFactor;
+    storage.smearedPtDown[index] = correctedPt * downFactor;
+    storage.smearedMassUp[index] = correctedMass * upFactor;
+    storage.smearedMassDown[index] = correctedMass * downFactor;
+    // JES variations sit on top of the nominal smearing, matching AK4.
+    storage.jesPtUp[index] = storage.smearedPtNominal[index] * jesUp;
+    storage.jesPtDown[index] = storage.smearedPtNominal[index] * jesDown;
+    storage.jesMassUp[index] = storage.smearedMassNominal[index] * jesUp;
+    storage.jesMassDown[index] = storage.smearedMassNominal[index] * jesDown;
+
+    // ---- SoftDrop mass --------------------------------------------------
+    // m_SD is the invariant mass of the two soft-drop subjets, so its JERC
+    // response is the subjets' (AK4), not the fat jet's. Applying the AK8
+    // factors above would be correcting FatJet_pt and FatJet_mass, which are
+    // different observables and never feed FatJet_msoftdrop. Everything is
+    // taken as a ratio to the uncorrected subjet pair mass, which NanoAOD
+    // already agrees with to well under a percent.
+    const short sub1 = storage.subJetIdx1[index];
+    const short sub2 = storage.subJetIdx2[index];
+    const std::size_t nSub = static_cast<std::size_t>(nSubJet.get());
+    if (sub1 < 0 || sub2 < 0 || static_cast<std::size_t>(sub1) >= nSub ||
+        static_cast<std::size_t>(sub2) >= nSub) {
+      // No subjet pair recorded: leave m_SD alone rather than guess.
+      storage.sdMassNominal[index] = sdMass;
+      storage.sdMassJesUp[index] = sdMass;
+      storage.sdMassJesDown[index] = sdMass;
+      storage.sdMassJerUp[index] = sdMass;
+      storage.sdMassJerDown[index] = sdMass;
+      continue;
+    }
+
+    const std::size_t subIdx[2] = {static_cast<std::size_t>(sub1),
+                                   static_cast<std::size_t>(sub2)};
+    TLorentzVector reference;
+    // One draw per subjet, reused by every pass so the variations stay a
+    // coherent shift of the same pull.
+    float subDraw[2] = {0.f, 0.f};
+    float subRes[2] = {0.f, 0.f};
+    float subGenPt[2] = {-1.f, -1.f};
+    const std::size_t nSubGen =
+        static_cast<std::size_t>(nSubGenJetAK8.get());
+
+    for (int s = 0; s < 2; ++s) {
+      const std::size_t j = subIdx[s];
+      TLorentzVector v;
+      v.SetPtEtaPhiM(SubJet_pt[j], SubJet_eta[j], SubJet_phi[j],
+                     SubJet_mass[j]);
+      reference += v;
+      subDraw[s] = gRandom->Gaus(0.f, 1.f);
+      // Subjets are AK4-scale objects, so the AK4 resolution applies.
+      subRes[s] = myCorr->GetJER(SubJet_eta[j], SubJet_pt[j], rho);
+      float best = 0.2f; // AK4 matching cone, R/2
+      for (std::size_t g = 0; g < nSubGen; ++g) {
+        const float dEta = SubJet_eta[j] - SubGenJetAK8_eta[g];
+        float dPhi = SubJet_phi[j] - SubGenJetAK8_phi[g];
+        while (dPhi > static_cast<float>(M_PI))
+          dPhi -= 2.f * static_cast<float>(M_PI);
+        while (dPhi < -static_cast<float>(M_PI))
+          dPhi += 2.f * static_cast<float>(M_PI);
+        const float dR = std::sqrt(dEta * dEta + dPhi * dPhi);
+        if (dR >= best)
+          continue;
+        if (std::fabs(SubJet_pt[j] - SubGenJetAK8_pt[g]) >=
+            3.f * subRes[s] * SubJet_pt[j])
+          continue;
+        best = dR;
+        subGenPt[s] = SubGenJetAK8_pt[g];
+      }
+    }
+
+    const float referenceMass = reference.M();
+    if (!(referenceMass > 0.f)) {
+      storage.sdMassNominal[index] = sdMass;
+      storage.sdMassJesUp[index] = sdMass;
+      storage.sdMassJesDown[index] = sdMass;
+      storage.sdMassJerUp[index] = sdMass;
+      storage.sdMassJerDown[index] = sdMass;
+      continue;
+    }
+
+    // m_SD scaled by how the corrected subjet pair mass moves. The nominal
+    // pass carries the JER nominal smearing: NanoAOD's msoftdrop has the
+    // subjet JEC but no smearing, and without it a JER variation could only
+    // ever add width, pushing Up and Down the same way.
+    auto sdRatio = [&](const MyCorrection::variation jesVar,
+                       const MyCorrection::variation jerVar) {
+      TLorentzVector varied;
+      for (int s = 0; s < 2; ++s) {
+        const std::size_t j = subIdx[s];
+        const float subPt = SubJet_pt[j];
+        const float sf = myCorr->GetJERSF(SubJet_eta[j], subPt, jerVar);
+        float factor = 1.f;
+        if (subGenPt[s] > 0.f) {
+          factor = std::max(0.f, 1.f + (sf - 1.f) *
+                                           (subPt - subGenPt[s]) / subPt);
+        } else if (sf > 1.f) {
+          factor = std::max(0.f, 1.f + subRes[s] *
+                                           std::sqrt(sf * sf - 1.f) *
+                                           subDraw[s]);
+        }
+        // Subjets are AK4-sized, so the AK4 JES uncertainty applies.
+        factor *= myCorr->GetJESUncertaintySF(SubJet_eta[j], subPt, jesVar,
+                                              "Total");
+        TLorentzVector v;
+        v.SetPtEtaPhiM(subPt * factor, SubJet_eta[j], SubJet_phi[j],
+                       SubJet_mass[j] * factor);
+        varied += v;
+      }
+      return varied.M() / referenceMass;
+    };
+
+    const MyCorrection::variation nomVar = MyCorrection::variation::nom;
+    storage.sdMassNominal[index] = sdMass * sdRatio(nomVar, nomVar);
+    storage.sdMassJesUp[index] =
+        sdMass * sdRatio(MyCorrection::variation::up, nomVar);
+    storage.sdMassJesDown[index] =
+        sdMass * sdRatio(MyCorrection::variation::down, nomVar);
+    storage.sdMassJerUp[index] =
+        sdMass * sdRatio(nomVar, MyCorrection::variation::up);
+    storage.sdMassJerDown[index] =
+        sdMass * sdRatio(nomVar, MyCorrection::variation::down);
+  }
+  storage.correctionsReady = true;
 }
 
 TrigObjViewCollection AnalyzerCore::GetAllTrigObjViews() {

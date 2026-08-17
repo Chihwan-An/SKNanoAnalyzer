@@ -159,6 +159,118 @@
         "sumsign": 998508.0,
         "sumW": 0.03513889267375703
     },
+    "DYto2L_MLL50to120_HT40to70": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-40to70-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 480.2220383,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL50to120_HT70to100": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-70to100-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 212.4379778,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL50to120_HT100to400": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-100to400-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 234.878937,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL50to120_HT400to800": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-400to800-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 8.7202477896,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL50to120_HT800to1500": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-800to1500-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.898325608,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL50to120_HT1500to2500": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-1500to2500-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.065423511,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL50to120_HT2500toInf": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-2500-MLL-50to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.004370223,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL120toInf_HT40to70": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-40to70-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 7.558098461,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL120toInf_HT70to100": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-70to100-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 3.343509929,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL120toInf_HT100to400": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-100to400-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 4.383709336,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL120toInf_HT400to800": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-400to800-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.227254158,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL120toInf_HT800to1500": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-800to1500-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.027079397,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL120toInf_HT1500to2500": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-1500to2500-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.002199796,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "DYto2L_MLL120toInf_HT2500toInf": {
+        "isMC": 1,
+        "PD": "DYto2L-4Jets_Bin-HT-2500-MLL-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.000157505,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
     "WtoLNu_1J": {
         "isMC": 1,
         "PD": "WtoLNu-4Jets_Bin-1J_TuneCP5_13p6TeV_madgraphMLM-pythia8",
@@ -374,6 +486,102 @@
         "nmc": 9659513.0,
         "sumsign": 9659513.0,
         "sumW": 44.95887022568013
+    },
+    "WtoLNu_MLNu0to120_HT40to100": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-40to100-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 5533.390059,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu0to120_HT100to400": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-100to400-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 2112.005673,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu0to120_HT400to800": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-400to800-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 75.34058516,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu0to120_HT800to1500": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-800to1500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 7.864421146,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu0to120_HT1500to2500": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-1500to2500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.565152704,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu0to120_HT2500toInf": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-2500-MLNu-0to120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.003960583,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu120toInf_HT40to100": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-40to100-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 26.74341787,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu120toInf_HT100to400": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-100to400-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 13.23575511,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu120toInf_HT400to800": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-400to800-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.657958536,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu120toInf_HT800to1500": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-800to1500-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.078959798,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu120toInf_HT1500to2500": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-1500to2500-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 0.006395049,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
+    },
+    "WtoLNu_MLNu120toInf_HT2500toInf": {
+        "isMC": 1,
+        "PD": "WtoLNu-4Jets_Bin-HT-2500-MLNu-120_TuneCP5_13p6TeV_madgraphMLM-pythia8",
+        "xsec": 4.878923e-05,
+        "nmc": -1,
+        "sumsign": -1,
+        "sumW": -1
     },
     "TTLJ_powheg": {
         "isMC": 1,

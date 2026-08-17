@@ -182,8 +182,142 @@ float MyCorrection::GetMuonRECOSF(const MuonView &muon,
     return 1.f;
   auto cset = cset_muon->at("NUM_TrackerMuons_DEN_genTracks");
   return safeEvaluate(cset, "GetMuonRECOSF",
-                      {muon.Eta(), std::max(40.f, muon.MiniAODPt()),
+                      {muon.Eta(), std::max(40.f, muon.Pt()),
                        getSystString_MUO(syst)});
+}
+
+float MyCorrection::GetMuonHighPtSF(const TString &key, const float eta,
+                                    const float pt,
+                                    const variation syst) const {
+  if (!cset_muon_highpt)
+    return 1.f;
+  // The maps stop at |eta| = 2.4 and start at 50 GeV; correctionlib throws
+  // outside them. The JSON applies abs() to eta itself.
+  const float clampedEta =
+      std::min(std::fabs(eta), HIGHPT_SF_MAX_ABSETA - 1e-3f);
+  const float clampedPt = std::max(pt, HIGHPT_SF_MIN_MOMENTUM);
+  auto cset = cset_muon_highpt->at(string(key.Data()));
+  return safeEvaluate(cset, "GetMuonHighPtSF",
+                      {clampedEta, clampedPt, getSystString_MUO(syst)});
+}
+
+float MyCorrection::GetMuonHighPtRECOSF(const float eta, const float p,
+                                        const variation syst) const {
+  if (!cset_muon_highpt)
+    return 1.f;
+  // Binned in the full momentum p, not pt -- see the POG high-pT twiki.
+  const float clampedEta =
+      std::min(std::fabs(eta), HIGHPT_SF_MAX_ABSETA - 1e-3f);
+  const float clampedP = std::max(p, HIGHPT_SF_MIN_MOMENTUM);
+  auto cset = cset_muon_highpt->at("NUM_GlobalMuons_DEN_TrackerMuonProbes");
+  return safeEvaluate(cset, "GetMuonHighPtRECOSF",
+                      {clampedEta, clampedP, getSystString_MUO(syst)});
+}
+
+float MyCorrection::GetMuonGEScaledPt(const float pt, const float eta,
+                                      const float phi, const int charge,
+                                      const variation syst) const {
+  const auto it = kGeKappa.find(GetEra().Data());
+  if (it == kGeKappa.end())
+    return pt; // No map for this era (Run 2, 2024+); leave the momentum alone.
+
+  const GECell *cell = it->second.find(eta, phi);
+  if (!cell)
+    return pt;
+
+  float kappa = cell->kappa;
+  if (syst == variation::up)
+    kappa += cell->sigma;
+  else if (syst == variation::down)
+    kappa -= cell->sigma;
+
+  // k_meas = k_true + kappa  =>  pT_corr = pT / (1 - q * kappa * pT[TeV])
+  const float ptTeV = pt / 1000.f;
+  const float denom = 1.f - static_cast<float>(charge) * kappa * ptTeV;
+
+  // Guard the pole: kappa*pT approaching 1 blows the correction up, which a
+  // multi-TeV muon can reach. Emitting the uncorrected momentum beats emitting
+  // a runaway one.
+  if (std::fabs(denom) < 0.1f) {
+    std::cerr << "[MyCorrection::GetMuonGEScaledPt] Near-singular GE correction"
+              << " (denom = " << denom << ", kappa = " << kappa
+              << " TeV^-1, pT = " << pt << " GeV, q = " << charge
+              << "); keeping the uncorrected pT." << std::endl;
+    return pt;
+  }
+  return pt / denom;
+}
+
+float MyCorrection::GetMuonGESigmaShiftedPt(const float pt, const float eta,
+                                            const float phi, const int charge,
+                                            const variation syst) const {
+  if (syst == variation::nom)
+    return pt;
+
+  const auto it = kGeKappa.find(GetEra().Data());
+  if (it == kGeKappa.end())
+    return pt;
+  const GECell *cell = it->second.find(eta, phi);
+  if (!cell)
+    return pt;
+
+  // Centred on zero: the shift is the uncertainty on kappa, not kappa itself.
+  const float sigma = cell->sigma;
+  const float kappa = (syst == variation::up) ? sigma : -sigma;
+
+  const float ptTeV = pt / 1000.f;
+  const float denom = 1.f - static_cast<float>(charge) * kappa * ptTeV;
+  if (std::fabs(denom) < 0.1f) {
+    std::cerr << "[MyCorrection::GetMuonGESigmaShiftedPt] Near-singular shift"
+              << " (denom = " << denom << ", sigma = " << sigma
+              << " TeV^-1, pT = " << pt << " GeV, q = " << charge
+              << "); keeping the unshifted pT." << std::endl;
+    return pt;
+  }
+  return pt / denom;
+}
+
+float MyCorrection::GetMuonHighPtResolution(const float p,
+                                            const float eta) const {
+  const auto it = kMuonResPoly.find(GetEra().Data());
+  if (it == kMuonResPoly.end())
+    return 0.f;
+  const MuonResPoly &c = it->second[MuonResEtaBin(eta)];
+  return c.a0 + c.a1 * p + c.a2 * p * p + c.a3 * p * p * p;
+}
+
+float MyCorrection::GetMuonHighPtSmearFactor(const float p, const float eta,
+                                             const unsigned int seed,
+                                             const variation syst) const {
+  if (IsDATA)
+    return 1.f;
+  const auto itF = kMuonSmearF.find(GetEra().Data());
+  if (itF == kMuonSmearF.end())
+    return 1.f; // No map for this era (Run 2, 2024+); no extra smearing.
+
+  const float fNom = itF->second[MuonResEtaBin(eta)];
+  float f = fNom;
+  if (syst == variation::up) {
+    // Independent Gaussians, so the widths add in quadrature.
+    f = std::sqrt(fNom * fNom + kMuonSmearSystF * kMuonSmearSystF);
+  } else if (syst == variation::down) {
+    // Convolution can only widen a resolution, so this floors at zero, which
+    // makes the nuisance one-sided wherever the nominal smearing is already 0.
+    f = std::sqrt(
+        std::max(fNom * fNom - kMuonSmearSystF * kMuonSmearSystF, 0.f));
+  }
+  if (f <= 0.f)
+    return 1.f;
+
+  const float sigma = GetMuonHighPtResolution(p, eta);
+  if (sigma <= 0.f)
+    return 1.f;
+
+  // Nominal and variations share the seed so they share the Gaussian pull:
+  // the variation is then a coherent shift rather than an independent
+  // re-smearing, which would pile resolution on top of the nominal.
+  TRandom3 rng(seed);
+  return 1.f + rng.Gaus(0.f, sigma * f);
 }
 
 float MyCorrection::GetMuonRECOSF(const MuonViewCollection &muons,
@@ -201,7 +335,7 @@ float MyCorrection::GetMuonIDSF(const TString &key, const MuonView &muon,
       std::string_view(key.Data(), static_cast<std::size_t>(key.Length())));
   return safeEvaluate(
       cset, "GetMuonIDSF",
-      {fabs(muon.Eta()), muon.MiniAODPt(), getSystString_MUO(syst)});
+      {fabs(muon.Eta()), muon.Pt(), getSystString_MUO(syst)});
 }
 
 float MyCorrection::GetMuonIDSF(

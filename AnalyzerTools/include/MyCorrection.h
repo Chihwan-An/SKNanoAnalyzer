@@ -66,6 +66,19 @@ public:
         float error = 0.f;
     };
 
+    // Every momentum lane of one medium-pT muon, in GeV, as produced by the
+    // MUO POG scale and resolution correction (muon_scalesmearing.json.gz).
+    // Data carries only the nominal; its scale and resolution lanes equal the
+    // nominal because the POG publishes no data-side uncertainty and the
+    // nuisance rides on the simulation templates.
+    struct MuonMomentumLanes {
+        float nominal = 0.f;
+        float scaleUp = 0.f;
+        float scaleDown = 0.f;
+        float resUp = 0.f;
+        float resDown = 0.f;
+    };
+
     struct JERSFSet {
         float nom = 1.f;
         float up = 1.f;
@@ -90,6 +103,31 @@ public:
     bool IsGoldenLumi(const unsigned int runNumber, const unsigned int lumiSection) const;
 
     // Muon
+    // ---- Medium-pT momentum correction ----------------------------------
+    // Two implementations live side by side and the era yml picks one:
+    //
+    //  * muon_scalesmearing (MUO POG "MuonScaRe", Run 3): scale on data and
+    //    simulation, extra resolution smearing on simulation, uncertainties
+    //    from the file.  GetMuonScaleSmearing() is the entry point.
+    //  * roccor (Rochester, Run 2 and eras without a POG file):
+    //    GetMuonScaleAndError() returns a multiplicative factor and its error.
+    //
+    // HasMuonScaleSmearing() tells the caller which one is configured.
+    bool HasMuonScaleSmearing() const { return muSS_loaded; }
+    // POG recipe, valid for 26 < pt < 200 GeV; outside that window every lane
+    // equals pt.  trackerLayers is ignored for data.  The resolution smearing
+    // draws its random number from the file's own deterministic generator
+    // (event number, lumi section, phi), so it reproduces across passes and
+    // does not depend on the framework RNG mode.
+    // withVariations=false stops after the nominal: the scale and resolution
+    // uncertainties cost four more correctionlib evaluations per muon, and the
+    // nominal path has no use for them. The nominal is deterministic, so a
+    // later full call reproduces it exactly.
+    MuonMomentumLanes GetMuonScaleSmearing(int charge, float pt, float eta,
+                                           float phi, int trackerLayers,
+                                           unsigned long long eventNumber,
+                                           unsigned int lumiBlock,
+                                           bool withVariations = true) const;
     MuonScaleAndError GetMuonScaleAndError(int charge, float pt, float eta,
                                            float phi, int trackerLayers,
                                            float matchedPt = 0.f) const;
@@ -495,6 +533,15 @@ private:
 
     unique_ptr<CorrectionSet> cset_muon;
     unique_ptr<CorrectionSet> cset_muon_highpt;
+    // MUO POG scale/resolution (MuonScaRe).  The individual corrections are
+    // bound once at construction: GetMuonScaleSmearing evaluates up to nine
+    // of them per muon and a CorrectionSet::at() is a string-keyed lookup.
+    unique_ptr<CorrectionSet> cset_muon_scalesmearing;
+    bool muSS_loaded = false;
+    correction::Correction::Ref muSS_a_data, muSS_m_data, muSS_a_mc, muSS_m_mc;
+    correction::Correction::Ref muSS_k_data, muSS_k_mc;
+    correction::Correction::Ref muSS_cb_params, muSS_poly_params;
+    correction::Correction::Ref muSS_random;
     unique_ptr<CorrectionSet> cset_tau;
     unique_ptr<CorrectionSet> cset_muon_trig_eff;
     unique_ptr<CorrectionSet> cset_muon_trig_sf;

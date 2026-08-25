@@ -342,7 +342,15 @@ public:
     // Event-scoped, read-only input access. Selections retain raw indices.
     Event GetEvent();
     MuonViewCollection GetAllMuonViews();
+    // Lazy correction stages. Each SoA binds these and materialises one on
+    // the first access to a lane it owns, so the nominal path never pays for
+    // a variation it does not read.
     void PopulateMuonMomentum(MuonSoA &storage);
+    void PopulateMuonMomentumVariations(MuonSoA &storage);
+    void PopulateMuonHighPt(MuonSoA &storage);
+    void PopulateMuonHighPtVariations(MuonSoA &storage);
+    float MuonRochesterMatchedGenPt(const MuonSoA &storage, std::size_t index,
+                                    GenViewCollection &truth, bool &truthLoaded);
     void PopulateElectronMomentum(ElectronSoA &storage);
     void PopulateElectronMomentumVariations(ElectronSoA &storage);
     void PopulateFatJetNominal(FatJetSoA &storage);

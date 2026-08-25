@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <functional>
+#include <string>
 #include <vector>
 
 #include "EventRange.h"
@@ -62,6 +63,11 @@ struct MuonSoA {
     std::vector<float> miniAODPt;
     std::vector<float> momentumScaleUp;
     std::vector<float> momentumScaleDown;
+    // Resolution variation of the medium-pT correction. Only the MUO POG
+    // scale/smearing recipe fills these with something other than
+    // correctedPt; Rochester has no resolution nuisance of its own.
+    std::vector<float> momentumResUp;
+    std::vector<float> momentumResDown;
     // High-pT lanes. Filled alongside the ones above so a muon carries both
     // treatments and the analyzer picks which one it selected on.
     std::vector<float> tunePPt;
@@ -71,29 +77,68 @@ struct MuonSoA {
     std::vector<float> highPtScaleDown;
     std::vector<float> highPtResUp;
     std::vector<float> highPtResDown;
-    std::function<void()> populateMomentum;
+    // Providers, bound by AnalyzerCore. Each stage is materialised on first
+    // access to one of its lanes and never before: the nominal path pays for
+    // the nominal only.
+    std::function<void()> populateMomentum;            // correctedPt, miniAODPt
+    std::function<void()> populateMomentumVariations;  // momentumScale*/Res*
+    std::function<void()> populateHighPt;              // tunePPt, highPtRegime, highPtPt
+    std::function<void()> populateHighPtVariations;    // highPtScale*/Res*
     mutable bool momentumReady = false;
     mutable bool momentumComputing = false;
+    mutable bool momentumVariationsReady = false;
+    mutable bool momentumVariationsComputing = false;
+    mutable bool highPtReady = false;
+    mutable bool highPtComputing = false;
+    mutable bool highPtVariationsReady = false;
+    mutable bool highPtVariationsComputing = false;
 
     std::size_t size() const { return pt.size(); }
     std::size_t rawSize() const { return size(); }
+
     void ensureMomentum() const {
-        if (momentumReady)
-            return;
-        if (momentumComputing)
-            throw SKNano::LogicError("[MuonSoA] recursive momentum computation");
+        // Validate the event epoch before a provider reads several branches.
+        static_cast<void>(pt.size());
         if (!populateMomentum)
             throw SKNano::LogicError("[MuonSoA] momentum provider is not bound");
-        momentumComputing = true;
+        materialise(populateMomentum, momentumReady, momentumComputing,
+                    "momentum");
+    }
+    void ensureMomentumVariations() const {
+        ensureMomentum();
+        materialise(populateMomentumVariations, momentumVariationsReady,
+                    momentumVariationsComputing, "momentum variation");
+    }
+    void ensureHighPt() const {
+        ensureMomentum();
+        materialise(populateHighPt, highPtReady, highPtComputing, "high-pT");
+    }
+    void ensureHighPtVariations() const {
+        ensureHighPt();
+        ensureMomentumVariations();
+        materialise(populateHighPtVariations, highPtVariationsReady,
+                    highPtVariationsComputing, "high-pT variation");
+    }
+
+private:
+    // An unbound optional provider leaves its lanes empty, and the accessors
+    // fall back to the stage below.
+    static void materialise(const std::function<void()> &provider, bool &ready,
+                            bool &computing, const char *what) {
+        if (ready || !provider)
+            return;
+        if (computing)
+            throw SKNano::LogicError(std::string("[MuonSoA] recursive ") + what +
+                                     " computation");
+        computing = true;
         try {
-            populateMomentum();
-            momentumComputing = false;
+            provider();
+            ready = true;
+            computing = false;
         } catch (...) {
-            momentumComputing = false;
+            computing = false;
             throw;
         }
-        if (!momentumReady)
-            throw SKNano::LogicError("[MuonSoA] momentum provider did not publish a lane");
     }
 };
 
@@ -115,8 +160,24 @@ public:
     int Charge() const { return store->charge[idx]; }
 
     float MiniAODPt() const { assertCurrentEvent(); return store->miniAODPt[idx]; }
-    float MomentumScaleUp() const { assertCurrentEvent(); return store->momentumScaleUp[idx]; }
-    float MomentumScaleDown() const { assertCurrentEvent(); return store->momentumScaleDown[idx]; }
+    float MomentumScaleUp() const {
+        store->ensureMomentumVariations();
+        return idx < store->momentumScaleUp.size() ? store->momentumScaleUp[idx] : Pt();
+    }
+    float MomentumScaleDown() const {
+        store->ensureMomentumVariations();
+        return idx < store->momentumScaleDown.size() ? store->momentumScaleDown[idx] : Pt();
+    }
+    // Resolution nuisance of the medium-pT correction (simulation only; equals
+    // Pt() on data and for eras corrected with Rochester).
+    float MomentumResUp() const {
+        store->ensureMomentumVariations();
+        return idx < store->momentumResUp.size() ? store->momentumResUp[idx] : Pt();
+    }
+    float MomentumResDown() const {
+        store->ensureMomentumVariations();
+        return idx < store->momentumResDown.size() ? store->momentumResDown[idx] : Pt();
+    }
 
     // ---- High-pT treatment (MUO POG "High pT" prescription) -----------------
     // Opt-in: the default Pt() above is unchanged. Use SelectHighPtMuonIndices
@@ -124,37 +185,37 @@ public:
 
     // TuneP momentum before any correction. This is what decides the regime.
     float TunePPt() const {
-        assertCurrentEvent();
+        store->ensureHighPt();
         return idx < store->tunePPt.size() ? store->tunePPt[idx] : Pt();
     }
     // Latched at populate time from the pre-correction TuneP pt. Deciding this
     // later, from corrected values, would misclassify any muon that the scale
     // correction or the smearing pushed across the boundary.
     bool IsHighPtRegime() const {
-        assertCurrentEvent();
+        store->ensureHighPt();
         return idx < store->highPtRegime.size() && store->highPtRegime[idx] != 0;
     }
     // Below the boundary this is the medium-pT (Rochester) momentum; above it,
     // TuneP with the Generalized Endpoint scale on data and the extra
     // resolution smearing in simulation.
     float HighPtPt() const {
-        assertCurrentEvent();
+        store->ensureHighPt();
         return idx < store->highPtPt.size() ? store->highPtPt[idx] : Pt();
     }
     float HighPtScaleUp() const {
-        assertCurrentEvent();
+        store->ensureHighPtVariations();
         return idx < store->highPtScaleUp.size() ? store->highPtScaleUp[idx] : HighPtPt();
     }
     float HighPtScaleDown() const {
-        assertCurrentEvent();
+        store->ensureHighPtVariations();
         return idx < store->highPtScaleDown.size() ? store->highPtScaleDown[idx] : HighPtPt();
     }
     float HighPtResUp() const {
-        assertCurrentEvent();
+        store->ensureHighPtVariations();
         return idx < store->highPtResUp.size() ? store->highPtResUp[idx] : HighPtPt();
     }
     float HighPtResDown() const {
-        assertCurrentEvent();
+        store->ensureHighPtVariations();
         return idx < store->highPtResDown.size() ? store->highPtResDown[idx] : HighPtPt();
     }
     // Full momentum from the high-pT lane. The reco scale factor is binned in
